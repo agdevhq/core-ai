@@ -1,0 +1,31 @@
+{
+    "name": "@core-ai/repo",
+    "private": true,
+    "license": "MIT",
+    "scripts": {
+        "build": "turbo build",
+        "package": "turbo package",
+        "publish": "turbo publish",
+        "deploy": "turbo deploy",
+        "dev": "turbo dev --continue=always",
+        "lint": "turbo lint",
+        "check-types": "turbo check-types",
+        "format": "prettier --write \"**/*.{ts,tsx,md,json,js,mjs}\""
+    },
+    "devDependencies": {
+        "prettier": "^3.4.2",
+        "turbo": "^2.4.0",
+        "typescript": "5.7.3"
+    },
+    "engines": {
+        "node": ">=18"
+    },
+    "packageManager": "npm@10.8.2",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "dependencies": {
+        "dotenv": "^17.2.2"
+    }
+}

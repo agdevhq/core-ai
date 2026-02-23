@@ -1,0 +1,16 @@
+{
+    "name": "@core-ai/esbuild-config",
+    "version": "0.0.0",
+    "type": "module",
+    "private": true,
+    "exports": {
+        ".": "./config.mjs"
+    },
+    "devDependencies": {
+        "esbuild": "0.25.0",
+        "esbuild-plugin-pino": "2.2.2"
+    },
+    "dependencies": {
+        "@core-ai/esbuild-plugin-node-cron": "^0.0.1"
+    }
+}

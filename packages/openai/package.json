@@ -1,0 +1,28 @@
+{
+    "name": "@core-ai/openai",
+    "version": "0.0.1",
+    "description": "OpenAI provider package for @core-ai/core-ai",
+    "private": true,
+    "type": "module",
+    "exports": {
+        ".": "./src/index.ts"
+    },
+    "scripts": {
+        "lint": "eslint src/ --max-warnings 0",
+        "check-types": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "dependencies": {
+        "@core-ai/ai": "*",
+        "openai": "^6.1.0",
+        "zod-to-json-schema": "^3.24.5"
+    },
+    "devDependencies": {
+        "@core-ai/eslint-config": "*",
+        "@core-ai/typescript-config": "*",
+        "typescript": "^5.7.3",
+        "vitest": "^2.1.9",
+        "zod": "^3.25.76"
+    }
+}
