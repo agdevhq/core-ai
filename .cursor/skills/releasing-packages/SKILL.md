@@ -7,7 +7,7 @@ description: Explains how to version and publish packages to npm using Changeset
 
 ## Overview
 
-Versioning and publishing uses **Changesets**. All four publishable packages are in a **fixed version group** — they always share the same version number.
+Versioning and publishing uses **Changesets**. All publishable packages are in a **fixed version group** — they always share the same version number.
 
 ## Publishable Packages (fixed group)
 
@@ -15,6 +15,7 @@ Versioning and publishing uses **Changesets**. All four publishable packages are
 - `@core-ai/openai`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
+- `@core-ai/mistral`
 
 Configured in `.changeset/config.json` under `"fixed"`.
 
@@ -42,7 +43,7 @@ This prompts for:
 
 It creates a `.changeset/<random-name>.md` file. Commit this file with the code changes.
 
-Because of the fixed version group, selecting any one package bumps all four to the same version.
+Because of the fixed version group, selecting any one package bumps all five to the same version.
 
 ## Maintainer Release Workflow
 
@@ -61,7 +62,7 @@ npm run release:version
 ```
 
 Changesets reads pending `.changeset/*.md` files and:
-- Bumps `version` in all four package.json files
+- Bumps `version` in all five package.json files
 - Updates internal dependency ranges (e.g., providers' `@core-ai/core-ai` range)
 - Generates/updates `CHANGELOG.md` per package
 - Deletes consumed `.changeset/*.md` files
@@ -82,7 +83,7 @@ Requires npm authentication (`npm login`). If 2FA is enabled, npm prompts for an
 
 ### `.changeset/config.json`
 
-- `"fixed"` — groups all four packages to the same version
+- `"fixed"` — groups all five packages to the same version
 - `"access": "public"` — scoped packages publish as public
 - `"updateInternalDependencies": "patch"` — auto-bumps internal dep ranges on any release
 
@@ -108,6 +109,7 @@ npm publish -w @core-ai/core-ai --access public
 npm publish -w @core-ai/openai --access public
 npm publish -w @core-ai/anthropic --access public
 npm publish -w @core-ai/google-genai --access public
+npm publish -w @core-ai/mistral --access public
 ```
 
 Publish `core-ai` first since providers depend on it.

@@ -19,10 +19,12 @@ Create a `.env` file at the repository root:
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_API_KEY=your_google_api_key
+MISTRAL_API_KEY=your_mistral_api_key
 ```
 
 `ANTHROPIC_API_KEY` is only required for the Anthropic example.
 `GOOGLE_API_KEY` is only required for the Google GenAI example.
+`MISTRAL_API_KEY` is only required for the Mistral example.
 
 ## Run an Example
 
@@ -43,3 +45,4 @@ npx tsx examples/01-chat-completion.ts
 - `07-error-handling.ts`: Handling `LLMError` and `ProviderError`
 - `08-anthropic-provider.ts`: Using Anthropic with the same `generate()` API
 - `09-google-genai-provider.ts`: Using Google GenAI (Gemini) with the same `generate()` API
+- `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
