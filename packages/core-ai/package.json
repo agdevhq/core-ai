@@ -7,7 +7,8 @@
     "exports": {
         ".": "./src/index.ts",
         "./openai": "./src/providers/openai.ts",
-        "./anthropic": "./src/providers/anthropic.ts"
+        "./anthropic": "./src/providers/anthropic.ts",
+        "./google-genai": "./src/providers/google-genai.ts"
     },
     "scripts": {
         "lint": "eslint src/ --max-warnings 0",
@@ -16,14 +17,16 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai-anthropic": "*",
-        "@core-ai/core-ai-openai": "*",
+        "@core-ai/anthropic": "*",
+        "@core-ai/google-genai": "*",
+        "@core-ai/openai": "*",
         "zod": "^3.25.76",
         "zod-to-json-schema": "^3.24.5"
     },
     "devDependencies": {
         "@core-ai/eslint-config": "^0.0.0",
         "@core-ai/typescript-config": "^0.0.0",
-        "typescript": "^5.7.3"
+        "typescript": "^5.7.3",
+        "vitest": "^3.2.4"
     }
 }

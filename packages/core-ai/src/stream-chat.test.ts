@@ -3,13 +3,14 @@ import { LLMError } from './errors.ts';
 import { stream } from './stream-chat.ts';
 import type { ChatModel, StreamResult } from './types.ts';
 
-async function* events(): AsyncIterable<{ type: 'finish'; finishReason: 'stop'; usage: { inputTokens: 1; outputTokens: 1; totalTokens: 2 } }> {
+async function* events(): AsyncIterable<{ type: 'finish'; finishReason: 'stop'; usage: { inputTokens: 1; outputTokens: 1; reasoningTokens: 0; totalTokens: 2 } }> {
     yield {
         type: 'finish',
         finishReason: 'stop',
         usage: {
             inputTokens: 1,
             outputTokens: 1,
+            reasoningTokens: 0,
             totalTokens: 2,
         },
     };
@@ -29,6 +30,7 @@ function createMockStreamResult(): StreamResult {
                 usage: {
                     inputTokens: 1,
                     outputTokens: 1,
+                    reasoningTokens: 0,
                     totalTokens: 2,
                 },
             };

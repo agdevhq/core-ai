@@ -18,9 +18,11 @@ Create a `.env` file at the repository root:
 ```bash
 OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
+GOOGLE_API_KEY=your_google_api_key
 ```
 
 `ANTHROPIC_API_KEY` is only required for the Anthropic example.
+`GOOGLE_API_KEY` is only required for the Google GenAI example.
 
 ## Run an Example
 
@@ -40,3 +42,4 @@ npx tsx examples/01-chat-completion.ts
 - `06-image-generation.ts`: Image generation with `generateImage()`
 - `07-error-handling.ts`: Handling `LLMError` and `ProviderError`
 - `08-anthropic-provider.ts`: Using Anthropic with the same `generate()` API
+- `09-google-genai-provider.ts`: Using Google GenAI (Gemini) with the same `generate()` API

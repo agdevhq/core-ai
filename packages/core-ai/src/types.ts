@@ -109,9 +109,30 @@ export type FinishReason =
     | 'content-filter'
     | 'unknown';
 
+/**
+ * Token usage reported by the model after a chat completion.
+ *
+ * `outputTokens` is the **total** output token count, including both visible
+ * text and any internal reasoning/thinking the model performed.
+ * `reasoningTokens` is the subset of `outputTokens` consumed by reasoning.
+ * For non-reasoning models (or providers that don't report it separately)
+ * this will be `0`.
+ *
+ * Provider mapping:
+ * - **OpenAI**: `reasoningTokens` comes from `completion_tokens_details.reasoning_tokens`.
+ * - **Google Gemini**: `reasoningTokens` comes from `thoughtsTokenCount`;
+ *   `outputTokens` = `candidatesTokenCount + thoughtsTokenCount`.
+ * - **Anthropic**: `reasoningTokens` is always `0` (thinking tokens are
+ *   included in `output_tokens` but not reported separately by the API).
+ */
 export type ChatUsage = {
+    /** Number of tokens in the input prompt. */
     inputTokens: number;
+    /** Total output tokens, including both visible text and reasoning. */
     outputTokens: number;
+    /** Tokens consumed by internal reasoning/thinking. Subset of `outputTokens`. */
+    reasoningTokens: number;
+    /** Sum of all tokens (`inputTokens + outputTokens`). */
     totalTokens: number;
 };
 

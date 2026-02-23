@@ -54,6 +54,7 @@ describe('generate', () => {
         expect(result.usage).toEqual({
             inputTokens: 10,
             outputTokens: 5,
+            reasoningTokens: 0,
             totalTokens: 15,
         });
 

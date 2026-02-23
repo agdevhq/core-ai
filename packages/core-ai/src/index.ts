@@ -33,5 +33,6 @@ export { LLMError, ProviderError } from './errors.ts';
 export { defineTool } from './tool.ts';
 export { generate } from './generate.ts';
 export { stream } from './stream-chat.ts';
+export { createStreamResult } from './stream.ts';
 export { embed } from './embed.ts';
 export { generateImage } from './generate-image.ts';

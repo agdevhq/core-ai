@@ -22,6 +22,7 @@ export function createStreamResult(
         let usage: GenerateResult['usage'] = {
             inputTokens: 0,
             outputTokens: 0,
+            reasoningTokens: 0,
             totalTokens: 0,
         };
 

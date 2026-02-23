@@ -5,7 +5,7 @@ import {
     convertMessages,
     convertToolChoice,
     convertTools,
-} from './chat-convert.js';
+} from './chat-adapter.js';
 
 describe('convertMessages', () => {
     it('should extract system messages separately', () => {

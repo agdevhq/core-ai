@@ -1,5 +1,5 @@
-export { createAnthropic } from '@core-ai/core-ai-anthropic';
+export { createAnthropic } from '@core-ai/anthropic';
 export type {
     AnthropicProvider,
     AnthropicProviderOptions,
-} from '@core-ai/core-ai-anthropic';
+} from '@core-ai/anthropic';

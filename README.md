@@ -19,6 +19,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | --- | --- | --- | --- | --- |
 | OpenAI | Yes | Yes | Yes | Yes |
 | Anthropic | Yes | Yes | — | — |
+| Google GenAI (Gemini) | Yes | Yes | Yes | Yes |
 
 ## Quick Start
 
@@ -165,6 +166,24 @@ const result = await generate({
 console.log(result.content);
 ```
 
+### Using Google GenAI (Gemini)
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createGoogleGenAI } from '@core-ai/google-genai';
+
+const google = createGoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+const model = google.chatModel('gemini-3-flash');
+
+const result = await generate({
+    model,
+    messages: [{ role: 'user', content: 'Hello!' }],
+    config: { maxTokens: 1024 },
+});
+
+console.log(result.content);
+```
+
 ## Configuration
 
 All generation functions accept an optional `config` for common model parameters:
@@ -221,6 +240,7 @@ packages/
   core-ai/       — Core types, functions, and provider re-exports
   openai/        — OpenAI provider implementation
   anthropic/     — Anthropic provider implementation
+  google-genai/  — Google GenAI (Gemini) provider implementation
 ```
 
 ## Development

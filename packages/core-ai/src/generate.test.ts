@@ -23,6 +23,7 @@ describe('generate', () => {
             usage: {
                 inputTokens: 5,
                 outputTokens: 3,
+                reasoningTokens: 0,
                 totalTokens: 8,
             },
         };
@@ -44,6 +45,7 @@ describe('generate', () => {
             usage: {
                 inputTokens: 0,
                 outputTokens: 0,
+                reasoningTokens: 0,
                 totalTokens: 0,
             },
         });
