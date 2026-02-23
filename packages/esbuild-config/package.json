@@ -9,8 +9,5 @@
     "devDependencies": {
         "esbuild": "0.25.0",
         "esbuild-plugin-pino": "2.2.2"
-    },
-    "dependencies": {
-        "@core-ai/esbuild-plugin-node-cron": "^0.0.1"
     }
 }
