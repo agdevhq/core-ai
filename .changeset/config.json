@@ -7,7 +7,8 @@
       "@core-ai/core-ai",
       "@core-ai/openai",
       "@core-ai/anthropic",
-      "@core-ai/google-genai"
+      "@core-ai/google-genai",
+      "@core-ai/mistral"
     ]
   ],
   "linked": [],

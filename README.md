@@ -4,7 +4,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Features
 
-- **Unified API** across providers — switch between OpenAI, Anthropic, and others without changing application code
+- **Unified API** across providers — switch between OpenAI, Anthropic, Mistral, and others without changing application code
 - **Full type safety** — strict TypeScript types, Zod-based tool definitions, no `any`
 - **Streaming** — async iterable-based streaming with optional aggregation via `toResponse()`
 - **Tool / function calling** — define tools with Zod schemas, automatically converted to JSON Schema
@@ -20,6 +20,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | OpenAI | Yes | Yes | Yes | Yes |
 | Anthropic | Yes | Yes | — | — |
 | Google GenAI (Gemini) | Yes | Yes | Yes | Yes |
+| Mistral | Yes | Yes | Yes | — |
 
 ## Quick Start
 
@@ -184,6 +185,24 @@ const result = await generate({
 console.log(result.content);
 ```
 
+### Using Mistral
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createMistral } from '@core-ai/mistral';
+
+const mistral = createMistral({ apiKey: process.env.MISTRAL_API_KEY });
+const model = mistral.chatModel('mistral-large-latest');
+
+const result = await generate({
+    model,
+    messages: [{ role: 'user', content: 'Hello!' }],
+    config: { maxTokens: 1024 },
+});
+
+console.log(result.content);
+```
+
 ## Configuration
 
 All generation functions accept an optional `config` for common model parameters:
@@ -241,6 +260,7 @@ packages/
   openai/        — OpenAI provider implementation
   anthropic/     — Anthropic provider implementation
   google-genai/  — Google GenAI (Gemini) provider implementation
+  mistral/       — Mistral provider implementation
 ```
 
 ## Development
