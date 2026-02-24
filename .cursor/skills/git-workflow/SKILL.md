@@ -44,10 +44,15 @@ Select affected packages and bump type (`patch`, `minor`, `major`). Commit the g
 
 Because all four publishable packages are in a fixed version group, selecting any one bumps all to the same version.
 
-### When to skip the changeset
+### When to use an empty changeset
 
-- Changes that don't affect published packages (CI config, internal tooling, docs-only)
-- Use `npx changeset --empty` if CI requires a changeset file on every PR
+Every PR **must** include a changeset — no exceptions. For changes that don't affect published packages (CI config, internal tooling, docs, tests), use an empty changeset:
+
+```bash
+npx changeset --empty
+```
+
+The release automation requires a changeset on every PR to function correctly.
 
 ### PR checklist
 
