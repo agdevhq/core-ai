@@ -1,5 +1,7 @@
 # @core-ai/mistral
 
+[![npm](https://img.shields.io/npm/v/@core-ai/mistral.svg)](https://www.npmjs.com/package/@core-ai/mistral)
+
 Mistral provider package for `@core-ai/core-ai`.
 
 ## Installation

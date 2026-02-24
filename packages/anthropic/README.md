@@ -1,5 +1,7 @@
 # @core-ai/anthropic
 
+[![npm](https://img.shields.io/npm/v/@core-ai/anthropic.svg)](https://www.npmjs.com/package/@core-ai/anthropic)
+
 Anthropic provider package for `@core-ai/core-ai`.
 
 ## Installation

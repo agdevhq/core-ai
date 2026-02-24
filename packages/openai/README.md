@@ -1,5 +1,7 @@
 # @core-ai/openai
 
+[![npm](https://img.shields.io/npm/v/@core-ai/openai.svg)](https://www.npmjs.com/package/@core-ai/openai)
+
 OpenAI provider package for `@core-ai/core-ai`.
 
 ## Installation
