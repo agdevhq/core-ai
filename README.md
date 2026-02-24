@@ -17,12 +17,12 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider | Chat | Streaming | Embeddings | Image Generation |
-| --- | --- | --- | --- | --- |
-| OpenAI | Yes | Yes | Yes | Yes |
-| Anthropic | Yes | Yes | — | — |
-| Google GenAI (Gemini) | Yes | Yes | Yes | Yes |
-| Mistral | Yes | Yes | Yes | — |
+| Provider | Package | Chat | Streaming | Embeddings | Image Generation |
+| --- | --- | --- | --- | --- | --- |
+| OpenAI | `@core-ai/openai` | Yes | Yes | Yes | Yes |
+| Anthropic | `@core-ai/anthropic` | Yes | Yes | — | — |
+| Google GenAI (Gemini) | `@core-ai/google-genai` | Yes | Yes | Yes | Yes |
+| Mistral | `@core-ai/mistral` | Yes | Yes | Yes | — |
 
 ## Quick Start
 
