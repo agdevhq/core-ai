@@ -1,5 +1,7 @@
 # @core-ai/google-genai
 
+[![npm](https://img.shields.io/npm/v/@core-ai/google-genai.svg)](https://www.npmjs.com/package/@core-ai/google-genai)
+
 Google GenAI provider package for `@core-ai/core-ai`.
 
 ## Installation

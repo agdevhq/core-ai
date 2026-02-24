@@ -1,5 +1,7 @@
 # @core-ai/core-ai
 
+[![npm](https://img.shields.io/npm/v/@core-ai/core-ai.svg)](https://www.npmjs.com/package/@core-ai/core-ai)
+
 Type-safe LLM abstraction layer over native provider SDKs.
 
 ## Installation
