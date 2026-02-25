@@ -9,6 +9,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 - **Unified API** across providers — switch between OpenAI, Anthropic, Mistral, and others without changing application code
 - **Full type safety** — strict TypeScript types, Zod-based tool definitions, no `any`
 - **Streaming** — async iterable-based streaming with optional aggregation via `toResponse()`
+- **Structured outputs** — schema-validated object generation and object streaming with `z.infer<TSchema>`
 - **Tool / function calling** — define tools with Zod schemas, automatically converted to JSON Schema
 - **Multi-modal** — text, images (base64 and URL), and file inputs
 - **Embeddings & image generation** — first-class support, not just chat
@@ -17,12 +18,12 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider | Package | Chat | Streaming | Embeddings | Image Generation |
-| --- | --- | --- | --- | --- | --- |
-| OpenAI | `@core-ai/openai` | Yes | Yes | Yes | Yes |
-| Anthropic | `@core-ai/anthropic` | Yes | Yes | — | — |
-| Google GenAI (Gemini) | `@core-ai/google-genai` | Yes | Yes | Yes | Yes |
-| Mistral | `@core-ai/mistral` | Yes | Yes | Yes | — |
+| Provider              | Package                 | Chat | Streaming | Embeddings | Image Generation |
+| --------------------- | ----------------------- | ---- | --------- | ---------- | ---------------- |
+| OpenAI                | `@core-ai/openai`       | Yes  | Yes       | Yes        | Yes              |
+| Anthropic             | `@core-ai/anthropic`    | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini) | `@core-ai/google-genai` | Yes  | Yes       | Yes        | Yes              |
+| Mistral               | `@core-ai/mistral`      | Yes  | Yes       | Yes        | —                |
 
 ## Quick Start
 
@@ -84,6 +85,57 @@ for await (const event of result) {
 // Or aggregate the full response
 const response = await result.toResponse();
 console.log(response.content);
+```
+
+### Structured Output
+
+```typescript
+import { generateObject } from '@core-ai/core-ai';
+import { z } from 'zod';
+
+const weatherSchema = z.object({
+    city: z.string(),
+    temperatureC: z.number(),
+    summary: z.string(),
+});
+
+const result = await generateObject({
+    model,
+    messages: [{ role: 'user', content: 'Return weather for Berlin as JSON.' }],
+    schema: weatherSchema,
+    schemaName: 'weather_report',
+});
+
+console.log(result.object.city);
+// => "Berlin"
+```
+
+### Structured Output Streaming
+
+```typescript
+import { streamObject } from '@core-ai/core-ai';
+import { z } from 'zod';
+
+const analysisSchema = z.object({
+    sentiment: z.enum(['positive', 'neutral', 'negative']),
+    tags: z.array(z.string()),
+});
+
+const result = await streamObject({
+    model,
+    messages: [{ role: 'user', content: 'Analyze this text and return JSON.' }],
+    schema: analysisSchema,
+    schemaName: 'text_analysis',
+});
+
+for await (const event of result) {
+    if (event.type === 'object') {
+        console.log('Validated update:', event.object);
+    }
+}
+
+const response = await result.toResponse();
+console.log(response.object);
 ```
 
 ### Tool Calling
@@ -245,7 +297,9 @@ try {
     await generate({ model, messages });
 } catch (error) {
     if (error instanceof ProviderError) {
-        console.error(`[${error.provider}] ${error.message} (${error.statusCode})`);
+        console.error(
+            `[${error.provider}] ${error.message} (${error.statusCode})`
+        );
     } else if (error instanceof LLMError) {
         console.error(error.message);
     }

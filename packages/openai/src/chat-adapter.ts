@@ -8,10 +8,12 @@ import type {
     ChatCompletionTool,
     ChatCompletionToolChoiceOption,
 } from 'openai/resources/chat/completions/completions';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
+    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
@@ -21,6 +23,10 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
+
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
+    'Return a JSON object that matches the requested schema.';
 
 export function convertMessages(
     messages: Message[]
@@ -134,7 +140,46 @@ export function convertToolChoice(
     };
 }
 
-export function createGenerateRequest(modelId: string, options: GenerateOptions) {
+export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): string {
+    const trimmedName = options.schemaName?.trim();
+    if (trimmedName && trimmedName.length > 0) {
+        return trimmedName;
+    }
+    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+}
+
+export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): GenerateOptions {
+    const toolName = getStructuredOutputToolName(options);
+
+    return {
+        messages: options.messages,
+        tools: {
+            structured_output: {
+                name: toolName,
+                description:
+                    options.schemaDescription ??
+                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
+                parameters: options.schema,
+            },
+        },
+        toolChoice: {
+            type: 'tool',
+            toolName,
+        },
+        config: options.config,
+        providerOptions: options.providerOptions,
+        signal: options.signal,
+    };
+}
+
+export function createGenerateRequest(
+    modelId: string,
+    options: GenerateOptions
+) {
     return {
         model: modelId,
         messages: convertMessages(options.messages),
@@ -306,7 +351,8 @@ export async function* transformStream(
                 inputTokens: chunk.usage.prompt_tokens ?? 0,
                 outputTokens: chunk.usage.completion_tokens ?? 0,
                 reasoningTokens:
-                    chunk.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+                    chunk.usage.completion_tokens_details?.reasoning_tokens ??
+                    0,
                 totalTokens: chunk.usage.total_tokens ?? 0,
             };
         }
@@ -325,7 +371,9 @@ export async function* transformStream(
 
         if (choice.delta.tool_calls) {
             for (const partialToolCall of choice.delta.tool_calls) {
-                const current = bufferedToolCalls.get(partialToolCall.index) ?? {
+                const current = bufferedToolCalls.get(
+                    partialToolCall.index
+                ) ?? {
                     id: partialToolCall.id ?? `tool-${partialToolCall.index}`,
                     name: partialToolCall.function?.name ?? '',
                     arguments: '',

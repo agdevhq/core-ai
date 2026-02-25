@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import type OpenAI from 'openai';
 import type {
     ChatCompletion,
     ChatCompletionChunk,
 } from 'openai/resources/chat/completions/completions';
-import { ProviderError } from '@core-ai/core-ai';
+import {
+    ProviderError,
+    StructuredOutputValidationError,
+} from '@core-ai/core-ai';
 import { createOpenAIChatModel } from './chat-model.js';
 
 describe('createOpenAIChatModel', () => {
@@ -117,6 +121,122 @@ describe('generate', () => {
         ]);
     });
 
+    it('should generate a validated structured object', async () => {
+        const create = vi.fn(async () => {
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'tool_calls',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            refusal: null,
+                            tool_calls: [
+                                {
+                                    id: 'tc_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'weather_schema',
+                                        arguments:
+                                            '{"city":"Berlin","temperatureC":21}',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                usage: {
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
+                },
+            });
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const result = await model.generateObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+        });
+
+        expect(result.object).toEqual({
+            city: 'Berlin',
+            temperatureC: 21,
+        });
+        expect(result.finishReason).toBe('tool-calls');
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tool_choice: {
+                    type: 'function',
+                    function: {
+                        name: 'weather_schema',
+                    },
+                },
+            })
+        );
+    });
+
+    it('should throw validation error for invalid structured output', async () => {
+        const create = vi.fn(async () => {
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'tool_calls',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            refusal: null,
+                            tool_calls: [
+                                {
+                                    id: 'tc_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'weather_schema',
+                                        arguments:
+                                            '{"city":"Berlin","temperatureC":"warm"}',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                usage: {
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
+                },
+            });
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        await expect(
+            model.generateObject({
+                messages: [{ role: 'user', content: 'Return weather JSON' }],
+                schema,
+                schemaName: 'weather_schema',
+            })
+        ).rejects.toBeInstanceOf(StructuredOutputValidationError);
+    });
+
     it('should wrap provider errors', async () => {
         const create = vi.fn(async () => {
             throw new Error('network failed');
@@ -184,6 +304,88 @@ describe('stream', () => {
         const response = await streamResult.toResponse();
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
+    });
+
+    it('should stream and aggregate structured object output', async () => {
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: null,
+                            delta: {
+                                tool_calls: [
+                                    {
+                                        index: 0,
+                                        id: 'tc_1',
+                                        type: 'function',
+                                        function: {
+                                            name: 'weather_schema',
+                                            arguments: '{"city":"Berlin",',
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                    usage: null,
+                }),
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'tool_calls',
+                            delta: {
+                                tool_calls: [
+                                    {
+                                        index: 0,
+                                        type: 'function',
+                                        function: {
+                                            arguments: '"temperatureC":21}',
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                    usage: {
+                        prompt_tokens: 10,
+                        completion_tokens: 5,
+                        total_tokens: 15,
+                    },
+                }),
+            ]);
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const streamResult = await model.streamObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+        });
+
+        const objects: Array<{ city: string; temperatureC: number }> = [];
+        for await (const event of streamResult) {
+            if (event.type === 'object') {
+                objects.push(event.object);
+            }
+        }
+
+        expect(objects).toEqual([{ city: 'Berlin', temperatureC: 21 }]);
+        const response = await streamResult.toResponse();
+        expect(response.object).toEqual({
+            city: 'Berlin',
+            temperatureC: 21,
+        });
+        expect(response.finishReason).toBe('tool-calls');
     });
 });
 

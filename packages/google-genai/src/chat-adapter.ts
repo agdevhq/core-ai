@@ -11,10 +11,12 @@ import {
     type Tool,
     type ToolConfig,
 } from '@google/genai';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
+    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
@@ -24,6 +26,10 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
+
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
+    'Return a JSON object that matches the requested schema.';
 
 export type ConvertedGoogleMessages = {
     contents: Content[];
@@ -74,7 +80,8 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
 
             contents.push({
                 role: 'model',
-                parts: assistantParts.length > 0 ? assistantParts : [{ text: '' }],
+                parts:
+                    assistantParts.length > 0 ? assistantParts : [{ text: '' }],
             });
             continue;
         }
@@ -106,7 +113,8 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
 
     return {
         contents,
-        systemInstruction: systemParts.length > 0 ? systemParts.join('\n') : undefined,
+        systemInstruction:
+            systemParts.length > 0 ? systemParts.join('\n') : undefined,
     };
 }
 
@@ -142,21 +150,21 @@ function convertUserContentPart(part: UserContentPart): Part {
 }
 
 export function convertTools(tools: ToolSet): Tool[] {
-    const functionDeclarations: FunctionDeclaration[] = Object.values(tools).map(
-        (tool) => {
-            const schema = zodToJsonSchema(tool.parameters) as Record<
-                string,
-                unknown
-            >;
-            const { $schema: _schema, ...parametersJsonSchema } = schema;
+    const functionDeclarations: FunctionDeclaration[] = Object.values(
+        tools
+    ).map((tool) => {
+        const schema = zodToJsonSchema(tool.parameters) as Record<
+            string,
+            unknown
+        >;
+        const { $schema: _schema, ...parametersJsonSchema } = schema;
 
-            return {
-                name: tool.name,
-                description: tool.description,
-                parametersJsonSchema,
-            };
-        }
-    );
+        return {
+            name: tool.name,
+            description: tool.description,
+            parametersJsonSchema,
+        };
+    });
 
     if (functionDeclarations.length === 0) {
         return [];
@@ -200,8 +208,48 @@ export function convertToolChoice(choice: ToolChoice): ToolConfig {
     };
 }
 
+export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): string {
+    const trimmedName = options.schemaName?.trim();
+    if (trimmedName && trimmedName.length > 0) {
+        return trimmedName;
+    }
+    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+}
+
+export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): GenerateOptions {
+    const toolName = getStructuredOutputToolName(options);
+
+    return {
+        messages: options.messages,
+        tools: {
+            structured_output: {
+                name: toolName,
+                description:
+                    options.schemaDescription ??
+                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
+                parameters: options.schema,
+            },
+        },
+        toolChoice: {
+            type: 'tool',
+            toolName,
+        },
+        config: options.config,
+        providerOptions: options.providerOptions,
+        signal: options.signal,
+    };
+}
+
 function isToolResultContent(content: Content): boolean {
-    if (content.role !== 'user' || !content.parts || content.parts.length === 0) {
+    if (
+        content.role !== 'user' ||
+        !content.parts ||
+        content.parts.length === 0
+    ) {
         return false;
     }
 
@@ -308,7 +356,9 @@ export function mapGenerateResponse(
     };
 }
 
-function parseFunctionCalls(calls: GoogleFunctionCall[] | undefined): ToolCall[] {
+function parseFunctionCalls(
+    calls: GoogleFunctionCall[] | undefined
+): ToolCall[] {
     if (!calls || calls.length === 0) {
         return [];
     }
@@ -316,7 +366,10 @@ function parseFunctionCalls(calls: GoogleFunctionCall[] | undefined): ToolCall[]
     return calls.map((call, index) => mapFunctionCall(call, index));
 }
 
-function mapFunctionCall(toolCall: GoogleFunctionCall, index: number): ToolCall {
+function mapFunctionCall(
+    toolCall: GoogleFunctionCall,
+    index: number
+): ToolCall {
     return {
         id: toolCall.id ?? `tool-${index}`,
         name: toolCall.name ?? `tool-${index}`,
@@ -383,7 +436,9 @@ export async function* transformStream(
                         toolName: mappedCall.name,
                     };
 
-                    const serializedArguments = JSON.stringify(mappedCall.arguments);
+                    const serializedArguments = JSON.stringify(
+                        mappedCall.arguments
+                    );
                     if (serializedArguments !== '{}') {
                         yield {
                             type: 'tool-call-delta',
@@ -439,10 +494,11 @@ function mapUsage(
 ): GenerateResult['usage'] {
     const inputTokens =
         response.usageMetadata?.promptTokenCount ?? fallback?.inputTokens ?? 0;
-    const textTokens =
-        response.usageMetadata?.candidatesTokenCount ?? 0;
+    const textTokens = response.usageMetadata?.candidatesTokenCount ?? 0;
     const reasoningTokens =
-        response.usageMetadata?.thoughtsTokenCount ?? fallback?.reasoningTokens ?? 0;
+        response.usageMetadata?.thoughtsTokenCount ??
+        fallback?.reasoningTokens ??
+        0;
     const outputTokens = textTokens + reasoningTokens;
     const totalTokens =
         response.usageMetadata?.totalTokenCount ??

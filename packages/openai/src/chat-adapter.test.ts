@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+    createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
+    getStructuredOutputToolName,
 } from './chat-adapter.js';
 import { defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
 
@@ -190,5 +192,56 @@ describe('convertToolChoice', () => {
             type: 'function',
             function: { name: 'search' },
         });
+    });
+});
+
+describe('structured output helpers', () => {
+    it('should create tool-based generate options for structured output', () => {
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const result = createStructuredOutputOptions({
+            messages: [{ role: 'user', content: 'Return weather as JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+            schemaDescription: 'Structured weather output',
+            config: {
+                temperature: 0,
+                maxTokens: 128,
+            },
+        });
+
+        expect(result.messages).toEqual([
+            { role: 'user', content: 'Return weather as JSON' },
+        ]);
+        expect(result.toolChoice).toEqual({
+            type: 'tool',
+            toolName: 'weather_schema',
+        });
+        expect(result.tools).toMatchObject({
+            structured_output: {
+                name: 'weather_schema',
+                description: 'Structured weather output',
+            },
+        });
+        expect(result.config).toEqual({
+            temperature: 0,
+            maxTokens: 128,
+        });
+    });
+
+    it('should derive default structured output tool name', () => {
+        const schema = z.object({
+            ok: z.boolean(),
+        });
+
+        expect(
+            getStructuredOutputToolName({
+                messages: [{ role: 'user', content: 'json' }],
+                schema,
+            })
+        ).toBe('core_ai_generate_object');
     });
 });

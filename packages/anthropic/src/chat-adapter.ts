@@ -10,10 +10,12 @@ import type {
     ToolChoice,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
+    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
@@ -23,6 +25,10 @@ import type {
     UserContentPart,
     ToolChoice as AgToolChoice,
 } from '@core-ai/core-ai';
+
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
+    'Return a JSON object that matches the requested schema.';
 
 export type ConvertedAnthropicMessages = {
     system: string | undefined;
@@ -201,6 +207,42 @@ export function convertToolChoice(choice: AgToolChoice): ToolChoice {
     };
 }
 
+export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): string {
+    const trimmedName = options.schemaName?.trim();
+    if (trimmedName && trimmedName.length > 0) {
+        return trimmedName;
+    }
+    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+}
+
+export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): GenerateOptions {
+    const toolName = getStructuredOutputToolName(options);
+
+    return {
+        messages: options.messages,
+        tools: {
+            structured_output: {
+                name: toolName,
+                description:
+                    options.schemaDescription ??
+                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
+                parameters: options.schema,
+            },
+        },
+        toolChoice: {
+            type: 'tool',
+            toolName,
+        },
+        config: options.config,
+        providerOptions: options.providerOptions,
+        signal: options.signal,
+    };
+}
+
 export function createGenerateRequest(
     modelId: string,
     defaultMaxTokens: number,
@@ -262,7 +304,9 @@ export function createStreamRequest(
     };
 }
 
-export function mapGenerateResponse(response: AnthropicMessage): GenerateResult {
+export function mapGenerateResponse(
+    response: AnthropicMessage
+): GenerateResult {
     const toolCalls: ToolCall[] = [];
     let content = '';
 
@@ -288,7 +332,8 @@ export function mapGenerateResponse(response: AnthropicMessage): GenerateResult 
             inputTokens: response.usage.input_tokens,
             outputTokens: response.usage.output_tokens,
             reasoningTokens: 0,
-            totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+            totalTokens:
+                response.usage.input_tokens + response.usage.output_tokens,
         },
     };
 }
@@ -317,7 +362,8 @@ export async function* transformStream(
                 outputTokens: event.message.usage.output_tokens,
                 reasoningTokens: 0,
                 totalTokens:
-                    event.message.usage.input_tokens + event.message.usage.output_tokens,
+                    event.message.usage.input_tokens +
+                    event.message.usage.output_tokens,
             };
             continue;
         }
@@ -443,7 +489,12 @@ function asObject(value: unknown): Record<string, unknown> {
 
 export function wrapError(error: unknown): ProviderError {
     if (error instanceof APIError) {
-        return new ProviderError(error.message, 'anthropic', error.status, error);
+        return new ProviderError(
+            error.message,
+            'anthropic',
+            error.status,
+            error
+        );
     }
 
     return new ProviderError(
