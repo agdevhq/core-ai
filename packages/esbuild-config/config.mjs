@@ -1,5 +1,3 @@
-import esbuildPluginPino from 'esbuild-plugin-pino';
-
 export function buildConfig({ plugins = [], ...options } = {}) {
     return {
         entryPoints: ['src/index.ts'],
@@ -12,7 +10,6 @@ export function buildConfig({ plugins = [], ...options } = {}) {
         },
         plugins: [
             ...plugins,
-            esbuildPluginPino({ transports: ['pino-pretty'] }),
         ],
         ...options,
     };
