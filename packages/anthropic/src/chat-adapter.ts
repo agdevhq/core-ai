@@ -373,7 +373,9 @@ export async function* transformStream(
                 const block = event.content_block as ToolUseBlock;
                 const initialArguments =
                     block.input && typeof block.input === 'object'
-                        ? JSON.stringify(block.input)
+                        ? Object.keys(block.input).length > 0
+                            ? JSON.stringify(block.input)
+                            : ''
                         : '';
 
                 toolBuffers.set(event.index, {
