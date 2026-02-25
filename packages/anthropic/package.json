@@ -45,10 +45,10 @@
     "dependencies": {
         "@core-ai/core-ai": "^0.2.0",
         "@anthropic-ai/sdk": "^0.78.0",
-        "zod-to-json-schema": "^3.24.5"
+        "zod-to-json-schema": "^3.25.1"
     },
     "peerDependencies": {
-        "zod": "^3.25.76"
+        "zod": "^3.25.0 || ^4.0.0"
     },
     "devDependencies": {
         "@core-ai/eslint-config": "^0.0.0",
