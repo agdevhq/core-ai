@@ -1,11 +1,10 @@
-import { APIError } from 'openai';
 import type OpenAI from 'openai';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     EmbedOptions,
     EmbedResult,
     EmbeddingModel,
 } from '@core-ai/core-ai';
+import { wrapOpenAIError } from './openai-error.js';
 
 type OpenAIEmbeddingClient = {
     embeddings: OpenAI['embeddings'];
@@ -39,21 +38,8 @@ export function createOpenAIEmbeddingModel(
                     },
                 };
             } catch (error) {
-                throw wrapError(error);
+                throw wrapOpenAIError(error);
             }
         },
     };
-}
-
-function wrapError(error: unknown): ProviderError {
-    if (error instanceof APIError) {
-        return new ProviderError(error.message, 'openai', error.status, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'openai',
-        undefined,
-        error
-    );
 }

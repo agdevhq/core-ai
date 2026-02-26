@@ -1,12 +1,11 @@
-import { APIError } from 'openai';
 import type OpenAI from 'openai';
 import type { ImagesResponse } from 'openai/resources/images';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     ImageGenerateOptions,
     ImageGenerateResult,
     ImageModel,
 } from '@core-ai/core-ai';
+import { wrapOpenAIError } from './openai-error.js';
 
 type OpenAIImageClient = {
     images: OpenAI['images'];
@@ -45,21 +44,8 @@ export function createOpenAIImageModel(
                     })),
                 };
             } catch (error) {
-                throw wrapError(error);
+                throw wrapOpenAIError(error);
             }
         },
     };
-}
-
-function wrapError(error: unknown): ProviderError {
-    if (error instanceof APIError) {
-        return new ProviderError(error.message, 'openai', error.status, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'openai',
-        undefined,
-        error
-    );
 }

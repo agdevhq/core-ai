@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import type { z } from 'zod';
+import type { ChatCompletionChunk } from 'openai/resources/chat/completions/completions';
 import type {
     ChatModel,
     GenerateObjectOptions,
@@ -25,8 +26,8 @@ import {
     getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
-    wrapError,
 } from './chat-adapter.js';
+import { wrapOpenAIError } from './openai-error.js';
 
 type OpenAIChatClient = {
     chat: OpenAI['chat'];
@@ -38,26 +39,34 @@ export function createOpenAIChatModel(
 ): ChatModel {
     const provider = 'openai';
 
-    async function generateChat(
-        options: GenerateOptions
-    ): Promise<GenerateResult> {
+    async function callOpenAIChatCompletionsApi<TResponse>(
+        request: unknown
+    ): Promise<TResponse> {
         try {
-            const request = createGenerateRequest(modelId, options);
-            const response = await client.chat.completions.create(request);
-            return mapGenerateResponse(response);
+            return (await client.chat.completions.create(
+                request as never
+            )) as TResponse;
         } catch (error) {
-            throw wrapError(error);
+            throw wrapOpenAIError(error);
         }
     }
 
+    async function generateChat(
+        options: GenerateOptions
+    ): Promise<GenerateResult> {
+        const request = createGenerateRequest(modelId, options);
+        const response = await callOpenAIChatCompletionsApi<
+            Parameters<typeof mapGenerateResponse>[0]
+        >(request);
+        return mapGenerateResponse(response);
+    }
+
     async function streamChat(options: GenerateOptions): Promise<StreamResult> {
-        try {
-            const request = createStreamRequest(modelId, options);
-            const stream = await client.chat.completions.create(request);
-            return createStreamResult(transformStream(stream));
-        } catch (error) {
-            throw wrapError(error);
-        }
+        const request = createStreamRequest(modelId, options);
+        const stream = await callOpenAIChatCompletionsApi<
+            AsyncIterable<ChatCompletionChunk>
+        >(request);
+        return createStreamResult(transformStream(stream));
     }
 
     return {
@@ -113,23 +122,16 @@ function extractStructuredObject<TSchema extends z.ZodType>(
         (toolCall) => toolCall.name === toolName
     );
     if (structuredToolCall) {
-        return validateStructuredObject(
+        return validateStructuredToolArguments(
             schema,
             structuredToolCall.arguments,
             provider,
-            JSON.stringify(structuredToolCall.arguments)
         );
     }
 
     const rawOutput = result.content?.trim();
     if (rawOutput && rawOutput.length > 0) {
-        const parsedOutput = parseJson(rawOutput, provider);
-        return validateStructuredObject(
-            schema,
-            parsedOutput,
-            provider,
-            rawOutput
-        );
+        return parseAndValidateStructuredPayload(schema, rawOutput, provider);
     }
 
     throw new StructuredOutputNoObjectGeneratedError(
@@ -176,11 +178,10 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
             event.type === 'tool-call-end' &&
             event.toolCall.name === toolName
         ) {
-            validatedObject = validateStructuredObject(
+            validatedObject = validateStructuredToolArguments(
                 schema,
                 event.toolCall.arguments,
                 provider,
-                JSON.stringify(event.toolCall.arguments)
             );
             yield {
                 type: 'object',
@@ -203,12 +204,10 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
                     );
                 }
 
-                const parsedFallback = parseJson(fallbackPayload, provider);
-                validatedObject = validateStructuredObject(
+                validatedObject = parseAndValidateStructuredPayload(
                     schema,
-                    parsedFallback,
-                    provider,
-                    fallbackPayload
+                    fallbackPayload,
+                    provider
                 );
                 yield {
                     type: 'object',
@@ -242,6 +241,28 @@ function getFallbackStructuredPayload(
     }
 
     return undefined;
+}
+
+function validateStructuredToolArguments<TSchema extends z.ZodType>(
+    schema: TSchema,
+    toolArguments: Record<string, unknown>,
+    provider: string
+): z.infer<TSchema> {
+    return validateStructuredObject(
+        schema,
+        toolArguments,
+        provider,
+        JSON.stringify(toolArguments)
+    );
+}
+
+function parseAndValidateStructuredPayload<TSchema extends z.ZodType>(
+    schema: TSchema,
+    rawPayload: string,
+    provider: string
+): z.infer<TSchema> {
+    const parsedPayload = parseJson(rawPayload, provider);
+    return validateStructuredObject(schema, parsedPayload, provider, rawPayload);
 }
 
 function parseJson(rawOutput: string, provider: string): unknown {
