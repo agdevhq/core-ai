@@ -174,11 +174,37 @@ export const providerCases: ProviderContractCase[] = [
 function assertChatUsage(usage: {
     inputTokens: number;
     outputTokens: number;
-    reasoningTokens: number;
-    totalTokens: number;
+    inputTokenDetails: {
+        cacheReadTokens: number;
+        cacheWriteTokens: number;
+    };
+    outputTokenDetails: {
+        reasoningTokens: number;
+    };
 }): void {
+    expect(usage).toHaveProperty('inputTokenDetails');
+    expect(usage).toHaveProperty('outputTokenDetails');
+    expect(usage.inputTokenDetails).toHaveProperty('cacheReadTokens');
+    expect(usage.inputTokenDetails).toHaveProperty('cacheWriteTokens');
+    expect(usage.outputTokenDetails).toHaveProperty('reasoningTokens');
+
+    expect(Number.isFinite(usage.inputTokens)).toBe(true);
+    expect(Number.isFinite(usage.outputTokens)).toBe(true);
+    expect(Number.isFinite(usage.inputTokenDetails.cacheReadTokens)).toBe(true);
+    expect(Number.isFinite(usage.inputTokenDetails.cacheWriteTokens)).toBe(true);
+    expect(Number.isFinite(usage.outputTokenDetails.reasoningTokens)).toBe(true);
+
     expect(usage.inputTokens).toBeGreaterThan(0);
     expect(usage.outputTokens).toBeGreaterThanOrEqual(0);
-    expect(usage.reasoningTokens).toBeGreaterThanOrEqual(0);
-    expect(usage.totalTokens).toBeGreaterThanOrEqual(usage.inputTokens);
+    expect(usage.inputTokenDetails.cacheReadTokens).toBeGreaterThanOrEqual(0);
+    expect(usage.inputTokenDetails.cacheWriteTokens).toBeGreaterThanOrEqual(0);
+    expect(usage.outputTokenDetails.reasoningTokens).toBeGreaterThanOrEqual(0);
+
+    expect(
+        usage.inputTokenDetails.cacheReadTokens +
+            usage.inputTokenDetails.cacheWriteTokens
+    ).toBeLessThanOrEqual(usage.inputTokens);
+    expect(usage.outputTokenDetails.reasoningTokens).toBeLessThanOrEqual(
+        usage.outputTokens
+    );
 }

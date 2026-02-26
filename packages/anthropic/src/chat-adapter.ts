@@ -364,16 +364,25 @@ export function mapGenerateResponse(
         }
     }
 
+    const cacheReadTokens = response.usage.cache_read_input_tokens ?? 0;
+    const cacheWriteTokens = response.usage.cache_creation_input_tokens ?? 0;
+    const inputTokens =
+        response.usage.input_tokens + cacheReadTokens + cacheWriteTokens;
+
     return {
         content: content.length > 0 ? content : null,
         toolCalls,
         finishReason: mapStopReason(response.stop_reason),
         usage: {
-            inputTokens: response.usage.input_tokens,
+            inputTokens,
             outputTokens: response.usage.output_tokens,
-            reasoningTokens: 0,
-            totalTokens:
-                response.usage.input_tokens + response.usage.output_tokens,
+            inputTokenDetails: {
+                cacheReadTokens,
+                cacheWriteTokens,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         },
     };
 }
@@ -385,8 +394,13 @@ export async function* transformStream(
     let usage = {
         inputTokens: 0,
         outputTokens: 0,
-        reasoningTokens: 0,
-        totalTokens: 0,
+        inputTokenDetails: {
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+        },
+        outputTokenDetails: {
+            reasoningTokens: 0,
+        },
     };
 
     const toolBuffers = new Map<
@@ -397,13 +411,24 @@ export async function* transformStream(
 
     for await (const event of stream) {
         if (event.type === 'message_start') {
+            const cacheReadTokens =
+                event.message.usage.cache_read_input_tokens ?? 0;
+            const cacheWriteTokens =
+                event.message.usage.cache_creation_input_tokens ?? 0;
+            const inputTokens =
+                event.message.usage.input_tokens +
+                cacheReadTokens +
+                cacheWriteTokens;
             usage = {
-                inputTokens: event.message.usage.input_tokens,
+                inputTokens,
                 outputTokens: event.message.usage.output_tokens,
-                reasoningTokens: 0,
-                totalTokens:
-                    event.message.usage.input_tokens +
-                    event.message.usage.output_tokens,
+                inputTokenDetails: {
+                    cacheReadTokens,
+                    cacheWriteTokens,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             };
             continue;
         }
@@ -478,13 +503,28 @@ export async function* transformStream(
 
         if (event.type === 'message_delta') {
             finishReason = mapStopReason(event.delta.stop_reason);
+            const nonCachedInputTokens =
+                event.usage.input_tokens ??
+                usage.inputTokens -
+                    usage.inputTokenDetails.cacheReadTokens -
+                    usage.inputTokenDetails.cacheWriteTokens;
+            const cacheReadTokens =
+                event.usage.cache_read_input_tokens ??
+                usage.inputTokenDetails.cacheReadTokens;
+            const cacheWriteTokens =
+                event.usage.cache_creation_input_tokens ??
+                usage.inputTokenDetails.cacheWriteTokens;
             usage = {
-                inputTokens: event.usage.input_tokens ?? usage.inputTokens,
+                inputTokens:
+                    nonCachedInputTokens + cacheReadTokens + cacheWriteTokens,
                 outputTokens: event.usage.output_tokens,
-                reasoningTokens: 0,
-                totalTokens:
-                    (event.usage.input_tokens ?? usage.inputTokens) +
-                    event.usage.output_tokens,
+                inputTokenDetails: {
+                    cacheReadTokens,
+                    cacheWriteTokens,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             };
             continue;
         }

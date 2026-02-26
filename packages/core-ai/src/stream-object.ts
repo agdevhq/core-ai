@@ -47,8 +47,13 @@ export function createObjectStreamResult<TSchema extends z.ZodType>(
         let usage: GenerateObjectResult<TSchema>['usage'] = {
             inputTokens: 0,
             outputTokens: 0,
-            reasoningTokens: 0,
-            totalTokens: 0,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         };
 
         try {

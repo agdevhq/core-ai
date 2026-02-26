@@ -9,8 +9,13 @@ async function* events(): AsyncIterable<{
     usage: {
         inputTokens: 1;
         outputTokens: 1;
-        reasoningTokens: 0;
-        totalTokens: 2;
+        inputTokenDetails: {
+            cacheReadTokens: 0;
+            cacheWriteTokens: 0;
+        };
+        outputTokenDetails: {
+            reasoningTokens: 0;
+        };
     };
 }> {
     yield {
@@ -19,8 +24,13 @@ async function* events(): AsyncIterable<{
         usage: {
             inputTokens: 1,
             outputTokens: 1,
-            reasoningTokens: 0,
-            totalTokens: 2,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         },
     };
 }
@@ -39,8 +49,13 @@ function createMockStreamResult(): StreamResult {
                 usage: {
                     inputTokens: 1,
                     outputTokens: 1,
-                    reasoningTokens: 0,
-                    totalTokens: 2,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {
+                        reasoningTokens: 0,
+                    },
                 },
             };
         },

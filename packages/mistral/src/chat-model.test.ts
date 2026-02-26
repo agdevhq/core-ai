@@ -59,8 +59,13 @@ describe('generate', () => {
         expect(result.usage).toEqual({
             inputTokens: 10,
             outputTokens: 5,
-            reasoningTokens: 0,
-            totalTokens: 15,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         });
 
         expect(complete).toHaveBeenCalledWith(
@@ -69,6 +74,48 @@ describe('generate', () => {
                 messages: [{ role: 'user', content: 'Hi' }],
             })
         );
+    });
+
+    it('should keep cache token details at zero (no provider cache fields)', async () => {
+        const complete = vi.fn(async () => {
+            return asChatCompletionResponse({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: 'stop',
+                        message: {
+                            role: 'assistant',
+                            content: 'No cache support',
+                        },
+                    },
+                ],
+                usage: {
+                    promptTokens: 42,
+                    completionTokens: 7,
+                    totalTokens: 49,
+                },
+            });
+        });
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(result.usage).toEqual({
+            inputTokens: 42,
+            outputTokens: 7,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
     });
 
     it('should map tool call responses', async () => {
@@ -291,8 +338,13 @@ describe('stream', () => {
         expect(response.usage).toEqual({
             inputTokens: 10,
             outputTokens: 2,
-            reasoningTokens: 0,
-            totalTokens: 12,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         });
     });
 

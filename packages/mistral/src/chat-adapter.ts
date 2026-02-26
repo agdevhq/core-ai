@@ -280,8 +280,13 @@ export async function* transformStream(
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
-        reasoningTokens: 0,
-        totalTokens: 0,
+        inputTokenDetails: {
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+        },
+        outputTokenDetails: {
+            reasoningTokens: 0,
+        },
     };
 
     for await (const event of stream) {
@@ -428,8 +433,13 @@ function mapUsage(usage: UsageInfo | undefined): GenerateResult['usage'] {
     return {
         inputTokens: usage?.promptTokens ?? 0,
         outputTokens: usage?.completionTokens ?? 0,
-        reasoningTokens: 0,
-        totalTokens: usage?.totalTokens ?? 0,
+        inputTokenDetails: {
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+        },
+        outputTokenDetails: {
+            reasoningTokens: 0,
+        },
     };
 }
 

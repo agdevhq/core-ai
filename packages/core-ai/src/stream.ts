@@ -22,8 +22,13 @@ export function createStreamResult(
         let usage: GenerateResult['usage'] = {
             inputTokens: 0,
             outputTokens: 0,
-            reasoningTokens: 0,
-            totalTokens: 0,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         };
 
         for await (const event of source) {

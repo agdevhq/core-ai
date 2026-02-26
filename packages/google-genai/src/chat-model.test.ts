@@ -55,8 +55,13 @@ describe('generate', () => {
         expect(result.usage).toEqual({
             inputTokens: 10,
             outputTokens: 5,
-            reasoningTokens: 0,
-            totalTokens: 15,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         });
 
         expect(generateContent).toHaveBeenCalledWith(
@@ -65,6 +70,46 @@ describe('generate', () => {
                 contents: [{ role: 'user', parts: [{ text: 'Hi' }] }],
             })
         );
+    });
+
+    it('should map cached and reasoning usage metadata', async () => {
+        const generateContent = vi.fn(async () => {
+            return asGenerateContentResponse({
+                text: 'Hello with cache',
+                candidates: [
+                    {
+                        finishReason: GoogleFinishReason.STOP,
+                    },
+                ],
+                usageMetadata: {
+                    promptTokenCount: 20,
+                    candidatesTokenCount: 5,
+                    thoughtsTokenCount: 3,
+                    cachedContentTokenCount: 12,
+                    totalTokenCount: 28,
+                },
+            });
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(result.usage).toEqual({
+            inputTokens: 20,
+            outputTokens: 8,
+            inputTokenDetails: {
+                cacheReadTokens: 12,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 3,
+            },
+        });
     });
 
     it('should map tool call responses', async () => {
@@ -257,8 +302,60 @@ describe('stream', () => {
         expect(response.usage).toEqual({
             inputTokens: 10,
             outputTokens: 2,
-            reasoningTokens: 0,
-            totalTokens: 12,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
+    });
+
+    it('should map cached and reasoning usage in stream responses', async () => {
+        const generateContentStream = vi.fn(async () => {
+            return toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    text: 'Hello ',
+                    candidates: [],
+                }),
+                asGenerateContentResponse({
+                    text: 'world',
+                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
+                    usageMetadata: {
+                        promptTokenCount: 25,
+                        candidatesTokenCount: 6,
+                        thoughtsTokenCount: 2,
+                        cachedContentTokenCount: 16,
+                        totalTokenCount: 33,
+                    },
+                }),
+            ]);
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+
+        for await (const _event of streamResult) {
+            // Consume stream.
+        }
+
+        const response = await streamResult.toResponse();
+        expect(response.usage).toEqual({
+            inputTokens: 25,
+            outputTokens: 8,
+            inputTokenDetails: {
+                cacheReadTokens: 16,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 2,
+            },
         });
     });
 

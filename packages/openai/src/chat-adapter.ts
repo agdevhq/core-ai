@@ -237,8 +237,13 @@ export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
             usage: {
                 inputTokens: 0,
                 outputTokens: 0,
-                reasoningTokens: 0,
-                totalTokens: 0,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             },
         };
     }
@@ -253,8 +258,14 @@ export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
         usage: {
             inputTokens: response.usage?.prompt_tokens ?? 0,
             outputTokens: response.usage?.completion_tokens ?? 0,
-            reasoningTokens,
-            totalTokens: response.usage?.total_tokens ?? 0,
+            inputTokenDetails: {
+                cacheReadTokens:
+                    response.usage?.prompt_tokens_details?.cached_tokens ?? 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens,
+            },
         },
     };
 }
@@ -320,8 +331,13 @@ export async function* transformStream(
     let usage = {
         inputTokens: 0,
         outputTokens: 0,
-        reasoningTokens: 0,
-        totalTokens: 0,
+        inputTokenDetails: {
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+        },
+        outputTokenDetails: {
+            reasoningTokens: 0,
+        },
     };
 
     for await (const chunk of stream) {
@@ -329,10 +345,16 @@ export async function* transformStream(
             usage = {
                 inputTokens: chunk.usage.prompt_tokens ?? 0,
                 outputTokens: chunk.usage.completion_tokens ?? 0,
-                reasoningTokens:
-                    chunk.usage.completion_tokens_details?.reasoning_tokens ??
-                    0,
-                totalTokens: chunk.usage.total_tokens ?? 0,
+                inputTokenDetails: {
+                    cacheReadTokens:
+                        chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {
+                    reasoningTokens:
+                        chunk.usage.completion_tokens_details
+                            ?.reasoning_tokens ?? 0,
+                },
             };
         }
 

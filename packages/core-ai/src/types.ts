@@ -137,28 +137,43 @@ export type FinishReason =
 /**
  * Token usage reported by the model after a chat completion.
  *
- * `outputTokens` is the **total** output token count, including both visible
- * text and any internal reasoning/thinking the model performed.
- * `reasoningTokens` is the subset of `outputTokens` consumed by reasoning.
- * For non-reasoning models (or providers that don't report it separately)
- * this will be `0`.
+ * `inputTokens` is always the **total** input token count, including cached
+ * reads and cache writes. Anthropic's `input_tokens` is normalized by adding
+ * `cache_read_input_tokens` and `cache_creation_input_tokens`.
  *
- * Provider mapping:
- * - **OpenAI**: `reasoningTokens` comes from `completion_tokens_details.reasoning_tokens`.
- * - **Google Gemini**: `reasoningTokens` comes from `thoughtsTokenCount`;
- *   `outputTokens` = `candidatesTokenCount + thoughtsTokenCount`.
- * - **Anthropic**: `reasoningTokens` is always `0` (thinking tokens are
- *   included in `output_tokens` but not reported separately by the API).
+ * `outputTokens` is always the **total** output token count, including both
+ * visible text and internal reasoning.
+ *
+ * `inputTokenDetails` and `outputTokenDetails` provide provider-independent
+ * breakdowns for cache and reasoning accounting.
  */
 export type ChatUsage = {
-    /** Number of tokens in the input prompt. */
+    /** Total input tokens, including cached and cache-write tokens. */
     inputTokens: number;
     /** Total output tokens, including both visible text and reasoning. */
     outputTokens: number;
-    /** Tokens consumed by internal reasoning/thinking. Subset of `outputTokens`. */
+    /** Breakdown of input token categories. */
+    inputTokenDetails: ChatInputTokenDetails;
+    /** Breakdown of output token categories. */
+    outputTokenDetails: ChatOutputTokenDetails;
+};
+
+export type ChatInputTokenDetails = {
+    /** Input tokens served from a prior cache entry. Subset of `inputTokens`. */
+    cacheReadTokens: number;
+    /**
+     * Input tokens written to cache for future reuse. Subset of `inputTokens`.
+     * Only Anthropic reports this; other providers report `0`.
+     */
+    cacheWriteTokens: number;
+};
+
+export type ChatOutputTokenDetails = {
+    /**
+     * Tokens consumed by internal reasoning/thinking. Subset of `outputTokens`.
+     * For non-reasoning models (or providers that don't report it), this is `0`.
+     */
     reasoningTokens: number;
-    /** Sum of all tokens (`inputTokens + outputTokens`). */
-    totalTokens: number;
 };
 
 export type StreamEvent =

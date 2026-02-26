@@ -21,6 +21,8 @@ export type {
     GenerateObjectResult,
     FinishReason,
     ChatUsage,
+    ChatInputTokenDetails,
+    ChatOutputTokenDetails,
     StreamEvent,
     StreamResult,
     ObjectStreamEvent,

@@ -53,8 +53,49 @@ describe('generate', () => {
         expect(result.usage).toEqual({
             inputTokens: 10,
             outputTokens: 5,
-            reasoningTokens: 0,
-            totalTokens: 15,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
+    });
+
+    it('should normalize Anthropic cache read/write usage', async () => {
+        const create = vi.fn(async () =>
+            asMessage({
+                content: [{ type: 'text', text: 'Hello!', citations: null }],
+                stop_reason: 'end_turn',
+                usage: {
+                    input_tokens: 10,
+                    output_tokens: 5,
+                    cache_read_input_tokens: 40,
+                    cache_creation_input_tokens: 20,
+                },
+            })
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4',
+            4096
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(result.usage).toEqual({
+            inputTokens: 70,
+            outputTokens: 5,
+            inputTokenDetails: {
+                cacheReadTokens: 40,
+                cacheWriteTokens: 20,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         });
     });
 
@@ -307,6 +348,98 @@ describe('stream', () => {
         const response = await streamResult.toResponse();
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
+        expect(response.usage).toEqual({
+            inputTokens: 10,
+            outputTokens: 2,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
+    });
+
+    it('should normalize cached usage in streaming events', async () => {
+        const create = vi.fn(async () =>
+            toAsyncIterable<RawMessageStreamEvent>([
+                {
+                    type: 'message_start',
+                    message: asMessage({
+                        content: [],
+                        stop_reason: null,
+                        usage: {
+                            input_tokens: 10,
+                            output_tokens: 0,
+                            cache_read_input_tokens: 40,
+                            cache_creation_input_tokens: 20,
+                        },
+                    }),
+                },
+                {
+                    type: 'content_block_start',
+                    index: 0,
+                    content_block: {
+                        type: 'text',
+                        text: '',
+                        citations: null,
+                    },
+                },
+                {
+                    type: 'content_block_delta',
+                    index: 0,
+                    delta: {
+                        type: 'text_delta',
+                        text: 'Hello cache',
+                    },
+                },
+                {
+                    type: 'message_delta',
+                    delta: {
+                        stop_reason: 'end_turn',
+                        stop_sequence: null,
+                        container: null,
+                    },
+                    usage: {
+                        input_tokens: 10,
+                        output_tokens: 2,
+                        cache_creation_input_tokens: 20,
+                        cache_read_input_tokens: 40,
+                        server_tool_use: null,
+                    },
+                },
+                {
+                    type: 'message_stop',
+                },
+            ])
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4',
+            4096
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+
+        for await (const _event of streamResult) {
+            // Consume stream.
+        }
+
+        const response = await streamResult.toResponse();
+        expect(response.usage).toEqual({
+            inputTokens: 70,
+            outputTokens: 2,
+            inputTokenDetails: {
+                cacheReadTokens: 40,
+                cacheWriteTokens: 20,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
     });
 
     it('should stream and aggregate structured object output', async () => {
@@ -425,6 +558,8 @@ function asMessage(value: {
     usage: {
         input_tokens: number;
         output_tokens: number;
+        cache_read_input_tokens?: number | null;
+        cache_creation_input_tokens?: number | null;
     };
 }): Message {
     return {
@@ -440,8 +575,9 @@ function asMessage(value: {
             input_tokens: value.usage.input_tokens,
             output_tokens: value.usage.output_tokens,
             cache_creation: null,
-            cache_creation_input_tokens: null,
-            cache_read_input_tokens: null,
+            cache_creation_input_tokens:
+                value.usage.cache_creation_input_tokens ?? null,
+            cache_read_input_tokens: value.usage.cache_read_input_tokens ?? null,
             server_tool_use: null,
             service_tier: null,
             output_tokens_details: null,

@@ -27,8 +27,13 @@ function createMockStreamObjectResult(): StreamObjectResult<
             usage: {
                 inputTokens: 10,
                 outputTokens: 5,
-                reasoningTokens: 0,
-                totalTokens: 15,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             },
         },
     ];
@@ -108,8 +113,13 @@ describe('createObjectStreamResult', () => {
                 usage: {
                     inputTokens: 10,
                     outputTokens: 5,
-                    reasoningTokens: 0,
-                    totalTokens: 15,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {
+                        reasoningTokens: 0,
+                    },
                 },
             },
         ];
@@ -133,8 +143,13 @@ describe('createObjectStreamResult', () => {
                 usage: {
                     inputTokens: 10,
                     outputTokens: 5,
-                    reasoningTokens: 0,
-                    totalTokens: 15,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {
+                        reasoningTokens: 0,
+                    },
                 },
             },
         ];

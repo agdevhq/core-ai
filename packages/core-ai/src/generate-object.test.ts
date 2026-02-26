@@ -15,8 +15,13 @@ describe('generateObject', () => {
             usage: {
                 inputTokens: 5,
                 outputTokens: 3,
-                reasoningTokens: 0,
-                totalTokens: 8,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             },
         } as const;
 

@@ -58,8 +58,13 @@ describe('generate', () => {
         expect(result.usage).toEqual({
             inputTokens: 10,
             outputTokens: 5,
-            reasoningTokens: 0,
-            totalTokens: 15,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         });
 
         expect(create).toHaveBeenCalledWith(
@@ -68,6 +73,60 @@ describe('generate', () => {
                 messages: [{ role: 'user', content: 'Hi' }],
             })
         );
+    });
+
+    it('should map cached and reasoning token usage', async () => {
+        const create = vi.fn(async () => {
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Hello from cache!',
+                            refusal: null,
+                        },
+                    },
+                ],
+                usage: {
+                    prompt_tokens: 100,
+                    completion_tokens: 30,
+                    total_tokens: 130,
+                    prompt_tokens_details: {
+                        cached_tokens: 64,
+                        audio_tokens: 0,
+                    },
+                    completion_tokens_details: {
+                        reasoning_tokens: 12,
+                        audio_tokens: 0,
+                        accepted_prediction_tokens: 0,
+                        rejected_prediction_tokens: 0,
+                    },
+                },
+            });
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Hi again' }],
+        });
+
+        expect(result.usage).toEqual({
+            inputTokens: 100,
+            outputTokens: 30,
+            inputTokenDetails: {
+                cacheReadTokens: 64,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 12,
+            },
+        });
     });
 
     it('should map tool call responses', async () => {
@@ -304,6 +363,83 @@ describe('stream', () => {
         const response = await streamResult.toResponse();
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
+        expect(response.usage).toEqual({
+            inputTokens: 10,
+            outputTokens: 2,
+            inputTokenDetails: {
+                cacheReadTokens: 0,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
+    });
+
+    it('should map cached usage in streaming responses', async () => {
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: null,
+                            delta: { content: 'Cache ' },
+                        },
+                    ],
+                    usage: null,
+                }),
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'stop',
+                            delta: { content: 'hit' },
+                        },
+                    ],
+                    usage: {
+                        prompt_tokens: 90,
+                        completion_tokens: 4,
+                        total_tokens: 94,
+                        prompt_tokens_details: {
+                            cached_tokens: 64,
+                            audio_tokens: 0,
+                        },
+                        completion_tokens_details: {
+                            reasoning_tokens: 1,
+                            audio_tokens: 0,
+                            accepted_prediction_tokens: 0,
+                            rejected_prediction_tokens: 0,
+                        },
+                    },
+                }),
+            ]);
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'cached stream' }],
+        });
+
+        for await (const _event of streamResult) {
+            // Consume stream.
+        }
+
+        const response = await streamResult.toResponse();
+        expect(response.usage).toEqual({
+            inputTokens: 90,
+            outputTokens: 4,
+            inputTokenDetails: {
+                cacheReadTokens: 64,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 1,
+            },
+        });
     });
 
     it('should stream and aggregate structured object output', async () => {

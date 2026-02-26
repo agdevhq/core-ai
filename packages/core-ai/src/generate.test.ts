@@ -29,8 +29,13 @@ describe('generate', () => {
             usage: {
                 inputTokens: 5,
                 outputTokens: 3,
-                reasoningTokens: 0,
-                totalTokens: 8,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             },
         };
         const model = createMockChatModel(expected);
@@ -51,8 +56,13 @@ describe('generate', () => {
             usage: {
                 inputTokens: 0,
                 outputTokens: 0,
-                reasoningTokens: 0,
-                totalTokens: 0,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {
+                    reasoningTokens: 0,
+                },
             },
         });
 
