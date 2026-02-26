@@ -14,7 +14,7 @@ async function main(): Promise<void> {
     const anthropic = createAnthropic({
         apiKey: getRequiredEnv('ANTHROPIC_API_KEY'),
     });
-    const model = anthropic.chatModel('claude-sonnet-4-20250514');
+    const model = anthropic.chatModel('claude-haiku-4-5');
 
     const result = await generate({
         model,

@@ -17,7 +17,7 @@ import { generate } from '@core-ai/core-ai';
 import { createAnthropic } from '@core-ai/anthropic';
 
 const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const model = anthropic.chatModel('claude-sonnet-4-20250514');
+const model = anthropic.chatModel('claude-haiku-4-5');
 
 const result = await generate({
     model,

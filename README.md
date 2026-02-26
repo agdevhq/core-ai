@@ -182,7 +182,7 @@ const result = await embed({
 });
 
 console.log(result.embeddings.length); // => 2
-console.log(result.usage.inputTokens); // => 4
+console.log(result.usage?.inputTokens ?? 'not reported');
 ```
 
 ### Image Generation
@@ -210,7 +210,7 @@ import { generate } from '@core-ai/core-ai';
 import { createAnthropic } from '@core-ai/anthropic';
 
 const anthropic = createAnthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const model = anthropic.chatModel('claude-sonnet-4-20250514');
+const model = anthropic.chatModel('claude-haiku-4-5');
 
 const result = await generate({
     model,
@@ -337,6 +337,26 @@ npm run lint
 # Format
 npm run format
 ```
+
+## E2E Harness
+
+Live provider end-to-end tests are implemented in
+[`tests/e2e/README.md`](tests/e2e/README.md).
+
+These tests are live API tests and run via a dedicated entrypoint. They do not
+run as part of `npm run test`.
+
+```bash
+# Run shared provider E2E harness
+npm run test:e2e
+```
+
+Provider keys:
+
+- `OPENAI_API_KEY`
+- `ANTHROPIC_API_KEY`
+- `GOOGLE_API_KEY`
+- `MISTRAL_API_KEY`
 
 ## Contributing
 

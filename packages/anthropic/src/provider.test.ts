@@ -8,10 +8,10 @@ describe('createAnthropic', () => {
             client: createMockClient(),
         });
 
-        const chatModel = provider.chatModel('claude-sonnet-4-20250514');
+        const chatModel = provider.chatModel('claude-haiku-4-5');
 
         expect(chatModel.provider).toBe('anthropic');
-        expect(chatModel.modelId).toBe('claude-sonnet-4-20250514');
+        expect(chatModel.modelId).toBe('claude-haiku-4-5');
     });
 
     it('should use default max tokens in generated requests', async () => {
@@ -19,7 +19,7 @@ describe('createAnthropic', () => {
             id: 'msg_1',
             type: 'message',
             role: 'assistant',
-            model: 'claude-sonnet-4-20250514',
+            model: 'claude-haiku-4-5',
             stop_reason: 'end_turn',
             stop_sequence: null,
             content: [{ type: 'text', text: 'ok', citations: null }],
@@ -35,7 +35,7 @@ describe('createAnthropic', () => {
         });
 
         await provider
-            .chatModel('claude-sonnet-4-20250514')
+            .chatModel('claude-haiku-4-5')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
         expect(create).toHaveBeenCalledWith(

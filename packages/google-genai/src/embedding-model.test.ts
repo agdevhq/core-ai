@@ -17,16 +17,16 @@ describe('createGoogleGenAIEmbeddingModel', () => {
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
-            'text-embedding-004'
+            'gemini-embedding-001'
         );
 
         const result = await model.embed({ input: 'Hello world' });
 
         expect(result.embeddings).toEqual([[0.1, 0.2, 0.3]]);
-        expect(result.usage.inputTokens).toBe(5);
+        expect(result.usage?.inputTokens).toBe(5);
         expect(embedContent).toHaveBeenCalledWith(
             expect.objectContaining({
-                model: 'text-embedding-004',
+                model: 'gemini-embedding-001',
                 contents: ['Hello world'],
             })
         );
@@ -44,7 +44,7 @@ describe('createGoogleGenAIEmbeddingModel', () => {
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
-            'text-embedding-004'
+            'gemini-embedding-001'
         );
 
         const result = await model.embed({ input: ['Hello', 'World'] });
@@ -53,7 +53,25 @@ describe('createGoogleGenAIEmbeddingModel', () => {
             [0.1, 0.2],
             [0.3, 0.4],
         ]);
-        expect(result.usage.inputTokens).toBe(4);
+        expect(result.usage?.inputTokens).toBe(4);
+    });
+
+    it('should omit usage when token statistics are unavailable', async () => {
+        const embedContent = vi.fn(async () => ({
+            embeddings: [{ values: [0.1, 0.2, 0.3] }],
+        }));
+
+        const model = createGoogleGenAIEmbeddingModel(
+            {
+                models: { embedContent },
+            } as unknown as Pick<GoogleGenAI, 'models'>,
+            'gemini-embedding-001'
+        );
+
+        const result = await model.embed({ input: 'Hello world' });
+
+        expect(result.embeddings).toEqual([[0.1, 0.2, 0.3]]);
+        expect(result.usage).toBeUndefined();
     });
 
     it('should pass dimensions and provider config options', async () => {
@@ -65,7 +83,7 @@ describe('createGoogleGenAIEmbeddingModel', () => {
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
-            'text-embedding-004'
+            'gemini-embedding-001'
         );
 
         await model.embed({

@@ -9,14 +9,14 @@ describe('createGoogleGenAI', () => {
         });
 
         const chatModel = provider.chatModel('gemini-2.5-flash');
-        const embeddingModel = provider.embeddingModel('text-embedding-004');
+        const embeddingModel = provider.embeddingModel('gemini-embedding-001');
         const imageModel = provider.imageModel('imagen-4.0-generate-001');
 
         expect(chatModel.provider).toBe('google');
         expect(chatModel.modelId).toBe('gemini-2.5-flash');
 
         expect(embeddingModel.provider).toBe('google');
-        expect(embeddingModel.modelId).toBe('text-embedding-004');
+        expect(embeddingModel.modelId).toBe('gemini-embedding-001');
 
         expect(imageModel.provider).toBe('google');
         expect(imageModel.modelId).toBe('imagen-4.0-generate-001');
@@ -31,7 +31,11 @@ describe('createGoogleGenAI', () => {
                     finishReason: 'STOP',
                 },
             ],
-            usageMetadata: { promptTokenCount: 1, candidatesTokenCount: 1, totalTokenCount: 2 },
+            usageMetadata: {
+                promptTokenCount: 1,
+                candidatesTokenCount: 1,
+                totalTokenCount: 2,
+            },
         }));
         const embedContent = vi.fn(async () => ({
             embeddings: [{ values: [0.1], statistics: { tokenCount: 1 } }],
@@ -52,7 +56,7 @@ describe('createGoogleGenAI', () => {
             .chatModel('gemini-2.5-flash')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
         await provider
-            .embeddingModel('text-embedding-004')
+            .embeddingModel('gemini-embedding-001')
             .embed({ input: 'hello' });
         await provider
             .imageModel('imagen-4.0-generate-001')
