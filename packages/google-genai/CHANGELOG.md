@@ -1,5 +1,30 @@
 # @core-ai/google-genai
 
+## 0.3.0
+
+### Minor Changes
+
+- 8b1540e: Add first-class structured output support with `generateObject()` and
+  `streamObject()` across core and all provider chat models.
+
+    This introduces schema-driven typed object generation, structured output
+    streaming events, and standardized structured-output errors while keeping
+    provider strategy logic inside provider packages.
+
+- 5f3df42: Clarify embedding usage semantics by making `EmbedResult.usage` optional in the
+  core API contract, so providers can return `usage: undefined` when token counts
+  are not exposed by the underlying API.
+
+    Update Google GenAI embedding behavior to only include usage when token
+    statistics are present, and add provider E2E contract coverage for cross-
+    provider live validation.
+
+### Patch Changes
+
+- Updated dependencies [8b1540e]
+- Updated dependencies [5f3df42]
+    - @core-ai/core-ai@0.3.0
+
 ## 0.2.1
 
 ### Patch Changes
