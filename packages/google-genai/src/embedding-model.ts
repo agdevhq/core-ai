@@ -48,18 +48,27 @@ export function createGoogleGenAIEmbeddingModel(
                       }
                     : baseRequest;
                 const response = await client.models.embedContent(request);
+                const tokenCounts = (response.embeddings ?? [])
+                    .map((item) => item.statistics?.tokenCount)
+                    .filter(
+                        (tokenCount): tokenCount is number =>
+                            typeof tokenCount === 'number'
+                    );
+                const usage =
+                    tokenCounts.length > 0
+                        ? {
+                              inputTokens: tokenCounts.reduce(
+                                  (total, tokenCount) => total + tokenCount,
+                                  0
+                              ),
+                          }
+                        : undefined;
 
                 return {
                     embeddings: (response.embeddings ?? []).map(
                         (item) => item.values ?? []
                     ),
-                    usage: {
-                        inputTokens: (response.embeddings ?? []).reduce(
-                            (total, item) =>
-                                total + (item.statistics?.tokenCount ?? 0),
-                            0
-                        ),
-                    },
+                    usage,
                 };
             } catch (error) {
                 throw wrapGoogleError(error);
@@ -67,4 +76,3 @@ export function createGoogleGenAIEmbeddingModel(
         },
     };
 }
-

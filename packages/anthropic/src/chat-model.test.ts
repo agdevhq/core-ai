@@ -431,7 +431,7 @@ function asMessage(value: {
         id: 'msg_1',
         type: 'message',
         role: 'assistant',
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-haiku-4-5',
         stop_sequence: null,
         container: null,
         content: value.content as Message['content'],

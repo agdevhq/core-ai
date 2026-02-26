@@ -5,6 +5,7 @@
     "scripts": {
         "build": "turbo build",
         "test": "turbo test",
+        "test:e2e": "vitest run --config tests/e2e/vitest.config.ts",
         "package": "changeset version",
         "publish": "changeset publish",
         "deploy": "turbo deploy",

@@ -22,6 +22,24 @@ describe('embed', () => {
         expect(result.embeddings).toEqual([[0.1, 0.2]]);
     });
 
+    it('should allow embedding results without usage', async () => {
+        const model: EmbeddingModel = {
+            provider: 'test',
+            modelId: 'test-embed',
+            embed: vi.fn(async () => ({
+                embeddings: [[0.1, 0.2]],
+            })),
+        };
+
+        const result = await embed({
+            model,
+            input: 'hello',
+        });
+
+        expect(result.embeddings).toEqual([[0.1, 0.2]]);
+        expect(result.usage).toBeUndefined();
+    });
+
     it('should throw for empty string input', async () => {
         const model: EmbeddingModel = {
             provider: 'test',

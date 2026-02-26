@@ -2,6 +2,10 @@
 
 These scripts show how to use `@core-ai/core-ai` features end-to-end.
 
+These are usage examples, not automated contract checks. For the shared
+provider E2E harness, use
+[`tests/e2e/README.md`](../tests/e2e/README.md).
+
 ## Prerequisites
 
 - Node.js 18+

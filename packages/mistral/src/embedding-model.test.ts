@@ -23,7 +23,7 @@ describe('createMistralEmbeddingModel', () => {
         const result = await model.embed({ input: 'Hello world' });
 
         expect(result.embeddings).toEqual([[0.1, 0.2, 0.3]]);
-        expect(result.usage.inputTokens).toBe(5);
+        expect(result.usage?.inputTokens).toBe(5);
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
                 model: 'mistral-embed',

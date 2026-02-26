@@ -197,10 +197,15 @@ export type EmbedOptions = {
 
 export type EmbedResult = {
     embeddings: number[][];
-    usage: EmbeddingUsage;
+    /**
+     * Optional embedding usage metadata. Some providers/models do not expose
+     * token usage for embedding calls.
+     */
+    usage?: EmbeddingUsage;
 };
 
 export type EmbeddingUsage = {
+    /** Number of tokens consumed by embedding input. */
     inputTokens: number;
 };
 
