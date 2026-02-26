@@ -11,6 +11,12 @@ function createMockChatModel(result: GenerateResult): ChatModel {
         stream: vi.fn(async () => {
             throw new Error('not implemented');
         }),
+        generateObject: vi.fn(async () => {
+            throw new Error('not implemented');
+        }),
+        streamObject: vi.fn(async () => {
+            throw new Error('not implemented');
+        }),
     };
 }
 

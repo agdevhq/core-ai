@@ -4,6 +4,7 @@
     "license": "MIT",
     "scripts": {
         "build": "turbo build",
+        "test": "turbo test",
         "package": "changeset version",
         "publish": "changeset publish",
         "deploy": "turbo deploy",

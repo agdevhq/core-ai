@@ -16,10 +16,15 @@ export type {
     ModelConfig,
     GenerateOptions,
     GenerateResult,
+    GenerateObjectOptions,
+    StreamObjectOptions,
+    GenerateObjectResult,
     FinishReason,
     ChatUsage,
     StreamEvent,
     StreamResult,
+    ObjectStreamEvent,
+    StreamObjectResult,
     EmbeddingModel,
     EmbedOptions,
     EmbedResult,
@@ -29,10 +34,19 @@ export type {
     ImageGenerateResult,
     GeneratedImage,
 } from './types.ts';
-export { LLMError, ProviderError } from './errors.ts';
+export {
+    LLMError,
+    ProviderError,
+    StructuredOutputError,
+    StructuredOutputNoObjectGeneratedError,
+    StructuredOutputParseError,
+    StructuredOutputValidationError,
+} from './errors.ts';
 export { defineTool } from './tool.ts';
 export { generate } from './generate.ts';
+export { generateObject } from './generate-object.ts';
 export { stream } from './stream-chat.ts';
+export { streamObject, createObjectStreamResult } from './stream-object.ts';
 export { createStreamResult } from './stream.ts';
 export { embed } from './embed.ts';
 export { generateImage } from './generate-image.ts';

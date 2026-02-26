@@ -1,4 +1,3 @@
-import { MistralError } from '@mistralai/mistralai/models/errors';
 import type {
     ChatCompletionRequest,
     ChatCompletionRequestToolChoice,
@@ -11,10 +10,11 @@ import type {
     ToolCall as MistralToolCall,
     UsageInfo,
 } from '@mistralai/mistralai/models/components';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
+    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
@@ -24,6 +24,10 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
+
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
+    'Return a JSON object that matches the requested schema.';
 
 export function convertMessages(messages: Message[]): MistralMessage[] {
     return messages.map(convertMessage);
@@ -108,7 +112,10 @@ export function convertTools(tools: ToolSet): MistralTool[] {
         function: {
             name: tool.name,
             description: tool.description,
-            parameters: zodToJsonSchema(tool.parameters) as Record<string, unknown>,
+            parameters: zodToJsonSchema(tool.parameters) as Record<
+                string,
+                unknown
+            >,
         },
     }));
 }
@@ -128,45 +135,51 @@ export function convertToolChoice(
     };
 }
 
+export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): string {
+    const trimmedName = options.schemaName?.trim();
+    if (trimmedName && trimmedName.length > 0) {
+        return trimmedName;
+    }
+    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+}
+
+export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): GenerateOptions {
+    const toolName = getStructuredOutputToolName(options);
+
+    return {
+        messages: options.messages,
+        tools: {
+            structured_output: {
+                name: toolName,
+                description:
+                    options.schemaDescription ??
+                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
+                parameters: options.schema,
+            },
+        },
+        toolChoice: {
+            type: 'tool',
+            toolName,
+        },
+        config: options.config,
+        providerOptions: options.providerOptions,
+        signal: options.signal,
+    };
+}
+
 export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
 ): ChatCompletionRequest {
     const baseRequest: ChatCompletionRequest = {
-        model: modelId,
-        messages: convertMessages(options.messages),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
-            : {}),
-        ...(options.toolChoice
-            ? { toolChoice: convertToolChoice(options.toolChoice) }
-            : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
-            : {}),
-        ...(options.config?.maxTokens !== undefined
-            ? { maxTokens: options.config.maxTokens }
-            : {}),
-        ...(options.config?.topP !== undefined
-            ? { topP: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop: options.config.stopSequences }
-            : {}),
-        ...(options.config?.frequencyPenalty !== undefined
-            ? { frequencyPenalty: options.config.frequencyPenalty }
-            : {}),
-        ...(options.config?.presencePenalty !== undefined
-            ? { presencePenalty: options.config.presencePenalty }
-            : {}),
+        ...createRequestBase(modelId, options),
     };
 
-    return options.providerOptions
-        ? {
-              ...baseRequest,
-              ...(options.providerOptions as Partial<ChatCompletionRequest>),
-          }
-        : baseRequest;
+    return mergeProviderOptions(baseRequest, options.providerOptions);
 }
 
 export function createStreamRequest(
@@ -174,39 +187,52 @@ export function createStreamRequest(
     options: GenerateOptions
 ): ChatCompletionStreamRequest {
     const baseRequest: ChatCompletionStreamRequest = {
+        ...createRequestBase(modelId, options),
+        stream: true,
+    };
+
+    return mergeProviderOptions(baseRequest, options.providerOptions);
+}
+
+function createRequestBase(modelId: string, options: GenerateOptions) {
+    return {
         model: modelId,
         messages: convertMessages(options.messages),
-        stream: true,
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
         ...(options.toolChoice
             ? { toolChoice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
+        ...mapConfigToRequestFields(options.config),
+    };
+}
+
+function mapConfigToRequestFields(config: GenerateOptions['config']) {
+    return {
+        ...(config?.temperature !== undefined
+            ? { temperature: config.temperature }
             : {}),
-        ...(options.config?.maxTokens !== undefined
-            ? { maxTokens: options.config.maxTokens }
+        ...(config?.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {}),
+        ...(config?.topP !== undefined ? { topP: config.topP } : {}),
+        ...(config?.stopSequences ? { stop: config.stopSequences } : {}),
+        ...(config?.frequencyPenalty !== undefined
+            ? { frequencyPenalty: config.frequencyPenalty }
             : {}),
-        ...(options.config?.topP !== undefined
-            ? { topP: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop: options.config.stopSequences }
-            : {}),
-        ...(options.config?.frequencyPenalty !== undefined
-            ? { frequencyPenalty: options.config.frequencyPenalty }
-            : {}),
-        ...(options.config?.presencePenalty !== undefined
-            ? { presencePenalty: options.config.presencePenalty }
+        ...(config?.presencePenalty !== undefined
+            ? { presencePenalty: config.presencePenalty }
             : {}),
     };
+}
 
-    return options.providerOptions
+function mergeProviderOptions<TRequest extends object>(
+    baseRequest: TRequest,
+    providerOptions: Record<string, unknown> | undefined
+): TRequest {
+    return providerOptions
         ? {
               ...baseRequest,
-              ...(options.providerOptions as Partial<ChatCompletionStreamRequest>),
+              ...(providerOptions as Partial<TRequest>),
           }
         : baseRequest;
 }
@@ -278,7 +304,10 @@ export async function* transformStream(
         }
 
         if (choice.delta.toolCalls) {
-            for (const [position, partialToolCall] of choice.delta.toolCalls.entries()) {
+            for (const [
+                position,
+                partialToolCall,
+            ] of choice.delta.toolCalls.entries()) {
                 const streamIndex = partialToolCall.index ?? position;
                 const current = bufferedToolCalls.get(streamIndex) ?? {
                     id: partialToolCall.id ?? `tool-${streamIndex}`,
@@ -305,7 +334,8 @@ export async function* transformStream(
                         argumentsDelta: argumentDelta,
                     };
                 } else {
-                    const serializedArguments = serializeJsonObject(argumentDelta);
+                    const serializedArguments =
+                        serializeJsonObject(argumentDelta);
                     if (serializedArguments.length > 0) {
                         current.arguments = serializedArguments;
                         yield {
@@ -367,7 +397,9 @@ function* emitBufferedToolCalls(
     }
 }
 
-function parseToolCalls(calls: MistralToolCall[] | null | undefined): ToolCall[] {
+function parseToolCalls(
+    calls: MistralToolCall[] | null | undefined
+): ToolCall[] {
     if (!calls || calls.length === 0) {
         return [];
     }
@@ -428,12 +460,16 @@ function extractTextDeltas(
         return [];
     }
 
-    return content.flatMap((chunk) => (chunk.type === 'text' ? [chunk.text] : []));
+    return content.flatMap((chunk) =>
+        chunk.type === 'text' ? [chunk.text] : []
+    );
 }
 
 function serializeJsonObject(value: unknown): string {
     const objectValue = asObject(value);
-    return Object.keys(objectValue).length > 0 ? JSON.stringify(objectValue) : '';
+    return Object.keys(objectValue).length > 0
+        ? JSON.stringify(objectValue)
+        : '';
 }
 
 function toObject(value: unknown): Record<string, unknown> {
@@ -457,17 +493,4 @@ function asObject(value: unknown): Record<string, unknown> {
         return value as Record<string, unknown>;
     }
     return {};
-}
-
-export function wrapError(error: unknown): ProviderError {
-    if (error instanceof MistralError) {
-        return new ProviderError(error.message, 'mistral', error.statusCode, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'mistral',
-        undefined,
-        error
-    );
 }

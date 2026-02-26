@@ -1,4 +1,3 @@
-import { APIError } from 'openai';
 import type {
     ChatCompletion,
     ChatCompletionChunk,
@@ -8,10 +7,11 @@ import type {
     ChatCompletionTool,
     ChatCompletionToolChoiceOption,
 } from 'openai/resources/chat/completions/completions';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
+    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
@@ -21,6 +21,10 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
+
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
+export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
+    'Return a JSON object that matches the requested schema.';
 
 export function convertMessages(
     messages: Message[]
@@ -134,71 +138,91 @@ export function convertToolChoice(
     };
 }
 
-export function createGenerateRequest(modelId: string, options: GenerateOptions) {
+export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): string {
+    const trimmedName = options.schemaName?.trim();
+    if (trimmedName && trimmedName.length > 0) {
+        return trimmedName;
+    }
+    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+}
+
+export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): GenerateOptions {
+    const toolName = getStructuredOutputToolName(options);
+
     return {
-        model: modelId,
-        messages: convertMessages(options.messages),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
-            : {}),
-        ...(options.toolChoice
-            ? { tool_choice: convertToolChoice(options.toolChoice) }
-            : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
-            : {}),
-        ...(options.config?.maxTokens !== undefined
-            ? { max_tokens: options.config.maxTokens }
-            : {}),
-        ...(options.config?.topP !== undefined
-            ? { top_p: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop: options.config.stopSequences }
-            : {}),
-        ...(options.config?.frequencyPenalty !== undefined
-            ? { frequency_penalty: options.config.frequencyPenalty }
-            : {}),
-        ...(options.config?.presencePenalty !== undefined
-            ? { presence_penalty: options.config.presencePenalty }
-            : {}),
+        messages: options.messages,
+        tools: {
+            structured_output: {
+                name: toolName,
+                description:
+                    options.schemaDescription ??
+                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
+                parameters: options.schema,
+            },
+        },
+        toolChoice: {
+            type: 'tool',
+            toolName,
+        },
+        config: options.config,
+        providerOptions: options.providerOptions,
+        signal: options.signal,
+    };
+}
+
+export function createGenerateRequest(
+    modelId: string,
+    options: GenerateOptions
+) {
+    return {
+        ...createRequestBase(modelId, options),
         ...options.providerOptions,
     };
 }
 
 export function createStreamRequest(modelId: string, options: GenerateOptions) {
     return {
-        model: modelId,
-        messages: convertMessages(options.messages),
+        ...createRequestBase(modelId, options),
         stream: true as const,
         stream_options: {
             include_usage: true,
         },
+        ...options.providerOptions,
+    };
+}
+
+function createRequestBase(modelId: string, options: GenerateOptions) {
+    return {
+        model: modelId,
+        messages: convertMessages(options.messages),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
+        ...mapConfigToRequestFields(options.config),
+    };
+}
+
+function mapConfigToRequestFields(config: GenerateOptions['config']) {
+    return {
+        ...(config?.temperature !== undefined
+            ? { temperature: config.temperature }
             : {}),
-        ...(options.config?.maxTokens !== undefined
-            ? { max_tokens: options.config.maxTokens }
+        ...(config?.maxTokens !== undefined ? { max_tokens: config.maxTokens } : {}),
+        ...(config?.topP !== undefined ? { top_p: config.topP } : {}),
+        ...(config?.stopSequences ? { stop: config.stopSequences } : {}),
+        ...(config?.frequencyPenalty !== undefined
+            ? { frequency_penalty: config.frequencyPenalty }
             : {}),
-        ...(options.config?.topP !== undefined
-            ? { top_p: options.config.topP }
+        ...(config?.presencePenalty !== undefined
+            ? { presence_penalty: config.presencePenalty }
             : {}),
-        ...(options.config?.stopSequences
-            ? { stop: options.config.stopSequences }
-            : {}),
-        ...(options.config?.frequencyPenalty !== undefined
-            ? { frequency_penalty: options.config.frequencyPenalty }
-            : {}),
-        ...(options.config?.presencePenalty !== undefined
-            ? { presence_penalty: options.config.presencePenalty }
-            : {}),
-        ...options.providerOptions,
     };
 }
 
@@ -306,7 +330,8 @@ export async function* transformStream(
                 inputTokens: chunk.usage.prompt_tokens ?? 0,
                 outputTokens: chunk.usage.completion_tokens ?? 0,
                 reasoningTokens:
-                    chunk.usage.completion_tokens_details?.reasoning_tokens ?? 0,
+                    chunk.usage.completion_tokens_details?.reasoning_tokens ??
+                    0,
                 totalTokens: chunk.usage.total_tokens ?? 0,
             };
         }
@@ -325,7 +350,9 @@ export async function* transformStream(
 
         if (choice.delta.tool_calls) {
             for (const partialToolCall of choice.delta.tool_calls) {
-                const current = bufferedToolCalls.get(partialToolCall.index) ?? {
+                const current = bufferedToolCalls.get(
+                    partialToolCall.index
+                ) ?? {
                     id: partialToolCall.id ?? `tool-${partialToolCall.index}`,
                     name: partialToolCall.function?.name ?? '',
                     arguments: '',
@@ -400,17 +427,4 @@ function safeParseJsonObject(json: string): Record<string, unknown> {
     } catch {
         return {};
     }
-}
-
-export function wrapError(error: unknown): ProviderError {
-    if (error instanceof APIError) {
-        return new ProviderError(error.message, 'openai', error.status, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'openai',
-        undefined,
-        error
-    );
 }

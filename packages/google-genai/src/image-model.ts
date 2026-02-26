@@ -1,11 +1,11 @@
-import { ApiError } from '@google/genai';
 import type { GenerateImagesParameters, GoogleGenAI } from '@google/genai';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     ImageGenerateOptions,
     ImageGenerateResult,
     ImageModel,
 } from '@core-ai/core-ai';
+import { wrapGoogleError } from './google-error.js';
+import { asObject } from './object-utils.js';
 
 type GoogleGenAIImageClient = {
     models: GoogleGenAI['models'];
@@ -56,26 +56,15 @@ export function createGoogleGenAIImageModel(
                     })),
                 };
             } catch (error) {
-                throw wrapError(error);
+                throw wrapGoogleError(error);
             }
         },
     };
 }
 
-function wrapError(error: unknown): ProviderError {
-    if (error instanceof ApiError) {
-        return new ProviderError(error.message, 'google', error.status, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'google',
-        undefined,
-        error
-    );
-}
-
-function mapSizeToImageConfig(size: string | undefined): Record<string, string> {
+function mapSizeToImageConfig(
+    size: string | undefined
+): Record<string, string> {
     if (!size) {
         return {};
     }
@@ -120,11 +109,4 @@ function greatestCommonDivisor(a: number, b: number): number {
     }
 
     return x === 0 ? 1 : x;
-}
-
-function asObject(value: unknown): Record<string, unknown> {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-        return value as Record<string, unknown>;
-    }
-    return {};
 }

@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import type { Mistral } from '@mistralai/mistralai';
 import type {
     ChatCompletionResponse,
     CompletionEvent,
 } from '@mistralai/mistralai/models/components';
-import { ProviderError } from '@core-ai/core-ai';
+import {
+    ProviderError,
+    StructuredOutputValidationError,
+} from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.js';
 
 describe('createMistralChatModel', () => {
@@ -114,6 +118,108 @@ describe('generate', () => {
                 arguments: { query: 'weather' },
             },
         ]);
+    });
+
+    it('should generate a validated structured object', async () => {
+        const complete = vi.fn(async () => {
+            return asChatCompletionResponse({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: 'tool_calls',
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            toolCalls: [
+                                {
+                                    id: 'tc_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'weather_schema',
+                                        arguments:
+                                            '{"city":"Berlin","temperatureC":21}',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                usage: {
+                    promptTokens: 10,
+                    completionTokens: 5,
+                    totalTokens: 15,
+                },
+            });
+        });
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const result = await model.generateObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+        });
+
+        expect(result.object).toEqual({
+            city: 'Berlin',
+            temperatureC: 21,
+        });
+        expect(result.finishReason).toBe('tool-calls');
+    });
+
+    it('should throw validation error for invalid structured output', async () => {
+        const complete = vi.fn(async () => {
+            return asChatCompletionResponse({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: 'tool_calls',
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            toolCalls: [
+                                {
+                                    id: 'tc_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'weather_schema',
+                                        arguments:
+                                            '{"city":"Berlin","temperatureC":"warm"}',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+                usage: {
+                    promptTokens: 10,
+                    completionTokens: 5,
+                    totalTokens: 15,
+                },
+            });
+        });
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        await expect(
+            model.generateObject({
+                messages: [{ role: 'user', content: 'Return weather JSON' }],
+                schema,
+                schemaName: 'weather_schema',
+            })
+        ).rejects.toBeInstanceOf(StructuredOutputValidationError);
     });
 
     it('should wrap provider errors', async () => {
@@ -233,7 +339,9 @@ describe('stream', () => {
         expect(events.some((event) => event.type === 'tool-call-start')).toBe(
             true
         );
-        expect(events.some((event) => event.type === 'tool-call-end')).toBe(true);
+        expect(events.some((event) => event.type === 'tool-call-end')).toBe(
+            true
+        );
 
         const response = await streamResult.toResponse();
         expect(response.finishReason).toBe('tool-calls');
@@ -245,14 +353,93 @@ describe('stream', () => {
             },
         ]);
     });
+
+    it('should stream and aggregate structured object output', async () => {
+        const stream = vi.fn(async () => {
+            return toAsyncIterable<CompletionEvent>([
+                asCompletionEvent({
+                    choices: [
+                        {
+                            index: 0,
+                            finishReason: null,
+                            delta: {
+                                toolCalls: [
+                                    {
+                                        id: 'tc_1',
+                                        type: 'function',
+                                        index: 0,
+                                        function: {
+                                            name: 'weather_schema',
+                                            arguments: '{"city":"Berlin",',
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                }),
+                asCompletionEvent({
+                    choices: [
+                        {
+                            index: 0,
+                            finishReason: 'tool_calls',
+                            delta: {
+                                toolCalls: [
+                                    {
+                                        index: 0,
+                                        function: {
+                                            name: 'weather_schema',
+                                            arguments: '"temperatureC":21}',
+                                        },
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                    usage: {
+                        promptTokens: 10,
+                        completionTokens: 2,
+                        totalTokens: 12,
+                    },
+                }),
+            ]);
+        });
+        const model = createMistralChatModel(
+            createMockClient({ stream }),
+            'mistral-large-latest'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const streamResult = await model.streamObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+        });
+
+        const objects: Array<{ city: string; temperatureC: number }> = [];
+        for await (const event of streamResult) {
+            if (event.type === 'object') {
+                objects.push(event.object);
+            }
+        }
+
+        expect(objects).toEqual([{ city: 'Berlin', temperatureC: 21 }]);
+        const response = await streamResult.toResponse();
+        expect(response.object).toEqual({
+            city: 'Berlin',
+            temperatureC: 21,
+        });
+        expect(response.finishReason).toBe('tool-calls');
+    });
 });
 
-function createMockClient(
-    overrides?: {
-        complete?: (options: unknown) => Promise<unknown>;
-        stream?: (options: unknown) => Promise<unknown>;
-    }
-): Pick<Mistral, 'chat'> {
+function createMockClient(overrides?: {
+    complete?: (options: unknown) => Promise<unknown>;
+    stream?: (options: unknown) => Promise<unknown>;
+}): Pick<Mistral, 'chat'> {
     const complete =
         overrides?.complete ??
         (async () => {

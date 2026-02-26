@@ -23,6 +23,11 @@
         "check-types": {
             "dependsOn": ["^check-types"]
         },
+        "test": {
+            "dependsOn": ["^build"],
+            "inputs": ["$TURBO_DEFAULT$"],
+            "outputs": []
+        },
         "dev": {
             "cache": false,
             "persistent": true

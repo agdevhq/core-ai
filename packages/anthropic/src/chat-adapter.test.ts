@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
 import {
+    createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
@@ -197,8 +198,10 @@ describe('convertTools', () => {
 
         expect(result[0]?.name).toBe('search');
         expect(result[0]?.description).toBe('Search the web');
+        expect(result[0]?.strict).toBe(true);
         expect(result[0]?.input_schema).toMatchObject({
             type: 'object',
+            additionalProperties: false,
             properties: {
                 query: { type: 'string' },
             },
@@ -225,6 +228,39 @@ describe('convertToolChoice', () => {
         ).toEqual({
             type: 'tool',
             name: 'search',
+        });
+    });
+});
+
+describe('structured output helpers', () => {
+    it('should create output_config-based options for structured output', () => {
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const result = createStructuredOutputOptions({
+            messages: [{ role: 'user', content: 'Return weather as JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+            schemaDescription: 'Structured weather output',
+            config: {
+                maxTokens: 256,
+            },
+        });
+
+        expect(result.toolChoice).toBeUndefined();
+        expect(result.tools).toBeUndefined();
+        expect(result.providerOptions).toMatchObject({
+            output_config: {
+                format: {
+                    type: 'json_schema',
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                    },
+                },
+            },
         });
     });
 });

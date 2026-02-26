@@ -10,10 +10,12 @@ import type {
     ToolChoice,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
+import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
+    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
@@ -23,6 +25,17 @@ import type {
     UserContentPart,
     ToolChoice as AgToolChoice,
 } from '@core-ai/core-ai';
+
+const UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS = new Set([
+    'minimum',
+    'maximum',
+    'exclusiveMinimum',
+    'exclusiveMaximum',
+    'multipleOf',
+    'minLength',
+    'maxLength',
+    'maxItems',
+]);
 
 export type ConvertedAnthropicMessages = {
     system: string | undefined;
@@ -171,16 +184,13 @@ function convertUserContentPart(part: UserContentPart): ContentBlockParam {
 
 export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
-        const schema = zodToJsonSchema(tool.parameters) as Record<
-            string,
-            unknown
-        >;
-        const { $schema: _schema, ...inputSchema } = schema;
+        const schema = toAnthropicJsonSchema(tool.parameters);
 
         return {
             name: tool.name,
             description: tool.description,
-            input_schema: inputSchema as Tool['input_schema'],
+            input_schema: schema as Tool['input_schema'],
+            strict: true,
         };
     });
 }
@@ -201,32 +211,89 @@ export function convertToolChoice(choice: AgToolChoice): ToolChoice {
     };
 }
 
+export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): GenerateOptions {
+    const schema = toAnthropicJsonSchema(options.schema);
+    const schemaDescription = options.schemaDescription?.trim();
+    if (schemaDescription && schemaDescription.length > 0) {
+        schema.description = schemaDescription;
+    }
+
+    return {
+        messages: options.messages,
+        config: options.config,
+        providerOptions: {
+            ...(options.providerOptions ?? {}),
+            output_config: {
+                format: {
+                    type: 'json_schema',
+                    schema,
+                },
+            },
+        },
+        signal: options.signal,
+    };
+}
+
+function toAnthropicJsonSchema(schema: z.ZodType): Record<string, unknown> {
+    const rawSchema = zodToJsonSchema(schema) as Record<string, unknown>;
+    return normalizeAnthropicJsonSchema(rawSchema);
+}
+
+function normalizeAnthropicJsonSchema(value: unknown): Record<string, unknown> {
+    const normalized = normalizeAnthropicJsonValue(value);
+    return isJsonObject(normalized) ? normalized : {};
+}
+
+function normalizeAnthropicJsonValue(value: unknown): unknown {
+    if (Array.isArray(value)) {
+        return value.map(normalizeAnthropicJsonValue);
+    }
+
+    if (!isJsonObject(value)) {
+        return value;
+    }
+
+    const normalized: Record<string, unknown> = {};
+
+    for (const [key, child] of Object.entries(value)) {
+        if (
+            key === '$schema' ||
+            UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS.has(key) ||
+            (key === 'minItems' && typeof child === 'number' && child > 1)
+        ) {
+            continue;
+        }
+        normalized[key] = normalizeAnthropicJsonValue(child);
+    }
+
+    if (isObjectSchema(normalized)) {
+        normalized.additionalProperties = false;
+    }
+
+    return normalized;
+}
+
+function isObjectSchema(value: Record<string, unknown>): boolean {
+    return (
+        value.type === 'object' ||
+        Object.hasOwn(value, 'properties') ||
+        Object.hasOwn(value, 'required')
+    );
+}
+
+function isJsonObject(value: unknown): value is Record<string, unknown> {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
 export function createGenerateRequest(
     modelId: string,
     defaultMaxTokens: number,
     options: GenerateOptions
 ) {
-    const converted = convertMessages(options.messages);
     return {
-        model: modelId,
-        messages: converted.messages,
-        max_tokens: options.config?.maxTokens ?? defaultMaxTokens,
-        ...(converted.system ? { system: converted.system } : {}),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
-            : {}),
-        ...(options.toolChoice
-            ? { tool_choice: convertToolChoice(options.toolChoice) }
-            : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
-            : {}),
-        ...(options.config?.topP !== undefined
-            ? { top_p: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop_sequences: options.config.stopSequences }
-            : {}),
+        ...createRequestBase(modelId, defaultMaxTokens, options),
         ...options.providerOptions,
     };
 }
@@ -236,11 +303,23 @@ export function createStreamRequest(
     defaultMaxTokens: number,
     options: GenerateOptions
 ) {
+    return {
+        ...createRequestBase(modelId, defaultMaxTokens, options),
+        stream: true as const,
+        ...options.providerOptions,
+    };
+}
+
+function createRequestBase(
+    modelId: string,
+    defaultMaxTokens: number,
+    options: GenerateOptions
+) {
     const converted = convertMessages(options.messages);
+
     return {
         model: modelId,
         messages: converted.messages,
-        stream: true as const,
         max_tokens: options.config?.maxTokens ?? defaultMaxTokens,
         ...(converted.system ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
@@ -249,20 +328,25 @@ export function createStreamRequest(
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
-            : {}),
-        ...(options.config?.topP !== undefined
-            ? { top_p: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop_sequences: options.config.stopSequences }
-            : {}),
-        ...options.providerOptions,
+        ...mapConfigToRequestFields(options.config),
     };
 }
 
-export function mapGenerateResponse(response: AnthropicMessage): GenerateResult {
+function mapConfigToRequestFields(config: GenerateOptions['config']) {
+    return {
+        ...(config?.temperature !== undefined
+            ? { temperature: config.temperature }
+            : {}),
+        ...(config?.topP !== undefined ? { top_p: config.topP } : {}),
+        ...(config?.stopSequences
+            ? { stop_sequences: config.stopSequences }
+            : {}),
+    };
+}
+
+export function mapGenerateResponse(
+    response: AnthropicMessage
+): GenerateResult {
     const toolCalls: ToolCall[] = [];
     let content = '';
 
@@ -288,7 +372,8 @@ export function mapGenerateResponse(response: AnthropicMessage): GenerateResult 
             inputTokens: response.usage.input_tokens,
             outputTokens: response.usage.output_tokens,
             reasoningTokens: 0,
-            totalTokens: response.usage.input_tokens + response.usage.output_tokens,
+            totalTokens:
+                response.usage.input_tokens + response.usage.output_tokens,
         },
     };
 }
@@ -317,7 +402,8 @@ export async function* transformStream(
                 outputTokens: event.message.usage.output_tokens,
                 reasoningTokens: 0,
                 totalTokens:
-                    event.message.usage.input_tokens + event.message.usage.output_tokens,
+                    event.message.usage.input_tokens +
+                    event.message.usage.output_tokens,
             };
             continue;
         }
@@ -327,7 +413,9 @@ export async function* transformStream(
                 const block = event.content_block as ToolUseBlock;
                 const initialArguments =
                     block.input && typeof block.input === 'object'
-                        ? JSON.stringify(block.input)
+                        ? Object.keys(block.input).length > 0
+                            ? JSON.stringify(block.input)
+                            : ''
                         : '';
 
                 toolBuffers.set(event.index, {
@@ -443,7 +531,12 @@ function asObject(value: unknown): Record<string, unknown> {
 
 export function wrapError(error: unknown): ProviderError {
     if (error instanceof APIError) {
-        return new ProviderError(error.message, 'anthropic', error.status, error);
+        return new ProviderError(
+            error.message,
+            'anthropic',
+            error.status,
+            error
+        );
     }
 
     return new ProviderError(

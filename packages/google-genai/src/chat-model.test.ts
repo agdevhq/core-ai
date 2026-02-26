@@ -1,10 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import {
     FinishReason as GoogleFinishReason,
     type GenerateContentResponse,
     type GoogleGenAI,
 } from '@google/genai';
-import { ProviderError } from '@core-ai/core-ai';
+import {
+    ProviderError,
+    StructuredOutputValidationError,
+} from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.js';
 
 describe('createGoogleGenAIChatModel', () => {
@@ -104,6 +108,96 @@ describe('generate', () => {
         ]);
     });
 
+    it('should generate a validated structured object', async () => {
+        const generateContent = vi.fn(async () => {
+            return asGenerateContentResponse({
+                functionCalls: [
+                    {
+                        id: 'tc_1',
+                        name: 'weather_schema',
+                        args: {
+                            city: 'Berlin',
+                            temperatureC: 21,
+                        },
+                    },
+                ],
+                candidates: [
+                    {
+                        finishReason: GoogleFinishReason.STOP,
+                    },
+                ],
+                usageMetadata: {
+                    promptTokenCount: 10,
+                    candidatesTokenCount: 5,
+                    totalTokenCount: 15,
+                },
+            });
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const result = await model.generateObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+        });
+
+        expect(result.object).toEqual({
+            city: 'Berlin',
+            temperatureC: 21,
+        });
+        expect(result.finishReason).toBe('tool-calls');
+    });
+
+    it('should throw validation error for invalid structured output', async () => {
+        const generateContent = vi.fn(async () => {
+            return asGenerateContentResponse({
+                functionCalls: [
+                    {
+                        id: 'tc_1',
+                        name: 'weather_schema',
+                        args: {
+                            city: 'Berlin',
+                            temperatureC: 'warm',
+                        },
+                    },
+                ],
+                candidates: [
+                    {
+                        finishReason: GoogleFinishReason.STOP,
+                    },
+                ],
+                usageMetadata: {
+                    promptTokenCount: 10,
+                    candidatesTokenCount: 5,
+                    totalTokenCount: 15,
+                },
+            });
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        await expect(
+            model.generateObject({
+                messages: [{ role: 'user', content: 'Return weather JSON' }],
+                schema,
+                schemaName: 'weather_schema',
+            })
+        ).rejects.toBeInstanceOf(StructuredOutputValidationError);
+    });
+
     it('should wrap provider errors', async () => {
         const generateContent = vi.fn(async () => {
             throw new Error('network failed');
@@ -199,7 +293,9 @@ describe('stream', () => {
         expect(events.some((event) => event.type === 'tool-call-start')).toBe(
             true
         );
-        expect(events.some((event) => event.type === 'tool-call-end')).toBe(true);
+        expect(events.some((event) => event.type === 'tool-call-end')).toBe(
+            true
+        );
 
         const response = await streamResult.toResponse();
         expect(response.finishReason).toBe('tool-calls');
@@ -211,14 +307,66 @@ describe('stream', () => {
             },
         ]);
     });
+
+    it('should stream and aggregate structured object output', async () => {
+        const generateContentStream = vi.fn(async () => {
+            return toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    functionCalls: [
+                        {
+                            id: 'tc_1',
+                            name: 'weather_schema',
+                            args: {
+                                city: 'Berlin',
+                                temperatureC: 21,
+                            },
+                        },
+                    ],
+                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 2,
+                        totalTokenCount: 12,
+                    },
+                }),
+            ]);
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+
+        const streamResult = await model.streamObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+        });
+
+        const objects: Array<{ city: string; temperatureC: number }> = [];
+        for await (const event of streamResult) {
+            if (event.type === 'object') {
+                objects.push(event.object);
+            }
+        }
+
+        expect(objects).toEqual([{ city: 'Berlin', temperatureC: 21 }]);
+        const response = await streamResult.toResponse();
+        expect(response.object).toEqual({
+            city: 'Berlin',
+            temperatureC: 21,
+        });
+        expect(response.finishReason).toBe('tool-calls');
+    });
 });
 
-function createMockClient(
-    overrides?: {
-        generateContent?: (options: unknown) => Promise<unknown>;
-        generateContentStream?: (options: unknown) => Promise<unknown>;
-    }
-): Pick<GoogleGenAI, 'models'> {
+function createMockClient(overrides?: {
+    generateContent?: (options: unknown) => Promise<unknown>;
+    generateContentStream?: (options: unknown) => Promise<unknown>;
+}): Pick<GoogleGenAI, 'models'> {
     const generateContent =
         overrides?.generateContent ??
         (async () => {

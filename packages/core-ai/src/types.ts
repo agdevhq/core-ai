@@ -75,6 +75,12 @@ export type ChatModel = {
     readonly modelId: string;
     generate(options: GenerateOptions): Promise<GenerateResult>;
     stream(options: GenerateOptions): Promise<StreamResult>;
+    generateObject<TSchema extends z.ZodType>(
+        options: GenerateObjectOptions<TSchema>
+    ): Promise<GenerateObjectResult<TSchema>>;
+    streamObject<TSchema extends z.ZodType>(
+        options: StreamObjectOptions<TSchema>
+    ): Promise<StreamObjectResult<TSchema>>;
 };
 
 export type ModelConfig = {
@@ -98,6 +104,25 @@ export type GenerateOptions = {
 export type GenerateResult = {
     content: string | null;
     toolCalls: ToolCall[];
+    finishReason: FinishReason;
+    usage: ChatUsage;
+};
+
+export type GenerateObjectOptions<TSchema extends z.ZodType> = {
+    messages: Message[];
+    schema: TSchema;
+    schemaName?: string;
+    schemaDescription?: string;
+    config?: ModelConfig;
+    providerOptions?: Record<string, unknown>;
+    signal?: AbortSignal;
+};
+
+export type StreamObjectOptions<TSchema extends z.ZodType> =
+    GenerateObjectOptions<TSchema>;
+
+export type GenerateObjectResult<TSchema extends z.ZodType> = {
+    object: z.infer<TSchema>;
     finishReason: FinishReason;
     usage: ChatUsage;
 };
@@ -145,6 +170,17 @@ export type StreamEvent =
 
 export type StreamResult = AsyncIterable<StreamEvent> & {
     toResponse(): Promise<GenerateResult>;
+};
+
+export type ObjectStreamEvent<TSchema extends z.ZodType> =
+    | { type: 'object-delta'; text: string }
+    | { type: 'object'; object: z.infer<TSchema> }
+    | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
+
+export type StreamObjectResult<TSchema extends z.ZodType> = AsyncIterable<
+    ObjectStreamEvent<TSchema>
+> & {
+    toResponse(): Promise<GenerateObjectResult<TSchema>>;
 };
 
 export type EmbeddingModel = {

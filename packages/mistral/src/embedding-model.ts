@@ -1,12 +1,11 @@
 import type { Mistral } from '@mistralai/mistralai';
 import type { EmbeddingRequest } from '@mistralai/mistralai/models/components';
-import { MistralError } from '@mistralai/mistralai/models/errors';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     EmbedOptions,
     EmbedResult,
     EmbeddingModel,
 } from '@core-ai/core-ai';
+import { wrapMistralError } from './mistral-error.js';
 
 type MistralEmbeddingClient = {
     embeddings: Mistral['embeddings'];
@@ -47,21 +46,8 @@ export function createMistralEmbeddingModel(
                     },
                 };
             } catch (error) {
-                throw wrapError(error);
+                throw wrapMistralError(error);
             }
         },
     };
-}
-
-function wrapError(error: unknown): ProviderError {
-    if (error instanceof MistralError) {
-        return new ProviderError(error.message, 'mistral', error.statusCode, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'mistral',
-        undefined,
-        error
-    );
 }
