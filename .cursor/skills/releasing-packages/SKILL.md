@@ -1,51 +1,13 @@
 ---
 name: releasing-packages
-description: Explains how to version and publish packages to npm using Changesets. Use when releasing, publishing, versioning packages, creating changesets, or troubleshooting npm publish issues.
+description: How to version and publish packages to npm from the main branch. Use when running release commands, publishing to npm, or troubleshooting publish issues. For changeset authoring and PR prep, use the contributing skill instead.
 ---
 
 # Releasing Packages
 
-## Overview
+Releases happen from `main`, not from feature branches. Multiple changesets accumulate between releases.
 
-Versioning and publishing uses **Changesets**. All publishable packages are in a **fixed version group** — they always share the same version number.
-
-## Publishable Packages (fixed group)
-
-- `@core-ai/core-ai`
-- `@core-ai/openai`
-- `@core-ai/anthropic`
-- `@core-ai/google-genai`
-- `@core-ai/mistral`
-
-Configured in `.changeset/config.json` under `"fixed"`.
-
-## Release Scripts
-
-| Script | Command | Purpose |
-|--------|---------|---------|
-| `npm run changeset` | `changeset` | Create a changeset file for pending changes |
-| `npm run release:check` | Build + lint + type-check | Validate repo before release |
-| `npm run release:version` | `changeset version` | Bump versions, update changelogs |
-| `npm run release:publish` | `changeset publish` | Publish changed packages to npm |
-
-## Developer Workflow (during PRs)
-
-After making code changes, add a changeset:
-
-```bash
-npm run changeset
-```
-
-This prompts for:
-1. Which packages changed
-2. Bump type: `patch` (bug fix), `minor` (new feature), `major` (breaking)
-3. A summary of the change
-
-It creates a `.changeset/<random-name>.md` file. Commit this file with the code changes.
-
-Because of the fixed version group, selecting any one package bumps all five to the same version.
-
-## Maintainer Release Workflow
+## Release Workflow
 
 ### 1. Validate
 
@@ -67,6 +29,8 @@ Changesets reads pending `.changeset/*.md` files and:
 - Generates/updates `CHANGELOG.md` per package
 - Deletes consumed `.changeset/*.md` files
 
+`release:version` consumes all pending changesets and calculates the combined bump (e.g., two patches + one minor = minor).
+
 Commit these changes.
 
 ### 3. Publish
@@ -78,6 +42,20 @@ npm run release:publish
 Publishes only packages whose versions changed, in correct dependency order (`core-ai` first, then providers).
 
 Requires npm authentication (`npm login`). If 2FA is enabled, npm prompts for an OTP per package.
+
+### 4. Push
+
+```bash
+git push && git push --tags
+```
+
+## Release Scripts
+
+| Script | Command | Purpose |
+|--------|---------|---------|
+| `npm run release:check` | Build + lint + type-check | Validate repo before release |
+| `npm run release:version` | `changeset version` | Bump versions, update changelogs |
+| `npm run release:publish` | `changeset publish` | Publish changed packages to npm |
 
 ## Key Configuration
 

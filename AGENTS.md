@@ -27,6 +27,11 @@ Turborepo tasks: `build`, `dev`, `lint`, `package`, `publish`.
 
 Deployment configurations in `deploy/` (Docker Compose).
 
+## Git Workflow
+
+Before running any `git` or `gh` command, first read the `contributing` skill.
+This is required for branch naming, changeset authoring, PR conventions, and release checks.
+
 ## Code Style
 
 ### General Conventions
