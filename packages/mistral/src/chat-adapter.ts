@@ -1,4 +1,3 @@
-import { MistralError } from '@mistralai/mistralai/models/errors';
 import type {
     ChatCompletionRequest,
     ChatCompletionRequestToolChoice,
@@ -13,7 +12,6 @@ import type {
 } from '@mistralai/mistralai/models/components';
 import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ProviderError } from '@core-ai/core-ai';
 import type {
     FinishReason,
     GenerateObjectOptions,
@@ -178,40 +176,10 @@ export function createGenerateRequest(
     options: GenerateOptions
 ): ChatCompletionRequest {
     const baseRequest: ChatCompletionRequest = {
-        model: modelId,
-        messages: convertMessages(options.messages),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
-            : {}),
-        ...(options.toolChoice
-            ? { toolChoice: convertToolChoice(options.toolChoice) }
-            : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
-            : {}),
-        ...(options.config?.maxTokens !== undefined
-            ? { maxTokens: options.config.maxTokens }
-            : {}),
-        ...(options.config?.topP !== undefined
-            ? { topP: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop: options.config.stopSequences }
-            : {}),
-        ...(options.config?.frequencyPenalty !== undefined
-            ? { frequencyPenalty: options.config.frequencyPenalty }
-            : {}),
-        ...(options.config?.presencePenalty !== undefined
-            ? { presencePenalty: options.config.presencePenalty }
-            : {}),
+        ...createRequestBase(modelId, options),
     };
 
-    return options.providerOptions
-        ? {
-              ...baseRequest,
-              ...(options.providerOptions as Partial<ChatCompletionRequest>),
-          }
-        : baseRequest;
+    return mergeProviderOptions(baseRequest, options.providerOptions);
 }
 
 export function createStreamRequest(
@@ -219,39 +187,52 @@ export function createStreamRequest(
     options: GenerateOptions
 ): ChatCompletionStreamRequest {
     const baseRequest: ChatCompletionStreamRequest = {
+        ...createRequestBase(modelId, options),
+        stream: true,
+    };
+
+    return mergeProviderOptions(baseRequest, options.providerOptions);
+}
+
+function createRequestBase(modelId: string, options: GenerateOptions) {
+    return {
         model: modelId,
         messages: convertMessages(options.messages),
-        stream: true,
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
         ...(options.toolChoice
             ? { toolChoice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...(options.config?.temperature !== undefined
-            ? { temperature: options.config.temperature }
+        ...mapConfigToRequestFields(options.config),
+    };
+}
+
+function mapConfigToRequestFields(config: GenerateOptions['config']) {
+    return {
+        ...(config?.temperature !== undefined
+            ? { temperature: config.temperature }
             : {}),
-        ...(options.config?.maxTokens !== undefined
-            ? { maxTokens: options.config.maxTokens }
+        ...(config?.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {}),
+        ...(config?.topP !== undefined ? { topP: config.topP } : {}),
+        ...(config?.stopSequences ? { stop: config.stopSequences } : {}),
+        ...(config?.frequencyPenalty !== undefined
+            ? { frequencyPenalty: config.frequencyPenalty }
             : {}),
-        ...(options.config?.topP !== undefined
-            ? { topP: options.config.topP }
-            : {}),
-        ...(options.config?.stopSequences
-            ? { stop: options.config.stopSequences }
-            : {}),
-        ...(options.config?.frequencyPenalty !== undefined
-            ? { frequencyPenalty: options.config.frequencyPenalty }
-            : {}),
-        ...(options.config?.presencePenalty !== undefined
-            ? { presencePenalty: options.config.presencePenalty }
+        ...(config?.presencePenalty !== undefined
+            ? { presencePenalty: config.presencePenalty }
             : {}),
     };
+}
 
-    return options.providerOptions
+function mergeProviderOptions<TRequest extends object>(
+    baseRequest: TRequest,
+    providerOptions: Record<string, unknown> | undefined
+): TRequest {
+    return providerOptions
         ? {
               ...baseRequest,
-              ...(options.providerOptions as Partial<ChatCompletionStreamRequest>),
+              ...(providerOptions as Partial<TRequest>),
           }
         : baseRequest;
 }
@@ -512,22 +493,4 @@ function asObject(value: unknown): Record<string, unknown> {
         return value as Record<string, unknown>;
     }
     return {};
-}
-
-export function wrapError(error: unknown): ProviderError {
-    if (error instanceof MistralError) {
-        return new ProviderError(
-            error.message,
-            'mistral',
-            error.statusCode,
-            error
-        );
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        'mistral',
-        undefined,
-        error
-    );
 }
