@@ -1,12 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { FunctionCallingConfigMode } from '@google/genai';
 import {
+    FunctionCallingConfigMode,
+    type GenerateContentResponse,
+} from '@google/genai';
+import {
+    createGenerateRequest,
     createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
     getStructuredOutputToolName,
+    mapGenerateResponse,
+    transformStream,
 } from './chat-adapter.js';
 import { defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
 
@@ -339,3 +345,333 @@ describe('structured output helpers', () => {
         ).toBe('core_ai_generate_object');
     });
 });
+
+describe('reasoning support', () => {
+    it('should reconstruct assistant reasoning parts as thought parts', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'thinking',
+                        providerMetadata: {
+                            thoughtSignature: 'sig_1',
+                        },
+                    },
+                    {
+                        type: 'text',
+                        text: 'answer',
+                    },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages).contents).toEqual([
+            {
+                role: 'model',
+                parts: [
+                    {
+                        text: 'thinking',
+                        thought: true,
+                        thoughtSignature: 'sig_1',
+                    },
+                    {
+                        text: 'answer',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should map reasoning config to thinkingLevel for Gemini 3', () => {
+        const request = createGenerateRequest('gemini-3-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: {
+                thinkingLevel: 'HIGH',
+                includeThoughts: true,
+            },
+        });
+    });
+
+    it('should map reasoning config to thinkingBudget for Gemini 2.5', () => {
+        const request = createGenerateRequest('gemini-2.5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'low' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: {
+                thinkingBudget: 4096,
+                includeThoughts: true,
+            },
+        });
+    });
+
+    it('should respect provider thinking config override', () => {
+        const request = createGenerateRequest('gemini-3-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'high' },
+            providerOptions: {
+                config: {
+                    thinkingConfig: {
+                        thinkingLevel: 'LOW',
+                        includeThoughts: false,
+                    },
+                },
+            },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: {
+                thinkingLevel: 'LOW',
+                includeThoughts: false,
+            },
+        });
+    });
+
+    it('should extract reasoning parts from thought response parts', () => {
+        const response = asGenerateContentResponse({
+            candidates: [
+                {
+                    finishReason: 'STOP',
+                    content: {
+                        role: 'model',
+                        parts: [
+                            {
+                                text: 'internal thought',
+                                thought: true,
+                                thoughtSignature: 'sig_1',
+                            },
+                            {
+                                text: 'final answer',
+                                thought: false,
+                            },
+                        ],
+                    },
+                },
+            ],
+            usageMetadata: {
+                promptTokenCount: 10,
+                candidatesTokenCount: 2,
+                thoughtsTokenCount: 1,
+                totalTokenCount: 13,
+            },
+        });
+
+        const result = mapGenerateResponse(response);
+        expect(result.reasoning).toBe('internal thought');
+        expect(result.content).toBe('final answer');
+        expect(result.parts[0]).toEqual({
+            type: 'reasoning',
+            text: 'internal thought',
+            providerMetadata: {
+                thoughtSignature: 'sig_1',
+            },
+        });
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(1);
+    });
+
+    it('should skip empty thought text in response parts', () => {
+        const response = asGenerateContentResponse({
+            candidates: [
+                {
+                    finishReason: 'STOP',
+                    content: {
+                        role: 'model',
+                        parts: [
+                            { text: '', thought: true },
+                            { text: 'answer', thought: false },
+                        ],
+                    },
+                },
+            ],
+            usageMetadata: {
+                promptTokenCount: 10,
+                candidatesTokenCount: 2,
+                totalTokenCount: 12,
+            },
+        });
+
+        const result = mapGenerateResponse(response);
+        expect(result.reasoning).toBeNull();
+        expect(result.parts).toEqual([{ type: 'text', text: 'answer' }]);
+    });
+
+    it('should emit reasoning events for thought deltas in streams', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'reason ', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    text: 'answer',
+                    candidates: [{ finishReason: 'STOP' }],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 2,
+                        totalTokenCount: 12,
+                    },
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.map((event) => event.type)).toContain('reasoning-start');
+        expect(events.map((event) => event.type)).toContain('reasoning-delta');
+        expect(events.map((event) => event.type)).toContain('reasoning-end');
+    });
+
+    it('should emit reasoning-end before tool-call events in stream', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'thinking', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    candidates: [{ finishReason: 'STOP' }],
+                    functionCalls: [
+                        {
+                            name: 'search',
+                            args: { q: 'test' },
+                        },
+                    ],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 2,
+                        totalTokenCount: 12,
+                    },
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        const types = events.map((e) => e.type);
+        const reasoningEndIdx = types.indexOf('reasoning-end');
+        const toolCallStartIdx = types.indexOf('tool-call-start');
+        expect(reasoningEndIdx).toBeGreaterThan(-1);
+        expect(toolCallStartIdx).toBeGreaterThan(reasoningEndIdx);
+    });
+
+    it('should handle multiple thought deltas across chunks', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'first ', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'second ', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    text: 'answer',
+                    candidates: [{ finishReason: 'STOP' }],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 2,
+                        totalTokenCount: 12,
+                    },
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.map((e) => e.type)).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-delta',
+            'reasoning-end',
+            'text-delta',
+            'finish',
+        ]);
+        expect(events[1]).toMatchObject({ text: 'first ' });
+        expect(events[2]).toMatchObject({ text: 'second ' });
+    });
+
+    it('should close reasoning at end of stream when only thinking is present', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'only reasoning', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    candidates: [{ finishReason: 'STOP' }],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 1,
+                        totalTokenCount: 11,
+                    },
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.map((e) => e.type)).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'finish',
+        ]);
+    });
+});
+
+function asGenerateContentResponse(
+    value: Partial<GenerateContentResponse>
+): GenerateContentResponse {
+    return {
+        candidates: [],
+        ...value,
+    } as GenerateContentResponse;
+}
+
+async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
+    for (const item of items) {
+        yield item;
+    }
+}

@@ -284,6 +284,54 @@ describe('generate', () => {
             })
         ).rejects.toBeInstanceOf(ProviderError);
     });
+
+    it('should pass reasoning config and map thinking content', async () => {
+        const complete = vi.fn(async () => {
+            return asChatCompletionResponse({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: 'stop',
+                        message: {
+                            role: 'assistant',
+                            content: [
+                                {
+                                    type: 'thinking',
+                                    thinking: [{ text: 'internal thought' }],
+                                },
+                                {
+                                    type: 'text',
+                                    text: 'final answer',
+                                },
+                            ],
+                            toolCalls: null,
+                        },
+                    },
+                ],
+                usage: {
+                    promptTokens: 10,
+                    completionTokens: 4,
+                    totalTokens: 14,
+                },
+            });
+        });
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'magistral-medium-latest'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Explain' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(result.reasoning).toBe('internal thought');
+        expect(complete).toHaveBeenCalledWith(
+            expect.objectContaining({
+                model: 'magistral-medium-latest',
+            })
+        );
+    });
 });
 
 describe('stream', () => {
@@ -486,6 +534,71 @@ describe('stream', () => {
         });
         expect(response.finishReason).toBe('tool-calls');
     });
+
+    it('should pass reasoning config and emit reasoning stream events', async () => {
+        const stream = vi.fn(async () => {
+            return toAsyncIterable<CompletionEvent>([
+                asCompletionEvent({
+                    choices: [
+                        {
+                            index: 0,
+                            finishReason: null,
+                            delta: {
+                                content: [
+                                    {
+                                        type: 'thinking',
+                                        thinking: [{ text: 'reason ' }],
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                }),
+                asCompletionEvent({
+                    choices: [
+                        {
+                            index: 0,
+                            finishReason: 'stop',
+                            delta: {
+                                content: [
+                                    {
+                                        type: 'text',
+                                        text: 'answer',
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                    usage: {
+                        promptTokens: 10,
+                        completionTokens: 2,
+                        totalTokens: 12,
+                    },
+                }),
+            ]);
+        });
+        const model = createMistralChatModel(
+            createMockClient({ stream }),
+            'magistral-medium-latest'
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'Explain' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        const eventTypes: string[] = [];
+        for await (const event of streamResult) {
+            eventTypes.push(event.type);
+        }
+
+        expect(eventTypes).toContain('reasoning-start');
+        expect(eventTypes).toContain('reasoning-delta');
+        expect(eventTypes).toContain('reasoning-end');
+
+        const response = await streamResult.toResponse();
+        expect(response.reasoning).toBe('reason ');
+    });
 });
 
 function createMockClient(overrides?: {
@@ -534,7 +647,14 @@ function asCompletionEvent(value: {
         index: number;
         finishReason: string | null;
         delta: {
-            content?: string | null;
+            content?:
+                | string
+                | null
+                | Array<{
+                      type: string;
+                      text?: string;
+                      thinking?: Array<{ text: string }>;
+                  }>;
             toolCalls?: Array<{
                 id?: string;
                 type?: string;

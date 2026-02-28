@@ -1,13 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+    createGenerateRequest,
+    createStreamRequest,
     createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
     getStructuredOutputToolName,
+    mapGenerateResponse,
+    transformStream,
 } from './chat-adapter.js';
-import { defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
+import { ProviderError, defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
+import type {
+    ChatCompletion,
+    ChatCompletionChunk,
+} from 'openai/resources/chat/completions/completions';
 
 describe('convertMessages', () => {
     it('should convert a system message', () => {
@@ -247,3 +255,186 @@ describe('structured output helpers', () => {
         ).toBe('core_ai_generate_object');
     });
 });
+
+describe('reasoning support', () => {
+    it('should ignore reasoning parts when converting assistant messages', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    { type: 'reasoning', text: 'thinking...' },
+                    { type: 'text', text: 'answer' },
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'search',
+                            arguments: { query: 'weather' },
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            {
+                role: 'assistant',
+                content: 'answer',
+                tool_calls: [
+                    {
+                        id: 'tc_1',
+                        type: 'function',
+                        function: {
+                            name: 'search',
+                            arguments: '{"query":"weather"}',
+                        },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should map and clamp reasoning effort for supported models', () => {
+        const request = createGenerateRequest('gpt-5.2', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+
+        expect(request).toMatchObject({
+            model: 'gpt-5.2',
+            reasoning_effort: 'xhigh',
+        });
+
+        const clamped = createGenerateRequest('gpt-5.1', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+        expect(clamped).toMatchObject({
+            reasoning_effort: 'low',
+        });
+    });
+
+    it('should skip reasoning effort for unsupported models', () => {
+        const request = createGenerateRequest('o1-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'low' },
+        });
+
+        expect(request).not.toHaveProperty('reasoning_effort');
+    });
+
+    it('should validate restricted sampling params for GPT-5.1+ when reasoning is enabled', () => {
+        expect(() =>
+            createGenerateRequest('gpt-5.1', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'medium' },
+                config: { temperature: 0.2 },
+            })
+        ).toThrowError(ProviderError);
+
+        expect(() =>
+            createStreamRequest('gpt-5.2', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'medium' },
+                config: { topP: 0.9 },
+            })
+        ).toThrowError(ProviderError);
+
+        expect(() =>
+            createGenerateRequest('o3', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'medium' },
+                config: { temperature: 0.2, topP: 0.9 },
+            })
+        ).not.toThrow();
+    });
+
+    it('should not extract reasoning text from generate responses (Chat Completions API does not expose it)', () => {
+        const response = asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'final answer',
+                        refusal: null,
+                        tool_calls: [
+                            {
+                                id: 'tc_1',
+                                type: 'function',
+                                function: {
+                                    name: 'search',
+                                    arguments: '{"query":"weather"}',
+                                },
+                            },
+                        ],
+                    },
+                },
+            ],
+            usage: {
+                prompt_tokens: 10,
+                completion_tokens: 5,
+                total_tokens: 15,
+                completion_tokens_details: {
+                    reasoning_tokens: 2,
+                },
+            },
+        });
+
+        const result = mapGenerateResponse(response);
+
+        expect(result.reasoning).toBeNull();
+        expect(result.content).toBe('final answer');
+        expect(result.parts).toEqual([
+            { type: 'text', text: 'final answer' },
+            {
+                type: 'tool-call',
+                toolCall: {
+                    id: 'tc_1',
+                    name: 'search',
+                    arguments: { query: 'weather' },
+                },
+            },
+        ]);
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+    });
+
+    it('should not add reasoning_effort when reasoning is not configured', () => {
+        const request = createGenerateRequest('gpt-5.1', {
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(request).not.toHaveProperty('reasoning_effort');
+    });
+
+});
+
+function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
+    return {
+        id: 'chatcmpl-1',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'gpt-5-mini',
+        choices: [],
+        ...value,
+    };
+}
+
+function asChunk(value: Partial<ChatCompletionChunk>): ChatCompletionChunk {
+    return {
+        id: 'chunk-1',
+        object: 'chat.completion.chunk',
+        created: Date.now(),
+        model: 'gpt-5-mini',
+        choices: [],
+        ...value,
+    };
+}
+
+async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
+    for (const item of items) {
+        yield item;
+    }
+}

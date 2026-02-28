@@ -265,6 +265,44 @@ describe('generate', () => {
             })
         ).rejects.toBeInstanceOf(ProviderError);
     });
+
+    it('should pass reasoning config and map reasoning parts', async () => {
+        const create = vi.fn(async () =>
+            asMessage({
+                content: [
+                    {
+                        type: 'thinking',
+                        thinking: 'internal chain',
+                        signature: 'sig_1',
+                    },
+                    { type: 'text', text: 'final answer', citations: null },
+                ],
+                stop_reason: 'end_turn',
+                usage: {
+                    input_tokens: 20,
+                    output_tokens: 7,
+                },
+            })
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6',
+            4096
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Explain this' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(result.reasoning).toBe('internal chain');
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                thinking: { type: 'adaptive' },
+                output_config: { effort: 'high' },
+            })
+        );
+    });
 });
 
 describe('stream', () => {
@@ -535,6 +573,84 @@ describe('stream', () => {
             temperatureC: 21,
         });
         expect(response.finishReason).toBe('stop');
+    });
+
+    it('should emit reasoning events for thinking streams', async () => {
+        const create = vi.fn(async () =>
+            toAsyncIterable<RawMessageStreamEvent>([
+                {
+                    type: 'message_start',
+                    message: asMessage({
+                        content: [],
+                        stop_reason: null,
+                        usage: {
+                            input_tokens: 10,
+                            output_tokens: 0,
+                        },
+                    }),
+                },
+                {
+                    type: 'content_block_start',
+                    index: 0,
+                    content_block: {
+                        type: 'thinking',
+                        thinking: '',
+                    } as RawMessageStreamEvent['content_block'],
+                },
+                {
+                    type: 'content_block_delta',
+                    index: 0,
+                    delta: {
+                        type: 'thinking_delta',
+                        thinking: 'reasoning text ',
+                    } as RawMessageStreamEvent['delta'],
+                },
+                {
+                    type: 'content_block_stop',
+                    index: 0,
+                },
+                {
+                    type: 'message_delta',
+                    delta: {
+                        stop_reason: 'end_turn',
+                        stop_sequence: null,
+                        container: null,
+                    },
+                    usage: {
+                        input_tokens: 10,
+                        output_tokens: 2,
+                        cache_creation_input_tokens: null,
+                        cache_read_input_tokens: null,
+                        server_tool_use: null,
+                    },
+                },
+                {
+                    type: 'message_stop',
+                },
+            ])
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6',
+            4096
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'Reason through this' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        const eventTypes: string[] = [];
+        for await (const event of streamResult) {
+            eventTypes.push(event.type);
+        }
+
+        expect(eventTypes).toContain('reasoning-start');
+        expect(eventTypes).toContain('reasoning-delta');
+        expect(eventTypes).toContain('reasoning-end');
+
+        const response = await streamResult.toResponse();
+        expect(response.reasoning).toBe('reasoning text ');
     });
 });
 

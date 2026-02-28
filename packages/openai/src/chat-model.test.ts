@@ -311,6 +311,50 @@ describe('generate', () => {
             })
         ).rejects.toBeInstanceOf(ProviderError);
     });
+
+    it('should pass reasoning effort in request but not extract reasoning text (Chat Completions API)', async () => {
+        const create = vi.fn(async () => {
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Final answer',
+                            refusal: null,
+                        },
+                    },
+                ],
+                usage: {
+                    prompt_tokens: 12,
+                    completion_tokens: 7,
+                    total_tokens: 19,
+                    completion_tokens_details: {
+                        reasoning_tokens: 50,
+                    },
+                },
+            });
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Solve this' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(result.reasoning).toBeNull();
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(50);
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                reasoning_effort: 'high',
+            })
+        );
+    });
 });
 
 describe('stream', () => {
@@ -522,6 +566,58 @@ describe('stream', () => {
             temperatureC: 21,
         });
         expect(response.finishReason).toBe('tool-calls');
+    });
+
+    it('should pass reasoning effort in stream request (Chat Completions API)', async () => {
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'stop',
+                            delta: { content: 'answer' },
+                        },
+                    ],
+                    usage: {
+                        prompt_tokens: 8,
+                        completion_tokens: 3,
+                        total_tokens: 11,
+                        completion_tokens_details: {
+                            reasoning_tokens: 1,
+                            audio_tokens: 0,
+                            accepted_prediction_tokens: 0,
+                            rejected_prediction_tokens: 0,
+                        },
+                    },
+                }),
+            ]);
+        });
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'Explain' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        const seenEventTypes: string[] = [];
+        for await (const event of streamResult) {
+            seenEventTypes.push(event.type);
+        }
+
+        expect(seenEventTypes).not.toContain('reasoning-start');
+        expect(seenEventTypes).toEqual(['text-delta', 'finish']);
+
+        const response = await streamResult.toResponse();
+        expect(response.reasoning).toBeNull();
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                reasoning_effort: 'medium',
+            })
+        );
     });
 });
 

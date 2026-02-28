@@ -273,14 +273,13 @@ export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
     const reasoningTokens =
         response.usage?.completion_tokens_details?.reasoning_tokens ?? 0;
     const content = extractTextContent(firstChoice.message.content);
-    const reasoning = extractReasoningText(firstChoice.message);
     const toolCalls = parseToolCalls(firstChoice.message.tool_calls);
-    const parts = createAssistantParts(content, reasoning, toolCalls);
+    const parts = createAssistantParts(content, toolCalls);
 
     return {
         parts,
         content,
-        reasoning,
+        reasoning: null,
         toolCalls,
         finishReason: mapFinishReason(firstChoice.finish_reason),
         usage: {
@@ -356,7 +355,6 @@ export async function* transformStream(
     const emittedToolCalls = new Set<string>();
 
     let finishReason: FinishReason = 'unknown';
-    let reasoningOpen = false;
     let usage = {
         inputTokens: 0,
         outputTokens: 0,
@@ -392,27 +390,7 @@ export async function* transformStream(
             continue;
         }
 
-        const reasoningDelta = extractReasoningDelta(choice.delta);
-        if (reasoningDelta) {
-            if (!reasoningOpen) {
-                reasoningOpen = true;
-                yield {
-                    type: 'reasoning-start',
-                };
-            }
-            yield {
-                type: 'reasoning-delta',
-                text: reasoningDelta,
-            };
-        }
-
         if (choice.delta.content) {
-            if (reasoningOpen) {
-                reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                };
-            }
             yield {
                 type: 'text-delta',
                 text: choice.delta.content,
@@ -420,12 +398,6 @@ export async function* transformStream(
         }
 
         if (choice.delta.tool_calls) {
-            if (reasoningOpen) {
-                reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                };
-            }
             for (const partialToolCall of choice.delta.tool_calls) {
                 const current = bufferedToolCalls.get(
                     partialToolCall.index
@@ -485,12 +457,6 @@ export async function* transformStream(
                 };
             }
         }
-    }
-
-    if (reasoningOpen) {
-        yield {
-            type: 'reasoning-end',
-        };
     }
 
     yield {
@@ -562,17 +528,10 @@ function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) 
 
 function createAssistantParts(
     content: string | null,
-    reasoning: string | null,
     toolCalls: ToolCall[]
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
 
-    if (reasoning && reasoning.length > 0) {
-        parts.push({
-            type: 'reasoning',
-            text: reasoning,
-        });
-    }
     if (content && content.length > 0) {
         parts.push({
             type: 'text',
@@ -610,63 +569,3 @@ function extractTextContent(content: unknown): string | null {
     return text.length > 0 ? text : null;
 }
 
-function extractReasoningText(message: unknown): string | null {
-    if (!message || typeof message !== 'object') {
-        return null;
-    }
-
-    const candidates = [
-        (message as { reasoning?: unknown }).reasoning,
-        (message as { reasoning_content?: unknown }).reasoning_content,
-        (message as { reasoningContent?: unknown }).reasoningContent,
-        (message as { reasoning_summary?: unknown }).reasoning_summary,
-        (message as { reasoningSummary?: unknown }).reasoningSummary,
-    ];
-    const text = candidates
-        .flatMap((candidate) => extractTextFragments(candidate))
-        .join('');
-
-    return text.length > 0 ? text : null;
-}
-
-function extractReasoningDelta(delta: unknown): string | null {
-    if (!delta || typeof delta !== 'object') {
-        return null;
-    }
-
-    const candidates = [
-        (delta as { reasoning?: unknown }).reasoning,
-        (delta as { reasoning_content?: unknown }).reasoning_content,
-        (delta as { reasoningContent?: unknown }).reasoningContent,
-        (delta as { reasoning_delta?: unknown }).reasoning_delta,
-        (delta as { reasoningDelta?: unknown }).reasoningDelta,
-    ];
-    const text = candidates
-        .flatMap((candidate) => extractTextFragments(candidate))
-        .join('');
-
-    return text.length > 0 ? text : null;
-}
-
-function extractTextFragments(value: unknown): string[] {
-    if (typeof value === 'string') {
-        return [value];
-    }
-    if (Array.isArray(value)) {
-        return value.flatMap((item) => extractTextFragments(item));
-    }
-    if (!value || typeof value !== 'object') {
-        return [];
-    }
-
-    const result: string[] = [];
-    const text = (value as { text?: unknown }).text;
-    if (typeof text === 'string') {
-        result.push(text);
-    }
-
-    for (const nestedValue of Object.values(value as Record<string, unknown>)) {
-        result.push(...extractTextFragments(nestedValue));
-    }
-    return result;
-}

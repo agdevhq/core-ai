@@ -258,6 +258,60 @@ describe('generate', () => {
             })
         ).rejects.toBeInstanceOf(ProviderError);
     });
+
+    it('should pass reasoning config and map thought parts', async () => {
+        const generateContent = vi.fn(async () => {
+            return asGenerateContentResponse({
+                candidates: [
+                    {
+                        finishReason: GoogleFinishReason.STOP,
+                        content: {
+                            role: 'model',
+                            parts: [
+                                {
+                                    text: 'internal thought',
+                                    thought: true,
+                                    thoughtSignature: 'sig_1',
+                                },
+                                {
+                                    text: 'answer',
+                                    thought: false,
+                                },
+                            ],
+                        },
+                    },
+                ],
+                usageMetadata: {
+                    promptTokenCount: 10,
+                    candidatesTokenCount: 4,
+                    thoughtsTokenCount: 2,
+                    totalTokenCount: 16,
+                },
+            });
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-3-pro'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Explain' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(result.reasoning).toBe('internal thought');
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+        expect(generateContent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: expect.objectContaining({
+                    thinkingConfig: {
+                        thinkingLevel: 'HIGH',
+                        includeThoughts: true,
+                    },
+                }),
+            })
+        );
+    });
 });
 
 describe('stream', () => {
@@ -457,6 +511,64 @@ describe('stream', () => {
             temperatureC: 21,
         });
         expect(response.finishReason).toBe('tool-calls');
+    });
+
+    it('should pass reasoning config and emit reasoning stream events', async () => {
+        const generateContentStream = vi.fn(async () => {
+            return toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'reason ', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    text: 'answer',
+                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 2,
+                        thoughtsTokenCount: 1,
+                        totalTokenCount: 13,
+                    },
+                }),
+            ]);
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-pro'
+        );
+
+        const streamResult = await model.stream({
+            messages: [{ role: 'user', content: 'Explain' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        const eventTypes: string[] = [];
+        for await (const event of streamResult) {
+            eventTypes.push(event.type);
+        }
+
+        expect(eventTypes).toContain('reasoning-start');
+        expect(eventTypes).toContain('reasoning-delta');
+        expect(eventTypes).toContain('reasoning-end');
+
+        const response = await streamResult.toResponse();
+        expect(response.reasoning).toBe('reason ');
+        expect(generateContentStream).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: expect.objectContaining({
+                    thinkingConfig: {
+                        thinkingBudget: 16384,
+                        includeThoughts: true,
+                    },
+                }),
+            })
+        );
     });
 });
 
