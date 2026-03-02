@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/core-ai",
-    "version": "0.5.0",
+    "version": "0.5.1",
     "description": "Type-safe LLM abstraction layer over native provider SDKs",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",

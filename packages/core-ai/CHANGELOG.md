@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.5.1
+
+### Patch Changes
+
+- 6627888: Fix release publish race: remove prepublishOnly to avoid concurrent tsup builds failing to resolve @core-ai/core-ai.
+
 ## 0.5.0
 
 ### Minor Changes
