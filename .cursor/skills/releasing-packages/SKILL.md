@@ -69,8 +69,9 @@ git push && git push --tags
 
 Each publishable package has:
 - `"publishConfig": { "access": "public" }`
-- `"prepublishOnly": "npm run build"` — builds before every publish
 - `"files": ["dist", "README.md", "LICENSE"]` — only ships compiled output
+
+**Note:** No `prepublishOnly` — the release workflow runs `npm run build` before the changesets action. Per-package `prepublishOnly` causes a race when `changeset publish` runs builds concurrently: provider packages can fail with "Cannot find module '@core-ai/core-ai'" if core-ai's tsup (with `clean: true`) clears its dist while they resolve types.
 
 ## Adding a New Package to the Release Group
 

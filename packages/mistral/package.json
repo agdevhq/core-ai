@@ -37,7 +37,6 @@
         "build": "tsup",
         "lint": "eslint src/ --max-warnings 0",
         "check-types": "tsc --noEmit",
-        "prepublishOnly": "npm run build",
         "test": "vitest run",
         "test:watch": "vitest"
     },
