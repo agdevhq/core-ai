@@ -507,7 +507,7 @@ export function mapGenerateResponse(
             const thinkingText =
                 typeof block.thinking === 'string'
                     ? block.thinking
-                    : extractThinkingTextFromUnknown(block.thinking);
+                    : extractThinkingText(block.thinking);
             const signature =
                 typeof block.signature === 'string' ? block.signature : undefined;
             parts.push({
@@ -568,7 +568,7 @@ export function mapGenerateResponse(
                 cacheWriteTokens,
             },
             outputTokenDetails: {
-                reasoningTokens: extractReasoningTokens(response.usage),
+                reasoningTokens: 0,
             },
         },
     };
@@ -615,7 +615,7 @@ export async function* transformStream(
                     cacheWriteTokens,
                 },
                 outputTokenDetails: {
-                    reasoningTokens: extractReasoningTokens(event.message.usage),
+                    reasoningTokens: 0,
                 },
             };
             continue;
@@ -745,7 +745,7 @@ export async function* transformStream(
                     cacheWriteTokens,
                 },
                 outputTokenDetails: {
-                    reasoningTokens: extractReasoningTokens(event.usage),
+                    reasoningTokens: 0,
                 },
             };
             continue;
@@ -802,7 +802,7 @@ function uniqueStrings(values: string[]): string[] {
     return [...new Set(values)];
 }
 
-function extractThinkingTextFromUnknown(value: unknown): string {
+function extractThinkingText(value: unknown): string {
     if (typeof value === 'string') {
         return value;
     }
@@ -819,28 +819,6 @@ function extractThinkingTextFromUnknown(value: unknown): string {
             return typeof text === 'string' ? [text] : [];
         })
         .join('');
-}
-
-function extractReasoningTokens(usage: unknown): number {
-    if (!usage || typeof usage !== 'object') {
-        return 0;
-    }
-
-    const usageObject = usage as Record<string, unknown>;
-    const outputTokenDetails = asObject(usageObject['output_tokens_details']);
-    const candidates = [
-        outputTokenDetails['reasoning_tokens'],
-        outputTokenDetails['thinking_tokens'],
-        usageObject['reasoning_tokens'],
-        usageObject['thinking_tokens'],
-    ];
-
-    for (const candidate of candidates) {
-        if (typeof candidate === 'number') {
-            return candidate;
-        }
-    }
-    return 0;
 }
 
 export function wrapError(error: unknown): ProviderError {

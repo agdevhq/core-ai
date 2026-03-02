@@ -532,7 +532,7 @@ function createAssistantParts(
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
 
-    if (content && content.length > 0) {
+    if (content) {
         parts.push({
             type: 'text',
             text: content,
