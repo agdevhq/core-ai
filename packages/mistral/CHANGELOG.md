@@ -1,5 +1,16 @@
 # @core-ai/mistral
 
+## 0.5.0
+
+### Minor Changes
+
+- b407153: Add reasoning support for Mistral Magistral models. Extracts thinking chunks from response content and streams as reasoning events. No effort mapping needed as Magistral models always reason at full capacity.
+
+### Patch Changes
+
+- Updated dependencies [b407153]
+    - @core-ai/core-ai@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

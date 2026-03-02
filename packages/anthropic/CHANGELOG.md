@@ -1,5 +1,16 @@
 # @core-ai/anthropic
 
+## 0.5.0
+
+### Minor Changes
+
+- b407153: Add reasoning support for Anthropic models with adaptive and manual thinking modes. Maps unified `reasoning.effort` to adaptive effort levels or manual `budget_tokens` based on model capabilities. Extracts thinking and redacted thinking blocks with signature preservation for multi-turn fidelity. Validates parameter restrictions (temperature, top_k, topP, forced toolChoice) and sends interleaved-thinking beta header when reasoning is combined with tools.
+
+### Patch Changes
+
+- Updated dependencies [b407153]
+    - @core-ai/core-ai@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

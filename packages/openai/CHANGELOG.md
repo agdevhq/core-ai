@@ -1,5 +1,16 @@
 # @core-ai/openai
 
+## 0.5.0
+
+### Minor Changes
+
+- b407153: Add reasoning support for OpenAI models (Chat Completions API). Maps unified `reasoning.effort` to `reasoning_effort` with model-aware clamping. Extracts reasoning content from responses and streams. Validates parameter restrictions for GPT-5.1+ models (temperature/topP incompatible with reasoning). Adds model capability registry for effort range and parameter restriction detection.
+
+### Patch Changes
+
+- Updated dependencies [b407153]
+    - @core-ai/core-ai@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes
