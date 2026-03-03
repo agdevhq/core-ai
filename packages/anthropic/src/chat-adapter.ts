@@ -102,9 +102,6 @@ export function convertMessages(
                     continue;
                 }
 
-                // Cross-provider: wrap in <thinking> tags so Claude recognises the
-                // content as a reasoning trace rather than regular prose.
-                // Opaque blobs (signatures, redacted data) are meaningless to other providers.
                 const anthropicMeta = getProviderMetadata<AnthropicReasoningMetadata>(part.providerMetadata, 'anthropic');
                 if (anthropicMeta == null) {
                     if (part.text.length > 0) {
@@ -126,8 +123,6 @@ export function convertMessages(
                     continue;
                 }
 
-                // Missing signature (e.g. from an aborted stream): downgrade to text to
-                // avoid Anthropic rejecting the request for an unsigned thinking block.
                 if (typeof signature !== 'string') {
                     contentBlocks.push({ type: 'text', text: part.text });
                     continue;

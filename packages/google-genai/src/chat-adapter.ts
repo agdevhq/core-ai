@@ -86,10 +86,6 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
                     continue;
                 }
 
-                // Google accepts thought parts without a thoughtSignature — the API
-                // uses the signature for cache continuity, not for validation. So we
-                // can always send reasoning back as a thought part regardless of its
-                // origin, and only attach the signature when it's our own block.
                 const googleMeta = getProviderMetadata<GoogleReasoningMetadata>(part.providerMetadata, 'google');
                 if (part.text.length === 0) {
                     continue;

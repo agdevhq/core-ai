@@ -62,9 +62,6 @@ function convertMessage(message: Message): MistralMessage {
             if (part.type === 'text') {
                 contentChunks.push({ type: 'text', text: part.text });
             } else if (part.type === 'reasoning' && part.text.length > 0) {
-                // Mistral thinking chunks contain plain text — no opaque blob needed,
-                // so we can always send reasoning back as a thinking chunk regardless
-                // of which provider originally produced it.
                 contentChunks.push({
                     type: 'thinking',
                     thinking: [{ type: 'text', text: part.text }],
