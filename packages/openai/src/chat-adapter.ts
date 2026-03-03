@@ -328,7 +328,7 @@ export function mapGenerateResponse(response: Response): GenerateResult {
         content,
         reasoning,
         toolCalls,
-        finishReason: mapFinishReason(response, toolCalls),
+        finishReason: mapFinishReason(response, toolCalls.length > 0),
         usage: mapUsage(response.usage),
     };
 }
@@ -430,7 +430,7 @@ function getToolCalls(parts: AssistantContentPart[]): ToolCall[] {
     );
 }
 
-function mapFinishReason(response: Response, toolCalls: ToolCall[]): FinishReason {
+function mapFinishReason(response: Response, hasToolCalls: boolean): FinishReason {
     const incompleteReason = response.incomplete_details?.reason;
     if (incompleteReason === 'max_output_tokens') {
         return 'length';
@@ -439,7 +439,7 @@ function mapFinishReason(response: Response, toolCalls: ToolCall[]): FinishReaso
         return 'content-filter';
     }
 
-    if (toolCalls.length > 0) {
+    if (hasToolCalls) {
         return 'tool-calls';
     }
 
@@ -615,9 +615,10 @@ export async function* transformStream(
                 };
             }
 
+            const hasToolCalls = bufferedToolCalls.size > 0;
             yield {
                 type: 'finish',
-                finishReason: mapFinishReason(latestResponse, []),
+                finishReason: mapFinishReason(latestResponse, hasToolCalls),
                 usage: mapUsage(latestResponse.usage),
             };
             return;
@@ -628,9 +629,10 @@ export async function* transformStream(
         yield { type: 'reasoning-end' };
     }
 
+    const hasToolCalls = bufferedToolCalls.size > 0;
     const usage = latestResponse ? mapUsage(latestResponse.usage) : mapUsage(undefined);
     const finishReason = latestResponse
-        ? mapFinishReason(latestResponse, [])
+        ? mapFinishReason(latestResponse, hasToolCalls)
         : 'unknown';
 
     yield {

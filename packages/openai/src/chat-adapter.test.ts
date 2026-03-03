@@ -298,7 +298,7 @@ describe('transformStream', () => {
             { type: 'text-delta', text: 'answer' },
             {
                 type: 'finish',
-                finishReason: 'stop',
+                finishReason: 'tool-calls',
                 usage: {
                     inputTokens: 4,
                     outputTokens: 2,
