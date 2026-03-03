@@ -41,11 +41,7 @@ export function convertToolChoice(choice: ToolChoice) {
 export function getStructuredOutputToolName<TSchema extends z.ZodType>(
     options: GenerateObjectOptions<TSchema>
 ): string {
-    const trimmedName = options.schemaName?.trim();
-    if (trimmedName && trimmedName.length > 0) {
-        return trimmedName;
-    }
-    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+    return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
 export function createStructuredOutputOptions<TSchema extends z.ZodType>(

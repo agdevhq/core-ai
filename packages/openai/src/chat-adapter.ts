@@ -137,10 +137,9 @@ function getEncryptedReasoningContent(
     part: Extract<AssistantContentPart, { type: 'reasoning' }>
 ): string | undefined {
     const encryptedContent = part.providerMetadata?.encryptedContent;
-    if (typeof encryptedContent !== 'string' || encryptedContent.length === 0) {
-        return undefined;
-    }
-    return encryptedContent;
+    return typeof encryptedContent === 'string' && encryptedContent.length > 0
+        ? encryptedContent
+        : undefined;
 }
 
 function convertUserContentPart(part: UserContentPart) {
@@ -176,7 +175,7 @@ export function createGenerateRequest(
 ): ResponseCreateParamsNonStreaming {
     const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options),
-        ...toProviderOptions(options.providerOptions),
+        ...(options.providerOptions ?? {}),
     };
 
     if (options.reasoning) {
@@ -195,7 +194,7 @@ export function createStreamRequest(
     const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options),
         stream: true as const,
-        ...toProviderOptions(options.providerOptions),
+        ...(options.providerOptions ?? {}),
     };
 
     if (options.reasoning) {
@@ -225,20 +224,12 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
 }
 
 function convertResponseTools(tools: ToolSet) {
-    return convertTools(tools).flatMap((tool) => {
-        if (tool.type !== 'function') {
-            return [];
-        }
-
-        return [
-            {
-                type: 'function' as const,
-                name: tool.function.name,
-                description: tool.function.description,
-                parameters: tool.function.parameters,
-            },
-        ];
-    });
+    return convertTools(tools).map((tool) => ({
+        type: 'function' as const,
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+    }));
 }
 
 function convertResponseToolChoice(choice: NonNullable<GenerateOptions['toolChoice']>) {
@@ -269,15 +260,6 @@ function mergeInclude(
     }
 
     return include.length > 0 ? include : undefined;
-}
-
-function toProviderOptions(
-    providerOptions: GenerateOptions['providerOptions']
-): Record<string, unknown> {
-    if (!providerOptions) {
-        return {};
-    }
-    return providerOptions;
 }
 
 function mapConfigToRequestFields(config: GenerateOptions['config']) {
@@ -369,15 +351,11 @@ function getReasoningSummaryText(summary: ResponseReasoningItem['summary']): str
 }
 
 function mapMessageTextParts(message: ResponseOutputMessage): AssistantContentPart[] {
-    return message.content.flatMap((contentItem) => {
-        if (contentItem.type !== 'output_text') {
-            return [];
-        }
-        if (contentItem.text.length === 0) {
-            return [];
-        }
-        return [{ type: 'text' as const, text: contentItem.text }];
-    });
+    return message.content.flatMap((contentItem) =>
+        contentItem.type === 'output_text' && contentItem.text.length > 0
+            ? [{ type: 'text' as const, text: contentItem.text }]
+            : []
+    );
 }
 
 function getTextContent(parts: AssistantContentPart[]): string | null {
