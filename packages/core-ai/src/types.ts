@@ -214,7 +214,7 @@ export type ChatOutputTokenDetails = {
 export type StreamEvent =
     | { type: 'reasoning-start' }
     | { type: 'reasoning-delta'; text: string }
-    | { type: 'reasoning-end' }
+    | { type: 'reasoning-end'; providerMetadata?: Record<string, unknown> }
     | { type: 'text-delta'; text: string }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }

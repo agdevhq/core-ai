@@ -393,8 +393,18 @@ describe('transformStream', () => {
                 text: 'think',
             }),
             asStreamEvent({
-                type: 'response.output_item.added',
+                type: 'response.output_item.done',
                 output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [{ type: 'summary_text', text: 'think' }],
+                    encrypted_content: 'enc_1',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.output_item.added',
+                output_index: 1,
                 item: {
                     type: 'function_call',
                     call_id: 'tc_1',
@@ -404,19 +414,19 @@ describe('transformStream', () => {
             }),
             asStreamEvent({
                 type: 'response.function_call_arguments.delta',
-                output_index: 0,
+                output_index: 1,
                 item_id: 'item_1',
                 delta: '{"query":"wea',
             }),
             asStreamEvent({
                 type: 'response.function_call_arguments.delta',
-                output_index: 0,
+                output_index: 1,
                 item_id: 'item_1',
                 delta: 'ther"}',
             }),
             asStreamEvent({
                 type: 'response.output_item.done',
-                output_index: 0,
+                output_index: 1,
                 item: {
                     type: 'function_call',
                     call_id: 'tc_1',
@@ -452,7 +462,12 @@ describe('transformStream', () => {
         expect(events).toEqual([
             { type: 'reasoning-start' },
             { type: 'reasoning-delta', text: 'think' },
-            { type: 'reasoning-end' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    encryptedContent: 'enc_1',
+                },
+            },
             { type: 'tool-call-start', toolCallId: 'tc_1', toolName: 'search' },
             {
                 type: 'tool-call-delta',
@@ -486,6 +501,77 @@ describe('transformStream', () => {
                     outputTokenDetails: {
                         reasoningTokens: 1,
                     },
+                },
+            },
+        ]);
+    });
+
+    it('should emit a single reasoning lifecycle across multiple summary parts', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                delta: 'first',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                text: 'first',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                delta: 'second',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                text: 'second',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_2',
+                    summary: [
+                        { type: 'summary_text', text: 'first' },
+                        { type: 'summary_text', text: 'second' },
+                    ],
+                    encrypted_content: 'enc_2',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'first' },
+            { type: 'reasoning-delta', text: 'second' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    encryptedContent: 'enc_2',
+                },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
                 },
             },
         ]);

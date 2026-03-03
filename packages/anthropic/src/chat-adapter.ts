@@ -592,6 +592,7 @@ export async function* transformStream(
     >();
     const emittedToolCalls = new Set<number>();
     const contentBlockTypeByIndex = new Map<number, string>();
+    const reasoningSignatureByIndex = new Map<number, string>();
 
     for await (const event of stream) {
         if (event.type === 'message_start') {
@@ -676,6 +677,11 @@ export async function* transformStream(
                 continue;
             }
 
+            if (event.delta.type === 'signature_delta') {
+                reasoningSignatureByIndex.set(event.index, event.delta.signature);
+                continue;
+            }
+
             if (event.delta.type === 'input_json_delta') {
                 const current = toolBuffers.get(event.index);
                 if (!current) {
@@ -694,12 +700,23 @@ export async function* transformStream(
 
         if (event.type === 'content_block_stop') {
             if (contentBlockTypeByIndex.get(event.index) === 'thinking') {
+                const signature = reasoningSignatureByIndex.get(event.index);
+                reasoningSignatureByIndex.delete(event.index);
+                contentBlockTypeByIndex.delete(event.index);
                 yield {
                     type: 'reasoning-end',
+                    ...(signature
+                        ? {
+                              providerMetadata: {
+                                  signature,
+                              },
+                          }
+                        : {}),
                 };
                 continue;
             }
 
+            contentBlockTypeByIndex.delete(event.index);
             const current = toolBuffers.get(event.index);
             if (!current || emittedToolCalls.has(event.index)) {
                 continue;

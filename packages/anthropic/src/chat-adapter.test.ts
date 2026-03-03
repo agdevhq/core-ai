@@ -430,7 +430,11 @@ describe('reasoning support', () => {
     it('should parse thinking and redacted_thinking blocks from responses', () => {
         const response = asAnthropicMessage({
             content: [
-                { type: 'thinking', thinking: 'step-by-step', signature: 'sig_1' },
+                {
+                    type: 'thinking',
+                    thinking: 'step-by-step',
+                    signature: 'sig_1',
+                },
                 { type: 'redacted_thinking', data: 'hidden_data' },
                 { type: 'text', text: 'answer', citations: null },
             ],
@@ -504,6 +508,14 @@ describe('reasoning support', () => {
                     } as never,
                 },
                 {
+                    type: 'content_block_delta',
+                    index: 0,
+                    delta: {
+                        type: 'signature_delta',
+                        signature: 'sig_1',
+                    } as never,
+                },
+                {
                     type: 'content_block_stop',
                     index: 0,
                 },
@@ -533,6 +545,12 @@ describe('reasoning support', () => {
         expect(events.map((event) => event.type)).toContain('reasoning-start');
         expect(events.map((event) => event.type)).toContain('reasoning-delta');
         expect(events.map((event) => event.type)).toContain('reasoning-end');
+        expect(events.find((event) => event.type === 'reasoning-end')).toEqual({
+            type: 'reasoning-end',
+            providerMetadata: {
+                signature: 'sig_1',
+            },
+        });
     });
 
     it('should emit reasoning-end before tool-call events in stream', async () => {
@@ -705,7 +723,8 @@ function asAnthropicMessage(value: {
             cache_creation: null,
             cache_creation_input_tokens:
                 value.usage.cache_creation_input_tokens ?? null,
-            cache_read_input_tokens: value.usage.cache_read_input_tokens ?? null,
+            cache_read_input_tokens:
+                value.usage.cache_read_input_tokens ?? null,
             server_tool_use: null,
             service_tier: null,
             output_tokens_details: null,

@@ -19,6 +19,7 @@ export function createStreamResult(
         const parts: AssistantContentPart[] = [];
         let textBuffer = '';
         let reasoningBuffer = '';
+        let reasoningProviderMetadata: Record<string, unknown> | undefined;
         let insideReasoning = false;
         let finishReason: GenerateResult['finishReason'] = 'unknown';
         let usage: GenerateResult['usage'] = {
@@ -43,14 +44,21 @@ export function createStreamResult(
         };
 
         const flushReasoning = () => {
-            if (reasoningBuffer.length === 0) {
+            if (
+                reasoningBuffer.length === 0 &&
+                reasoningProviderMetadata === undefined
+            ) {
                 return;
             }
             parts.push({
                 type: 'reasoning',
                 text: reasoningBuffer,
+                ...(reasoningProviderMetadata
+                    ? { providerMetadata: reasoningProviderMetadata }
+                    : {}),
             });
             reasoningBuffer = '';
+            reasoningProviderMetadata = undefined;
         };
 
         for await (const event of source) {
@@ -65,6 +73,7 @@ export function createStreamResult(
                 }
                 reasoningBuffer += event.text;
             } else if (event.type === 'reasoning-end') {
+                reasoningProviderMetadata = event.providerMetadata;
                 flushReasoning();
                 insideReasoning = false;
             } else if (event.type === 'text-delta') {

@@ -452,10 +452,6 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.reasoning_summary_text.done') {
-            if (reasoningStarted) {
-                reasoningStarted = false;
-                yield { type: 'reasoning-end' };
-            }
             continue;
         }
 
@@ -517,6 +513,34 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.output_item.done') {
+            if (isReasoningItem(event.item)) {
+                const encryptedContent =
+                    typeof event.item.encrypted_content === 'string' &&
+                    event.item.encrypted_content.length > 0
+                        ? event.item.encrypted_content
+                        : undefined;
+
+                if (!reasoningStarted && encryptedContent) {
+                    reasoningStarted = true;
+                    yield { type: 'reasoning-start' };
+                }
+
+                if (reasoningStarted) {
+                    reasoningStarted = false;
+                    yield {
+                        type: 'reasoning-end',
+                        ...(encryptedContent
+                            ? {
+                                  providerMetadata: {
+                                      encryptedContent,
+                                  },
+                              }
+                            : {}),
+                    };
+                }
+                continue;
+            }
+
             if (!isFunctionToolCall(event.item)) {
                 continue;
             }

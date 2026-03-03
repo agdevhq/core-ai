@@ -138,6 +138,40 @@ describe('createStreamResult', () => {
         expect(response.finishReason).toBe('tool-calls');
     });
 
+    it('should preserve reasoning providerMetadata from stream events', async () => {
+        const events: StreamEvent[] = [
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'thinking' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: { encryptedContent: 'enc_abc' },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 2,
+                    outputTokens: 3,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const result = createStreamResult(toAsyncIterable(events));
+        const response = await result.toResponse();
+
+        expect(response.parts).toEqual([
+            {
+                type: 'reasoning',
+                text: 'thinking',
+                providerMetadata: { encryptedContent: 'enc_abc' },
+            },
+        ]);
+    });
+
     it('should auto-consume stream when toResponse called without iteration', async () => {
         const events: StreamEvent[] = [
             { type: 'text-delta', text: 'auto' },
