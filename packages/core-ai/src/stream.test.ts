@@ -144,7 +144,7 @@ describe('createStreamResult', () => {
             { type: 'reasoning-delta', text: 'thinking' },
             {
                 type: 'reasoning-end',
-                providerMetadata: { encryptedContent: 'enc_abc' },
+                providerMetadata: { openai: { encryptedContent: 'enc_abc' } },
             },
             {
                 type: 'finish',
@@ -167,7 +167,7 @@ describe('createStreamResult', () => {
             {
                 type: 'reasoning',
                 text: 'thinking',
-                providerMetadata: { encryptedContent: 'enc_abc' },
+                providerMetadata: { openai: { encryptedContent: 'enc_abc' } },
             },
         ]);
     });
