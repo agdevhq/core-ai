@@ -43,7 +43,7 @@ export { validateOpenAIReasoningConfig };
 const ENCRYPTED_REASONING_INCLUDE = 'reasoning.encrypted_content';
 
 export function convertMessages(messages: Message[]): ResponseInputItem[] {
-    return messages.flatMap((message) => convertMessage(message));
+    return messages.flatMap(convertMessage);
 }
 
 function convertMessage(message: Message): ResponseInputItem[] {
@@ -365,51 +365,19 @@ function mapReasoningPart(
 }
 
 function getReasoningSummaryText(summary: ResponseReasoningItem['summary']): string {
-    if (!Array.isArray(summary)) {
-        return '';
-    }
-
-    return summary
-        .flatMap((item) => {
-            if (!item || typeof item !== 'object') {
-                return [];
-            }
-
-            const text = (item as { text?: unknown }).text;
-            return typeof text === 'string' ? [text] : [];
-        })
-        .join('');
+    return summary.map((item) => item.text).join('');
 }
 
 function mapMessageTextParts(message: ResponseOutputMessage): AssistantContentPart[] {
-    const parts: AssistantContentPart[] = [];
-
-    if (!Array.isArray(message.content)) {
-        return parts;
-    }
-
-    for (const contentItem of message.content) {
-        if (!contentItem || typeof contentItem !== 'object') {
-            continue;
+    return message.content.flatMap((contentItem) => {
+        if (contentItem.type !== 'output_text') {
+            return [];
         }
-
-        const contentItemType = (contentItem as { type?: unknown }).type;
-        if (contentItemType !== 'output_text') {
-            continue;
+        if (contentItem.text.length === 0) {
+            return [];
         }
-
-        const text = (contentItem as { text?: unknown }).text;
-        if (typeof text !== 'string' || text.length === 0) {
-            continue;
-        }
-
-        parts.push({
-            type: 'text',
-            text,
-        });
-    }
-
-    return parts;
+        return [{ type: 'text' as const, text: contentItem.text }];
+    });
 }
 
 function getTextContent(parts: AssistantContentPart[]): string | null {
@@ -645,7 +613,6 @@ export async function* transformStream(
         usage,
     };
 }
-
 
 function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) {
     if (!options.reasoning) {

@@ -404,7 +404,6 @@ export async function* transformStream(
     };
 }
 
-
 function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) {
     if (!options.reasoning) {
         return {};
