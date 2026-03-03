@@ -10,6 +10,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createMistralChatModel', () => {
     it('should create model metadata', () => {
@@ -674,10 +675,4 @@ function asCompletionEvent(value: {
             ...(value.usage ? { usage: value.usage } : {}),
         },
     };
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

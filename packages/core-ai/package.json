@@ -47,8 +47,9 @@
         "zod-to-json-schema": "^3.25.1"
     },
     "devDependencies": {
-        "@core-ai/eslint-config": "^0.0.0",
-        "@core-ai/typescript-config": "^0.0.0",
+        "@core-ai/eslint-config": "*",
+        "@core-ai/testing": "*",
+        "@core-ai/typescript-config": "*",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4"
     }

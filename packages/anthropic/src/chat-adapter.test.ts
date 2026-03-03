@@ -20,6 +20,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
     it('should extract system messages separately', () => {
@@ -716,10 +717,4 @@ function asAnthropicMessage(value: {
             inference_geo: null,
         },
     } as unknown as AnthropicMessage;
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { toAsyncIterable } from '@core-ai/testing';
 import { createStreamResult } from './stream.ts';
 import type { StreamEvent } from './types.ts';
 
@@ -161,9 +162,3 @@ describe('createStreamResult', () => {
         expect(response.reasoning).toBeNull();
     });
 });
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
-}

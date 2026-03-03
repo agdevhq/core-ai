@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { toAsyncIterable } from '@core-ai/testing';
 import { LLMError } from './errors.ts';
 import { createObjectStreamResult, streamObject } from './stream-object.ts';
 import type {
@@ -153,9 +154,3 @@ describe('createObjectStreamResult', () => {
         await expect(result.toResponse()).rejects.toBeInstanceOf(LLMError);
     });
 });
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
-}

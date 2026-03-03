@@ -15,6 +15,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
     it('should convert system and user text messages', () => {
@@ -537,10 +538,4 @@ function asCompletionEvent(value: {
             ...(value.usage ? { usage: value.usage } : {}),
         },
     };
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

@@ -16,6 +16,7 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
     it('should extract system message into systemInstruction', () => {
@@ -669,10 +670,4 @@ function asGenerateContentResponse(
         candidates: [],
         ...value,
     } as GenerateContentResponse;
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }
