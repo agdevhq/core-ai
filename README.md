@@ -19,12 +19,15 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider              | Package                 | Chat | Streaming | Embeddings | Image Generation |
-| --------------------- | ----------------------- | ---- | --------- | ---------- | ---------------- |
-| OpenAI                | `@core-ai/openai`       | Yes  | Yes       | Yes        | Yes              |
-| Anthropic             | `@core-ai/anthropic`    | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini) | `@core-ai/google-genai` | Yes  | Yes       | Yes        | Yes              |
-| Mistral               | `@core-ai/mistral`      | Yes  | Yes       | Yes        | —                |
+| Provider              | Package                      | Chat | Streaming | Embeddings | Image Generation |
+| --------------------- | ---------------------------- | ---- | --------- | ---------- | ---------------- |
+| OpenAI (Responses)    | `@core-ai/openai`            | Yes  | Yes       | Yes        | Yes              |
+| OpenAI (Completions)  | `@core-ai/openai/compat`     | Yes  | Yes       | Yes        | Yes              |
+| Anthropic             | `@core-ai/anthropic`         | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini) | `@core-ai/google-genai`      | Yes  | Yes       | Yes        | Yes              |
+| Mistral               | `@core-ai/mistral`           | Yes  | Yes       | Yes        | —                |
+
+> **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the legacy Chat Completions API (e.g. for Azure OpenAI or third-party OpenAI-compatible endpoints), import from `@core-ai/openai/compat` instead.
 
 ## Quick Start
 
@@ -87,6 +90,34 @@ for await (const event of result) {
 const response = await result.toResponse();
 console.log(response.content);
 ```
+
+### Reasoning
+
+Models that support extended thinking (e.g. `gpt-5.2`, `claude-sonnet-4.6`) return reasoning blocks alongside text. Reasoning parts carry provider-namespaced metadata so you can round-trip them through multi-turn conversations:
+
+```typescript
+import { generate, getProviderMetadata } from '@core-ai/core-ai';
+import type { AnthropicReasoningMetadata } from '@core-ai/anthropic';
+
+const result = await generate({
+    model,
+    messages: [{ role: 'user', content: 'Explain dark matter.' }],
+    reasoning: { effort: 'high' },
+});
+
+for (const part of result.parts) {
+    if (part.type === 'reasoning') {
+        console.log('Reasoning:', part.text);
+        const meta = getProviderMetadata<AnthropicReasoningMetadata>(
+            part.providerMetadata,
+            'anthropic'
+        );
+        console.log('Signature:', meta?.signature);
+    }
+}
+```
+
+When reasoning blocks from one provider are sent to a different provider, the adapter automatically downgrades them to plain text to maximize cross-provider compatibility.
 
 ### Structured Output
 
@@ -314,10 +345,11 @@ This is a Turborepo monorepo:
 ```
 packages/
   core-ai/       — Core types, functions, and provider re-exports
-  openai/        — OpenAI provider implementation
+  openai/        — OpenAI provider (Responses API + Chat Completions compat)
   anthropic/     — Anthropic provider implementation
   google-genai/  — Google GenAI (Gemini) provider implementation
   mistral/       — Mistral provider implementation
+  testing/       — Shared test utilities (internal)
 ```
 
 ## Development

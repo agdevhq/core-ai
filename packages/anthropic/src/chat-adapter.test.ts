@@ -20,6 +20,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
     it('should extract system messages separately', () => {
@@ -297,14 +298,14 @@ describe('reasoning support', () => {
                         type: 'reasoning',
                         text: 'thought',
                         providerMetadata: {
-                            signature: 'sig_123',
+                            anthropic: { signature: 'sig_123' },
                         },
                     },
                     {
                         type: 'reasoning',
                         text: '',
                         providerMetadata: {
-                            redactedData: 'redacted_payload',
+                            anthropic: { redactedData: 'redacted_payload' },
                         },
                     },
                     {
@@ -333,6 +334,33 @@ describe('reasoning support', () => {
                         type: 'text',
                         text: 'answer',
                     },
+                ],
+            },
+        ]);
+    });
+
+    it('should wrap cross-provider reasoning in <thinking> tags', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'step-by-step thought',
+                        providerMetadata: { openai: { encryptedContent: 'enc_123' } },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        const result = convertMessages(messages);
+        expect(result.messages).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'text', text: '<thinking>step-by-step thought</thinking>' },
+                    { type: 'text', text: 'answer' },
                 ],
             },
         ]);
@@ -429,7 +457,11 @@ describe('reasoning support', () => {
     it('should parse thinking and redacted_thinking blocks from responses', () => {
         const response = asAnthropicMessage({
             content: [
-                { type: 'thinking', thinking: 'step-by-step', signature: 'sig_1' },
+                {
+                    type: 'thinking',
+                    thinking: 'step-by-step',
+                    signature: 'sig_1',
+                },
                 { type: 'redacted_thinking', data: 'hidden_data' },
                 { type: 'text', text: 'answer', citations: null },
             ],
@@ -444,14 +476,14 @@ describe('reasoning support', () => {
             type: 'reasoning',
             text: 'step-by-step',
             providerMetadata: {
-                signature: 'sig_1',
+                anthropic: { signature: 'sig_1' },
             },
         });
         expect(result.parts[1]).toEqual({
             type: 'reasoning',
             text: '',
             providerMetadata: {
-                redactedData: 'hidden_data',
+                anthropic: { redactedData: 'hidden_data' },
             },
         });
     });
@@ -470,8 +502,8 @@ describe('reasoning support', () => {
         expect(result.parts[0]).toEqual({
             type: 'reasoning',
             text: 'bare thought',
+            providerMetadata: { anthropic: {} },
         });
-        expect(result.parts[0]).not.toHaveProperty('providerMetadata');
     });
 
     it('should emit reasoning events from thinking deltas in streams', async () => {
@@ -500,6 +532,14 @@ describe('reasoning support', () => {
                     delta: {
                         type: 'thinking_delta',
                         thinking: 'reason ',
+                    } as never,
+                },
+                {
+                    type: 'content_block_delta',
+                    index: 0,
+                    delta: {
+                        type: 'signature_delta',
+                        signature: 'sig_1',
                     } as never,
                 },
                 {
@@ -532,6 +572,12 @@ describe('reasoning support', () => {
         expect(events.map((event) => event.type)).toContain('reasoning-start');
         expect(events.map((event) => event.type)).toContain('reasoning-delta');
         expect(events.map((event) => event.type)).toContain('reasoning-end');
+        expect(events.find((event) => event.type === 'reasoning-end')).toEqual({
+            type: 'reasoning-end',
+            providerMetadata: {
+                anthropic: { signature: 'sig_1' },
+            },
+        });
     });
 
     it('should emit reasoning-end before tool-call events in stream', async () => {
@@ -704,7 +750,8 @@ function asAnthropicMessage(value: {
             cache_creation: null,
             cache_creation_input_tokens:
                 value.usage.cache_creation_input_tokens ?? null,
-            cache_read_input_tokens: value.usage.cache_read_input_tokens ?? null,
+            cache_read_input_tokens:
+                value.usage.cache_read_input_tokens ?? null,
             server_tool_use: null,
             service_tier: null,
             output_tokens_details: null,
@@ -716,10 +763,4 @@ function asAnthropicMessage(value: {
             inference_geo: null,
         },
     } as unknown as AnthropicMessage;
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

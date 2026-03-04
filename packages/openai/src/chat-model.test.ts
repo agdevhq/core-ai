@@ -2,14 +2,16 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type OpenAI from 'openai';
 import type {
-    ChatCompletion,
-    ChatCompletionChunk,
-} from 'openai/resources/chat/completions/completions';
+    Response,
+    ResponseStreamEvent,
+} from 'openai/resources/responses/responses';
 import {
     ProviderError,
     StructuredOutputValidationError,
+    resultToMessage,
 } from '@core-ai/core-ai';
 import { createOpenAIChatModel } from './chat-model.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createOpenAIChatModel', () => {
     it('should create model metadata', () => {
@@ -22,23 +24,21 @@ describe('createOpenAIChatModel', () => {
 
 describe('generate', () => {
     it('should map a text response', async () => {
-        const create = vi.fn(async () => {
-            return asChatCompletion({
-                choices: [
+        const create = vi.fn(async (_request: unknown) => {
+            return asResponse({
+                output: [
                     {
-                        index: 0,
-                        finish_reason: 'stop',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: 'Hello!',
-                            refusal: null,
-                        },
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'Hello!' }],
                     },
                 ],
+                status: 'completed',
                 usage: {
-                    prompt_tokens: 10,
-                    completion_tokens: 5,
+                    input_tokens: 10,
+                    output_tokens: 5,
+                    input_tokens_details: { cached_tokens: 0 },
+                    output_tokens_details: { reasoning_tokens: 0 },
                     total_tokens: 15,
                 },
             });
@@ -62,155 +62,92 @@ describe('generate', () => {
                 cacheReadTokens: 0,
                 cacheWriteTokens: 0,
             },
-            outputTokenDetails: {},
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
         });
 
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
                 model: 'gpt-5-mini',
-                messages: [{ role: 'user', content: 'Hi' }],
+                input: [{ role: 'user', content: 'Hi' }],
             })
         );
     });
 
-    it('should map cached and reasoning token usage', async () => {
-        const create = vi.fn(async () => {
-            return asChatCompletion({
-                choices: [
+    it('should preserve encrypted reasoning content across turns', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            asResponse({
+                output: [
                     {
-                        index: 0,
-                        finish_reason: 'stop',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: 'Hello from cache!',
-                            refusal: null,
-                        },
+                        type: 'reasoning',
+                        summary: [{ type: 'summary_text', text: 'thinking' }],
+                        encrypted_content: 'enc_abc',
+                    },
+                    {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'Answer' }],
                     },
                 ],
-                usage: {
-                    prompt_tokens: 100,
-                    completion_tokens: 30,
-                    total_tokens: 130,
-                    prompt_tokens_details: {
-                        cached_tokens: 64,
-                        audio_tokens: 0,
-                    },
-                    completion_tokens_details: {
-                        reasoning_tokens: 12,
-                        audio_tokens: 0,
-                        accepted_prediction_tokens: 0,
-                        rejected_prediction_tokens: 0,
-                    },
-                },
-            });
-        });
+                status: 'completed',
+            })
+        );
         const model = createOpenAIChatModel(
             createMockClient(create),
             'gpt-5-mini'
         );
 
-        const result = await model.generate({
-            messages: [{ role: 'user', content: 'Hi again' }],
+        const first = await model.generate({
+            messages: [{ role: 'user', content: 'Question 1' }],
+            reasoning: { effort: 'high' },
         });
 
-        expect(result.usage).toEqual({
-            inputTokens: 100,
-            outputTokens: 30,
-            inputTokenDetails: {
-                cacheReadTokens: 64,
-                cacheWriteTokens: 0,
-            },
-            outputTokenDetails: {
-                reasoningTokens: 12,
-            },
-        });
-    });
+        const secondMessages = [
+            { role: 'user' as const, content: 'Question 1' },
+            resultToMessage(first),
+            { role: 'user' as const, content: 'Question 2' },
+        ];
 
-    it('should map tool call responses', async () => {
-        const create = vi.fn(async () => {
-            return asChatCompletion({
-                choices: [
-                    {
-                        index: 0,
-                        finish_reason: 'tool_calls',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: null,
-                            refusal: null,
-                            tool_calls: [
-                                {
-                                    id: 'tc_1',
-                                    type: 'function',
-                                    function: {
-                                        name: 'search',
-                                        arguments: '{"query":"weather"}',
-                                    },
-                                },
-                            ],
-                        },
-                    },
-                ],
-                usage: {
-                    prompt_tokens: 10,
-                    completion_tokens: 20,
-                    total_tokens: 30,
-                },
-            });
+        await model.generate({
+            messages: secondMessages,
+            reasoning: { effort: 'high' },
         });
-        const model = createOpenAIChatModel(
-            createMockClient(create),
-            'gpt-5-mini'
+
+        const secondCall = create.mock.calls[1] as [unknown] | undefined;
+        const secondRequest = secondCall?.[0] as
+            | {
+                  input?: Array<{ type?: string; encrypted_content?: string }>;
+              }
+            | undefined;
+        const reasoningItem = secondRequest?.input?.find(
+            (item) => item.type === 'reasoning'
         );
 
-        const result = await model.generate({
-            messages: [{ role: 'user', content: 'weather?' }],
-        });
-
-        expect(result.finishReason).toBe('tool-calls');
-        expect(result.toolCalls).toEqual([
-            {
-                id: 'tc_1',
-                name: 'search',
-                arguments: { query: 'weather' },
-            },
-        ]);
+        expect(reasoningItem?.encrypted_content).toBe('enc_abc');
     });
 
     it('should generate a validated structured object', async () => {
-        const create = vi.fn(async () => {
-            return asChatCompletion({
-                choices: [
+        const create = vi.fn(async (_request: unknown) =>
+            asResponse({
+                output: [
                     {
-                        index: 0,
-                        finish_reason: 'tool_calls',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: null,
-                            refusal: null,
-                            tool_calls: [
-                                {
-                                    id: 'tc_1',
-                                    type: 'function',
-                                    function: {
-                                        name: 'weather_schema',
-                                        arguments:
-                                            '{"city":"Berlin","temperatureC":21}',
-                                    },
-                                },
-                            ],
-                        },
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'weather_schema',
+                        arguments: '{"city":"Berlin","temperatureC":21}',
                     },
                 ],
+                status: 'completed',
                 usage: {
-                    prompt_tokens: 10,
-                    completion_tokens: 5,
+                    input_tokens: 10,
+                    output_tokens: 5,
+                    input_tokens_details: { cached_tokens: 0 },
+                    output_tokens_details: { reasoning_tokens: 0 },
                     total_tokens: 15,
                 },
-            });
-        });
+            })
+        );
         const model = createOpenAIChatModel(
             createMockClient(create),
             'gpt-5-mini'
@@ -230,52 +167,30 @@ describe('generate', () => {
             city: 'Berlin',
             temperatureC: 21,
         });
-        expect(result.finishReason).toBe('tool-calls');
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
                 tool_choice: {
                     type: 'function',
-                    function: {
-                        name: 'weather_schema',
-                    },
+                    name: 'weather_schema',
                 },
             })
         );
     });
 
     it('should throw validation error for invalid structured output', async () => {
-        const create = vi.fn(async () => {
-            return asChatCompletion({
-                choices: [
+        const create = vi.fn(async (_request: unknown) =>
+            asResponse({
+                output: [
                     {
-                        index: 0,
-                        finish_reason: 'tool_calls',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: null,
-                            refusal: null,
-                            tool_calls: [
-                                {
-                                    id: 'tc_1',
-                                    type: 'function',
-                                    function: {
-                                        name: 'weather_schema',
-                                        arguments:
-                                            '{"city":"Berlin","temperatureC":"warm"}',
-                                    },
-                                },
-                            ],
-                        },
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'weather_schema',
+                        arguments: '{"city":"Berlin","temperatureC":"warm"}',
                     },
                 ],
-                usage: {
-                    prompt_tokens: 10,
-                    completion_tokens: 5,
-                    total_tokens: 15,
-                },
-            });
-        });
+                status: 'completed',
+            })
+        );
         const model = createOpenAIChatModel(
             createMockClient(create),
             'gpt-5-mini'
@@ -295,7 +210,7 @@ describe('generate', () => {
     });
 
     it('should wrap provider errors', async () => {
-        const create = vi.fn(async () => {
+        const create = vi.fn(async (_request: unknown) => {
             throw new Error('network failed');
         });
         const model = createOpenAIChatModel(
@@ -309,82 +224,36 @@ describe('generate', () => {
             })
         ).rejects.toBeInstanceOf(ProviderError);
     });
-
-    it('should pass reasoning effort in request but not extract reasoning text (Chat Completions API)', async () => {
-        const create = vi.fn(async () => {
-            return asChatCompletion({
-                choices: [
-                    {
-                        index: 0,
-                        finish_reason: 'stop',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: 'Final answer',
-                            refusal: null,
-                        },
-                    },
-                ],
-                usage: {
-                    prompt_tokens: 12,
-                    completion_tokens: 7,
-                    total_tokens: 19,
-                    completion_tokens_details: {
-                        reasoning_tokens: 50,
-                    },
-                },
-            });
-        });
-        const model = createOpenAIChatModel(
-            createMockClient(create),
-            'gpt-5-mini'
-        );
-
-        const result = await model.generate({
-            messages: [{ role: 'user', content: 'Solve this' }],
-            reasoning: { effort: 'high' },
-        });
-
-        expect(result.reasoning).toBeNull();
-        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(50);
-        expect(create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                reasoning_effort: 'high',
-            })
-        );
-    });
 });
 
 describe('stream', () => {
     it('should stream content and aggregate response', async () => {
-        const create = vi.fn(async () => {
-            return toAsyncIterable<ChatCompletionChunk>([
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: null,
-                            delta: { content: 'Hello ' },
-                        },
-                    ],
-                    usage: null,
+        const create = vi.fn(async (_request: unknown) =>
+            toAsyncIterable<ResponseStreamEvent>([
+                asStreamEvent({
+                    type: 'response.output_text.delta',
+                    delta: 'Hello ',
                 }),
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: 'stop',
-                            delta: { content: 'world' },
-                        },
-                    ],
-                    usage: {
-                        prompt_tokens: 10,
-                        completion_tokens: 2,
-                        total_tokens: 12,
-                    },
+                asStreamEvent({
+                    type: 'response.output_text.delta',
+                    delta: 'world',
                 }),
-            ]);
-        });
+                asStreamEvent({
+                    type: 'response.completed',
+                    response: asResponse({
+                        output: [],
+                        status: 'completed',
+                        usage: {
+                            input_tokens: 10,
+                            output_tokens: 2,
+                            input_tokens_details: { cached_tokens: 0 },
+                            output_tokens_details: { reasoning_tokens: 0 },
+                            total_tokens: 12,
+                        },
+                    }),
+                }),
+            ])
+        );
         const model = createOpenAIChatModel(
             createMockClient(create),
             'gpt-5-mini'
@@ -405,134 +274,61 @@ describe('stream', () => {
         const response = await streamResult.toResponse();
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
-        expect(response.usage).toEqual({
-            inputTokens: 10,
-            outputTokens: 2,
-            inputTokenDetails: {
-                cacheReadTokens: 0,
-                cacheWriteTokens: 0,
-            },
-            outputTokenDetails: {},
-        });
     });
+});
 
-    it('should map cached usage in streaming responses', async () => {
-        const create = vi.fn(async () => {
-            return toAsyncIterable<ChatCompletionChunk>([
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: null,
-                            delta: { content: 'Cache ' },
-                        },
-                    ],
-                    usage: null,
-                }),
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: 'stop',
-                            delta: { content: 'hit' },
-                        },
-                    ],
-                    usage: {
-                        prompt_tokens: 90,
-                        completion_tokens: 4,
-                        total_tokens: 94,
-                        prompt_tokens_details: {
-                            cached_tokens: 64,
-                            audio_tokens: 0,
-                        },
-                        completion_tokens_details: {
-                            reasoning_tokens: 1,
-                            audio_tokens: 0,
-                            accepted_prediction_tokens: 0,
-                            rejected_prediction_tokens: 0,
-                        },
+describe('streamObject', () => {
+    it('should stream and validate a structured object', async () => {
+        const create = vi.fn(async () =>
+            toAsyncIterable<ResponseStreamEvent>([
+                asStreamEvent({
+                    type: 'response.output_item.added',
+                    output_index: 0,
+                    item: {
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'weather_schema',
+                        arguments: '',
                     },
                 }),
-            ]);
-        });
-        const model = createOpenAIChatModel(
-            createMockClient(create),
-            'gpt-5-mini'
+                asStreamEvent({
+                    type: 'response.function_call_arguments.delta',
+                    output_index: 0,
+                    item_id: 'item_1',
+                    delta: '{"city":"Berlin",',
+                }),
+                asStreamEvent({
+                    type: 'response.function_call_arguments.delta',
+                    output_index: 0,
+                    item_id: 'item_1',
+                    delta: '"temperatureC":21}',
+                }),
+                asStreamEvent({
+                    type: 'response.output_item.done',
+                    output_index: 0,
+                    item: {
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'weather_schema',
+                        arguments: '{"city":"Berlin","temperatureC":21}',
+                    },
+                }),
+                asStreamEvent({
+                    type: 'response.completed',
+                    response: asResponse({
+                        output: [],
+                        status: 'completed',
+                        usage: {
+                            input_tokens: 10,
+                            output_tokens: 5,
+                            input_tokens_details: { cached_tokens: 0 },
+                            output_tokens_details: { reasoning_tokens: 0 },
+                            total_tokens: 15,
+                        },
+                    }),
+                }),
+            ])
         );
-
-        const streamResult = await model.stream({
-            messages: [{ role: 'user', content: 'cached stream' }],
-        });
-
-        for await (const _event of streamResult) {
-            // Consume stream.
-        }
-
-        const response = await streamResult.toResponse();
-        expect(response.usage).toEqual({
-            inputTokens: 90,
-            outputTokens: 4,
-            inputTokenDetails: {
-                cacheReadTokens: 64,
-                cacheWriteTokens: 0,
-            },
-            outputTokenDetails: {
-                reasoningTokens: 1,
-            },
-        });
-    });
-
-    it('should stream and aggregate structured object output', async () => {
-        const create = vi.fn(async () => {
-            return toAsyncIterable<ChatCompletionChunk>([
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: null,
-                            delta: {
-                                tool_calls: [
-                                    {
-                                        index: 0,
-                                        id: 'tc_1',
-                                        type: 'function',
-                                        function: {
-                                            name: 'weather_schema',
-                                            arguments: '{"city":"Berlin",',
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    ],
-                    usage: null,
-                }),
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: 'tool_calls',
-                            delta: {
-                                tool_calls: [
-                                    {
-                                        index: 0,
-                                        type: 'function',
-                                        function: {
-                                            arguments: '"temperatureC":21}',
-                                        },
-                                    },
-                                ],
-                            },
-                        },
-                    ],
-                    usage: {
-                        prompt_tokens: 10,
-                        completion_tokens: 5,
-                        total_tokens: 15,
-                    },
-                }),
-            ]);
-        });
         const model = createOpenAIChatModel(
             createMockClient(create),
             'gpt-5-mini'
@@ -563,100 +359,27 @@ describe('stream', () => {
         });
         expect(response.finishReason).toBe('tool-calls');
     });
-
-    it('should pass reasoning effort in stream request (Chat Completions API)', async () => {
-        const create = vi.fn(async () => {
-            return toAsyncIterable<ChatCompletionChunk>([
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: 'stop',
-                            delta: { content: 'answer' },
-                        },
-                    ],
-                    usage: {
-                        prompt_tokens: 8,
-                        completion_tokens: 3,
-                        total_tokens: 11,
-                        completion_tokens_details: {
-                            reasoning_tokens: 1,
-                            audio_tokens: 0,
-                            accepted_prediction_tokens: 0,
-                            rejected_prediction_tokens: 0,
-                        },
-                    },
-                }),
-            ]);
-        });
-        const model = createOpenAIChatModel(
-            createMockClient(create),
-            'gpt-5-mini'
-        );
-
-        const streamResult = await model.stream({
-            messages: [{ role: 'user', content: 'Explain' }],
-            reasoning: { effort: 'medium' },
-        });
-
-        const seenEventTypes: string[] = [];
-        for await (const event of streamResult) {
-            seenEventTypes.push(event.type);
-        }
-
-        expect(seenEventTypes).not.toContain('reasoning-start');
-        expect(seenEventTypes).toEqual(['text-delta', 'finish']);
-
-        const response = await streamResult.toResponse();
-        expect(response.reasoning).toBeNull();
-        expect(create).toHaveBeenCalledWith(
-            expect.objectContaining({
-                reasoning_effort: 'medium',
-            })
-        );
-    });
 });
 
 function createMockClient(
     create?: (options: unknown) => Promise<unknown>
-): Pick<OpenAI, 'chat'> {
+): Pick<OpenAI, 'responses'> {
     return {
-        chat: {
-            completions: {
-                create:
-                    create ??
-                    (async () => {
-                        throw new Error('not implemented');
-                    }),
-            },
+        responses: {
+            create:
+                create ??
+                (async () => {
+                    throw new Error('not implemented');
+                }),
         },
-    } as unknown as Pick<OpenAI, 'chat'>;
+    } as unknown as Pick<OpenAI, 'responses'>;
 }
 
-function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
-    return {
-        id: 'chatcmpl-1',
-        object: 'chat.completion',
-        created: Date.now(),
-        model: 'gpt-5-mini',
-        choices: [],
-        ...value,
-    };
+function asResponse(value: unknown): Response {
+    return value as Response;
 }
 
-function asChunk(value: Partial<ChatCompletionChunk>): ChatCompletionChunk {
-    return {
-        id: 'chunk-1',
-        object: 'chat.completion.chunk',
-        created: Date.now(),
-        model: 'gpt-5-mini',
-        choices: [],
-        ...value,
-    };
+function asStreamEvent(value: unknown): ResponseStreamEvent {
+    return value as ResponseStreamEvent;
 }
 
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
-}

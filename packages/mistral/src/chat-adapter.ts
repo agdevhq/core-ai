@@ -53,15 +53,25 @@ function convertMessage(message: Message): MistralMessage {
     }
 
     if (message.role === 'assistant') {
-        const text = message.parts
-            .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-            .join('');
+        const contentChunks: ContentChunk[] = [];
         const toolCalls = message.parts.flatMap((part) =>
             part.type === 'tool-call' ? [part.toolCall] : []
         );
+
+        for (const part of message.parts) {
+            if (part.type === 'text') {
+                contentChunks.push({ type: 'text', text: part.text });
+            } else if (part.type === 'reasoning' && part.text.length > 0) {
+                contentChunks.push({
+                    type: 'thinking',
+                    thinking: [{ type: 'text', text: part.text }],
+                });
+            }
+        }
+
         return {
             role: 'assistant',
-            content: text.length > 0 ? text : null,
+            content: contentChunks.length > 0 ? contentChunks : null,
             ...(toolCalls.length > 0
                 ? {
                       toolCalls: toolCalls.map((toolCall) => ({
@@ -342,6 +352,7 @@ export async function* transformStream(
                 reasoningOpen = false;
                 yield {
                     type: 'reasoning-end',
+                    providerMetadata: { mistral: {} },
                 };
             }
             yield {
@@ -355,6 +366,7 @@ export async function* transformStream(
                 reasoningOpen = false;
                 yield {
                     type: 'reasoning-end',
+                    providerMetadata: { mistral: {} },
                 };
             }
             for (const [
@@ -423,6 +435,7 @@ export async function* transformStream(
     if (reasoningOpen) {
         yield {
             type: 'reasoning-end',
+            providerMetadata: { mistral: {} },
         };
     }
 
@@ -523,6 +536,7 @@ function extractAssistantParts(message: {
                 parts.push({
                     type: 'reasoning',
                     text: thinkingText,
+                    providerMetadata: { mistral: {} },
                 });
             }
         }

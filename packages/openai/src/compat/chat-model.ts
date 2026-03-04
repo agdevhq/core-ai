@@ -1,11 +1,6 @@
 import type OpenAI from 'openai';
 import type { z } from 'zod';
-import type {
-    Response,
-    ResponseCreateParamsNonStreaming,
-    ResponseCreateParamsStreaming,
-    ResponseStreamEvent,
-} from 'openai/resources/responses/responses';
+import type { ChatCompletionChunk } from 'openai/resources/chat/completions/completions';
 import type {
     ChatModel,
     GenerateObjectOptions,
@@ -32,23 +27,25 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
-import { wrapOpenAIError } from './openai-error.js';
+import { wrapOpenAIError } from '../openai-error.js';
 
 type OpenAIChatClient = {
-    responses: OpenAI['responses'];
+    chat: OpenAI['chat'];
 };
 
-export function createOpenAIChatModel(
+export function createOpenAICompatChatModel(
     client: OpenAIChatClient,
     modelId: string
 ): ChatModel {
     const provider = 'openai';
 
-    async function callOpenAIResponsesApi<TResponse>(
-        request: ResponseCreateParamsNonStreaming | ResponseCreateParamsStreaming
+    async function callOpenAIChatCompletionsApi<TResponse>(
+        request: unknown
     ): Promise<TResponse> {
         try {
-            return (await client.responses.create(request as never)) as TResponse;
+            return (await client.chat.completions.create(
+                request as never
+            )) as TResponse;
         } catch (error) {
             throw wrapOpenAIError(error);
         }
@@ -58,14 +55,16 @@ export function createOpenAIChatModel(
         options: GenerateOptions
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options);
-        const response = await callOpenAIResponsesApi<Response>(request);
+        const response = await callOpenAIChatCompletionsApi<
+            Parameters<typeof mapGenerateResponse>[0]
+        >(request);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<StreamResult> {
         const request = createStreamRequest(modelId, options);
-        const stream = await callOpenAIResponsesApi<
-            AsyncIterable<ResponseStreamEvent>
+        const stream = await callOpenAIChatCompletionsApi<
+            AsyncIterable<ChatCompletionChunk>
         >(request);
         return createStreamResult(transformStream(stream));
     }

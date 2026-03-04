@@ -12,7 +12,10 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import { ProviderError } from '@core-ai/core-ai';
+import {
+    ProviderError,
+    getProviderMetadata,
+} from '@core-ai/core-ai';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -30,6 +33,11 @@ import {
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
 } from './model-capabilities.js';
+
+export type AnthropicReasoningMetadata = {
+    signature?: string;
+    redactedData?: string;
+};
 
 const UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS = new Set([
     'minimum',
@@ -94,8 +102,15 @@ export function convertMessages(
                     continue;
                 }
 
-                const signature = part.providerMetadata?.['signature'];
-                const redactedData = part.providerMetadata?.['redactedData'];
+                const anthropicMeta = getProviderMetadata<AnthropicReasoningMetadata>(part.providerMetadata, 'anthropic');
+                if (anthropicMeta == null) {
+                    if (part.text.length > 0) {
+                        contentBlocks.push({ type: 'text', text: `<thinking>${part.text}</thinking>` });
+                    }
+                    continue;
+                }
+
+                const { signature, redactedData } = anthropicMeta;
                 if (typeof redactedData === 'string') {
                     contentBlocks.push({
                         type: 'redacted_thinking',
@@ -104,14 +119,20 @@ export function convertMessages(
                     continue;
                 }
 
-                const thinkingBlock: Record<string, unknown> = {
+                if (part.text.length === 0) {
+                    continue;
+                }
+
+                if (typeof signature !== 'string') {
+                    contentBlocks.push({ type: 'text', text: part.text });
+                    continue;
+                }
+
+                contentBlocks.push({
                     type: 'thinking',
                     thinking: part.text,
-                };
-                if (typeof signature === 'string') {
-                    thinkingBlock['signature'] = signature;
-                }
-                contentBlocks.push(thinkingBlock as unknown as ContentBlockParam);
+                    signature,
+                } as unknown as ContentBlockParam);
             }
 
             convertedMessages.push({
@@ -513,13 +534,9 @@ export function mapGenerateResponse(
             parts.push({
                 type: 'reasoning',
                 text: thinkingText,
-                ...(signature
-                    ? {
-                          providerMetadata: {
-                              signature,
-                          },
-                      }
-                    : {}),
+                providerMetadata: {
+                    anthropic: { ...(signature ? { signature } : {}) },
+                },
             });
             continue;
         }
@@ -529,13 +546,9 @@ export function mapGenerateResponse(
             parts.push({
                 type: 'reasoning',
                 text: '',
-                ...(redactedData
-                    ? {
-                          providerMetadata: {
-                              redactedData,
-                          },
-                      }
-                    : {}),
+                providerMetadata: {
+                    anthropic: { ...(redactedData ? { redactedData } : {}) },
+                },
             });
         }
     }
@@ -592,6 +605,7 @@ export async function* transformStream(
     >();
     const emittedToolCalls = new Set<number>();
     const contentBlockTypeByIndex = new Map<number, string>();
+    const reasoningSignatureByIndex = new Map<number, string>();
 
     for await (const event of stream) {
         if (event.type === 'message_start') {
@@ -676,6 +690,11 @@ export async function* transformStream(
                 continue;
             }
 
+            if (event.delta.type === 'signature_delta') {
+                reasoningSignatureByIndex.set(event.index, event.delta.signature);
+                continue;
+            }
+
             if (event.delta.type === 'input_json_delta') {
                 const current = toolBuffers.get(event.index);
                 if (!current) {
@@ -694,12 +713,19 @@ export async function* transformStream(
 
         if (event.type === 'content_block_stop') {
             if (contentBlockTypeByIndex.get(event.index) === 'thinking') {
+                const signature = reasoningSignatureByIndex.get(event.index);
+                reasoningSignatureByIndex.delete(event.index);
+                contentBlockTypeByIndex.delete(event.index);
                 yield {
                     type: 'reasoning-end',
+                    providerMetadata: {
+                        anthropic: { ...(signature ? { signature } : {}) },
+                    },
                 };
                 continue;
             }
 
+            contentBlockTypeByIndex.delete(event.index);
             const current = toolBuffers.get(event.index);
             if (!current || emittedToolCalls.has(event.index)) {
                 continue;

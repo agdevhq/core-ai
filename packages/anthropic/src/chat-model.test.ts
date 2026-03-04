@@ -11,6 +11,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createAnthropicChatModel } from './chat-model.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createAnthropicChatModel', () => {
     it('should expose provider metadata', () => {
@@ -697,10 +698,4 @@ function asMessage(value: {
             inference_geo: null,
         },
     } as unknown as Message;
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

@@ -1,10 +1,10 @@
 import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
-import { createOpenAI } from './provider.js';
+import { createOpenAICompat } from './provider.js';
 
-describe('createOpenAI', () => {
+describe('createOpenAICompat', () => {
     it('should expose all model factories', () => {
-        const provider = createOpenAI({
+        const provider = createOpenAICompat({
             client: createMockClient(),
         });
 
@@ -25,20 +25,26 @@ describe('createOpenAI', () => {
     });
 
     it('should use a shared client instance across model types', async () => {
-        const responsesCreate = vi.fn(async () => ({
-            output: [
+        const chatCreate = vi.fn(async () => ({
+            id: 'chatcmpl-1',
+            object: 'chat.completion',
+            created: Date.now(),
+            model: 'gpt-5-mini',
+            choices: [
                 {
-                    type: 'message',
-                    role: 'assistant',
-                    content: [{ type: 'output_text', text: 'ok' }],
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'ok',
+                        refusal: null,
+                    },
                 },
             ],
-            status: 'completed',
             usage: {
-                input_tokens: 1,
-                output_tokens: 1,
-                input_tokens_details: { cached_tokens: 0 },
-                output_tokens_details: { reasoning_tokens: 0 },
+                prompt_tokens: 1,
+                completion_tokens: 1,
                 total_tokens: 2,
             },
         }));
@@ -50,9 +56,9 @@ describe('createOpenAI', () => {
             data: [{ b64_json: 'abc' }],
         }));
 
-        const provider = createOpenAI({
+        const provider = createOpenAICompat({
             client: createMockClient({
-                responsesCreate,
+                chatCreate,
                 embeddingCreate,
                 imageGenerate,
             }),
@@ -66,21 +72,21 @@ describe('createOpenAI', () => {
             .embed({ input: 'hello' });
         await provider.imageModel('gpt-image-1').generate({ prompt: 'cat' });
 
-        expect(responsesCreate).toHaveBeenCalledTimes(1);
+        expect(chatCreate).toHaveBeenCalledTimes(1);
         expect(embeddingCreate).toHaveBeenCalledTimes(1);
         expect(imageGenerate).toHaveBeenCalledTimes(1);
     });
 });
 
 function createMockClient(overrides?: {
-    responsesCreate?: (options: unknown) => Promise<unknown>;
+    chatCreate?: (options: unknown) => Promise<unknown>;
     embeddingCreate?: (options: unknown) => Promise<unknown>;
     imageGenerate?: (options: unknown) => Promise<unknown>;
 }): OpenAI {
-    const responsesCreate =
-        overrides?.responsesCreate ??
+    const chatCreate =
+        overrides?.chatCreate ??
         (async () => {
-            throw new Error('responses create not implemented');
+            throw new Error('chat create not implemented');
         });
     const embeddingCreate =
         overrides?.embeddingCreate ??
@@ -94,8 +100,10 @@ function createMockClient(overrides?: {
         });
 
     return {
-        responses: {
-            create: responsesCreate,
+        chat: {
+            completions: {
+                create: chatCreate,
+            },
         },
         embeddings: {
             create: embeddingCreate,

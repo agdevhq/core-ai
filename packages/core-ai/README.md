@@ -15,6 +15,7 @@ Provider packages are published separately:
 - `@core-ai/openai`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
+- `@core-ai/mistral`
 
 ## Usage
 

@@ -1,53 +1,55 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import type { Mistral } from '@mistralai/mistralai';
+import type OpenAI from 'openai';
 import type {
-    ChatCompletionResponse,
-    CompletionEvent,
-} from '@mistralai/mistralai/models/components';
+    ChatCompletion,
+    ChatCompletionChunk,
+} from 'openai/resources/chat/completions/completions';
 import {
     ProviderError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createMistralChatModel } from './chat-model.js';
+import { createOpenAICompatChatModel } from './chat-model.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
-describe('createMistralChatModel', () => {
+describe('createOpenAICompatChatModel', () => {
     it('should create model metadata', () => {
-        const model = createMistralChatModel(
+        const model = createOpenAICompatChatModel(
             createMockClient(),
-            'mistral-large-latest'
+            'gpt-5-mini'
         );
 
-        expect(model.provider).toBe('mistral');
-        expect(model.modelId).toBe('mistral-large-latest');
+        expect(model.provider).toBe('openai');
+        expect(model.modelId).toBe('gpt-5-mini');
     });
 });
 
 describe('generate', () => {
     it('should map a text response', async () => {
-        const complete = vi.fn(async () => {
-            return asChatCompletionResponse({
+        const create = vi.fn(async () => {
+            return asChatCompletion({
                 choices: [
                     {
                         index: 0,
-                        finishReason: 'stop',
+                        finish_reason: 'stop',
+                        logprobs: null,
                         message: {
                             role: 'assistant',
                             content: 'Hello!',
+                            refusal: null,
                         },
                     },
                 ],
                 usage: {
-                    promptTokens: 10,
-                    completionTokens: 5,
-                    totalTokens: 15,
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
                 },
             });
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const result = await model.generate({
@@ -67,65 +69,81 @@ describe('generate', () => {
             outputTokenDetails: {},
         });
 
-        expect(complete).toHaveBeenCalledWith(
+        expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
-                model: 'mistral-large-latest',
+                model: 'gpt-5-mini',
                 messages: [{ role: 'user', content: 'Hi' }],
             })
         );
     });
 
-    it('should keep cache token details at zero (no provider cache fields)', async () => {
-        const complete = vi.fn(async () => {
-            return asChatCompletionResponse({
+    it('should map cached and reasoning token usage', async () => {
+        const create = vi.fn(async () => {
+            return asChatCompletion({
                 choices: [
                     {
                         index: 0,
-                        finishReason: 'stop',
+                        finish_reason: 'stop',
+                        logprobs: null,
                         message: {
                             role: 'assistant',
-                            content: 'No cache support',
+                            content: 'Hello from cache!',
+                            refusal: null,
                         },
                     },
                 ],
                 usage: {
-                    promptTokens: 42,
-                    completionTokens: 7,
-                    totalTokens: 49,
+                    prompt_tokens: 100,
+                    completion_tokens: 30,
+                    total_tokens: 130,
+                    prompt_tokens_details: {
+                        cached_tokens: 64,
+                        audio_tokens: 0,
+                    },
+                    completion_tokens_details: {
+                        reasoning_tokens: 12,
+                        audio_tokens: 0,
+                        accepted_prediction_tokens: 0,
+                        rejected_prediction_tokens: 0,
+                    },
                 },
             });
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const result = await model.generate({
-            messages: [{ role: 'user', content: 'Hi' }],
+            messages: [{ role: 'user', content: 'Hi again' }],
         });
 
         expect(result.usage).toEqual({
-            inputTokens: 42,
-            outputTokens: 7,
+            inputTokens: 100,
+            outputTokens: 30,
             inputTokenDetails: {
-                cacheReadTokens: 0,
+                cacheReadTokens: 64,
                 cacheWriteTokens: 0,
             },
-            outputTokenDetails: {},
+            outputTokenDetails: {
+                reasoningTokens: 12,
+            },
         });
     });
 
     it('should map tool call responses', async () => {
-        const complete = vi.fn(async () => {
-            return asChatCompletionResponse({
+        const create = vi.fn(async () => {
+            return asChatCompletion({
                 choices: [
                     {
                         index: 0,
-                        finishReason: 'tool_calls',
+                        finish_reason: 'tool_calls',
+                        logprobs: null,
                         message: {
                             role: 'assistant',
                             content: null,
-                            toolCalls: [
+                            refusal: null,
+                            tool_calls: [
                                 {
                                     id: 'tc_1',
                                     type: 'function',
@@ -139,15 +157,15 @@ describe('generate', () => {
                     },
                 ],
                 usage: {
-                    promptTokens: 10,
-                    completionTokens: 20,
-                    totalTokens: 30,
+                    prompt_tokens: 10,
+                    completion_tokens: 20,
+                    total_tokens: 30,
                 },
             });
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const result = await model.generate({
@@ -165,16 +183,18 @@ describe('generate', () => {
     });
 
     it('should generate a validated structured object', async () => {
-        const complete = vi.fn(async () => {
-            return asChatCompletionResponse({
+        const create = vi.fn(async () => {
+            return asChatCompletion({
                 choices: [
                     {
                         index: 0,
-                        finishReason: 'tool_calls',
+                        finish_reason: 'tool_calls',
+                        logprobs: null,
                         message: {
                             role: 'assistant',
                             content: null,
-                            toolCalls: [
+                            refusal: null,
+                            tool_calls: [
                                 {
                                     id: 'tc_1',
                                     type: 'function',
@@ -189,15 +209,15 @@ describe('generate', () => {
                     },
                 ],
                 usage: {
-                    promptTokens: 10,
-                    completionTokens: 5,
-                    totalTokens: 15,
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
                 },
             });
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
         const schema = z.object({
             city: z.string(),
@@ -215,19 +235,31 @@ describe('generate', () => {
             temperatureC: 21,
         });
         expect(result.finishReason).toBe('tool-calls');
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tool_choice: {
+                    type: 'function',
+                    function: {
+                        name: 'weather_schema',
+                    },
+                },
+            })
+        );
     });
 
     it('should throw validation error for invalid structured output', async () => {
-        const complete = vi.fn(async () => {
-            return asChatCompletionResponse({
+        const create = vi.fn(async () => {
+            return asChatCompletion({
                 choices: [
                     {
                         index: 0,
-                        finishReason: 'tool_calls',
+                        finish_reason: 'tool_calls',
+                        logprobs: null,
                         message: {
                             role: 'assistant',
                             content: null,
-                            toolCalls: [
+                            refusal: null,
+                            tool_calls: [
                                 {
                                     id: 'tc_1',
                                     type: 'function',
@@ -242,15 +274,15 @@ describe('generate', () => {
                     },
                 ],
                 usage: {
-                    promptTokens: 10,
-                    completionTokens: 5,
-                    totalTokens: 15,
+                    prompt_tokens: 10,
+                    completion_tokens: 5,
+                    total_tokens: 15,
                 },
             });
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
         const schema = z.object({
             city: z.string(),
@@ -267,12 +299,12 @@ describe('generate', () => {
     });
 
     it('should wrap provider errors', async () => {
-        const complete = vi.fn(async () => {
+        const create = vi.fn(async () => {
             throw new Error('network failed');
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         await expect(
@@ -282,50 +314,46 @@ describe('generate', () => {
         ).rejects.toBeInstanceOf(ProviderError);
     });
 
-    it('should pass reasoning config and map thinking content', async () => {
-        const complete = vi.fn(async () => {
-            return asChatCompletionResponse({
+    it('should pass reasoning effort in request but not extract reasoning text (Chat Completions API)', async () => {
+        const create = vi.fn(async () => {
+            return asChatCompletion({
                 choices: [
                     {
                         index: 0,
-                        finishReason: 'stop',
+                        finish_reason: 'stop',
+                        logprobs: null,
                         message: {
                             role: 'assistant',
-                            content: [
-                                {
-                                    type: 'thinking',
-                                    thinking: [{ text: 'internal thought' }],
-                                },
-                                {
-                                    type: 'text',
-                                    text: 'final answer',
-                                },
-                            ],
-                            toolCalls: null,
+                            content: 'Final answer',
+                            refusal: null,
                         },
                     },
                 ],
                 usage: {
-                    promptTokens: 10,
-                    completionTokens: 4,
-                    totalTokens: 14,
+                    prompt_tokens: 12,
+                    completion_tokens: 7,
+                    total_tokens: 19,
+                    completion_tokens_details: {
+                        reasoning_tokens: 50,
+                    },
                 },
             });
         });
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'magistral-medium-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const result = await model.generate({
-            messages: [{ role: 'user', content: 'Explain' }],
+            messages: [{ role: 'user', content: 'Solve this' }],
             reasoning: { effort: 'high' },
         });
 
-        expect(result.reasoning).toBe('internal thought');
-        expect(complete).toHaveBeenCalledWith(
+        expect(result.reasoning).toBeNull();
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(50);
+        expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
-                model: 'magistral-medium-latest',
+                reasoning_effort: 'high',
             })
         );
     });
@@ -333,36 +361,37 @@ describe('generate', () => {
 
 describe('stream', () => {
     it('should stream content and aggregate response', async () => {
-        const stream = vi.fn(async () => {
-            return toAsyncIterable<CompletionEvent>([
-                asCompletionEvent({
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
                     choices: [
                         {
                             index: 0,
-                            finishReason: null,
+                            finish_reason: null,
                             delta: { content: 'Hello ' },
                         },
                     ],
+                    usage: null,
                 }),
-                asCompletionEvent({
+                asChunk({
                     choices: [
                         {
                             index: 0,
-                            finishReason: 'stop',
+                            finish_reason: 'stop',
                             delta: { content: 'world' },
                         },
                     ],
                     usage: {
-                        promptTokens: 10,
-                        completionTokens: 2,
-                        totalTokens: 12,
+                        prompt_tokens: 10,
+                        completion_tokens: 2,
+                        total_tokens: 12,
                     },
                 }),
             ]);
         });
-        const model = createMistralChatModel(
-            createMockClient({ stream }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const streamResult = await model.stream({
@@ -391,78 +420,86 @@ describe('stream', () => {
         });
     });
 
-    it('should emit tool call events in stream', async () => {
-        const stream = vi.fn(async () => {
-            return toAsyncIterable<CompletionEvent>([
-                asCompletionEvent({
+    it('should map cached usage in streaming responses', async () => {
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
                     choices: [
                         {
                             index: 0,
-                            finishReason: 'tool_calls',
-                            delta: {
-                                toolCalls: [
-                                    {
-                                        id: 'tc_1',
-                                        type: 'function',
-                                        index: 0,
-                                        function: {
-                                            name: 'search',
-                                            arguments: '{"query":"weather"}',
-                                        },
-                                    },
-                                ],
-                            },
+                            finish_reason: null,
+                            delta: { content: 'Cache ' },
                         },
                     ],
+                    usage: null,
+                }),
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'stop',
+                            delta: { content: 'hit' },
+                        },
+                    ],
+                    usage: {
+                        prompt_tokens: 90,
+                        completion_tokens: 4,
+                        total_tokens: 94,
+                        prompt_tokens_details: {
+                            cached_tokens: 64,
+                            audio_tokens: 0,
+                        },
+                        completion_tokens_details: {
+                            reasoning_tokens: 1,
+                            audio_tokens: 0,
+                            accepted_prediction_tokens: 0,
+                            rejected_prediction_tokens: 0,
+                        },
+                    },
                 }),
             ]);
         });
-        const model = createMistralChatModel(
-            createMockClient({ stream }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const streamResult = await model.stream({
-            messages: [{ role: 'user', content: 'weather?' }],
+            messages: [{ role: 'user', content: 'cached stream' }],
         });
 
-        const events = [];
-        for await (const event of streamResult) {
-            events.push(event);
+        for await (const _event of streamResult) {
+            // Consume stream.
         }
 
-        expect(events.some((event) => event.type === 'tool-call-start')).toBe(
-            true
-        );
-        expect(events.some((event) => event.type === 'tool-call-end')).toBe(
-            true
-        );
-
         const response = await streamResult.toResponse();
-        expect(response.finishReason).toBe('tool-calls');
-        expect(response.toolCalls).toEqual([
-            {
-                id: 'tc_1',
-                name: 'search',
-                arguments: { query: 'weather' },
+        expect(response.usage).toEqual({
+            inputTokens: 90,
+            outputTokens: 4,
+            inputTokenDetails: {
+                cacheReadTokens: 64,
+                cacheWriteTokens: 0,
             },
-        ]);
+            outputTokenDetails: {
+                reasoningTokens: 1,
+            },
+        });
     });
 
     it('should stream and aggregate structured object output', async () => {
-        const stream = vi.fn(async () => {
-            return toAsyncIterable<CompletionEvent>([
-                asCompletionEvent({
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
                     choices: [
                         {
                             index: 0,
-                            finishReason: null,
+                            finish_reason: null,
                             delta: {
-                                toolCalls: [
+                                tool_calls: [
                                     {
+                                        index: 0,
                                         id: 'tc_1',
                                         type: 'function',
-                                        index: 0,
                                         function: {
                                             name: 'weather_schema',
                                             arguments: '{"city":"Berlin",',
@@ -472,18 +509,19 @@ describe('stream', () => {
                             },
                         },
                     ],
+                    usage: null,
                 }),
-                asCompletionEvent({
+                asChunk({
                     choices: [
                         {
                             index: 0,
-                            finishReason: 'tool_calls',
+                            finish_reason: 'tool_calls',
                             delta: {
-                                toolCalls: [
+                                tool_calls: [
                                     {
                                         index: 0,
+                                        type: 'function',
                                         function: {
-                                            name: 'weather_schema',
                                             arguments: '"temperatureC":21}',
                                         },
                                     },
@@ -492,16 +530,16 @@ describe('stream', () => {
                         },
                     ],
                     usage: {
-                        promptTokens: 10,
-                        completionTokens: 2,
-                        totalTokens: 12,
+                        prompt_tokens: 10,
+                        completion_tokens: 5,
+                        total_tokens: 15,
                     },
                 }),
             ]);
         });
-        const model = createMistralChatModel(
-            createMockClient({ stream }),
-            'mistral-large-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
         const schema = z.object({
             city: z.string(),
@@ -530,51 +568,34 @@ describe('stream', () => {
         expect(response.finishReason).toBe('tool-calls');
     });
 
-    it('should pass reasoning config and emit reasoning stream events', async () => {
-        const stream = vi.fn(async () => {
-            return toAsyncIterable<CompletionEvent>([
-                asCompletionEvent({
+    it('should pass reasoning effort in stream request (Chat Completions API)', async () => {
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
                     choices: [
                         {
                             index: 0,
-                            finishReason: null,
-                            delta: {
-                                content: [
-                                    {
-                                        type: 'thinking',
-                                        thinking: [{ text: 'reason ' }],
-                                    },
-                                ],
-                            },
-                        },
-                    ],
-                }),
-                asCompletionEvent({
-                    choices: [
-                        {
-                            index: 0,
-                            finishReason: 'stop',
-                            delta: {
-                                content: [
-                                    {
-                                        type: 'text',
-                                        text: 'answer',
-                                    },
-                                ],
-                            },
+                            finish_reason: 'stop',
+                            delta: { content: 'answer' },
                         },
                     ],
                     usage: {
-                        promptTokens: 10,
-                        completionTokens: 2,
-                        totalTokens: 12,
+                        prompt_tokens: 8,
+                        completion_tokens: 3,
+                        total_tokens: 11,
+                        completion_tokens_details: {
+                            reasoning_tokens: 1,
+                            audio_tokens: 0,
+                            accepted_prediction_tokens: 0,
+                            rejected_prediction_tokens: 0,
+                        },
                     },
                 }),
             ]);
         });
-        const model = createMistralChatModel(
-            createMockClient({ stream }),
-            'magistral-medium-latest'
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
         );
 
         const streamResult = await model.stream({
@@ -582,97 +603,59 @@ describe('stream', () => {
             reasoning: { effort: 'medium' },
         });
 
-        const eventTypes: string[] = [];
+        const seenEventTypes: string[] = [];
         for await (const event of streamResult) {
-            eventTypes.push(event.type);
+            seenEventTypes.push(event.type);
         }
 
-        expect(eventTypes).toContain('reasoning-start');
-        expect(eventTypes).toContain('reasoning-delta');
-        expect(eventTypes).toContain('reasoning-end');
+        expect(seenEventTypes).not.toContain('reasoning-start');
+        expect(seenEventTypes).toEqual(['text-delta', 'finish']);
 
         const response = await streamResult.toResponse();
-        expect(response.reasoning).toBe('reason ');
+        expect(response.reasoning).toBeNull();
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                reasoning_effort: 'medium',
+            })
+        );
     });
 });
 
-function createMockClient(overrides?: {
-    complete?: (options: unknown) => Promise<unknown>;
-    stream?: (options: unknown) => Promise<unknown>;
-}): Pick<Mistral, 'chat'> {
-    const complete =
-        overrides?.complete ??
-        (async () => {
-            throw new Error('chat complete not implemented');
-        });
-    const stream =
-        overrides?.stream ??
-        (async () => {
-            throw new Error('chat stream not implemented');
-        });
-
+function createMockClient(
+    create?: (options: unknown) => Promise<unknown>
+): Pick<OpenAI, 'chat'> {
     return {
         chat: {
-            complete,
-            stream,
+            completions: {
+                create:
+                    create ??
+                    (async () => {
+                        throw new Error('not implemented');
+                    }),
+            },
         },
-    } as unknown as Pick<Mistral, 'chat'>;
+    } as unknown as Pick<OpenAI, 'chat'>;
 }
 
-function asChatCompletionResponse(
-    value: Partial<ChatCompletionResponse>
-): ChatCompletionResponse {
+function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
     return {
         id: 'chatcmpl-1',
         object: 'chat.completion',
-        model: 'mistral-large-latest',
-        usage: {
-            promptTokens: 0,
-            completionTokens: 0,
-            totalTokens: 0,
-        },
         created: Date.now(),
+        model: 'gpt-5-mini',
         choices: [],
         ...value,
     };
 }
 
-function asCompletionEvent(value: {
-    choices: Array<{
-        index: number;
-        finishReason: string | null;
-        delta: {
-            content?:
-                | string
-                | null
-                | Array<{
-                      type: string;
-                      text?: string;
-                      thinking?: Array<{ text: string }>;
-                  }>;
-            toolCalls?: Array<{
-                id?: string;
-                type?: string;
-                index?: number;
-                function: {
-                    name: string;
-                    arguments: string;
-                };
-            }>;
-        };
-    }>;
-    usage?: {
-        promptTokens?: number;
-        completionTokens?: number;
-        totalTokens?: number;
-    };
-}): CompletionEvent {
+function asChunk(value: Partial<ChatCompletionChunk>): ChatCompletionChunk {
     return {
-        data: {
-            id: 'chunk-1',
-            model: 'mistral-large-latest',
-            choices: value.choices as CompletionEvent['data']['choices'],
-            ...(value.usage ? { usage: value.usage } : {}),
-        },
+        id: 'chunk-1',
+        object: 'chat.completion.chunk',
+        created: Date.now(),
+        model: 'gpt-5-mini',
+        choices: [],
+        ...value,
     };
 }
+

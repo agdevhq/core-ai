@@ -56,7 +56,18 @@ export type AssistantTextPart = {
 export type ReasoningPart = {
     type: 'reasoning';
     text: string;
-    providerMetadata?: Record<string, unknown>;
+    /**
+     * Provider-namespaced metadata for this reasoning block. The top-level key is
+     * the provider identifier (e.g. `'anthropic'`, `'openai'`), which also serves as
+     * the ownership discriminator: an adapter checks for the presence of its own key
+     * to detect cross-provider blocks. Cross-provider blocks are downgraded to plain
+     * text (preserving context) rather than forwarding opaque metadata that would
+     * cause an API error on the receiving provider.
+     *
+     * @example Anthropic: `{ anthropic: { signature: '...' } }`
+     * @example OpenAI:    `{ openai: { encryptedContent: '...' } }`
+     */
+    providerMetadata?: Record<string, Record<string, unknown>>;
 };
 
 export type ToolCallPart = {
@@ -214,7 +225,7 @@ export type ChatOutputTokenDetails = {
 export type StreamEvent =
     | { type: 'reasoning-start' }
     | { type: 'reasoning-delta'; text: string }
-    | { type: 'reasoning-end' }
+    | { type: 'reasoning-end'; providerMetadata?: Record<string, Record<string, unknown>> }
     | { type: 'text-delta'; text: string }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }

@@ -15,6 +15,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
     it('should convert system and user text messages', () => {
@@ -216,7 +217,7 @@ describe('structured output helpers', () => {
 });
 
 describe('reasoning support', () => {
-    it('should ignore reasoning parts when converting assistant messages', () => {
+    it('should preserve reasoning parts as thinking chunks', () => {
         const messages: Message[] = [
             {
                 role: 'assistant',
@@ -228,7 +229,39 @@ describe('reasoning support', () => {
         ];
 
         expect(convertMessages(messages)).toEqual([
-            { role: 'assistant', content: 'answer' },
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'thinking', thinking: [{ type: 'text', text: 'thoughts' }] },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ]);
+    });
+
+    it('should preserve cross-provider reasoning as a thinking chunk', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'thoughts',
+                        providerMetadata: { anthropic: { signature: 'sig123' } },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'thinking', thinking: [{ type: 'text', text: 'thoughts' }] },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
         ]);
     });
 
@@ -281,6 +314,7 @@ describe('reasoning support', () => {
         expect(result.parts[0]).toEqual({
             type: 'reasoning',
             text: 'step-by-step',
+            providerMetadata: { mistral: {} },
         });
     });
 
@@ -537,10 +571,4 @@ function asCompletionEvent(value: {
             ...(value.usage ? { usage: value.usage } : {}),
         },
     };
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

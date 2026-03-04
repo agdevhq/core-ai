@@ -10,6 +10,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.js';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createGoogleGenAIChatModel', () => {
     it('should create model metadata', () => {
@@ -598,10 +599,4 @@ function asGenerateContentResponse(
         candidates: [],
         ...value,
     } as GenerateContentResponse;
-}
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
 }

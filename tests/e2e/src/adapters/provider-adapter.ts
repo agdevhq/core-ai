@@ -4,7 +4,12 @@ import type {
     ImageModel,
 } from '../../../../packages/core-ai/src/index.ts';
 
-export type ProviderId = 'openai' | 'anthropic' | 'google' | 'mistral';
+export type ProviderId =
+    | 'openai'
+    | 'openai-compat'
+    | 'anthropic'
+    | 'google'
+    | 'mistral';
 
 export type ProviderCapabilities = {
     chat: boolean;

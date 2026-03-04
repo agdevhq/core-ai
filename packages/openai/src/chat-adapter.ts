@@ -1,232 +1,285 @@
 import type {
-    ChatCompletion,
-    ChatCompletionChunk,
-    ChatCompletionContentPart,
-    ChatCompletionMessageFunctionToolCall,
-    ChatCompletionMessageParam,
-    ChatCompletionTool,
-    ChatCompletionToolChoiceOption,
-} from 'openai/resources/chat/completions/completions';
-import type { z } from 'zod';
-import { zodToJsonSchema } from 'zod-to-json-schema';
+    Response,
+    ResponseCreateParamsNonStreaming,
+    ResponseCreateParamsStreaming,
+    ResponseFunctionToolCall,
+    ResponseInputItem,
+    ResponseOutputItem,
+    ResponseOutputMessage,
+    ResponseReasoningItem,
+    ResponseStreamEvent,
+    ResponseUsage,
+} from 'openai/resources/responses/responses';
 import type {
     AssistantContentPart,
     FinishReason,
-    GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
     Message,
     StreamEvent,
-    ToolChoice,
     ToolCall,
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { ProviderError } from '@core-ai/core-ai';
+import { getProviderMetadata } from '@core-ai/core-ai';
 import {
     clampReasoningEffort,
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
+import {
+    convertToolChoice,
+    convertTools,
+    createStructuredOutputOptions,
+    getStructuredOutputToolName,
+} from './shared/tools.js';
+import {
+    safeParseJsonObject,
+    validateOpenAIReasoningConfig,
+} from './shared/utils.js';
 
-export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
-export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
-    'Return a JSON object that matches the requested schema.';
+export { createStructuredOutputOptions, getStructuredOutputToolName };
+export { validateOpenAIReasoningConfig };
 
-export function convertMessages(
-    messages: Message[]
-): ChatCompletionMessageParam[] {
-    return messages.map(convertMessage);
+export type OpenAIReasoningMetadata = {
+    encryptedContent?: string;
+};
+
+const ENCRYPTED_REASONING_INCLUDE = 'reasoning.encrypted_content';
+
+export function convertMessages(messages: Message[]): ResponseInputItem[] {
+    return messages.flatMap(convertMessage);
 }
 
-function convertMessage(message: Message): ChatCompletionMessageParam {
+function convertMessage(message: Message): ResponseInputItem[] {
     if (message.role === 'system') {
-        return {
-            role: 'system',
-            content: message.content,
-        };
+        return [
+            {
+                role: 'developer',
+                content: message.content,
+            } as ResponseInputItem,
+        ];
     }
 
     if (message.role === 'user') {
-        return {
-            role: 'user',
-            content:
-                typeof message.content === 'string'
-                    ? message.content
-                    : message.content.map(convertUserContentPart),
-        };
+        return [
+            {
+                role: 'user',
+                content:
+                    typeof message.content === 'string'
+                        ? message.content
+                        : message.content.map(convertUserContentPart),
+            } as ResponseInputItem,
+        ];
     }
 
     if (message.role === 'assistant') {
-        const text = message.parts
-            .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-            .join('');
-        const toolCalls = message.parts.flatMap((part) =>
-            part.type === 'tool-call' ? [part.toolCall] : []
-        );
-
-        return {
-            role: 'assistant',
-            content: text.length > 0 ? text : null,
-            ...(toolCalls.length > 0
-                ? {
-                      tool_calls: toolCalls.map((toolCall) => ({
-                          id: toolCall.id,
-                          type: 'function' as const,
-                          function: {
-                              name: toolCall.name,
-                              arguments: JSON.stringify(toolCall.arguments),
-                          },
-                      })),
-                  }
-                : {}),
-        };
+        return convertAssistantMessage(message.parts);
     }
 
-    return {
-        role: 'tool',
-        tool_call_id: message.toolCallId,
-        content: message.content,
-    };
+    return [
+        {
+            type: 'function_call_output',
+            call_id: message.toolCallId,
+            output: message.content,
+        } as ResponseInputItem,
+    ];
 }
 
-function convertUserContentPart(
-    part: UserContentPart
-): ChatCompletionContentPart {
+function convertAssistantMessage(
+    parts: AssistantContentPart[]
+): ResponseInputItem[] {
+    const items: ResponseInputItem[] = [];
+    const textParts: string[] = [];
+
+    const flushTextBuffer = () => {
+        if (textParts.length === 0) {
+            return;
+        }
+
+        items.push({
+            role: 'assistant',
+            content: textParts.join('\n\n'),
+        } as ResponseInputItem);
+        textParts.length = 0;
+    };
+
+    for (const part of parts) {
+        if (part.type === 'text') {
+            textParts.push(part.text);
+            continue;
+        }
+
+        if (part.type === 'reasoning') {
+            if (getProviderMetadata<OpenAIReasoningMetadata>(part.providerMetadata, 'openai') == null) {
+                if (part.text.length > 0) {
+                    textParts.push(`<thinking>${part.text}</thinking>`);
+                }
+                continue;
+            }
+
+            flushTextBuffer();
+            const encryptedContent = getEncryptedReasoningContent(part);
+            items.push({
+                type: 'reasoning',
+                summary: [
+                    {
+                        type: 'summary_text',
+                        text: part.text,
+                    },
+                ],
+                ...(encryptedContent
+                    ? { encrypted_content: encryptedContent }
+                    : {}),
+            } as ResponseInputItem);
+            continue;
+        }
+
+        flushTextBuffer();
+        items.push({
+            type: 'function_call',
+            call_id: part.toolCall.id,
+            name: part.toolCall.name,
+            arguments: JSON.stringify(part.toolCall.arguments),
+        } as ResponseInputItem);
+    }
+
+    flushTextBuffer();
+
+    return items;
+}
+
+function getEncryptedReasoningContent(
+    part: Extract<AssistantContentPart, { type: 'reasoning' }>
+): string | undefined {
+    const { encryptedContent } =
+        getProviderMetadata<OpenAIReasoningMetadata>(part.providerMetadata, 'openai') ?? {};
+    return typeof encryptedContent === 'string' && encryptedContent.length > 0
+        ? encryptedContent
+        : undefined;
+}
+
+function convertUserContentPart(part: UserContentPart) {
     if (part.type === 'text') {
         return {
-            type: 'text',
+            type: 'input_text' as const,
             text: part.text,
         };
     }
 
     if (part.type === 'image') {
-        const url =
+        const imageUrl =
             part.source.type === 'url'
                 ? part.source.url
                 : `data:${part.source.mediaType};base64,${part.source.data}`;
 
         return {
-            type: 'image_url',
-            image_url: {
-                url,
-            },
+            type: 'input_image' as const,
+            image_url: imageUrl,
         };
     }
 
     return {
-        type: 'file',
-        file: {
-            file_data: part.data,
-            ...(part.filename ? { filename: part.filename } : {}),
-        },
-    };
-}
-
-export function convertTools(tools: ToolSet): ChatCompletionTool[] {
-    return Object.values(tools).map((tool) => ({
-        type: 'function',
-        function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: zodToJsonSchema(tool.parameters) as Record<
-                string,
-                unknown
-            >,
-        },
-    }));
-}
-
-export function convertToolChoice(
-    choice: ToolChoice
-): ChatCompletionToolChoiceOption {
-    if (typeof choice === 'string') {
-        return choice;
-    }
-
-    return {
-        type: 'function',
-        function: {
-            name: choice.toolName,
-        },
-    };
-}
-
-export function getStructuredOutputToolName<TSchema extends z.ZodType>(
-    options: GenerateObjectOptions<TSchema>
-): string {
-    const trimmedName = options.schemaName?.trim();
-    if (trimmedName && trimmedName.length > 0) {
-        return trimmedName;
-    }
-    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
-}
-
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
-    options: GenerateObjectOptions<TSchema>
-): GenerateOptions {
-    const toolName = getStructuredOutputToolName(options);
-
-    return {
-        messages: options.messages,
-        tools: {
-            structured_output: {
-                name: toolName,
-                description:
-                    options.schemaDescription ??
-                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
-                parameters: options.schema,
-            },
-        },
-        toolChoice: {
-            type: 'tool',
-            toolName,
-        },
-        reasoning: options.reasoning,
-        config: options.config,
-        providerOptions: options.providerOptions,
-        signal: options.signal,
+        type: 'input_file' as const,
+        file_data: part.data,
+        ...(part.filename ? { filename: part.filename } : {}),
     };
 }
 
 export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
-) {
-    return {
+): ResponseCreateParamsNonStreaming {
+    const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options),
-        ...options.providerOptions,
+        ...(options.providerOptions ?? {}),
     };
+
+    if (options.reasoning) {
+        request.include = mergeInclude(request.include, [
+            ENCRYPTED_REASONING_INCLUDE,
+        ]);
+    }
+
+    return request as unknown as ResponseCreateParamsNonStreaming;
 }
 
-export function createStreamRequest(modelId: string, options: GenerateOptions) {
-    return {
+export function createStreamRequest(
+    modelId: string,
+    options: GenerateOptions
+): ResponseCreateParamsStreaming {
+    const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options),
         stream: true as const,
-        stream_options: {
-            include_usage: true,
-        },
-        ...options.providerOptions,
+        ...(options.providerOptions ?? {}),
     };
+
+    if (options.reasoning) {
+        request.include = mergeInclude(request.include, [
+            ENCRYPTED_REASONING_INCLUDE,
+        ]);
+    }
+
+    return request as unknown as ResponseCreateParamsStreaming;
 }
 
 function createRequestBase(modelId: string, options: GenerateOptions) {
     validateOpenAIReasoningConfig(modelId, options);
 
-    const reasoningFields = mapReasoningToRequestFields(modelId, options);
-
     return {
         model: modelId,
-        messages: convertMessages(options.messages),
+        store: false as const,
+        input: convertMessages(options.messages),
         ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
+            ? { tools: convertResponseTools(options.tools) }
             : {}),
         ...(options.toolChoice
-            ? { tool_choice: convertToolChoice(options.toolChoice) }
+            ? { tool_choice: convertResponseToolChoice(options.toolChoice) }
             : {}),
-        ...reasoningFields,
+        ...mapReasoningToRequestFields(modelId, options),
         ...mapConfigToRequestFields(options.config),
     };
+}
+
+function convertResponseTools(tools: ToolSet) {
+    return convertTools(tools).map((tool) => ({
+        type: 'function' as const,
+        name: tool.function.name,
+        description: tool.function.description,
+        parameters: tool.function.parameters,
+    }));
+}
+
+function convertResponseToolChoice(
+    choice: NonNullable<GenerateOptions['toolChoice']>
+) {
+    const converted = convertToolChoice(choice);
+
+    if (typeof converted === 'string') {
+        return converted;
+    }
+
+    return {
+        type: 'function' as const,
+        name: converted.function.name,
+    };
+}
+
+function mergeInclude(
+    value: unknown,
+    requiredIncludes: string[]
+): string[] | undefined {
+    const include = Array.isArray(value)
+        ? value.filter((item): item is string => typeof item === 'string')
+        : [];
+
+    for (const requiredInclude of requiredIncludes) {
+        if (!include.includes(requiredInclude)) {
+            include.push(requiredInclude);
+        }
+    }
+
+    return include.length > 0 ? include : undefined;
 }
 
 function mapConfigToRequestFields(config: GenerateOptions['config']) {
@@ -234,228 +287,400 @@ function mapConfigToRequestFields(config: GenerateOptions['config']) {
         ...(config?.temperature !== undefined
             ? { temperature: config.temperature }
             : {}),
-        ...(config?.maxTokens !== undefined ? { max_tokens: config.maxTokens } : {}),
+        ...(config?.maxTokens !== undefined
+            ? { max_output_tokens: config.maxTokens }
+            : {}),
         ...(config?.topP !== undefined ? { top_p: config.topP } : {}),
-        ...(config?.stopSequences ? { stop: config.stopSequences } : {}),
-        ...(config?.frequencyPenalty !== undefined
-            ? { frequency_penalty: config.frequencyPenalty }
-            : {}),
-        ...(config?.presencePenalty !== undefined
-            ? { presence_penalty: config.presencePenalty }
-            : {}),
     };
 }
 
-export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
-    const firstChoice = response.choices[0];
+export function mapGenerateResponse(response: Response): GenerateResult {
+    const parts: AssistantContentPart[] = [];
 
-    if (!firstChoice) {
-        return {
-            parts: [],
-            content: null,
-            reasoning: null,
-            toolCalls: [],
-            finishReason: 'unknown',
-            usage: {
-                inputTokens: 0,
-                outputTokens: 0,
-                inputTokenDetails: {
-                    cacheReadTokens: 0,
-                    cacheWriteTokens: 0,
+    for (const item of response.output) {
+        if (isReasoningItem(item)) {
+            const reasoningPart = mapReasoningPart(item);
+            if (reasoningPart) {
+                parts.push(reasoningPart);
+            }
+            continue;
+        }
+
+        if (isOutputMessage(item)) {
+            for (const part of mapMessageTextParts(item)) {
+                parts.push(part);
+            }
+            continue;
+        }
+
+        if (isFunctionToolCall(item)) {
+            parts.push({
+                type: 'tool-call',
+                toolCall: {
+                    id: item.call_id,
+                    name: item.name,
+                    arguments: safeParseJsonObject(item.arguments),
                 },
-                outputTokenDetails: {},
-            },
-        };
+            });
+        }
     }
 
-    const reasoningTokens =
-        response.usage?.completion_tokens_details?.reasoning_tokens;
-    const content = extractTextContent(firstChoice.message.content);
-    const toolCalls = parseToolCalls(firstChoice.message.tool_calls);
-    const parts = createAssistantParts(content, toolCalls);
+    const content = getTextContent(parts);
+    const reasoning = getReasoningText(parts);
+    const toolCalls = getToolCalls(parts);
 
     return {
         parts,
         content,
-        reasoning: null,
+        reasoning,
         toolCalls,
-        finishReason: mapFinishReason(firstChoice.finish_reason),
-        usage: {
-            inputTokens: response.usage?.prompt_tokens ?? 0,
-            outputTokens: response.usage?.completion_tokens ?? 0,
-            inputTokenDetails: {
-                cacheReadTokens:
-                    response.usage?.prompt_tokens_details?.cached_tokens ?? 0,
-                cacheWriteTokens: 0,
-            },
-            outputTokenDetails: {
-                ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
-            },
+        finishReason: mapFinishReason(response, toolCalls.length > 0),
+        usage: mapUsage(response.usage),
+    };
+}
+
+function mapReasoningPart(
+    item: ResponseReasoningItem
+): Extract<AssistantContentPart, { type: 'reasoning' }> | null {
+    const text = getReasoningSummaryText(item.summary);
+    const encryptedContent =
+        typeof item.encrypted_content === 'string' &&
+        item.encrypted_content.length > 0
+            ? item.encrypted_content
+            : undefined;
+
+    if (text.length === 0 && !encryptedContent) {
+        return null;
+    }
+
+    return {
+        type: 'reasoning',
+        text,
+        providerMetadata: {
+            openai: { ...(encryptedContent ? { encryptedContent } : {}) },
         },
     };
 }
 
-function parseToolCalls(
-    calls:
-        | ChatCompletion['choices'][number]['message']['tool_calls']
-        | undefined
-): ToolCall[] {
-    if (!calls) {
-        return [];
-    }
-
-    return calls.flatMap((toolCall) => {
-        if (toolCall.type !== 'function') {
-            return [];
-        }
-
-        return [mapFunctionToolCall(toolCall)];
-    });
+function getReasoningSummaryText(
+    summary: ResponseReasoningItem['summary']
+): string {
+    return summary.map((item) => item.text).join('');
 }
 
-function mapFunctionToolCall(
-    toolCall: ChatCompletionMessageFunctionToolCall
-): ToolCall {
-    return {
-        id: toolCall.id,
-        name: toolCall.function.name,
-        arguments: safeParseJsonObject(toolCall.function.arguments),
-    };
+function mapMessageTextParts(
+    message: ResponseOutputMessage
+): AssistantContentPart[] {
+    return message.content.flatMap((contentItem) =>
+        contentItem.type === 'output_text' && contentItem.text.length > 0
+            ? [{ type: 'text' as const, text: contentItem.text }]
+            : []
+    );
 }
 
-function mapFinishReason(reason: string | null): FinishReason {
-    if (reason === 'stop') {
-        return 'stop';
-    }
-    if (reason === 'length') {
+function getTextContent(parts: AssistantContentPart[]): string | null {
+    const text = parts
+        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+        .join('');
+
+    return text.length > 0 ? text : null;
+}
+
+function getReasoningText(parts: AssistantContentPart[]): string | null {
+    const reasoning = parts
+        .flatMap((part) => (part.type === 'reasoning' ? [part.text] : []))
+        .join('');
+
+    return reasoning.length > 0 ? reasoning : null;
+}
+
+function getToolCalls(parts: AssistantContentPart[]): ToolCall[] {
+    return parts.flatMap((part) =>
+        part.type === 'tool-call' ? [part.toolCall] : []
+    );
+}
+
+function mapFinishReason(
+    response: Response,
+    hasToolCalls: boolean
+): FinishReason {
+    const incompleteReason = response.incomplete_details?.reason;
+    if (incompleteReason === 'max_output_tokens') {
         return 'length';
     }
-    if (reason === 'tool_calls' || reason === 'function_call') {
-        return 'tool-calls';
-    }
-    if (reason === 'content_filter') {
+    if (incompleteReason === 'content_filter') {
         return 'content-filter';
     }
+
+    if (hasToolCalls) {
+        return 'tool-calls';
+    }
+
+    if (response.status === 'completed') {
+        return 'stop';
+    }
+
     return 'unknown';
 }
 
-export async function* transformStream(
-    stream: AsyncIterable<ChatCompletionChunk>
-): AsyncIterable<StreamEvent> {
-    const bufferedToolCalls = new Map<
-        number,
-        {
-            id: string;
-            name: string;
-            arguments: string;
-        }
-    >();
-    const emittedToolCalls = new Set<string>();
+function mapUsage(usage: ResponseUsage | undefined): GenerateResult['usage'] {
+    const reasoningTokens = usage?.output_tokens_details?.reasoning_tokens;
 
-    let finishReason: FinishReason = 'unknown';
-    let usage: GenerateResult['usage'] = {
-        inputTokens: 0,
-        outputTokens: 0,
+    return {
+        inputTokens: usage?.input_tokens ?? 0,
+        outputTokens: usage?.output_tokens ?? 0,
         inputTokenDetails: {
-            cacheReadTokens: 0,
+            cacheReadTokens: usage?.input_tokens_details?.cached_tokens ?? 0,
             cacheWriteTokens: 0,
         },
-        outputTokenDetails: {},
+        outputTokenDetails: {
+            ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
+        },
     };
+}
 
-    for await (const chunk of stream) {
-        if (chunk.usage) {
-            const reasoningTokens =
-                chunk.usage.completion_tokens_details?.reasoning_tokens;
-            usage = {
-                inputTokens: chunk.usage.prompt_tokens ?? 0,
-                outputTokens: chunk.usage.completion_tokens ?? 0,
-                inputTokenDetails: {
-                    cacheReadTokens:
-                        chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
-                    cacheWriteTokens: 0,
-                },
-                outputTokenDetails: {
-                    ...(reasoningTokens !== undefined
-                        ? { reasoningTokens }
-                        : {}),
-                },
+type BufferedToolCall = {
+    id: string;
+    name: string;
+    arguments: string;
+};
+
+export async function* transformStream(
+    stream: AsyncIterable<ResponseStreamEvent>
+): AsyncIterable<StreamEvent> {
+    const bufferedToolCalls = new Map<number, BufferedToolCall>();
+    const emittedToolCalls = new Set<string>();
+    const startedToolCalls = new Set<string>();
+    const seenSummaryDeltas = new Set<string>();
+    const emittedReasoningItems = new Set<string>();
+
+    let latestResponse: Response | undefined;
+    let reasoningStarted = false;
+
+    for await (const event of stream) {
+        if (event.type === 'response.reasoning_summary_text.delta') {
+            seenSummaryDeltas.add(
+                `${event.item_id}:${event.summary_index}`
+            );
+            emittedReasoningItems.add(event.item_id);
+
+            if (!reasoningStarted) {
+                reasoningStarted = true;
+                yield { type: 'reasoning-start' };
+            }
+
+            yield {
+                type: 'reasoning-delta',
+                text: event.delta,
             };
-        }
-
-        const choice = chunk.choices[0];
-        if (!choice) {
             continue;
         }
 
-        if (choice.delta.content) {
+        if (event.type === 'response.reasoning_summary_text.done') {
+            const key = `${event.item_id}:${event.summary_index}`;
+            if (!seenSummaryDeltas.has(key) && event.text.length > 0) {
+                emittedReasoningItems.add(event.item_id);
+
+                if (!reasoningStarted) {
+                    reasoningStarted = true;
+                    yield { type: 'reasoning-start' };
+                }
+
+                yield {
+                    type: 'reasoning-delta',
+                    text: event.text,
+                };
+            }
+            continue;
+        }
+
+        if (event.type === 'response.output_text.delta') {
             yield {
                 type: 'text-delta',
-                text: choice.delta.content,
+                text: event.delta,
             };
+            continue;
         }
 
-        if (choice.delta.tool_calls) {
-            for (const partialToolCall of choice.delta.tool_calls) {
-                const current = bufferedToolCalls.get(
-                    partialToolCall.index
-                ) ?? {
-                    id: partialToolCall.id ?? `tool-${partialToolCall.index}`,
-                    name: partialToolCall.function?.name ?? '',
-                    arguments: '',
-                };
-
-                const wasNew = !bufferedToolCalls.has(partialToolCall.index);
-
-                if (partialToolCall.id) {
-                    current.id = partialToolCall.id;
-                }
-                if (partialToolCall.function?.name) {
-                    current.name = partialToolCall.function.name;
-                }
-                if (partialToolCall.function?.arguments) {
-                    current.arguments += partialToolCall.function.arguments;
-                    yield {
-                        type: 'tool-call-delta',
-                        toolCallId: current.id,
-                        argumentsDelta: partialToolCall.function.arguments,
-                    };
-                }
-
-                bufferedToolCalls.set(partialToolCall.index, current);
-
-                if (wasNew) {
-                    yield {
-                        type: 'tool-call-start',
-                        toolCallId: current.id,
-                        toolName: current.name,
-                    };
-                }
+        if (event.type === 'response.output_item.added') {
+            if (!isFunctionToolCall(event.item)) {
+                continue;
             }
+
+            const toolCallId = event.item.call_id;
+            bufferedToolCalls.set(event.output_index, {
+                id: toolCallId,
+                name: event.item.name,
+                arguments: event.item.arguments,
+            });
+
+            if (!startedToolCalls.has(toolCallId)) {
+                startedToolCalls.add(toolCallId);
+                yield {
+                    type: 'tool-call-start',
+                    toolCallId,
+                    toolName: event.item.name,
+                };
+            }
+            continue;
         }
 
-        if (choice.finish_reason) {
-            finishReason = mapFinishReason(choice.finish_reason);
+        if (event.type === 'response.function_call_arguments.delta') {
+            const currentToolCall = bufferedToolCalls.get(
+                event.output_index
+            ) ?? {
+                id: event.item_id,
+                name: '',
+                arguments: '',
+            };
+            currentToolCall.arguments += event.delta;
+            bufferedToolCalls.set(event.output_index, currentToolCall);
+
+            if (!startedToolCalls.has(currentToolCall.id)) {
+                startedToolCalls.add(currentToolCall.id);
+                yield {
+                    type: 'tool-call-start',
+                    toolCallId: currentToolCall.id,
+                    toolName: currentToolCall.name,
+                };
+            }
+
+            yield {
+                type: 'tool-call-delta',
+                toolCallId: currentToolCall.id,
+                argumentsDelta: event.delta,
+            };
+            continue;
         }
 
-        if (finishReason === 'tool-calls') {
-            for (const toolCall of bufferedToolCalls.values()) {
-                if (emittedToolCalls.has(toolCall.id)) {
-                    continue;
+        if (event.type === 'response.output_item.done') {
+            if (isReasoningItem(event.item)) {
+                if (!emittedReasoningItems.has(event.item.id)) {
+                    const summaryText = getReasoningSummaryText(
+                        event.item.summary
+                    );
+                    if (summaryText.length > 0) {
+                        if (!reasoningStarted) {
+                            reasoningStarted = true;
+                            yield { type: 'reasoning-start' };
+                        }
+                        yield {
+                            type: 'reasoning-delta',
+                            text: summaryText,
+                        };
+                    }
                 }
 
-                emittedToolCalls.add(toolCall.id);
+                const encryptedContent =
+                    typeof event.item.encrypted_content === 'string' &&
+                    event.item.encrypted_content.length > 0
+                        ? event.item.encrypted_content
+                        : undefined;
+
+                if (!reasoningStarted && encryptedContent) {
+                    reasoningStarted = true;
+                    yield { type: 'reasoning-start' };
+                }
+
+                if (reasoningStarted) {
+                    reasoningStarted = false;
+                    yield {
+                        type: 'reasoning-end',
+                        providerMetadata: {
+                            openai: {
+                                ...(encryptedContent
+                                    ? { encryptedContent }
+                                    : {}),
+                            },
+                        },
+                    };
+                }
+                continue;
+            }
+
+            if (!isFunctionToolCall(event.item)) {
+                continue;
+            }
+
+            const currentToolCall = bufferedToolCalls.get(
+                event.output_index
+            ) ?? {
+                id: event.item.call_id,
+                name: event.item.name,
+                arguments: '',
+            };
+
+            currentToolCall.id = event.item.call_id;
+            currentToolCall.name = event.item.name;
+            currentToolCall.arguments =
+                event.item.arguments || currentToolCall.arguments;
+
+            if (!emittedToolCalls.has(currentToolCall.id)) {
+                emittedToolCalls.add(currentToolCall.id);
                 yield {
                     type: 'tool-call-end',
                     toolCall: {
-                        id: toolCall.id,
-                        name: toolCall.name,
-                        arguments: safeParseJsonObject(toolCall.arguments),
+                        id: currentToolCall.id,
+                        name: currentToolCall.name,
+                        arguments: safeParseJsonObject(
+                            currentToolCall.arguments
+                        ),
                     },
                 };
             }
+            continue;
+        }
+
+        if (event.type === 'response.completed') {
+            latestResponse = event.response;
+
+            if (reasoningStarted) {
+                reasoningStarted = false;
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: { openai: {} },
+                };
+            }
+
+            for (const bufferedToolCall of bufferedToolCalls.values()) {
+                if (emittedToolCalls.has(bufferedToolCall.id)) {
+                    continue;
+                }
+
+                emittedToolCalls.add(bufferedToolCall.id);
+                yield {
+                    type: 'tool-call-end',
+                    toolCall: {
+                        id: bufferedToolCall.id,
+                        name: bufferedToolCall.name,
+                        arguments: safeParseJsonObject(
+                            bufferedToolCall.arguments
+                        ),
+                    },
+                };
+            }
+
+            const hasToolCalls = bufferedToolCalls.size > 0;
+            yield {
+                type: 'finish',
+                finishReason: mapFinishReason(latestResponse, hasToolCalls),
+                usage: mapUsage(latestResponse.usage),
+            };
+            return;
         }
     }
+
+    if (reasoningStarted) {
+        yield { type: 'reasoning-end', providerMetadata: { openai: {} } };
+    }
+
+    const hasToolCalls = bufferedToolCalls.size > 0;
+    const usage = latestResponse
+        ? mapUsage(latestResponse.usage)
+        : mapUsage(undefined);
+    const finishReason = latestResponse
+        ? mapFinishReason(latestResponse, hasToolCalls)
+        : 'unknown';
 
     yield {
         type: 'finish',
@@ -464,106 +689,46 @@ export async function* transformStream(
     };
 }
 
-function safeParseJsonObject(json: string): Record<string, unknown> {
-    try {
-        const parsed = JSON.parse(json) as unknown;
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-            return parsed as Record<string, unknown>;
-        }
-        return {};
-    } catch {
-        return {};
-    }
-}
-
-function validateOpenAIReasoningConfig(
+function mapReasoningToRequestFields(
     modelId: string,
     options: GenerateOptions
-): void {
-    if (!options.reasoning) {
-        return;
-    }
-
-    const capabilities = getOpenAIModelCapabilities(modelId);
-    if (!capabilities.reasoning.restrictsSamplingParams) {
-        return;
-    }
-
-    if (options.config?.temperature !== undefined) {
-        throw new ProviderError(
-            `OpenAI model "${modelId}" does not support temperature when reasoning is enabled`,
-            'openai'
-        );
-    }
-
-    if (options.config?.topP !== undefined) {
-        throw new ProviderError(
-            `OpenAI model "${modelId}" does not support topP when reasoning is enabled`,
-            'openai'
-        );
-    }
-}
-
-function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) {
+) {
     if (!options.reasoning) {
         return {};
     }
 
     const capabilities = getOpenAIModelCapabilities(modelId);
-    if (!capabilities.reasoning.supportsEffort) {
-        return {};
-    }
-
-    const clampedEffort = clampReasoningEffort(
-        options.reasoning.effort,
-        capabilities.reasoning.supportedRange
-    );
+    const effort = capabilities.reasoning.supportsEffort
+        ? toOpenAIReasoningEffort(
+              clampReasoningEffort(
+                  options.reasoning.effort,
+                  capabilities.reasoning.supportedRange
+              )
+          )
+        : undefined;
 
     return {
-        reasoning_effort: toOpenAIReasoningEffort(clampedEffort),
+        reasoning: {
+            ...(effort ? { effort } : {}),
+            summary: 'auto' as const,
+        },
     };
 }
 
-function createAssistantParts(
-    content: string | null,
-    toolCalls: ToolCall[]
-): AssistantContentPart[] {
-    const parts: AssistantContentPart[] = [];
-
-    if (content) {
-        parts.push({
-            type: 'text',
-            text: content,
-        });
-    }
-    for (const toolCall of toolCalls) {
-        parts.push({
-            type: 'tool-call',
-            toolCall,
-        });
-    }
-
-    return parts;
+function isFunctionToolCall(
+    item: ResponseOutputItem
+): item is ResponseFunctionToolCall {
+    return item.type === 'function_call';
 }
 
-function extractTextContent(content: unknown): string | null {
-    if (typeof content === 'string') {
-        return content;
-    }
-    if (!Array.isArray(content)) {
-        return null;
-    }
-
-    const text = content
-        .flatMap((item) => {
-            if (!item || typeof item !== 'object') {
-                return [];
-            }
-            const textValue = (item as { text?: unknown }).text;
-            return typeof textValue === 'string' ? [textValue] : [];
-        })
-        .join('');
-
-    return text.length > 0 ? text : null;
+function isOutputMessage(
+    item: ResponseOutputItem
+): item is ResponseOutputMessage {
+    return item.type === 'message';
 }
 
+function isReasoningItem(
+    item: ResponseOutputItem
+): item is ResponseReasoningItem {
+    return item.type === 'reasoning';
+}

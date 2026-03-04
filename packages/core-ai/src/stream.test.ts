@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { toAsyncIterable } from '@core-ai/testing';
 import { createStreamResult } from './stream.ts';
 import type { StreamEvent } from './types.ts';
 
@@ -137,6 +138,40 @@ describe('createStreamResult', () => {
         expect(response.finishReason).toBe('tool-calls');
     });
 
+    it('should preserve reasoning providerMetadata from stream events', async () => {
+        const events: StreamEvent[] = [
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'thinking' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: { openai: { encryptedContent: 'enc_abc' } },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 2,
+                    outputTokens: 3,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const result = createStreamResult(toAsyncIterable(events));
+        const response = await result.toResponse();
+
+        expect(response.parts).toEqual([
+            {
+                type: 'reasoning',
+                text: 'thinking',
+                providerMetadata: { openai: { encryptedContent: 'enc_abc' } },
+            },
+        ]);
+    });
+
     it('should auto-consume stream when toResponse called without iteration', async () => {
         const events: StreamEvent[] = [
             { type: 'text-delta', text: 'auto' },
@@ -161,9 +196,3 @@ describe('createStreamResult', () => {
         expect(response.reasoning).toBeNull();
     });
 });
-
-async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
-    for (const item of items) {
-        yield item;
-    }
-}

@@ -1,48 +1,52 @@
 import { describe, expect, it } from 'vitest';
-import { z } from 'zod';
+import type { Response, ResponseStreamEvent } from 'openai/resources/responses/responses';
+import { ProviderError, type Message } from '@core-ai/core-ai';
 import {
-    createGenerateRequest,
-    createStreamRequest,
-    createStructuredOutputOptions,
     convertMessages,
-    convertToolChoice,
-    convertTools,
-    getStructuredOutputToolName,
+    createGenerateRequest,
     mapGenerateResponse,
+    transformStream,
+    validateOpenAIReasoningConfig,
 } from './chat-adapter.js';
-import { ProviderError, defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
-import type { ChatCompletion } from 'openai/resources/chat/completions/completions';
+import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
-    it('should convert a system message', () => {
+    it('should convert system messages to developer role', () => {
         const messages: Message[] = [
             { role: 'system', content: 'You are helpful.' },
         ];
 
         expect(convertMessages(messages)).toEqual([
-            { role: 'system', content: 'You are helpful.' },
+            { role: 'developer', content: 'You are helpful.' },
         ]);
     });
 
-    it('should convert a simple user message', () => {
-        const messages: Message[] = [{ role: 'user', content: 'Hello' }];
+    it('should convert user text array to input_text parts', () => {
+        const messages: Message[] = [
+            {
+                role: 'user',
+                content: [{ type: 'text', text: 'Hello there' }],
+            },
+        ];
 
         expect(convertMessages(messages)).toEqual([
-            { role: 'user', content: 'Hello' },
+            {
+                role: 'user',
+                content: [{ type: 'input_text', text: 'Hello there' }],
+            },
         ]);
     });
 
-    it('should convert a user message with image URL', () => {
+    it('should convert user image URL to input_image', () => {
         const messages: Message[] = [
             {
                 role: 'user',
                 content: [
-                    { type: 'text', text: 'What is this?' },
                     {
                         type: 'image',
                         source: {
                             type: 'url',
-                            url: 'https://example.com/img.png',
+                            url: 'https://example.com/photo.png',
                         },
                     },
                 ],
@@ -53,26 +57,55 @@ describe('convertMessages', () => {
             {
                 role: 'user',
                 content: [
-                    { type: 'text', text: 'What is this?' },
                     {
-                        type: 'image_url',
-                        image_url: { url: 'https://example.com/img.png' },
+                        type: 'input_image',
+                        image_url: 'https://example.com/photo.png',
                     },
                 ],
             },
         ]);
     });
 
-    it('should convert a user message with a file', () => {
+    it('should convert user base64 image to data URI', () => {
+        const messages: Message[] = [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'image',
+                        source: {
+                            type: 'base64',
+                            mediaType: 'image/png',
+                            data: 'abc123',
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'input_image',
+                        image_url: 'data:image/png;base64,abc123',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should convert user file to input_file', () => {
         const messages: Message[] = [
             {
                 role: 'user',
                 content: [
                     {
                         type: 'file',
-                        data: 'base64-content',
+                        data: 'base64data',
                         mimeType: 'application/pdf',
-                        filename: 'doc.pdf',
+                        filename: 'report.pdf',
                     },
                 ],
             },
@@ -83,30 +116,26 @@ describe('convertMessages', () => {
                 role: 'user',
                 content: [
                     {
-                        type: 'file',
-                        file: {
-                            file_data: 'base64-content',
-                            filename: 'doc.pdf',
-                        },
+                        type: 'input_file',
+                        file_data: 'base64data',
+                        filename: 'report.pdf',
                     },
                 ],
             },
         ]);
     });
 
-    it('should convert an assistant message with tool calls', () => {
+    it('should wrap cross-provider reasoning in <thinking> tags', () => {
         const messages: Message[] = [
             {
                 role: 'assistant',
                 parts: [
                     {
-                        type: 'tool-call',
-                        toolCall: {
-                            id: 'tc_1',
-                            name: 'search',
-                            arguments: { query: 'weather' },
-                        },
+                        type: 'reasoning',
+                        text: 'step-by-step thought',
+                        providerMetadata: { anthropic: { signature: 'sig_123' } },
                     },
+                    { type: 'text', text: 'answer' },
                 ],
             },
         ];
@@ -114,151 +143,23 @@ describe('convertMessages', () => {
         expect(convertMessages(messages)).toEqual([
             {
                 role: 'assistant',
-                content: null,
-                tool_calls: [
-                    {
-                        id: 'tc_1',
-                        type: 'function',
-                        function: {
-                            name: 'search',
-                            arguments: '{"query":"weather"}',
-                        },
-                    },
-                ],
+                content: '<thinking>step-by-step thought</thinking>\n\nanswer',
             },
         ]);
     });
 
-    it('should convert a tool result message', () => {
-        const messages: Message[] = [
-            {
-                role: 'tool',
-                toolCallId: 'tc_1',
-                content: 'Sunny, 72F',
-            },
-        ];
-
-        expect(convertMessages(messages)).toEqual([
-            {
-                role: 'tool',
-                tool_call_id: 'tc_1',
-                content: 'Sunny, 72F',
-            },
-        ]);
-    });
-});
-
-describe('convertTools', () => {
-    it('should convert a tool set to OpenAI format', () => {
-        const tools: ToolSet = {
-            search: defineTool({
-                name: 'search',
-                description: 'Search the web',
-                parameters: z.object({
-                    query: z.string(),
-                }),
-            }),
-        };
-
-        const result = convertTools(tools);
-
-        expect(result[0]?.type).toBe('function');
-        const firstTool = result[0];
-        expect(firstTool?.type).toBe('function');
-
-        if (!firstTool || firstTool.type !== 'function') {
-            throw new Error('Expected first tool to be a function tool');
-        }
-
-        expect(firstTool.function.name).toBe('search');
-        expect(firstTool.function.description).toBe('Search the web');
-        expect(firstTool.function.parameters).toMatchObject({
-            type: 'object',
-            properties: {
-                query: { type: 'string' },
-            },
-        });
-    });
-});
-
-describe('convertToolChoice', () => {
-    it('should pass through string choices', () => {
-        expect(convertToolChoice('auto')).toBe('auto');
-        expect(convertToolChoice('none')).toBe('none');
-        expect(convertToolChoice('required')).toBe('required');
-    });
-
-    it('should convert specific tool choice', () => {
-        expect(
-            convertToolChoice({
-                type: 'tool',
-                toolName: 'search',
-            })
-        ).toEqual({
-            type: 'function',
-            function: { name: 'search' },
-        });
-    });
-});
-
-describe('structured output helpers', () => {
-    it('should create tool-based generate options for structured output', () => {
-        const schema = z.object({
-            city: z.string(),
-            temperatureC: z.number(),
-        });
-
-        const result = createStructuredOutputOptions({
-            messages: [{ role: 'user', content: 'Return weather as JSON' }],
-            schema,
-            schemaName: 'weather_schema',
-            schemaDescription: 'Structured weather output',
-            config: {
-                temperature: 0,
-                maxTokens: 128,
-            },
-        });
-
-        expect(result.messages).toEqual([
-            { role: 'user', content: 'Return weather as JSON' },
-        ]);
-        expect(result.toolChoice).toEqual({
-            type: 'tool',
-            toolName: 'weather_schema',
-        });
-        expect(result.tools).toMatchObject({
-            structured_output: {
-                name: 'weather_schema',
-                description: 'Structured weather output',
-            },
-        });
-        expect(result.config).toEqual({
-            temperature: 0,
-            maxTokens: 128,
-        });
-    });
-
-    it('should derive default structured output tool name', () => {
-        const schema = z.object({
-            ok: z.boolean(),
-        });
-
-        expect(
-            getStructuredOutputToolName({
-                messages: [{ role: 'user', content: 'json' }],
-                schema,
-            })
-        ).toBe('core_ai_generate_object');
-    });
-});
-
-describe('reasoning support', () => {
-    it('should ignore reasoning parts when converting assistant messages', () => {
+    it('should preserve reasoning encrypted content for stateless round-trips', () => {
         const messages: Message[] = [
             {
                 role: 'assistant',
                 parts: [
-                    { type: 'reasoning', text: 'thinking...' },
+                    {
+                        type: 'reasoning',
+                        text: 'thinking...',
+                        providerMetadata: {
+                            openai: { encryptedContent: 'enc_123' },
+                        },
+                    },
                     { type: 'text', text: 'answer' },
                     {
                         type: 'tool-call',
@@ -270,121 +171,137 @@ describe('reasoning support', () => {
                     },
                 ],
             },
+            {
+                role: 'tool',
+                toolCallId: 'tc_1',
+                content: 'Sunny, 72F',
+            },
         ];
 
         expect(convertMessages(messages)).toEqual([
             {
+                type: 'reasoning',
+                summary: [{ type: 'summary_text', text: 'thinking...' }],
+                encrypted_content: 'enc_123',
+            },
+            {
                 role: 'assistant',
                 content: 'answer',
-                tool_calls: [
-                    {
-                        id: 'tc_1',
-                        type: 'function',
-                        function: {
-                            name: 'search',
-                            arguments: '{"query":"weather"}',
-                        },
-                    },
-                ],
+            },
+            {
+                type: 'function_call',
+                call_id: 'tc_1',
+                name: 'search',
+                arguments: '{"query":"weather"}',
+            },
+            {
+                type: 'function_call_output',
+                call_id: 'tc_1',
+                output: 'Sunny, 72F',
             },
         ]);
     });
+});
 
-    it('should map and clamp reasoning effort for supported models', () => {
-        const request = createGenerateRequest('gpt-5.2', {
+describe('createGenerateRequest', () => {
+    it('should set store: false by default', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
             messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'max' },
         });
 
-        expect(request).toMatchObject({
-            model: 'gpt-5.2',
-            reasoning_effort: 'xhigh',
-        });
-
-        const clamped = createGenerateRequest('gpt-5.1', {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'minimal' },
-        });
-        expect(clamped).toMatchObject({
-            reasoning_effort: 'low',
-        });
+        expect(request.store).toBe(false);
     });
 
-    it('should skip reasoning effort for unsupported models', () => {
-        const request = createGenerateRequest('o1-mini', {
+    it('should allow overriding store via providerOptions', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
             messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'low' },
+            providerOptions: { store: true },
         });
 
-        expect(request).not.toHaveProperty('reasoning_effort');
+        expect(request.store).toBe(true);
     });
 
-    it('should validate restricted sampling params for GPT-5.1+ when reasoning is enabled', () => {
-        expect(() =>
-            createGenerateRequest('gpt-5.1', {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'medium' },
-                config: { temperature: 0.2 },
-            })
-        ).toThrowError(ProviderError);
+    it('should include reasoning summary and encrypted reasoning include', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'high' },
+            providerOptions: {
+                include: ['foo.bar'],
+            },
+        });
 
-        expect(() =>
-            createStreamRequest('gpt-5.2', {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'medium' },
-                config: { topP: 0.9 },
-            })
-        ).toThrowError(ProviderError);
-
-        expect(() =>
-            createGenerateRequest('o3', {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'medium' },
-                config: { temperature: 0.2, topP: 0.9 },
-            })
-        ).not.toThrow();
+        expect(request.reasoning).toEqual({
+            effort: 'high',
+            summary: 'auto',
+        });
+        expect(request.include).toEqual(
+            expect.arrayContaining(['foo.bar', 'reasoning.encrypted_content'])
+        );
+        expect(request.store).toBe(false);
     });
 
-    it('should not extract reasoning text from generate responses (Chat Completions API does not expose it)', () => {
-        const response = asChatCompletion({
-            choices: [
+    it('should include encrypted reasoning even without providerOptions', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        expect(request.store).toBe(false);
+        expect(request.include).toEqual(['reasoning.encrypted_content']);
+    });
+});
+
+describe('mapGenerateResponse', () => {
+    it('should map reasoning, text, tool calls, and usage', () => {
+        const response = asResponse({
+            output: [
                 {
-                    index: 0,
-                    finish_reason: 'stop',
-                    logprobs: null,
-                    message: {
-                        role: 'assistant',
-                        content: 'final answer',
-                        refusal: null,
-                        tool_calls: [
-                            {
-                                id: 'tc_1',
-                                type: 'function',
-                                function: {
-                                    name: 'search',
-                                    arguments: '{"query":"weather"}',
-                                },
-                            },
-                        ],
-                    },
+                    type: 'reasoning',
+                    summary: [{ type: 'summary_text', text: 'short summary' }],
+                    encrypted_content: 'enc_1',
+                },
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'Final answer' }],
+                },
+                {
+                    type: 'function_call',
+                    call_id: 'tc_1',
+                    name: 'search',
+                    arguments: '{"query":"weather"}',
                 },
             ],
+            status: 'completed',
             usage: {
-                prompt_tokens: 10,
-                completion_tokens: 5,
-                total_tokens: 15,
-                completion_tokens_details: {
-                    reasoning_tokens: 2,
-                },
+                input_tokens: 12,
+                output_tokens: 7,
+                input_tokens_details: { cached_tokens: 3 },
+                output_tokens_details: { reasoning_tokens: 2 },
+                total_tokens: 19,
             },
         });
 
         const result = mapGenerateResponse(response);
 
-        expect(result.reasoning).toBeNull();
-        expect(result.content).toBe('final answer');
+        expect(result.content).toBe('Final answer');
+        expect(result.reasoning).toBe('short summary');
+        expect(result.toolCalls).toEqual([
+            {
+                id: 'tc_1',
+                name: 'search',
+                arguments: { query: 'weather' },
+            },
+        ]);
         expect(result.parts).toEqual([
-            { type: 'text', text: 'final answer' },
+            {
+                type: 'reasoning',
+                text: 'short summary',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_1' },
+                },
+            },
+            { type: 'text', text: 'Final answer' },
             {
                 type: 'tool-call',
                 toolCall: {
@@ -394,26 +311,646 @@ describe('reasoning support', () => {
                 },
             },
         ]);
-        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+        expect(result.usage).toEqual({
+            inputTokens: 12,
+            outputTokens: 7,
+            inputTokenDetails: {
+                cacheReadTokens: 3,
+                cacheWriteTokens: 0,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 2,
+            },
+        });
     });
 
-    it('should not add reasoning_effort when reasoning is not configured', () => {
-        const request = createGenerateRequest('gpt-5.1', {
-            messages: [{ role: 'user', content: 'Hi' }],
+    it('should return finishReason length when max_output_tokens', () => {
+        const response = asResponse({
+            output: [
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'truncated' }],
+                },
+            ],
+            status: 'incomplete',
+            incomplete_details: { reason: 'max_output_tokens' },
         });
 
-        expect(request).not.toHaveProperty('reasoning_effort');
+        expect(mapGenerateResponse(response).finishReason).toBe('length');
     });
 
+    it('should return finishReason content-filter', () => {
+        const response = asResponse({
+            output: [
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: '' }],
+                },
+            ],
+            status: 'incomplete',
+            incomplete_details: { reason: 'content_filter' },
+        });
+
+        expect(mapGenerateResponse(response).finishReason).toBe(
+            'content-filter'
+        );
+    });
+
+    it('should return finishReason unknown for non-completed status', () => {
+        const response = asResponse({
+            output: [],
+            status: 'failed',
+        });
+
+        expect(mapGenerateResponse(response).finishReason).toBe('unknown');
+    });
+
+    it('should return finishReason tool-calls when tool calls present', () => {
+        const response = asResponse({
+            output: [
+                {
+                    type: 'function_call',
+                    call_id: 'tc_1',
+                    name: 'search',
+                    arguments: '{"q":"test"}',
+                },
+            ],
+            status: 'completed',
+        });
+
+        expect(mapGenerateResponse(response).finishReason).toBe('tool-calls');
+    });
+
+    it('should omit encryptedContent metadata when not provided', () => {
+        const response = asResponse({
+            output: [
+                {
+                    type: 'reasoning',
+                    summary: [{ type: 'summary_text', text: 'stored mode summary' }],
+                },
+            ],
+            status: 'completed',
+        });
+
+        const result = mapGenerateResponse(response);
+        const reasoningPart = result.parts[0];
+
+        expect(reasoningPart).toEqual({
+            type: 'reasoning',
+            text: 'stored mode summary',
+            providerMetadata: { openai: {} },
+        });
+    });
 });
 
-function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
-    return {
-        id: 'chatcmpl-1',
-        object: 'chat.completion',
-        created: Date.now(),
-        model: 'gpt-5-mini',
-        choices: [],
-        ...value,
-    };
+describe('transformStream', () => {
+    it('should map reasoning, tool call, text, and finish events', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                item_id: 'rs_1',
+                summary_index: 0,
+                delta: 'think',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_1',
+                summary_index: 0,
+                text: 'think',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [{ type: 'summary_text', text: 'think' }],
+                    encrypted_content: 'enc_1',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.output_item.added',
+                output_index: 1,
+                item: {
+                    type: 'function_call',
+                    call_id: 'tc_1',
+                    name: 'search',
+                    arguments: '',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.function_call_arguments.delta',
+                output_index: 1,
+                item_id: 'item_1',
+                delta: '{"query":"wea',
+            }),
+            asStreamEvent({
+                type: 'response.function_call_arguments.delta',
+                output_index: 1,
+                item_id: 'item_1',
+                delta: 'ther"}',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 1,
+                item: {
+                    type: 'function_call',
+                    call_id: 'tc_1',
+                    name: 'search',
+                    arguments: '{"query":"weather"}',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.output_text.delta',
+                delta: 'answer',
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                    usage: {
+                        input_tokens: 4,
+                        output_tokens: 2,
+                        input_tokens_details: { cached_tokens: 0 },
+                        output_tokens_details: { reasoning_tokens: 1 },
+                        total_tokens: 6,
+                    },
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'think' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_1' },
+                },
+            },
+            { type: 'tool-call-start', toolCallId: 'tc_1', toolName: 'search' },
+            {
+                type: 'tool-call-delta',
+                toolCallId: 'tc_1',
+                argumentsDelta: '{"query":"wea',
+            },
+            {
+                type: 'tool-call-delta',
+                toolCallId: 'tc_1',
+                argumentsDelta: 'ther"}',
+            },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'tc_1',
+                    name: 'search',
+                    arguments: { query: 'weather' },
+                },
+            },
+            { type: 'text-delta', text: 'answer' },
+            {
+                type: 'finish',
+                finishReason: 'tool-calls',
+                usage: {
+                    inputTokens: 4,
+                    outputTokens: 2,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {
+                        reasoningTokens: 1,
+                    },
+                },
+            },
+        ]);
+    });
+
+    it('should emit a single reasoning lifecycle across multiple summary parts', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                item_id: 'rs_2',
+                summary_index: 0,
+                delta: 'first',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_2',
+                summary_index: 0,
+                text: 'first',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                item_id: 'rs_2',
+                summary_index: 1,
+                delta: 'second',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_2',
+                summary_index: 1,
+                text: 'second',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_2',
+                    summary: [
+                        { type: 'summary_text', text: 'first' },
+                        { type: 'summary_text', text: 'second' },
+                    ],
+                    encrypted_content: 'enc_2',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'first' },
+            { type: 'reasoning-delta', text: 'second' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_2' },
+                },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ]);
+    });
+
+    it('should return finishReason stop for text-only stream', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.output_text.delta',
+                delta: 'hello',
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        const finish = events.find((e) => e.type === 'finish');
+        expect(finish).toMatchObject({ finishReason: 'stop' });
+    });
+
+    it('should emit reasoning-delta from .done text when no deltas were received', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_1',
+                summary_index: 0,
+                text: 'fallback summary',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [
+                        { type: 'summary_text', text: 'fallback summary' },
+                    ],
+                    encrypted_content: 'enc_1',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'fallback summary' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_1' },
+                },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ]);
+    });
+
+    it('should not duplicate reasoning when only some summary parts have deltas', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                item_id: 'rs_1',
+                summary_index: 0,
+                delta: 'alpha',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_1',
+                summary_index: 0,
+                text: 'alpha',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_1',
+                summary_index: 1,
+                text: 'beta',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [
+                        { type: 'summary_text', text: 'alpha' },
+                        { type: 'summary_text', text: 'beta' },
+                    ],
+                    encrypted_content: 'enc_1',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'alpha' },
+            { type: 'reasoning-delta', text: 'beta' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_1' },
+                },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ]);
+
+        const reasoningDeltas = events.filter(
+            (event) => event.type === 'reasoning-delta'
+        );
+        expect(reasoningDeltas).toHaveLength(2);
+    });
+
+    it('should backfill reasoning from output_item.done summary when no deltas or .done text were seen', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [
+                        { type: 'summary_text', text: 'part one' },
+                        { type: 'summary_text', text: 'part two' },
+                    ],
+                    encrypted_content: 'enc_1',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'part onepart two' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_1' },
+                },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ]);
+    });
+
+    it('should not duplicate reasoning for multi-part .done-only fallback', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_1',
+                summary_index: 0,
+                text: 'one',
+            }),
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.done',
+                item_id: 'rs_1',
+                summary_index: 1,
+                text: 'two',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [
+                        { type: 'summary_text', text: 'one' },
+                        { type: 'summary_text', text: 'two' },
+                    ],
+                    encrypted_content: 'enc_1',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'one' },
+            { type: 'reasoning-delta', text: 'two' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    openai: { encryptedContent: 'enc_1' },
+                },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 0,
+                    outputTokens: 0,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ]);
+
+        const reasoningDeltas = events.filter(
+            (event) => event.type === 'reasoning-delta'
+        );
+        expect(reasoningDeltas).toHaveLength(2);
+    });
+
+    it('should return finishReason length when stream is incomplete', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.output_text.delta',
+                delta: 'partial',
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'incomplete',
+                    incomplete_details: { reason: 'max_output_tokens' },
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        const finish = events.find((e) => e.type === 'finish');
+        expect(finish).toMatchObject({ finishReason: 'length' });
+    });
+});
+
+describe('validateOpenAIReasoningConfig', () => {
+    it('should reject temperature/topP for restricted models', () => {
+        expect(() =>
+            validateOpenAIReasoningConfig('gpt-5.2', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'medium' },
+                config: { temperature: 0.2 },
+            })
+        ).toThrowError(ProviderError);
+
+        expect(() =>
+            validateOpenAIReasoningConfig('gpt-5.1', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'medium' },
+                config: { topP: 0.9 },
+            })
+        ).toThrowError(ProviderError);
+    });
+});
+
+function asResponse(value: unknown): Response {
+    return value as Response;
 }
+
+function asStreamEvent(value: unknown): ResponseStreamEvent {
+    return value as ResponseStreamEvent;
+}
+

@@ -25,8 +25,13 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
+import { getProviderMetadata } from '@core-ai/core-ai';
 import { getGoogleModelCapabilities, toGoogleThinkingBudget, toGoogleThinkingLevel } from './model-capabilities.js';
 import { asObject } from './object-utils.js';
+
+export type GoogleReasoningMetadata = {
+    thoughtSignature?: string;
+};
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
@@ -81,13 +86,16 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
                     continue;
                 }
 
+                const googleMeta = getProviderMetadata<GoogleReasoningMetadata>(part.providerMetadata, 'google');
+                if (part.text.length === 0) {
+                    continue;
+                }
                 const thoughtPart: Record<string, unknown> = {
                     text: part.text,
                     thought: true,
                 };
-                const thoughtSignature = part.providerMetadata?.['thoughtSignature'];
-                if (typeof thoughtSignature === 'string') {
-                    thoughtPart['thoughtSignature'] = thoughtSignature;
+                if (typeof googleMeta?.thoughtSignature === 'string') {
+                    thoughtPart['thoughtSignature'] = googleMeta.thoughtSignature;
                 }
                 assistantParts.push(thoughtPart as Part);
             }
@@ -458,9 +466,7 @@ export async function* transformStream(
         if (chunk.text) {
             if (reasoningOpen) {
                 reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                };
+                yield { type: 'reasoning-end', providerMetadata: { google: {} } };
             }
             yield {
                 type: 'text-delta',
@@ -472,9 +478,7 @@ export async function* transformStream(
         if (functionCalls.length > 0) {
             if (reasoningOpen) {
                 reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                };
+                yield { type: 'reasoning-end', providerMetadata: { google: {} } };
             }
             sawToolCalls = true;
             for (const [index, functionCall] of functionCalls.entries()) {
@@ -523,9 +527,7 @@ export async function* transformStream(
     }
 
     if (reasoningOpen) {
-        yield {
-            type: 'reasoning-end',
-        };
+        yield { type: 'reasoning-end', providerMetadata: { google: {} } };
     }
 
     for (const toolCall of bufferedToolCalls.values()) {
@@ -599,13 +601,9 @@ function extractAssistantParts(
             parts.push({
                 type: 'reasoning',
                 text: thoughtText,
-                ...(thoughtSignature
-                    ? {
-                          providerMetadata: {
-                              thoughtSignature,
-                          },
-                      }
-                    : {}),
+                providerMetadata: {
+                    google: { ...(thoughtSignature ? { thoughtSignature } : {}) },
+                },
             });
             continue;
         }
