@@ -2,27 +2,27 @@
 name: OpenAI Responses API Migration
 overview: Add Responses API support to `@core-ai/openai` as the default export, with the Chat Completions implementation available via the `@core-ai/openai/compat` subpath export. Single package, shared code, two entry points.
 todos:
-  - id: restructure-package
-    content: "Restructure packages/openai: rename chat-adapter.ts -> compat-chat-adapter.ts, chat-model.ts -> compat-chat-model.ts, create compat.ts entry point, add subpath export to package.json, update tsup entry points"
-    status: pending
-  - id: create-responses-adapter
-    content: "Create new packages/openai/src/chat-adapter.ts for Responses API: request building (input, reasoning.summary, include), response parsing (output[] items), stream transformation (ResponseStreamEvent)"
-    status: pending
-  - id: create-responses-model
-    content: Create new packages/openai/src/chat-model.ts using client.responses.create(), reusing shared structured output logic
-    status: pending
-  - id: update-provider
-    content: Update provider.ts to use Responses API chat model, create compat-provider.ts with createOpenAICompat for the compat entry point
-    status: pending
-  - id: write-responses-tests
-    content: Write chat-adapter.test.ts and chat-model.test.ts for Responses API shapes (request, response, stream, reasoning)
-    status: pending
-  - id: update-compat-tests
-    content: Move existing chat adapter/model tests to compat-chat-adapter.test.ts and compat-chat-model.test.ts
-    status: pending
-  - id: update-e2e-examples
-    content: Update E2E adapter and examples if needed, verify both entry points work
-    status: pending
+    - id: restructure-package
+      content: 'Restructure packages/openai: rename chat-adapter.ts -> compat-chat-adapter.ts, chat-model.ts -> compat-chat-model.ts, create compat.ts entry point, add subpath export to package.json, update tsup entry points'
+      status: pending
+    - id: create-responses-adapter
+      content: 'Create new packages/openai/src/chat-adapter.ts for Responses API: request building (input, reasoning.summary, include), response parsing (output[] items), stream transformation (ResponseStreamEvent)'
+      status: pending
+    - id: create-responses-model
+      content: Create new packages/openai/src/chat-model.ts using client.responses.create(), reusing shared structured output logic
+      status: pending
+    - id: update-provider
+      content: Update provider.ts to use Responses API chat model, create compat-provider.ts with createOpenAICompat for the compat entry point
+      status: pending
+    - id: write-responses-tests
+      content: Write chat-adapter.test.ts and chat-model.test.ts for Responses API shapes (request, response, stream, reasoning)
+      status: pending
+    - id: update-compat-tests
+      content: Move existing chat adapter/model tests to compat-chat-adapter.test.ts and compat-chat-model.test.ts
+      status: pending
+    - id: update-e2e-examples
+      content: Update E2E adapter and examples if needed, verify both entry points work
+      status: pending
 isProject: false
 ---
 
@@ -72,8 +72,6 @@ graph TD
     end
 ```
 
-
-
 Consumer usage:
 
 ```typescript
@@ -116,7 +114,10 @@ Create [packages/openai/src/compat.ts](packages/openai/src/compat.ts):
 
 ```typescript
 export { createOpenAICompat } from './compat-provider.js';
-export type { OpenAICompatProvider, OpenAICompatProviderOptions } from './compat-provider.js';
+export type {
+    OpenAICompatProvider,
+    OpenAICompatProviderOptions,
+} from './compat-provider.js';
 ```
 
 Create [packages/openai/src/compat-provider.ts](packages/openai/src/compat-provider.ts) -- same as current `provider.ts` but exports `createOpenAICompat` and uses `compat-chat-model.ts`.
@@ -125,16 +126,16 @@ Create [packages/openai/src/compat-provider.ts](packages/openai/src/compat-provi
 
 ```json
 {
-  "exports": {
-    ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
-    },
-    "./compat": {
-      "types": "./dist/compat.d.ts",
-      "import": "./dist/compat.js"
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./compat": {
+            "types": "./dist/compat.d.ts",
+            "import": "./dist/compat.js"
+        }
     }
-  }
 }
 ```
 
@@ -177,41 +178,41 @@ import type {
 **Request building:**
 
 - `convertMessages(messages: Message[]): ResponseInputItem[]` -- convert core-ai messages to Responses API input items:
-  - `system` -> `{ role: 'developer', content: text }` (Responses API uses `developer` role)
-  - `user` -> `{ role: 'user', content: text | content_parts }`
-  - `assistant` -> reconstruct from `parts`: reasoning parts become reasoning input items (with `encrypted_content` from `providerMetadata` -- critical for stateless multi-turn, see below), text parts become message content, tool calls become function call items
-  - `tool` -> `{ type: 'function_call_output', call_id, output }`
+    - `system` -> `{ role: 'developer', content: text }` (Responses API uses `developer` role)
+    - `user` -> `{ role: 'user', content: text | content_parts }`
+    - `assistant` -> reconstruct from `parts`: reasoning parts become reasoning input items (with `encrypted_content` from `providerMetadata` -- critical for stateless multi-turn, see below), text parts become message content, tool calls become function call items
+    - `tool` -> `{ type: 'function_call_output', call_id, output }`
 - `createGenerateRequest(modelId, options)` -> `ResponseCreateParamsNonStreaming`:
-  - `model`, `input` (converted messages)
-  - `reasoning: { effort, summary: 'auto' }` when reasoning is enabled (always opt into summaries so reasoning output is visible)
-  - `include: ['reasoning.encrypted_content']` -- **always included when reasoning is enabled**, not just in explicit stateless mode. The org may have zero data retention enabled at the account level without the adapter knowing. Including this unconditionally is safe (it's a no-op when the server stores data) and ensures multi-turn reasoning works regardless of retention settings.
-  - `store` -- passed through from `providerOptions` when set. Users with data sensitivity set `providerOptions: { store: false }` to disable server-side storage.
-  - `tools` (via shared `convertTools()`), `tool_choice` (via shared `convertToolChoice()`)
-  - Config fields: `max_output_tokens`, `temperature`, `top_p`
+    - `model`, `input` (converted messages)
+    - `reasoning: { effort, summary: 'auto' }` when reasoning is enabled (always opt into summaries so reasoning output is visible)
+    - `include: ['reasoning.encrypted_content']` -- **always included when reasoning is enabled**, not just in explicit stateless mode. The org may have zero data retention enabled at the account level without the adapter knowing. Including this unconditionally is safe (it's a no-op when the server stores data) and ensures multi-turn reasoning works regardless of retention settings.
+    - `store` -- passed through from `providerOptions` when set. Users with data sensitivity set `providerOptions: { store: false }` to disable server-side storage.
+    - `tools` (via shared `convertTools()`), `tool_choice` (via shared `convertToolChoice()`)
+    - Config fields: `max_output_tokens`, `temperature`, `top_p`
 - `createStreamRequest(modelId, options)` -> `ResponseCreateParamsStreaming`: same plus `stream: true`
 
 **Response parsing:**
 
 - `mapGenerateResponse(response: Response): GenerateResult` -- iterate `response.output`:
-  - `ResponseReasoningItem` (type `'reasoning'`) -> `ReasoningPart` with:
-    - `text`: concatenate `item.summary[].text`
-    - `providerMetadata.encryptedContent`: from `item.encrypted_content` when present. This is the encrypted reasoning token payload needed for multi-turn pass-back in stateless mode. When `null`/absent (server is storing data and manages state), this field is omitted from providerMetadata.
-  - `ResponseOutputMessage` (type `'message'`) -> text parts from `item.content[]` where type is `'output_text'`
-  - `ResponseFunctionToolCall` (type `'function_call'`) -> `ToolCall` part with `name`, `arguments` (parsed from JSON string), `id` from `call_id`
-  - Build `parts` array preserving output order
-  - Derive `content`, `reasoning`, `toolCalls` from parts
-  - Usage from `response.usage`: `input_tokens`, `output_tokens`, `output_tokens_details.reasoning_tokens`
+    - `ResponseReasoningItem` (type `'reasoning'`) -> `ReasoningPart` with:
+        - `text`: concatenate `item.summary[].text`
+        - `providerMetadata.encryptedContent`: from `item.encrypted_content` when present. This is the encrypted reasoning token payload needed for multi-turn pass-back in stateless mode. When `null`/absent (server is storing data and manages state), this field is omitted from providerMetadata.
+    - `ResponseOutputMessage` (type `'message'`) -> text parts from `item.content[]` where type is `'output_text'`
+    - `ResponseFunctionToolCall` (type `'function_call'`) -> `ToolCall` part with `name`, `arguments` (parsed from JSON string), `id` from `call_id`
+    - Build `parts` array preserving output order
+    - Derive `content`, `reasoning`, `toolCalls` from parts
+    - Usage from `response.usage`: `input_tokens`, `output_tokens`, `output_tokens_details.reasoning_tokens`
 
 **Stream transformation:**
 
 - `transformStream(stream: AsyncIterable<ResponseStreamEvent>): AsyncIterable<StreamEvent>`:
-  - `response.reasoning_summary_text.delta` -> emit `reasoning-start` (on first delta), then `reasoning-delta` with `event.delta`
-  - `response.reasoning_summary_text.done` -> emit `reasoning-end`
-  - `response.output_text.delta` -> emit `text-delta` with `event.delta`
-  - `response.function_call_arguments.delta` -> buffer and emit `tool-call-delta`
-  - `response.output_item.done` where item is `function_call` -> emit `tool-call-end` with parsed `ToolCall`
-  - `response.completed` -> emit `finish` with `finishReason` and `usage`
-  - Track `toolCallId`/`toolName` from `response.output_item.added` events for tool call correlation
+    - `response.reasoning_summary_text.delta` -> emit `reasoning-start` (on first delta), then `reasoning-delta` with `event.delta`
+    - `response.reasoning_summary_text.done` -> emit `reasoning-end`
+    - `response.output_text.delta` -> emit `text-delta` with `event.delta`
+    - `response.function_call_arguments.delta` -> buffer and emit `tool-call-delta`
+    - `response.output_item.done` where item is `function_call` -> emit `tool-call-end` with parsed `ToolCall`
+    - `response.completed` -> emit `finish` with `finishReason` and `usage`
+    - Track `toolCallId`/`toolName` from `response.output_item.added` events for tool call correlation
 
 **Validation** -- reuse `validateOpenAIReasoningConfig()` from current implementation (same logic, imports from `model-capabilities.ts`).
 
@@ -241,7 +242,7 @@ The main `createOpenAI()` now creates chat models via the Responses API `chat-mo
 
 ### Responses API tests (new)
 
-`**chat-adapter.test.ts`:**
+`**chat-adapter.test.ts`:\*\*
 
 - `convertMessages`: system -> developer role, assistant with reasoning parts -> reasoning input items with encrypted_content, tool results -> function_call_output
 - `convertMessages` (stateless round-trip): assistant message with reasoning parts carrying `providerMetadata.encryptedContent` -> reasoning input items with `encrypted_content` field populated, verifying the full multi-turn round-trip fidelity
@@ -251,7 +252,7 @@ The main `createOpenAI()` now creates chat models via the Responses API `chat-mo
 - `transformStream`: reasoning summary deltas -> reasoning-start/delta/end, text deltas -> text-delta, function call deltas -> tool-call-delta/end, completed -> finish
 - `validateOpenAIReasoningConfig`: ProviderError for temperature/topP on restrictsSamplingParams models
 
-`**chat-model.test.ts`:**
+`**chat-model.test.ts`:\*\*
 
 - Mock `client.responses.create()` (non-streaming and streaming)
 - Generate: verify Response mapped to GenerateResult correctly
@@ -261,7 +262,7 @@ The main `createOpenAI()` now creates chat models via the Responses API `chat-mo
 
 ### Chat Completions tests (moved)
 
-`**compat-chat-adapter.test.ts`** and `**compat-chat-model.test.ts`**: renamed from current test files, update imports to `compat-*` modules. No logic changes.
+`**compat-chat-adapter.test.ts`** and `**compat-chat-model.test.ts`**: renamed from current test files, update imports to `compat-\*` modules. No logic changes.
 
 ---
 
@@ -274,7 +275,6 @@ The main `createOpenAI()` now creates chat models via the Responses API `chat-mo
 ---
 
 ## File Summary
-
 
 | File                                         | Status                                                     |
 | -------------------------------------------- | ---------------------------------------------------------- |
@@ -294,7 +294,6 @@ The main `createOpenAI()` now creates chat models via the Responses API `chat-mo
 | `packages/openai/src/embedding-model.ts`     | No change (shared)                                         |
 | `packages/openai/src/image-model.ts`         | No change (shared)                                         |
 | Test files                                   | Renamed compat tests, new Responses API tests              |
-
 
 ---
 
@@ -340,8 +339,6 @@ sequenceDiagram
     Adapter-->>App: GenerateResult
 ```
 
-
-
 The key integration point is `resultToMessage()` -- it preserves `providerMetadata` (including `encryptedContent`) on reasoning parts. When the adapter converts those parts back to Responses API input items, it reconstructs the reasoning input items with `encrypted_content`, maintaining full reasoning continuity.
 
 ### Consumer usage for stateless mode
@@ -351,7 +348,7 @@ const result = await generate({
     model: chatModel,
     messages,
     reasoning: { effort: 'high' },
-    providerOptions: { store: false },  // explicit stateless mode
+    providerOptions: { store: false }, // explicit stateless mode
 });
 
 // resultToMessage() preserves encrypted reasoning content automatically
@@ -385,6 +382,5 @@ For orgs with ZDR, the same flow works without needing `providerOptions: { store
 
 ## Breaking Changes
 
-1. `**@core-ai/openai` default export now uses Responses API** -- consumers using `baseURL` with non-OpenAI/non-Azure endpoints must switch to `@core-ai/openai/compat`
+1. `**@core-ai/openai` default export now uses Responses API\*\* -- consumers using `baseURL` with non-OpenAI/non-Azure endpoints must switch to `@core-ai/openai/compat`
 2. **Compat export uses different function name** -- `createOpenAICompat()` instead of `createOpenAI()` to avoid ambiguity when both are imported
-

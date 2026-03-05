@@ -382,4 +382,3 @@ function asResponse(value: unknown): Response {
 function asStreamEvent(value: unknown): ResponseStreamEvent {
     return value as ResponseStreamEvent;
 }
-

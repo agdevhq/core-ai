@@ -43,14 +43,14 @@ export function createGoogleGenAIEmbeddingModel(
                     mapGoogleEmbedProviderOptionsToConfig(googleOptions);
                 const request: EmbedContentParameters =
                     Object.keys(providerConfig).length > 0
-                    ? {
-                          ...baseRequest,
-                          config: {
-                              ...baseRequest.config,
-                              ...providerConfig,
-                          },
-                      }
-                    : baseRequest;
+                        ? {
+                              ...baseRequest,
+                              config: {
+                                  ...baseRequest.config,
+                                  ...providerConfig,
+                              },
+                          }
+                        : baseRequest;
                 const response = await client.models.embedContent(request);
                 const tokenCounts = (response.embeddings ?? [])
                     .map((item) => item.statistics?.tokenCount)
@@ -85,9 +85,13 @@ function mapGoogleEmbedProviderOptionsToConfig(
     options: GoogleEmbedProviderOptions | undefined
 ): Record<string, unknown> {
     return {
-        ...(options?.taskType !== undefined ? { taskType: options.taskType } : {}),
+        ...(options?.taskType !== undefined
+            ? { taskType: options.taskType }
+            : {}),
         ...(options?.title !== undefined ? { title: options.title } : {}),
-        ...(options?.mimeType !== undefined ? { mimeType: options.mimeType } : {}),
+        ...(options?.mimeType !== undefined
+            ? { mimeType: options.mimeType }
+            : {}),
         ...(options?.autoTruncate !== undefined
             ? { autoTruncate: options.autoTruncate }
             : {}),

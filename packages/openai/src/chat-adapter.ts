@@ -115,7 +115,12 @@ function convertAssistantMessage(
         }
 
         if (part.type === 'reasoning') {
-            if (getProviderMetadata<OpenAIReasoningMetadata>(part.providerMetadata, 'openai') == null) {
+            if (
+                getProviderMetadata<OpenAIReasoningMetadata>(
+                    part.providerMetadata,
+                    'openai'
+                ) == null
+            ) {
                 if (part.text.length > 0) {
                     textParts.push(`<thinking>${part.text}</thinking>`);
                 }
@@ -157,7 +162,10 @@ function getEncryptedReasoningContent(
     part: Extract<AssistantContentPart, { type: 'reasoning' }>
 ): string | undefined {
     const { encryptedContent } =
-        getProviderMetadata<OpenAIReasoningMetadata>(part.providerMetadata, 'openai') ?? {};
+        getProviderMetadata<OpenAIReasoningMetadata>(
+            part.providerMetadata,
+            'openai'
+        ) ?? {};
     return typeof encryptedContent === 'string' && encryptedContent.length > 0
         ? encryptedContent
         : undefined;
@@ -487,9 +495,7 @@ export async function* transformStream(
 
     for await (const event of stream) {
         if (event.type === 'response.reasoning_summary_text.delta') {
-            seenSummaryDeltas.add(
-                `${event.item_id}:${event.summary_index}`
-            );
+            seenSummaryDeltas.add(`${event.item_id}:${event.summary_index}`);
             emittedReasoningItems.add(event.item_id);
 
             if (!reasoningStarted) {

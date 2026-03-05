@@ -15,7 +15,12 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
-import { defineTool, type GenerateOptions, type Message, type ToolSet } from '@core-ai/core-ai';
+import {
+    defineTool,
+    type GenerateOptions,
+    type Message,
+    type ToolSet,
+} from '@core-ai/core-ai';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
@@ -392,7 +397,9 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'step-by-step thought',
-                        providerMetadata: { anthropic: { signature: 'sig_123' } },
+                        providerMetadata: {
+                            anthropic: { signature: 'sig_123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -709,7 +716,9 @@ describe('reasoning support', () => {
                         {
                             content: {
                                 role: 'model',
-                                parts: [{ text: 'only reasoning', thought: true }],
+                                parts: [
+                                    { text: 'only reasoning', thought: true },
+                                ],
                             },
                         },
                     ],

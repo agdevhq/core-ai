@@ -37,12 +37,7 @@ export type FilePart = {
     filename?: string;
 };
 
-export type ReasoningEffort =
-    | 'minimal'
-    | 'low'
-    | 'medium'
-    | 'high'
-    | 'max';
+export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'max';
 
 export type ReasoningConfig = {
     effort: ReasoningEffort;
@@ -163,10 +158,10 @@ export type GenerateResult = {
 
 export type GenerateObjectOptions<TSchema extends z.ZodType> =
     BaseGenerateOptions & {
-    schema: TSchema;
-    schemaName?: string;
-    schemaDescription?: string;
-};
+        schema: TSchema;
+        schemaName?: string;
+        schemaDescription?: string;
+    };
 
 export type StreamObjectOptions<TSchema extends z.ZodType> =
     GenerateObjectOptions<TSchema>;
@@ -229,7 +224,10 @@ export type ChatOutputTokenDetails = {
 export type StreamEvent =
     | { type: 'reasoning-start' }
     | { type: 'reasoning-delta'; text: string }
-    | { type: 'reasoning-end'; providerMetadata?: Record<string, Record<string, unknown>> }
+    | {
+          type: 'reasoning-end';
+          providerMetadata?: Record<string, Record<string, unknown>>;
+      }
     | { type: 'text-delta'; text: string }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }

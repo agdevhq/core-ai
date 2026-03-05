@@ -45,10 +45,14 @@ export function createOpenAIChatModel(
     const provider = 'openai';
 
     async function callOpenAIResponsesApi<TResponse>(
-        request: ResponseCreateParamsNonStreaming | ResponseCreateParamsStreaming
+        request:
+            | ResponseCreateParamsNonStreaming
+            | ResponseCreateParamsStreaming
     ): Promise<TResponse> {
         try {
-            return (await client.responses.create(request as never)) as TResponse;
+            return (await client.responses.create(
+                request as never
+            )) as TResponse;
         } catch (error) {
             throw wrapOpenAIError(error);
         }
@@ -64,9 +68,10 @@ export function createOpenAIChatModel(
 
     async function streamChat(options: GenerateOptions): Promise<StreamResult> {
         const request = createStreamRequest(modelId, options);
-        const stream = await callOpenAIResponsesApi<
-            AsyncIterable<ResponseStreamEvent>
-        >(request);
+        const stream =
+            await callOpenAIResponsesApi<AsyncIterable<ResponseStreamEvent>>(
+                request
+            );
         return createStreamResult(transformStream(stream));
     }
 
@@ -126,7 +131,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
         return validateStructuredToolArguments(
             schema,
             structuredToolCall.arguments,
-            provider,
+            provider
         );
     }
 
@@ -182,7 +187,7 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
             validatedObject = validateStructuredToolArguments(
                 schema,
                 event.toolCall.arguments,
-                provider,
+                provider
             );
             yield {
                 type: 'object',
@@ -263,7 +268,12 @@ function parseAndValidateStructuredPayload<TSchema extends z.ZodType>(
     provider: string
 ): z.infer<TSchema> {
     const parsedPayload = parseJson(rawPayload, provider);
-    return validateStructuredObject(schema, parsedPayload, provider, rawPayload);
+    return validateStructuredObject(
+        schema,
+        parsedPayload,
+        provider,
+        rawPayload
+    );
 }
 
 function parseJson(rawOutput: string, provider: string): unknown {

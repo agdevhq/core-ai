@@ -19,7 +19,7 @@ describe('generateObject', () => {
                     cacheReadTokens: 0,
                     cacheWriteTokens: 0,
                 },
-                    outputTokenDetails: {},
+                outputTokenDetails: {},
             },
         } as const;
 

@@ -19,13 +19,13 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider              | Package                      | Chat | Streaming | Embeddings | Image Generation |
-| --------------------- | ---------------------------- | ---- | --------- | ---------- | ---------------- |
-| OpenAI (Responses)    | `@core-ai/openai`            | Yes  | Yes       | Yes        | Yes              |
-| OpenAI (Completions)  | `@core-ai/openai/compat`     | Yes  | Yes       | Yes        | Yes              |
-| Anthropic             | `@core-ai/anthropic`         | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini) | `@core-ai/google-genai`      | Yes  | Yes       | Yes        | Yes              |
-| Mistral               | `@core-ai/mistral`           | Yes  | Yes       | Yes        | —                |
+| Provider              | Package                  | Chat | Streaming | Embeddings | Image Generation |
+| --------------------- | ------------------------ | ---- | --------- | ---------- | ---------------- |
+| OpenAI (Responses)    | `@core-ai/openai`        | Yes  | Yes       | Yes        | Yes              |
+| OpenAI (Completions)  | `@core-ai/openai/compat` | Yes  | Yes       | Yes        | Yes              |
+| Anthropic             | `@core-ai/anthropic`     | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini) | `@core-ai/google-genai`  | Yes  | Yes       | Yes        | Yes              |
+| Mistral               | `@core-ai/mistral`       | Yes  | Yes       | Yes        | —                |
 
 > **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the legacy Chat Completions API (e.g. for Azure OpenAI or third-party OpenAI-compatible endpoints), import from `@core-ai/openai/compat` instead.
 

@@ -36,7 +36,9 @@ export function getRegisteredProviders(): ProviderE2EAdapter[] {
         );
     }
 
-    return adapters.filter((adapter) => requestedProviderIds.includes(adapter.id));
+    return adapters.filter((adapter) =>
+        requestedProviderIds.includes(adapter.id)
+    );
 }
 
 function getProviderFilter(): string | undefined {

@@ -1,9 +1,5 @@
 import { LLMError } from './errors.ts';
-import type {
-    ChatModel,
-    GenerateOptions,
-    GenerateResult,
-} from './types.ts';
+import type { ChatModel, GenerateOptions, GenerateResult } from './types.ts';
 
 export type GenerateParams = GenerateOptions & {
     model: ChatModel;

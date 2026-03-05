@@ -8,7 +8,9 @@ import {
 
 describe('normalizeModelId', () => {
     it('should strip date suffixes', () => {
-        expect(normalizeModelId('gemini-2.5-pro-20260215')).toBe('gemini-2.5-pro');
+        expect(normalizeModelId('gemini-2.5-pro-20260215')).toBe(
+            'gemini-2.5-pro'
+        );
     });
 });
 

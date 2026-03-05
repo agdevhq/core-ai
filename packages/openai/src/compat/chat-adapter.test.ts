@@ -10,7 +10,13 @@ import {
     getStructuredOutputToolName,
     mapGenerateResponse,
 } from './chat-adapter.js';
-import { ProviderError, defineTool, type GenerateOptions, type Message, type ToolSet } from '@core-ai/core-ai';
+import {
+    ProviderError,
+    defineTool,
+    type GenerateOptions,
+    type Message,
+    type ToolSet,
+} from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.js';
 import type { ChatCompletion } from 'openai/resources/chat/completions/completions';
 
@@ -451,7 +457,6 @@ describe('reasoning support', () => {
 
         expect(request).not.toHaveProperty('reasoning_effort');
     });
-
 });
 
 function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {

@@ -55,17 +55,19 @@ export function createOpenAICompatChatModel(
         options: GenerateOptions
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options);
-        const response = await callOpenAIChatCompletionsApi<
-            Parameters<typeof mapGenerateResponse>[0]
-        >(request);
+        const response =
+            await callOpenAIChatCompletionsApi<
+                Parameters<typeof mapGenerateResponse>[0]
+            >(request);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<StreamResult> {
         const request = createStreamRequest(modelId, options);
-        const stream = await callOpenAIChatCompletionsApi<
-            AsyncIterable<ChatCompletionChunk>
-        >(request);
+        const stream =
+            await callOpenAIChatCompletionsApi<
+                AsyncIterable<ChatCompletionChunk>
+            >(request);
         return createStreamResult(transformStream(stream));
     }
 
@@ -125,7 +127,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
         return validateStructuredToolArguments(
             schema,
             structuredToolCall.arguments,
-            provider,
+            provider
         );
     }
 
@@ -181,7 +183,7 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
             validatedObject = validateStructuredToolArguments(
                 schema,
                 event.toolCall.arguments,
-                provider,
+                provider
             );
             yield {
                 type: 'object',
@@ -262,7 +264,12 @@ function parseAndValidateStructuredPayload<TSchema extends z.ZodType>(
     provider: string
 ): z.infer<TSchema> {
     const parsedPayload = parseJson(rawPayload, provider);
-    return validateStructuredObject(schema, parsedPayload, provider, rawPayload);
+    return validateStructuredObject(
+        schema,
+        parsedPayload,
+        provider,
+        rawPayload
+    );
 }
 
 function parseJson(rawOutput: string, provider: string): unknown {

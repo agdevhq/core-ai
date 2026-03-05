@@ -42,14 +42,14 @@ export function createGoogleGenAIImageModel(
                     mapGoogleImageProviderOptionsToConfig(googleOptions);
                 const request: GenerateImagesParameters =
                     Object.keys(providerConfig).length > 0
-                    ? {
-                          ...baseRequest,
-                          config: {
-                              ...baseRequest.config,
-                              ...providerConfig,
-                          },
-                      }
-                    : baseRequest;
+                        ? {
+                              ...baseRequest,
+                              config: {
+                                  ...baseRequest.config,
+                                  ...providerConfig,
+                              },
+                          }
+                        : baseRequest;
                 const response = await client.models.generateImages(request);
 
                 return {
@@ -95,7 +95,9 @@ function mapGoogleImageProviderOptionsToConfig(
         ...(options?.includeRaiReason !== undefined
             ? { includeRaiReason: options.includeRaiReason }
             : {}),
-        ...(options?.language !== undefined ? { language: options.language } : {}),
+        ...(options?.language !== undefined
+            ? { language: options.language }
+            : {}),
         ...(options?.outputMimeType !== undefined
             ? { outputMimeType: options.outputMimeType }
             : {}),
@@ -106,7 +108,9 @@ function mapGoogleImageProviderOptionsToConfig(
             ? { addWatermark: options.addWatermark }
             : {}),
         ...(options?.labels !== undefined ? { labels: options.labels } : {}),
-        ...(options?.imageSize !== undefined ? { imageSize: options.imageSize } : {}),
+        ...(options?.imageSize !== undefined
+            ? { imageSize: options.imageSize }
+            : {}),
         ...(options?.enhancePrompt !== undefined
             ? { enhancePrompt: options.enhancePrompt }
             : {}),

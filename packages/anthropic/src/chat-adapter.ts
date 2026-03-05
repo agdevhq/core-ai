@@ -12,10 +12,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import type { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
-import {
-    ProviderError,
-    getProviderMetadata,
-} from '@core-ai/core-ai';
+import { ProviderError, getProviderMetadata } from '@core-ai/core-ai';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -106,10 +103,17 @@ export function convertMessages(
                     continue;
                 }
 
-                const anthropicMeta = getProviderMetadata<AnthropicReasoningMetadata>(part.providerMetadata, 'anthropic');
+                const anthropicMeta =
+                    getProviderMetadata<AnthropicReasoningMetadata>(
+                        part.providerMetadata,
+                        'anthropic'
+                    );
                 if (anthropicMeta == null) {
                     if (part.text.length > 0) {
-                        contentBlocks.push({ type: 'text', text: `<thinking>${part.text}</thinking>` });
+                        contentBlocks.push({
+                            type: 'text',
+                            text: `<thinking>${part.text}</thinking>`,
+                        });
                     }
                     continue;
                 }
@@ -445,7 +449,11 @@ function validateAnthropicReasoningConfig(
         );
     }
 
-    if (options.toolChoice && options.toolChoice !== 'auto' && options.toolChoice !== 'none') {
+    if (
+        options.toolChoice &&
+        options.toolChoice !== 'auto' &&
+        options.toolChoice !== 'none'
+    ) {
         throw new ProviderError(
             `Anthropic model "${modelId}" only supports toolChoice "auto" or "none" when reasoning is enabled`,
             'anthropic'
@@ -460,7 +468,10 @@ function validateAnthropicReasoningConfig(
     }
 }
 
-function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) {
+function mapReasoningToRequestFields(
+    modelId: string,
+    options: GenerateOptions
+) {
     if (!options.reasoning) {
         return {};
     }
@@ -468,10 +479,7 @@ function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) 
     const capabilities = getAnthropicModelCapabilities(modelId);
     const baseFields: Record<string, unknown> = {};
 
-    if (
-        options.tools &&
-        Object.keys(options.tools).length > 0
-    ) {
+    if (options.tools && Object.keys(options.tools).length > 0) {
         baseFields['betas'] = ['interleaved-thinking-2025-05-14'];
     }
 
@@ -525,7 +533,9 @@ function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
         ...(Object.keys(mergedOutputConfig).length > 0
             ? { output_config: mergedOutputConfig }
             : {}),
-        ...(mergedBetas.length > 0 ? { betas: uniqueStrings(mergedBetas) } : {}),
+        ...(mergedBetas.length > 0
+            ? { betas: uniqueStrings(mergedBetas) }
+            : {}),
     };
     return mergedRequest as TRequest;
 }
@@ -559,7 +569,9 @@ export function mapGenerateResponse(
                     ? block.thinking
                     : extractThinkingText(block.thinking);
             const signature =
-                typeof block.signature === 'string' ? block.signature : undefined;
+                typeof block.signature === 'string'
+                    ? block.signature
+                    : undefined;
             parts.push({
                 type: 'reasoning',
                 text: thinkingText,
@@ -709,7 +721,7 @@ export async function* transformStream(
                         ? thinkingDelta.thinking
                         : typeof thinkingDelta.text === 'string'
                           ? thinkingDelta.text
-                        : '';
+                          : '';
                 if (thinkingText.length > 0) {
                     yield {
                         type: 'reasoning-delta',
@@ -720,7 +732,10 @@ export async function* transformStream(
             }
 
             if (event.delta.type === 'signature_delta') {
-                reasoningSignatureByIndex.set(event.index, event.delta.signature);
+                reasoningSignatureByIndex.set(
+                    event.index,
+                    event.delta.signature
+                );
                 continue;
             }
 

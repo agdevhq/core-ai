@@ -14,11 +14,11 @@ main (protected, always releasable)
  └── chore/update-deps
 ```
 
-| Prefix | Use |
-|--------|-----|
-| `feat/` | New feature or capability |
-| `fix/` | Bug fix |
-| `chore/` | Tooling, deps, CI, docs |
+| Prefix      | Use                                        |
+| ----------- | ------------------------------------------ |
+| `feat/`     | New feature or capability                  |
+| `fix/`      | Bug fix                                    |
+| `chore/`    | Tooling, deps, CI, docs                    |
 | `refactor/` | Code restructuring without behavior change |
 
 No long-lived `develop` or `release/*` branches. Feature/fix branches are short-lived, branched from `main`, merged via PR.
@@ -50,6 +50,7 @@ Short description of the change for the changelog.
 ```
 
 Rules:
+
 - YAML frontmatter between `---` delimiters (required)
 - Package names are **quoted** with single quotes and include the scope
 - Bump type is one of: `patch`, `minor`, `major`
@@ -118,9 +119,9 @@ After review, merge to `main` (squash or merge commit).
 
 ## Quick Reference
 
-| Task | Command / Action |
-|------|-----------------|
-| Start feature | `git checkout -b feat/name main` |
-| Add changeset | `npm run changeset` |
-| Empty changeset | `npx changeset --empty` |
-| Validate before merge | `npm run release:check` |
+| Task                  | Command / Action                 |
+| --------------------- | -------------------------------- |
+| Start feature         | `git checkout -b feat/name main` |
+| Add changeset         | `npm run changeset`              |
+| Empty changeset       | `npx changeset --empty`          |
+| Validate before merge | `npm run release:check`          |

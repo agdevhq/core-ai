@@ -50,18 +50,24 @@ export function createAnthropicChatModel(
     async function generateChat(
         options: GenerateOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, defaultMaxTokens, options);
-        const response = await callAnthropicMessagesApi<
-            Parameters<typeof mapGenerateResponse>[0]
-        >(request);
+        const request = createGenerateRequest(
+            modelId,
+            defaultMaxTokens,
+            options
+        );
+        const response =
+            await callAnthropicMessagesApi<
+                Parameters<typeof mapGenerateResponse>[0]
+            >(request);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<StreamResult> {
         const request = createStreamRequest(modelId, defaultMaxTokens, options);
-        const stream = await callAnthropicMessagesApi<
-            AsyncIterable<RawMessageStreamEvent>
-        >(request);
+        const stream =
+            await callAnthropicMessagesApi<
+                AsyncIterable<RawMessageStreamEvent>
+            >(request);
         return createStreamResult(transformStream(stream));
     }
 
@@ -75,7 +81,11 @@ export function createAnthropicChatModel(
         ): Promise<GenerateObjectResult<TSchema>> {
             const structuredOptions = createStructuredOutputOptions(options);
             const result = await generateChat(structuredOptions);
-            const object = extractStructuredObject(result, options.schema, provider);
+            const object = extractStructuredObject(
+                result,
+                options.schema,
+                provider
+            );
 
             return {
                 object,
@@ -193,7 +203,10 @@ function requireStructuredOutputPayload(
     }
 
     if (!rawOutput || rawOutput.length === 0) {
-        throw new StructuredOutputNoObjectGeneratedError(noPayloadMessage, provider);
+        throw new StructuredOutputNoObjectGeneratedError(
+            noPayloadMessage,
+            provider
+        );
     }
 
     return rawOutput;

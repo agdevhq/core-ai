@@ -26,7 +26,11 @@ import type {
     UserContentPart,
 } from '@core-ai/core-ai';
 import { getProviderMetadata } from '@core-ai/core-ai';
-import { getGoogleModelCapabilities, toGoogleThinkingBudget, toGoogleThinkingLevel } from './model-capabilities.js';
+import {
+    getGoogleModelCapabilities,
+    toGoogleThinkingBudget,
+    toGoogleThinkingLevel,
+} from './model-capabilities.js';
 import { asObject } from './object-utils.js';
 import {
     parseGoogleGenerateProviderOptions,
@@ -90,7 +94,10 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
                     continue;
                 }
 
-                const googleMeta = getProviderMetadata<GoogleReasoningMetadata>(part.providerMetadata, 'google');
+                const googleMeta = getProviderMetadata<GoogleReasoningMetadata>(
+                    part.providerMetadata,
+                    'google'
+                );
                 if (part.text.length === 0) {
                     continue;
                 }
@@ -99,7 +106,8 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
                     thought: true,
                 };
                 if (typeof googleMeta?.thoughtSignature === 'string') {
-                    thoughtPart['thoughtSignature'] = googleMeta.thoughtSignature;
+                    thoughtPart['thoughtSignature'] =
+                        googleMeta.thoughtSignature;
                 }
                 assistantParts.push(thoughtPart as Part);
             }
@@ -354,7 +362,9 @@ function mapGoogleProviderOptionsToConfig(
     options: GoogleGenerateProviderOptions | undefined
 ): Record<string, unknown> {
     return {
-        ...(options?.stopSequences ? { stopSequences: options.stopSequences } : {}),
+        ...(options?.stopSequences
+            ? { stopSequences: options.stopSequences }
+            : {}),
         ...(options?.frequencyPenalty !== undefined
             ? { frequencyPenalty: options.frequencyPenalty }
             : {}),
@@ -478,7 +488,10 @@ export async function* transformStream(
         if (chunk.text) {
             if (reasoningOpen) {
                 reasoningOpen = false;
-                yield { type: 'reasoning-end', providerMetadata: { google: {} } };
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: { google: {} },
+                };
             }
             yield {
                 type: 'text-delta',
@@ -490,7 +503,10 @@ export async function* transformStream(
         if (functionCalls.length > 0) {
             if (reasoningOpen) {
                 reasoningOpen = false;
-                yield { type: 'reasoning-end', providerMetadata: { google: {} } };
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: { google: {} },
+                };
             }
             sawToolCalls = true;
             for (const [index, functionCall] of functionCalls.entries()) {
@@ -607,15 +623,17 @@ function extractAssistantParts(
                 continue;
             }
             const thoughtSignature =
-                typeof (part as { thoughtSignature?: unknown }).thoughtSignature ===
-                'string'
+                typeof (part as { thoughtSignature?: unknown })
+                    .thoughtSignature === 'string'
                     ? (part as { thoughtSignature?: string }).thoughtSignature
                     : undefined;
             parts.push({
                 type: 'reasoning',
                 text: thoughtText,
                 providerMetadata: {
-                    google: { ...(thoughtSignature ? { thoughtSignature } : {}) },
+                    google: {
+                        ...(thoughtSignature ? { thoughtSignature } : {}),
+                    },
                 },
             });
             continue;
@@ -642,7 +660,9 @@ function extractAssistantParts(
         }
     }
 
-    for (const [index, functionCall] of (response.functionCalls ?? []).entries()) {
+    for (const [index, functionCall] of (
+        response.functionCalls ?? []
+    ).entries()) {
         const toolCall = mapFunctionCall(functionCall, index);
         const key = `${toolCall.id}:${toolCall.name}`;
         if (seenToolCalls.has(key)) {
@@ -668,7 +688,11 @@ function extractAssistantParts(
 function extractReasoningDeltas(response: GenerateContentResponse): string[] {
     const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
     return candidateParts.flatMap((part) => {
-        if (!part.thought || typeof part.text !== 'string' || part.text.length === 0) {
+        if (
+            !part.thought ||
+            typeof part.text !== 'string' ||
+            part.text.length === 0
+        ) {
             return [];
         }
         return [part.text];

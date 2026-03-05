@@ -194,7 +194,9 @@ function mapSamplingToRequestFields(
         ...(options.temperature !== undefined
             ? { temperature: options.temperature }
             : {}),
-        ...(options.maxTokens !== undefined ? { max_tokens: options.maxTokens } : {}),
+        ...(options.maxTokens !== undefined
+            ? { max_tokens: options.maxTokens }
+            : {}),
         ...(options.topP !== undefined ? { top_p: options.topP } : {}),
     };
 }
@@ -440,7 +442,10 @@ export async function* transformStream(
     };
 }
 
-function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) {
+function mapReasoningToRequestFields(
+    modelId: string,
+    options: GenerateOptions
+) {
     if (!options.reasoning) {
         return {};
     }
@@ -502,4 +507,3 @@ function extractTextContent(content: unknown): string | null {
 
     return text.length > 0 ? text : null;
 }
-

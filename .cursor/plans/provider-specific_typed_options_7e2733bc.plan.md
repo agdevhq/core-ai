@@ -2,30 +2,30 @@
 name: Provider-specific typed options
 overview: Remove `ModelConfig`, flatten universal sampling fields into a shared `BaseGenerateOptions`, and replace untyped `providerOptions` with namespaced, Zod-validated, type-safe provider options using TypeScript declaration merging.
 todos:
-  - id: core-types
-    content: "Update core-ai types: remove ModelConfig, add BaseGenerateOptions with flattened fields, add ProviderOptions interface, derive all option types from base"
-    status: pending
-  - id: openai-options
-    content: Create OpenAI provider options (Zod schemas for Responses + Compat), declaration merging, update adapters
-    status: pending
-  - id: anthropic-options
-    content: Create Anthropic provider options (Zod schema), declaration merging, update adapter
-    status: pending
-  - id: mistral-options
-    content: Create Mistral provider options (Zod schema), declaration merging, update adapter
-    status: pending
-  - id: google-options
-    content: Create Google provider options (Zod schema), declaration merging, update adapter
-    status: pending
-  - id: embedding-image
-    content: Update embedding and image model adapters across all providers to use namespaced providerOptions
-    status: pending
-  - id: tests
-    content: Update all test files to use namespaced providerOptions shape and add Zod validation tests
-    status: pending
-  - id: changeset
-    content: Add breaking change changeset for core-ai and all provider packages
-    status: pending
+    - id: core-types
+      content: 'Update core-ai types: remove ModelConfig, add BaseGenerateOptions with flattened fields, add ProviderOptions interface, derive all option types from base'
+      status: pending
+    - id: openai-options
+      content: Create OpenAI provider options (Zod schemas for Responses + Compat), declaration merging, update adapters
+      status: pending
+    - id: anthropic-options
+      content: Create Anthropic provider options (Zod schema), declaration merging, update adapter
+      status: pending
+    - id: mistral-options
+      content: Create Mistral provider options (Zod schema), declaration merging, update adapter
+      status: pending
+    - id: google-options
+      content: Create Google provider options (Zod schema), declaration merging, update adapter
+      status: pending
+    - id: embedding-image
+      content: Update embedding and image model adapters across all providers to use namespaced providerOptions
+      status: pending
+    - id: tests
+      content: Update all test files to use namespaced providerOptions shape and add Zod validation tests
+      status: pending
+    - id: changeset
+      content: Add breaking change changeset for core-ai and all provider packages
+      status: pending
 isProject: false
 ---
 
@@ -83,13 +83,15 @@ export type GenerateOptions = BaseGenerateOptions & {
     toolChoice?: ToolChoice;
 };
 
-export type GenerateObjectOptions<TSchema extends z.ZodType> = BaseGenerateOptions & {
-    schema: TSchema;
-    schemaName?: string;
-    schemaDescription?: string;
-};
+export type GenerateObjectOptions<TSchema extends z.ZodType> =
+    BaseGenerateOptions & {
+        schema: TSchema;
+        schemaName?: string;
+        schemaDescription?: string;
+    };
 
-export type StreamObjectOptions<TSchema extends z.ZodType> = GenerateObjectOptions<TSchema>;
+export type StreamObjectOptions<TSchema extends z.ZodType> =
+    GenerateObjectOptions<TSchema>;
 ```
 
 `ModelConfig` is removed entirely. `temperature`, `maxTokens`, `topP` live directly on the base type. `stopSequences`, `frequencyPenalty`, `presencePenalty` move to provider-specific options.
@@ -119,7 +121,9 @@ export const openaiResponsesOptionsSchema = z.object({
     user: z.string().optional(),
 });
 
-export type OpenAIResponsesProviderOptions = z.infer<typeof openaiResponsesOptionsSchema>;
+export type OpenAIResponsesProviderOptions = z.infer<
+    typeof openaiResponsesOptionsSchema
+>;
 
 declare module '@core-ai/core-ai' {
     interface ProviderOptions {
@@ -164,7 +168,7 @@ For the TypeScript type, `OpenAIResponsesProviderOptions` (the default) would be
 
 ### Key Design Decisions
 
-- `**interface` for `ProviderOptions`**: Required for declaration merging. This is the one exception to the "prefer `type`" convention.
+- `**interface` for `ProviderOptions`\*\*: Required for declaration merging. This is the one exception to the "prefer `type`" convention.
 - **Index signature on the base interface**: `[key: string]: Record<string, unknown> | undefined` allows custom/unknown providers without casting, while augmented providers get full autocomplete.
 - **Zod validation per adapter, not in core**: Core stays lightweight — no runtime Zod parsing in `core-ai`. Each provider validates its own options. This keeps the dependency graph clean.
 - **Single `openai` namespace for both Responses and Compat**: The exported type matches the default (Responses) adapter. Compat exports a separate type for `satisfies` usage. Runtime Zod schemas differ per adapter.

@@ -348,7 +348,9 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'step-by-step thought',
-                        providerMetadata: { openai: { encryptedContent: 'enc_123' } },
+                        providerMetadata: {
+                            openai: { encryptedContent: 'enc_123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -360,7 +362,10 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
-                    { type: 'text', text: '<thinking>step-by-step thought</thinking>' },
+                    {
+                        type: 'text',
+                        text: '<thinking>step-by-step thought</thinking>',
+                    },
                     { type: 'text', text: 'answer' },
                 ],
             },

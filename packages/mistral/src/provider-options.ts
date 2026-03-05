@@ -67,6 +67,7 @@ declare module '@core-ai/core-ai' {
 }
 
 // Backward-compatible aliases for previous public names.
-export const mistralProviderOptionsSchema = mistralGenerateProviderOptionsSchema;
+export const mistralProviderOptionsSchema =
+    mistralGenerateProviderOptionsSchema;
 export type MistralProviderOptions = MistralGenerateProviderOptions;
 export const parseMistralProviderOptions = parseMistralGenerateProviderOptions;

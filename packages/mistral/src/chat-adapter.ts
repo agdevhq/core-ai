@@ -245,7 +245,9 @@ function mapSamplingToRequestFields(
         ...(options.temperature !== undefined
             ? { temperature: options.temperature }
             : {}),
-        ...(options.maxTokens !== undefined ? { maxTokens: options.maxTokens } : {}),
+        ...(options.maxTokens !== undefined
+            ? { maxTokens: options.maxTokens }
+            : {}),
         ...(options.topP !== undefined ? { topP: options.topP } : {}),
     };
 }
@@ -260,7 +262,9 @@ function mapMistralProviderOptionsToRequest<TRequest extends object>(
 
     const mergedRequest = {
         ...baseRequest,
-        ...(providerOptions.stopSequences ? { stop: providerOptions.stopSequences } : {}),
+        ...(providerOptions.stopSequences
+            ? { stop: providerOptions.stopSequences }
+            : {}),
         ...(providerOptions.frequencyPenalty !== undefined
             ? { frequencyPenalty: providerOptions.frequencyPenalty }
             : {}),

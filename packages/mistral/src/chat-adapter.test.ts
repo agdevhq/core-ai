@@ -4,7 +4,12 @@ import type {
     ChatCompletionResponse,
     CompletionEvent,
 } from '@mistralai/mistralai/models/components';
-import { defineTool, type GenerateOptions, type Message, type ToolSet } from '@core-ai/core-ai';
+import {
+    defineTool,
+    type GenerateOptions,
+    type Message,
+    type ToolSet,
+} from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStructuredOutputOptions,
@@ -230,7 +235,10 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
-                    { type: 'thinking', thinking: [{ type: 'text', text: 'thoughts' }] },
+                    {
+                        type: 'thinking',
+                        thinking: [{ type: 'text', text: 'thoughts' }],
+                    },
                     { type: 'text', text: 'answer' },
                 ],
             },
@@ -245,7 +253,9 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'thoughts',
-                        providerMetadata: { anthropic: { signature: 'sig123' } },
+                        providerMetadata: {
+                            anthropic: { signature: 'sig123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -256,7 +266,10 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
-                    { type: 'thinking', thinking: [{ type: 'text', text: 'thoughts' }] },
+                    {
+                        type: 'thinking',
+                        thinking: [{ type: 'text', text: 'thoughts' }],
+                    },
                     { type: 'text', text: 'answer' },
                 ],
             },

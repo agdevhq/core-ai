@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { Response, ResponseStreamEvent } from 'openai/resources/responses/responses';
-import { ProviderError, type GenerateOptions, type Message } from '@core-ai/core-ai';
+import type {
+    Response,
+    ResponseStreamEvent,
+} from 'openai/resources/responses/responses';
+import {
+    ProviderError,
+    type GenerateOptions,
+    type Message,
+} from '@core-ai/core-ai';
 import {
     convertMessages,
     createGenerateRequest,
@@ -133,7 +140,9 @@ describe('convertMessages', () => {
                     {
                         type: 'reasoning',
                         text: 'step-by-step thought',
-                        providerMetadata: { anthropic: { signature: 'sig_123' } },
+                        providerMetadata: {
+                            anthropic: { signature: 'sig_123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -425,7 +434,9 @@ describe('mapGenerateResponse', () => {
             output: [
                 {
                     type: 'reasoning',
-                    summary: [{ type: 'summary_text', text: 'stored mode summary' }],
+                    summary: [
+                        { type: 'summary_text', text: 'stored mode summary' },
+                    ],
                 },
             ],
             status: 'completed',
@@ -990,4 +1001,3 @@ function asResponse(value: unknown): Response {
 function asStreamEvent(value: unknown): ResponseStreamEvent {
     return value as ResponseStreamEvent;
 }
-
