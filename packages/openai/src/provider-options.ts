@@ -8,7 +8,9 @@ import { z } from 'zod';
 export const openaiResponsesGenerateProviderOptionsSchema = z
     .object({
         store: z.boolean().optional(),
-        serviceTier: z.enum(['auto', 'flex', 'priority', 'default']).optional(),
+        serviceTier: z
+            .enum(['auto', 'default', 'flex', 'scale', 'priority'])
+            .optional(),
         include: z.array(z.string()).optional(),
         parallelToolCalls: z.boolean().optional(),
         user: z.string().optional(),
@@ -21,6 +23,9 @@ export type OpenAIResponsesGenerateProviderOptions = z.infer<
 
 export const openaiCompatGenerateProviderOptionsSchema =
     openaiResponsesGenerateProviderOptionsSchema
+        .omit({
+            include: true,
+        })
         .extend({
             stopSequences: z.array(z.string()).optional(),
             frequencyPenalty: z.number().optional(),
@@ -67,7 +72,7 @@ export function parseOpenAIResponsesGenerateProviderOptions(
     providerOptions: GenerateProviderOptions | undefined
 ): OpenAIResponsesGenerateProviderOptions | undefined {
     const rawOptions = providerOptions?.openai;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 
@@ -78,7 +83,7 @@ export function parseOpenAICompatGenerateProviderOptions(
     providerOptions: GenerateProviderOptions | undefined
 ): OpenAICompatGenerateProviderOptions | undefined {
     const rawOptions = providerOptions?.openai;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 
@@ -89,7 +94,7 @@ export function parseOpenAIEmbedProviderOptions(
     providerOptions: EmbedProviderOptions | undefined
 ): OpenAIEmbedProviderOptions | undefined {
     const rawOptions = providerOptions?.openai;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 
@@ -100,7 +105,7 @@ export function parseOpenAIImageProviderOptions(
     providerOptions: ImageProviderOptions | undefined
 ): OpenAIImageProviderOptions | undefined {
     const rawOptions = providerOptions?.openai;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 

@@ -468,6 +468,19 @@ describe('reasoning support', () => {
         ).toThrowError(/Expected number/);
     });
 
+    it('should reject null anthropic provider options', () => {
+        const invalidProviderOptions = {
+            anthropic: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
+    });
+
     it('should parse thinking and redacted_thinking blocks from responses', () => {
         const response = asAnthropicMessage({
             content: [

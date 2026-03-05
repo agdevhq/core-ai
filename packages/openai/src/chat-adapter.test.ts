@@ -221,6 +221,15 @@ describe('createGenerateRequest', () => {
         expect(request.store).toBe(true);
     });
 
+    it('should accept service tier scale via providerOptions', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            providerOptions: { openai: { serviceTier: 'scale' } },
+        });
+
+        expect(request.service_tier).toBe('scale');
+    });
+
     it('should reject invalid namespaced provider options', () => {
         const invalidProviderOptions = {
             openai: { store: 'yes' },
@@ -232,6 +241,19 @@ describe('createGenerateRequest', () => {
                 providerOptions: invalidProviderOptions,
             })
         ).toThrowError(/Expected boolean/);
+    });
+
+    it('should reject null namespaced provider options', () => {
+        const invalidProviderOptions = {
+            openai: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gpt-5-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
     });
 
     it('should include reasoning summary and encrypted reasoning include', () => {

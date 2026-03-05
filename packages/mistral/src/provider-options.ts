@@ -38,7 +38,7 @@ export function parseMistralGenerateProviderOptions(
     providerOptions: GenerateProviderOptions | undefined
 ): MistralGenerateProviderOptions | undefined {
     const rawOptions = providerOptions?.mistral;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 
@@ -49,7 +49,7 @@ export function parseMistralEmbedProviderOptions(
     providerOptions: EmbedProviderOptions | undefined
 ): MistralEmbedProviderOptions | undefined {
     const rawOptions = providerOptions?.mistral;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 

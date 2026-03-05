@@ -207,7 +207,6 @@ function mapOpenAIProviderOptionsToRequestFields(
         ...(options?.serviceTier !== undefined
             ? { service_tier: options.serviceTier }
             : {}),
-        ...(options?.include ? { include: options.include } : {}),
         ...(options?.parallelToolCalls !== undefined
             ? { parallel_tool_calls: options.parallelToolCalls }
             : {}),

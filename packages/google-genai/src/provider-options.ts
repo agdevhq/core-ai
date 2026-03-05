@@ -73,7 +73,7 @@ export function parseGoogleGenerateProviderOptions(
     providerOptions: GenerateProviderOptions | undefined
 ): GoogleGenerateProviderOptions | undefined {
     const rawOptions = providerOptions?.google;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 
@@ -84,7 +84,7 @@ export function parseGoogleEmbedProviderOptions(
     providerOptions: EmbedProviderOptions | undefined
 ): GoogleEmbedProviderOptions | undefined {
     const rawOptions = providerOptions?.google;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 
@@ -95,7 +95,7 @@ export function parseGoogleImageProviderOptions(
     providerOptions: ImageProviderOptions | undefined
 ): GoogleImageProviderOptions | undefined {
     const rawOptions = providerOptions?.google;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 

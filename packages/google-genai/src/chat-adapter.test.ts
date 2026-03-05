@@ -496,6 +496,19 @@ describe('reasoning support', () => {
         ).toThrowError(/Expected number/);
     });
 
+    it('should reject null google provider options', () => {
+        const invalidProviderOptions = {
+            google: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
+    });
+
     it('should extract reasoning parts from thought response parts', () => {
         const response = asGenerateContentResponse({
             candidates: [

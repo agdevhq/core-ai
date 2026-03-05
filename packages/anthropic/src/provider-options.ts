@@ -18,7 +18,7 @@ export function parseAnthropicGenerateProviderOptions(
     providerOptions: GenerateProviderOptions | undefined
 ): AnthropicGenerateProviderOptions | undefined {
     const rawOptions = providerOptions?.anthropic;
-    if (!rawOptions) {
+    if (rawOptions === undefined) {
         return undefined;
     }
 

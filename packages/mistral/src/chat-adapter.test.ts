@@ -309,6 +309,19 @@ describe('reasoning support', () => {
         ).toThrowError(/Expected string/);
     });
 
+    it('should reject null mistral provider options', () => {
+        const invalidProviderOptions = {
+            mistral: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('mistral-large-latest', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
+    });
+
     it('should extract reasoning parts from thinking content chunks', () => {
         const response = asChatCompletionResponse({
             choices: [

@@ -366,6 +366,19 @@ describe('reasoning support', () => {
         });
     });
 
+    it('should reject responses-only include provider option in compat mode', () => {
+        expect(() =>
+            createGenerateRequest('gpt-4o-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: {
+                    openai: {
+                        include: ['reasoning.encrypted_content'],
+                    },
+                },
+            })
+        ).toThrowError(/Unrecognized key\(s\) in object: 'include'/);
+    });
+
     it('should reject invalid compat provider options', () => {
         const invalidProviderOptions = {
             openai: { seed: 1.5 },
