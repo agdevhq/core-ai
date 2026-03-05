@@ -24,6 +24,7 @@ npm run release:version
 ```
 
 Changesets reads pending `.changeset/*.md` files and:
+
 - Bumps `version` in all five package.json files
 - Updates internal dependency ranges (e.g., providers' `@core-ai/core-ai` range)
 - Generates/updates `CHANGELOG.md` per package
@@ -51,11 +52,11 @@ git push && git push --tags
 
 ## Release Scripts
 
-| Script | Command | Purpose |
-|--------|---------|---------|
-| `npm run release:check` | Build + lint + type-check | Validate repo before release |
-| `npm run release:version` | `changeset version` | Bump versions, update changelogs |
-| `npm run release:publish` | `changeset publish` | Publish changed packages to npm |
+| Script                    | Command                   | Purpose                          |
+| ------------------------- | ------------------------- | -------------------------------- |
+| `npm run release:check`   | Build + lint + type-check | Validate repo before release     |
+| `npm run release:version` | `changeset version`       | Bump versions, update changelogs |
+| `npm run release:publish` | `changeset publish`       | Publish changed packages to npm  |
 
 ## Key Configuration
 
@@ -68,6 +69,7 @@ git push && git push --tags
 ### Package-level `package.json`
 
 Each publishable package has:
+
 - `"publishConfig": { "access": "public" }`
 - `"files": ["dist", "README.md", "LICENSE"]` — only ships compiled output
 

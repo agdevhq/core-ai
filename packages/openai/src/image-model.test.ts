@@ -58,7 +58,10 @@ describe('createOpenAIImageModel', () => {
             n: 2,
             size: '1024x1024',
             providerOptions: {
-                quality: 'high',
+                openai: {
+                    user: 'user-123',
+                    quality: 'high',
+                },
             },
         });
 
@@ -68,6 +71,7 @@ describe('createOpenAIImageModel', () => {
                 prompt: 'A cat with a top hat',
                 n: 2,
                 size: '1024x1024',
+                user: 'user-123',
                 quality: 'high',
             })
         );

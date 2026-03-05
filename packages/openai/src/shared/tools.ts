@@ -65,7 +65,9 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
             toolName,
         },
         reasoning: options.reasoning,
-        config: options.config,
+        temperature: options.temperature,
+        maxTokens: options.maxTokens,
+        topP: options.topP,
         providerOptions: options.providerOptions,
         signal: options.signal,
     };

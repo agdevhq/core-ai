@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import type { Response, ResponseStreamEvent } from 'openai/resources/responses/responses';
-import { ProviderError, type Message } from '@core-ai/core-ai';
+import type {
+    Response,
+    ResponseStreamEvent,
+} from 'openai/resources/responses/responses';
+import {
+    ProviderError,
+    type GenerateOptions,
+    type Message,
+} from '@core-ai/core-ai';
 import {
     convertMessages,
     createGenerateRequest,
@@ -133,7 +140,9 @@ describe('convertMessages', () => {
                     {
                         type: 'reasoning',
                         text: 'step-by-step thought',
-                        providerMetadata: { anthropic: { signature: 'sig_123' } },
+                        providerMetadata: {
+                            anthropic: { signature: 'sig_123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -215,10 +224,45 @@ describe('createGenerateRequest', () => {
     it('should allow overriding store via providerOptions', () => {
         const request = createGenerateRequest('gpt-5-mini', {
             messages: [{ role: 'user', content: 'Hi' }],
-            providerOptions: { store: true },
+            providerOptions: { openai: { store: true } },
         });
 
         expect(request.store).toBe(true);
+    });
+
+    it('should accept service tier scale via providerOptions', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            providerOptions: { openai: { serviceTier: 'scale' } },
+        });
+
+        expect(request.service_tier).toBe('scale');
+    });
+
+    it('should reject invalid namespaced provider options', () => {
+        const invalidProviderOptions = {
+            openai: { store: 'yes' },
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gpt-5-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected boolean/);
+    });
+
+    it('should reject null namespaced provider options', () => {
+        const invalidProviderOptions = {
+            openai: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gpt-5-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
     });
 
     it('should include reasoning summary and encrypted reasoning include', () => {
@@ -226,7 +270,9 @@ describe('createGenerateRequest', () => {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
             providerOptions: {
-                include: ['foo.bar'],
+                openai: {
+                    include: ['foo.bar'],
+                },
             },
         });
 
@@ -388,7 +434,9 @@ describe('mapGenerateResponse', () => {
             output: [
                 {
                     type: 'reasoning',
-                    summary: [{ type: 'summary_text', text: 'stored mode summary' }],
+                    summary: [
+                        { type: 'summary_text', text: 'stored mode summary' },
+                    ],
                 },
             ],
             status: 'completed',
@@ -932,7 +980,7 @@ describe('validateOpenAIReasoningConfig', () => {
             validateOpenAIReasoningConfig('gpt-5.2', {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'medium' },
-                config: { temperature: 0.2 },
+                temperature: 0.2,
             })
         ).toThrowError(ProviderError);
 
@@ -940,7 +988,7 @@ describe('validateOpenAIReasoningConfig', () => {
             validateOpenAIReasoningConfig('gpt-5.1', {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'medium' },
-                config: { topP: 0.9 },
+                topP: 0.9,
             })
         ).toThrowError(ProviderError);
     });
@@ -953,4 +1001,3 @@ function asResponse(value: unknown): Response {
 function asStreamEvent(value: unknown): ResponseStreamEvent {
     return value as ResponseStreamEvent;
 }
-

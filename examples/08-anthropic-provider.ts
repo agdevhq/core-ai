@@ -25,7 +25,7 @@ async function main(): Promise<void> {
                     'Explain why strong typing helps library users in one paragraph.',
             },
         ],
-        config: { maxTokens: 256 },
+        maxTokens: 256,
     });
 
     console.log('Response:\n', result.content);

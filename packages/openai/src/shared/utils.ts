@@ -28,14 +28,14 @@ export function validateOpenAIReasoningConfig(
         return;
     }
 
-    if (options.config?.temperature !== undefined) {
+    if (options.temperature !== undefined) {
         throw new ProviderError(
             `OpenAI model "${modelId}" does not support temperature when reasoning is enabled`,
             'openai'
         );
     }
 
-    if (options.config?.topP !== undefined) {
+    if (options.topP !== undefined) {
         throw new ProviderError(
             `OpenAI model "${modelId}" does not support topP when reasoning is enabled`,
             'openai'

@@ -19,13 +19,13 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider              | Package                      | Chat | Streaming | Embeddings | Image Generation |
-| --------------------- | ---------------------------- | ---- | --------- | ---------- | ---------------- |
-| OpenAI (Responses)    | `@core-ai/openai`            | Yes  | Yes       | Yes        | Yes              |
-| OpenAI (Completions)  | `@core-ai/openai/compat`     | Yes  | Yes       | Yes        | Yes              |
-| Anthropic             | `@core-ai/anthropic`         | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini) | `@core-ai/google-genai`      | Yes  | Yes       | Yes        | Yes              |
-| Mistral               | `@core-ai/mistral`           | Yes  | Yes       | Yes        | —                |
+| Provider              | Package                  | Chat | Streaming | Embeddings | Image Generation |
+| --------------------- | ------------------------ | ---- | --------- | ---------- | ---------------- |
+| OpenAI (Responses)    | `@core-ai/openai`        | Yes  | Yes       | Yes        | Yes              |
+| OpenAI (Completions)  | `@core-ai/openai/compat` | Yes  | Yes       | Yes        | Yes              |
+| Anthropic             | `@core-ai/anthropic`     | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini) | `@core-ai/google-genai`  | Yes  | Yes       | Yes        | Yes              |
+| Mistral               | `@core-ai/mistral`       | Yes  | Yes       | Yes        | —                |
 
 > **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the legacy Chat Completions API (e.g. for Azure OpenAI or third-party OpenAI-compatible endpoints), import from `@core-ai/openai/compat` instead.
 
@@ -247,7 +247,7 @@ const model = anthropic.chatModel('claude-haiku-4-5');
 const result = await generate({
     model,
     messages: [{ role: 'user', content: 'Hello!' }],
-    config: { maxTokens: 1024 },
+    maxTokens: 1024,
 });
 
 console.log(result.content);
@@ -265,7 +265,7 @@ const model = google.chatModel('gemini-3-flash');
 const result = await generate({
     model,
     messages: [{ role: 'user', content: 'Hello!' }],
-    config: { maxTokens: 1024 },
+    maxTokens: 1024,
 });
 
 console.log(result.content);
@@ -283,7 +283,7 @@ const model = mistral.chatModel('mistral-large-latest');
 const result = await generate({
     model,
     messages: [{ role: 'user', content: 'Hello!' }],
-    config: { maxTokens: 1024 },
+    maxTokens: 1024,
 });
 
 console.log(result.content);
@@ -291,31 +291,29 @@ console.log(result.content);
 
 ## Configuration
 
-All generation functions accept an optional `config` for common model parameters:
+Common sampling parameters are passed as top-level fields on the generate call:
 
 ```typescript
 const result = await generate({
     model,
     messages,
-    config: {
-        temperature: 0.7,
-        maxTokens: 2048,
-        topP: 0.9,
-        stopSequences: ['\n\n'],
-        frequencyPenalty: 0.5,
-        presencePenalty: 0.5,
-    },
+    temperature: 0.7,
+    maxTokens: 2048,
+    topP: 0.9,
 });
 ```
 
-For provider-specific features, use `providerOptions`:
+For provider-specific features, use `providerOptions` with settings nested under the provider key:
 
 ```typescript
 const result = await generate({
     model,
     messages,
     providerOptions: {
-        // Passed directly to the provider SDK
+        openai: {
+            store: true,
+            serviceTier: 'scale',
+        },
     },
 });
 ```

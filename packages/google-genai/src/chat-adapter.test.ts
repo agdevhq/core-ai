@@ -15,7 +15,12 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
-import { defineTool, type Message, type ToolSet } from '@core-ai/core-ai';
+import {
+    defineTool,
+    type GenerateOptions,
+    type Message,
+    type ToolSet,
+} from '@core-ai/core-ai';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
@@ -317,9 +322,7 @@ describe('structured output helpers', () => {
             schema,
             schemaName: 'weather_schema',
             schemaDescription: 'Structured weather output',
-            config: {
-                maxTokens: 256,
-            },
+            maxTokens: 256,
         });
 
         expect(result.toolChoice).toEqual({
@@ -394,7 +397,9 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'step-by-step thought',
-                        providerMetadata: { anthropic: { signature: 'sig_123' } },
+                        providerMetadata: {
+                            anthropic: { signature: 'sig_123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -445,10 +450,12 @@ describe('reasoning support', () => {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
             providerOptions: {
-                config: {
-                    thinkingConfig: {
-                        thinkingLevel: 'LOW',
-                        includeThoughts: false,
+                google: {
+                    config: {
+                        thinkingConfig: {
+                            thinkingLevel: 'LOW',
+                            includeThoughts: false,
+                        },
                     },
                 },
             },
@@ -460,6 +467,53 @@ describe('reasoning support', () => {
                 includeThoughts: false,
             },
         });
+    });
+
+    it('should map namespaced google sampling provider options', () => {
+        const request = createGenerateRequest('gemini-2.5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            providerOptions: {
+                google: {
+                    stopSequences: ['END'],
+                    frequencyPenalty: 0.1,
+                    presencePenalty: 0.2,
+                    topK: 24,
+                },
+            },
+        });
+
+        expect(request.config).toMatchObject({
+            stopSequences: ['END'],
+            frequencyPenalty: 0.1,
+            presencePenalty: 0.2,
+            topK: 24,
+        });
+    });
+
+    it('should reject invalid google provider options', () => {
+        const invalidProviderOptions = {
+            google: { topK: '24' },
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected number/);
+    });
+
+    it('should reject null google provider options', () => {
+        const invalidProviderOptions = {
+            google: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
     });
 
     it('should extract reasoning parts from thought response parts', () => {
@@ -662,7 +716,9 @@ describe('reasoning support', () => {
                         {
                             content: {
                                 role: 'model',
-                                parts: [{ text: 'only reasoning', thought: true }],
+                                parts: [
+                                    { text: 'only reasoning', thought: true },
+                                ],
                             },
                         },
                     ],

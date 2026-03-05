@@ -171,7 +171,8 @@ export const providerCases: ProviderContractCase[] = [
             expect(
                 sawReasoningDelta ||
                     response.parts.some((part) => part.type === 'reasoning') ||
-                    (response.usage.outputTokenDetails.reasoningTokens ?? 0) >= 0
+                    (response.usage.outputTokenDetails.reasoningTokens ?? 0) >=
+                        0
             ).toBe(true);
             expect(response.content?.trim().length ?? 0).toBeGreaterThan(0);
             assertChatUsage(response.usage);
@@ -192,7 +193,8 @@ export const providerCases: ProviderContractCase[] = [
             const messages = [
                 {
                     role: 'user' as const,
-                    content: 'Think and answer: what is property-based testing?',
+                    content:
+                        'Think and answer: what is property-based testing?',
                 },
             ];
             const firstResult = await generate({
@@ -248,7 +250,9 @@ export const providerCases: ProviderContractCase[] = [
         run: async ({ adapter }) => {
             const model = adapter.createEmbeddingModel?.();
             if (!model) {
-                throw new Error(`Missing embedding model factory for ${adapter.id}`);
+                throw new Error(
+                    `Missing embedding model factory for ${adapter.id}`
+                );
             }
 
             const result = await embed({
@@ -259,7 +263,9 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.embeddings.length).toBe(2);
             for (const vector of result.embeddings) {
                 expect(vector.length).toBeGreaterThan(0);
-                expect(vector.every((value) => Number.isFinite(value))).toBe(true);
+                expect(vector.every((value) => Number.isFinite(value))).toBe(
+                    true
+                );
             }
 
             if (result.usage) {
@@ -275,7 +281,9 @@ export const providerCases: ProviderContractCase[] = [
         run: async ({ adapter }) => {
             const model = adapter.createImageModel?.();
             if (!model) {
-                throw new Error(`Missing image model factory for ${adapter.id}`);
+                throw new Error(
+                    `Missing image model factory for ${adapter.id}`
+                );
             }
 
             const result = await generateImage({
@@ -287,9 +295,9 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.images.length).toBeGreaterThan(0);
             const firstImage = result.images[0];
             expect(firstImage).toBeDefined();
-            expect(Boolean(firstImage?.base64) || Boolean(firstImage?.url)).toBe(
-                true
-            );
+            expect(
+                Boolean(firstImage?.base64) || Boolean(firstImage?.url)
+            ).toBe(true);
         },
     },
 ];
@@ -313,7 +321,9 @@ function assertChatUsage(usage: {
     expect(Number.isFinite(usage.inputTokens)).toBe(true);
     expect(Number.isFinite(usage.outputTokens)).toBe(true);
     expect(Number.isFinite(usage.inputTokenDetails.cacheReadTokens)).toBe(true);
-    expect(Number.isFinite(usage.inputTokenDetails.cacheWriteTokens)).toBe(true);
+    expect(Number.isFinite(usage.inputTokenDetails.cacheWriteTokens)).toBe(
+        true
+    );
 
     expect(usage.inputTokens).toBeGreaterThan(0);
     expect(usage.outputTokens).toBeGreaterThanOrEqual(0);
@@ -326,7 +336,9 @@ function assertChatUsage(usage: {
     ).toBeLessThanOrEqual(usage.inputTokens);
 
     if (usage.outputTokenDetails.reasoningTokens !== undefined) {
-        expect(usage.outputTokenDetails.reasoningTokens).toBeGreaterThanOrEqual(0);
+        expect(usage.outputTokenDetails.reasoningTokens).toBeGreaterThanOrEqual(
+            0
+        );
         expect(usage.outputTokenDetails.reasoningTokens).toBeLessThanOrEqual(
             usage.outputTokens
         );

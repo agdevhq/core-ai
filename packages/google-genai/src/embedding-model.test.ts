@@ -90,8 +90,10 @@ describe('createGoogleGenAIEmbeddingModel', () => {
             input: 'test',
             dimensions: 256,
             providerOptions: {
-                config: {
-                    taskType: 'RETRIEVAL_DOCUMENT',
+                google: {
+                    config: {
+                        taskType: 'RETRIEVAL_DOCUMENT',
+                    },
                 },
             },
         });

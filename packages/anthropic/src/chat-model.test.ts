@@ -686,7 +686,8 @@ function asMessage(value: {
             cache_creation: null,
             cache_creation_input_tokens:
                 value.usage.cache_creation_input_tokens ?? null,
-            cache_read_input_tokens: value.usage.cache_read_input_tokens ?? null,
+            cache_read_input_tokens:
+                value.usage.cache_read_input_tokens ?? null,
             server_tool_use: null,
             service_tier: null,
             output_tokens_details: null,

@@ -16,6 +16,7 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 ## Bite-Sized Task Granularity
 
 **Each step is one action (2-5 minutes):**
+
 - "Write the failing test" - step
 - "Run it to make sure it fails" - step
 - "Implement the minimal code to make the test pass" - step
@@ -34,10 +35,12 @@ Assume they are a skilled developer, but know almost nothing about our toolset o
 **Architecture:** [2-3 sentences about approach]
 
 **Tech Stack:** [Key technologies/libraries]
+```
 
 ---
 
 ## Remember
+
 - Exact file paths always
 - Complete code in plan (not "add validation")
 - Exact commands with expected output

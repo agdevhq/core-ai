@@ -30,6 +30,10 @@ import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
 } from '../shared/utils.js';
+import {
+    parseOpenAICompatGenerateProviderOptions,
+    type OpenAICompatGenerateProviderOptions,
+} from '../provider-options.js';
 
 export {
     convertToolChoice,
@@ -141,20 +145,26 @@ export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
 ) {
+    const openaiOptions = parseOpenAICompatGenerateProviderOptions(
+        options.providerOptions
+    );
     return {
         ...createRequestBase(modelId, options),
-        ...options.providerOptions,
+        ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 }
 
 export function createStreamRequest(modelId: string, options: GenerateOptions) {
+    const openaiOptions = parseOpenAICompatGenerateProviderOptions(
+        options.providerOptions
+    );
     return {
         ...createRequestBase(modelId, options),
         stream: true as const,
         stream_options: {
             include_usage: true,
         },
-        ...options.providerOptions,
+        ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 }
 
@@ -173,24 +183,44 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
         ...reasoningFields,
-        ...mapConfigToRequestFields(options.config),
+        ...mapSamplingToRequestFields(options),
     };
 }
 
-function mapConfigToRequestFields(config: GenerateOptions['config']) {
+function mapSamplingToRequestFields(
+    options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>
+) {
     return {
-        ...(config?.temperature !== undefined
-            ? { temperature: config.temperature }
+        ...(options.temperature !== undefined
+            ? { temperature: options.temperature }
             : {}),
-        ...(config?.maxTokens !== undefined ? { max_tokens: config.maxTokens } : {}),
-        ...(config?.topP !== undefined ? { top_p: config.topP } : {}),
-        ...(config?.stopSequences ? { stop: config.stopSequences } : {}),
-        ...(config?.frequencyPenalty !== undefined
-            ? { frequency_penalty: config.frequencyPenalty }
+        ...(options.maxTokens !== undefined
+            ? { max_tokens: options.maxTokens }
             : {}),
-        ...(config?.presencePenalty !== undefined
-            ? { presence_penalty: config.presencePenalty }
+        ...(options.topP !== undefined ? { top_p: options.topP } : {}),
+    };
+}
+
+function mapOpenAIProviderOptionsToRequestFields(
+    options: OpenAICompatGenerateProviderOptions | undefined
+) {
+    return {
+        ...(options?.store !== undefined ? { store: options.store } : {}),
+        ...(options?.serviceTier !== undefined
+            ? { service_tier: options.serviceTier }
             : {}),
+        ...(options?.parallelToolCalls !== undefined
+            ? { parallel_tool_calls: options.parallelToolCalls }
+            : {}),
+        ...(options?.user !== undefined ? { user: options.user } : {}),
+        ...(options?.stopSequences ? { stop: options.stopSequences } : {}),
+        ...(options?.frequencyPenalty !== undefined
+            ? { frequency_penalty: options.frequencyPenalty }
+            : {}),
+        ...(options?.presencePenalty !== undefined
+            ? { presence_penalty: options.presencePenalty }
+            : {}),
+        ...(options?.seed !== undefined ? { seed: options.seed } : {}),
     };
 }
 
@@ -412,7 +442,10 @@ export async function* transformStream(
     };
 }
 
-function mapReasoningToRequestFields(modelId: string, options: GenerateOptions) {
+function mapReasoningToRequestFields(
+    modelId: string,
+    options: GenerateOptions
+) {
     if (!options.reasoning) {
         return {};
     }
@@ -474,4 +507,3 @@ function extractTextContent(content: unknown): string | null {
 
     return text.length > 0 ? text : null;
 }
-

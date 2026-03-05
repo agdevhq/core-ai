@@ -52,6 +52,7 @@ export default defineConfig({
 ```
 
 This produces:
+
 - `dist/index.js` — ESM JavaScript bundle (dependencies externalized)
 - `dist/index.d.ts` — TypeScript declarations
 

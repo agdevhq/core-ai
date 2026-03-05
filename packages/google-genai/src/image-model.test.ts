@@ -62,8 +62,10 @@ describe('createGoogleGenAIImageModel', () => {
             n: 2,
             size: '1024x1024',
             providerOptions: {
-                config: {
-                    guidanceScale: 7,
+                google: {
+                    config: {
+                        guidanceScale: 7,
+                    },
                 },
             },
         });

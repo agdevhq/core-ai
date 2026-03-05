@@ -5,7 +5,10 @@ import type {
     EmbeddingModel,
 } from '@core-ai/core-ai';
 import { wrapGoogleError } from './google-error.js';
-import { asObject } from './object-utils.js';
+import {
+    parseGoogleEmbedProviderOptions,
+    type GoogleEmbedProviderOptions,
+} from './provider-options.js';
 
 type GoogleGenAIEmbeddingClient = {
     models: GoogleGenAI['models'];
@@ -33,20 +36,21 @@ export function createGoogleGenAIEmbeddingModel(
                           }
                         : {}),
                 };
-                const providerOptions = options.providerOptions;
-                const request: EmbedContentParameters = providerOptions
-                    ? {
-                          ...baseRequest,
-                          ...(providerOptions as Partial<EmbedContentParameters>),
-                          config: {
-                              ...baseRequest.config,
-                              ...(asObject(providerOptions['config']) as Record<
-                                  string,
-                                  unknown
-                              >),
-                          },
-                      }
-                    : baseRequest;
+                const googleOptions = parseGoogleEmbedProviderOptions(
+                    options.providerOptions
+                );
+                const providerConfig =
+                    mapGoogleEmbedProviderOptionsToConfig(googleOptions);
+                const request: EmbedContentParameters =
+                    Object.keys(providerConfig).length > 0
+                        ? {
+                              ...baseRequest,
+                              config: {
+                                  ...baseRequest.config,
+                                  ...providerConfig,
+                              },
+                          }
+                        : baseRequest;
                 const response = await client.models.embedContent(request);
                 const tokenCounts = (response.embeddings ?? [])
                     .map((item) => item.statistics?.tokenCount)
@@ -74,5 +78,23 @@ export function createGoogleGenAIEmbeddingModel(
                 throw wrapGoogleError(error);
             }
         },
+    };
+}
+
+function mapGoogleEmbedProviderOptionsToConfig(
+    options: GoogleEmbedProviderOptions | undefined
+): Record<string, unknown> {
+    return {
+        ...(options?.taskType !== undefined
+            ? { taskType: options.taskType }
+            : {}),
+        ...(options?.title !== undefined ? { title: options.title } : {}),
+        ...(options?.mimeType !== undefined
+            ? { mimeType: options.mimeType }
+            : {}),
+        ...(options?.autoTruncate !== undefined
+            ? { autoTruncate: options.autoTruncate }
+            : {}),
+        ...(options?.config ?? {}),
     };
 }

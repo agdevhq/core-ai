@@ -3,6 +3,7 @@ Create a PR for the current branch. Use git to check the diff to the base branch
 Use the following format for the PR description:
 
 Features:
+
 ```
 ## Summary
 
@@ -12,6 +13,7 @@ Features:
 ```
 
 Fixes:
+
 ```
 ## Problem Description
 
@@ -21,6 +23,5 @@ Fixes:
 
 ## Changes
 ```
-
 
 IMPORTANT: Escape any backticks in the PR description, else they will be interpreted by the shell.

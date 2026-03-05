@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
     ProviderError,
     defineTool,
+    type GenerateOptions,
     type Message,
     type ToolSet,
 } from '@core-ai/core-ai';
@@ -267,20 +268,20 @@ describe('structured output helpers', () => {
             schema,
             schemaName: 'weather_schema',
             schemaDescription: 'Structured weather output',
-            config: {
-                maxTokens: 256,
-            },
+            maxTokens: 256,
         });
 
         expect(result.toolChoice).toBeUndefined();
         expect(result.tools).toBeUndefined();
         expect(result.providerOptions).toMatchObject({
-            output_config: {
-                format: {
-                    type: 'json_schema',
-                    schema: {
-                        type: 'object',
-                        additionalProperties: false,
+            anthropic: {
+                outputConfig: {
+                    format: {
+                        type: 'json_schema',
+                        schema: {
+                            type: 'object',
+                            additionalProperties: false,
+                        },
                     },
                 },
             },
@@ -347,7 +348,9 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'step-by-step thought',
-                        providerMetadata: { openai: { encryptedContent: 'enc_123' } },
+                        providerMetadata: {
+                            openai: { encryptedContent: 'enc_123' },
+                        },
                     },
                     { type: 'text', text: 'answer' },
                 ],
@@ -359,7 +362,10 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
-                    { type: 'text', text: '<thinking>step-by-step thought</thinking>' },
+                    {
+                        type: 'text',
+                        text: '<thinking>step-by-step thought</thinking>',
+                    },
                     { type: 'text', text: 'answer' },
                 ],
             },
@@ -400,7 +406,7 @@ describe('reasoning support', () => {
             createGenerateRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
-                config: { temperature: 0.2 },
+                temperature: 0.2,
             })
         ).toThrowError(ProviderError);
 
@@ -408,7 +414,7 @@ describe('reasoning support', () => {
             createStreamRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
-                config: { topP: 0.9 },
+                topP: 0.9,
             })
         ).toThrowError(ProviderError);
 
@@ -424,7 +430,7 @@ describe('reasoning support', () => {
             createGenerateRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
-                config: { topP: 0.95 },
+                topP: 0.95,
             })
         ).not.toThrow();
 
@@ -433,7 +439,7 @@ describe('reasoning support', () => {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 toolChoice: 'auto',
-                config: { topP: 0.96 },
+                topP: 0.96,
             })
         ).not.toThrow();
 
@@ -449,9 +455,35 @@ describe('reasoning support', () => {
             createGenerateRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
-                providerOptions: { top_k: 5 },
+                providerOptions: { anthropic: { topK: 5 } },
             })
         ).toThrowError(ProviderError);
+    });
+
+    it('should reject invalid anthropic provider options', () => {
+        const invalidProviderOptions = {
+            anthropic: { topK: '5' },
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected number/);
+    });
+
+    it('should reject null anthropic provider options', () => {
+        const invalidProviderOptions = {
+            anthropic: null,
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Expected object, received null/);
     });
 
     it('should parse thinking and redacted_thinking blocks from responses', () => {

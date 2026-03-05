@@ -25,6 +25,10 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
+import {
+    parseMistralGenerateProviderOptions,
+    type MistralGenerateProviderOptions,
+} from './provider-options.js';
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
@@ -183,7 +187,9 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
             toolName,
         },
         reasoning: options.reasoning,
-        config: options.config,
+        temperature: options.temperature,
+        maxTokens: options.maxTokens,
+        topP: options.topP,
         providerOptions: options.providerOptions,
         signal: options.signal,
     };
@@ -193,23 +199,29 @@ export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
 ): ChatCompletionRequest {
+    const mistralOptions = parseMistralGenerateProviderOptions(
+        options.providerOptions
+    );
     const baseRequest: ChatCompletionRequest = {
         ...createRequestBase(modelId, options),
     };
 
-    return mergeProviderOptions(baseRequest, options.providerOptions);
+    return mapMistralProviderOptionsToRequest(baseRequest, mistralOptions);
 }
 
 export function createStreamRequest(
     modelId: string,
     options: GenerateOptions
 ): ChatCompletionStreamRequest {
+    const mistralOptions = parseMistralGenerateProviderOptions(
+        options.providerOptions
+    );
     const baseRequest: ChatCompletionStreamRequest = {
         ...createRequestBase(modelId, options),
         stream: true,
     };
 
-    return mergeProviderOptions(baseRequest, options.providerOptions);
+    return mapMistralProviderOptionsToRequest(baseRequest, mistralOptions);
 }
 
 function createRequestBase(modelId: string, options: GenerateOptions) {
@@ -222,37 +234,57 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
         ...(options.toolChoice
             ? { toolChoice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...mapConfigToRequestFields(options.config),
+        ...mapSamplingToRequestFields(options),
     };
 }
 
-function mapConfigToRequestFields(config: GenerateOptions['config']) {
+function mapSamplingToRequestFields(
+    options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>
+) {
     return {
-        ...(config?.temperature !== undefined
-            ? { temperature: config.temperature }
+        ...(options.temperature !== undefined
+            ? { temperature: options.temperature }
             : {}),
-        ...(config?.maxTokens !== undefined ? { maxTokens: config.maxTokens } : {}),
-        ...(config?.topP !== undefined ? { topP: config.topP } : {}),
-        ...(config?.stopSequences ? { stop: config.stopSequences } : {}),
-        ...(config?.frequencyPenalty !== undefined
-            ? { frequencyPenalty: config.frequencyPenalty }
+        ...(options.maxTokens !== undefined
+            ? { maxTokens: options.maxTokens }
             : {}),
-        ...(config?.presencePenalty !== undefined
-            ? { presencePenalty: config.presencePenalty }
-            : {}),
+        ...(options.topP !== undefined ? { topP: options.topP } : {}),
     };
 }
 
-function mergeProviderOptions<TRequest extends object>(
+function mapMistralProviderOptionsToRequest<TRequest extends object>(
     baseRequest: TRequest,
-    providerOptions: Record<string, unknown> | undefined
+    providerOptions: MistralGenerateProviderOptions | undefined
 ): TRequest {
-    return providerOptions
-        ? {
-              ...baseRequest,
-              ...(providerOptions as Partial<TRequest>),
-          }
-        : baseRequest;
+    if (!providerOptions) {
+        return baseRequest;
+    }
+
+    const mergedRequest = {
+        ...baseRequest,
+        ...(providerOptions.stopSequences
+            ? { stop: providerOptions.stopSequences }
+            : {}),
+        ...(providerOptions.frequencyPenalty !== undefined
+            ? { frequencyPenalty: providerOptions.frequencyPenalty }
+            : {}),
+        ...(providerOptions.presencePenalty !== undefined
+            ? { presencePenalty: providerOptions.presencePenalty }
+            : {}),
+        ...(providerOptions.randomSeed !== undefined
+            ? { randomSeed: providerOptions.randomSeed }
+            : {}),
+        ...(providerOptions.parallelToolCalls !== undefined
+            ? { parallelToolCalls: providerOptions.parallelToolCalls }
+            : {}),
+        ...(providerOptions.promptMode !== undefined
+            ? { promptMode: providerOptions.promptMode }
+            : {}),
+        ...(providerOptions.safePrompt !== undefined
+            ? { safePrompt: providerOptions.safePrompt }
+            : {}),
+    };
+    return mergedRequest as TRequest;
 }
 
 export function mapGenerateResponse(

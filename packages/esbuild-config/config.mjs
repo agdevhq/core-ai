@@ -8,9 +8,7 @@ export function buildConfig({ plugins = [], ...options } = {}) {
         banner: {
             js: 'import { createRequire } from "module"; const require = createRequire(import.meta.url);const __dirname = import.meta.dirname;',
         },
-        plugins: [
-            ...plugins,
-        ],
+        plugins: [...plugins],
         ...options,
     };
 }

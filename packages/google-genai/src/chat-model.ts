@@ -127,7 +127,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
         return validateStructuredToolArguments(
             schema,
             structuredToolCall.arguments,
-            provider,
+            provider
         );
     }
 
@@ -183,7 +183,7 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
             validatedObject = validateStructuredToolArguments(
                 schema,
                 event.toolCall.arguments,
-                provider,
+                provider
             );
             yield {
                 type: 'object',
@@ -264,7 +264,12 @@ function parseAndValidateStructuredPayload<TSchema extends z.ZodType>(
     provider: string
 ): z.infer<TSchema> {
     const parsedPayload = parseJson(rawPayload, provider);
-    return validateStructuredObject(schema, parsedPayload, provider, rawPayload);
+    return validateStructuredObject(
+        schema,
+        parsedPayload,
+        provider,
+        rawPayload
+    );
 }
 
 function parseJson(rawOutput: string, provider: string): unknown {

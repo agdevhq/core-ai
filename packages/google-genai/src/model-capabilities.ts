@@ -41,7 +41,9 @@ const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
     },
 };
 
-export function getGoogleModelCapabilities(modelId: string): GoogleModelCapabilities {
+export function getGoogleModelCapabilities(
+    modelId: string
+): GoogleModelCapabilities {
     const normalizedModelId = normalizeModelId(modelId);
     return MODEL_CAPABILITIES[normalizedModelId] ?? DEFAULT_CAPABILITIES;
 }
@@ -50,9 +52,7 @@ export function normalizeModelId(modelId: string): string {
     return modelId.replace(/-\d{8}$/, '');
 }
 
-export function toGoogleThinkingLevel(
-    effort: ReasoningEffort
-): 'LOW' | 'HIGH' {
+export function toGoogleThinkingLevel(effort: ReasoningEffort): 'LOW' | 'HIGH' {
     if (effort === 'high' || effort === 'max') {
         return 'HIGH';
     }

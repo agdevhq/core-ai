@@ -18,6 +18,7 @@ npm install -w <workspace-name> some-package
 All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. All relative imports must use `.ts` extensions.
 
 TypeScript configurations:
+
 - **Base** (`base.json`): `module: "NodeNext"`, `moduleDetection: "force"`, target ES2022, strict mode
 - **Node.js services** (`node.json`): base NodeNext with build output settings
 
@@ -57,11 +58,14 @@ export function createRouter<TRoutes extends RouteMap>(
 
 // Avoid
 export class RouterManager {
-    createRouter() { /* ... */ }
+    createRouter() {
+        /* ... */
+    }
 }
 ```
 
 Classes are only acceptable for:
+
 - Custom Error types with inheritance
 - External library integration requiring class-based patterns
 

@@ -1,9 +1,5 @@
 import { LLMError } from './errors.ts';
-import type {
-    EmbeddingModel,
-    EmbedOptions,
-    EmbedResult,
-} from './types.ts';
+import type { EmbeddingModel, EmbedOptions, EmbedResult } from './types.ts';
 
 export type EmbedParams = EmbedOptions & {
     model: EmbeddingModel;

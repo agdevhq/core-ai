@@ -26,8 +26,16 @@ import type {
     UserContentPart,
 } from '@core-ai/core-ai';
 import { getProviderMetadata } from '@core-ai/core-ai';
-import { getGoogleModelCapabilities, toGoogleThinkingBudget, toGoogleThinkingLevel } from './model-capabilities.js';
+import {
+    getGoogleModelCapabilities,
+    toGoogleThinkingBudget,
+    toGoogleThinkingLevel,
+} from './model-capabilities.js';
 import { asObject } from './object-utils.js';
+import {
+    parseGoogleGenerateProviderOptions,
+    type GoogleGenerateProviderOptions,
+} from './provider-options.js';
 
 export type GoogleReasoningMetadata = {
     thoughtSignature?: string;
@@ -86,7 +94,10 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
                     continue;
                 }
 
-                const googleMeta = getProviderMetadata<GoogleReasoningMetadata>(part.providerMetadata, 'google');
+                const googleMeta = getProviderMetadata<GoogleReasoningMetadata>(
+                    part.providerMetadata,
+                    'google'
+                );
                 if (part.text.length === 0) {
                     continue;
                 }
@@ -95,7 +106,8 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
                     thought: true,
                 };
                 if (typeof googleMeta?.thoughtSignature === 'string') {
-                    thoughtPart['thoughtSignature'] = googleMeta.thoughtSignature;
+                    thoughtPart['thoughtSignature'] =
+                        googleMeta.thoughtSignature;
                 }
                 assistantParts.push(thoughtPart as Part);
             }
@@ -261,7 +273,9 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
             type: 'tool',
             toolName,
         },
-        config: options.config,
+        temperature: options.temperature,
+        maxTokens: options.maxTokens,
+        topP: options.topP,
         providerOptions: options.providerOptions,
         signal: options.signal,
     };
@@ -303,55 +317,63 @@ export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
 ): GenerateContentParameters {
+    const googleOptions = parseGoogleGenerateProviderOptions(
+        options.providerOptions
+    );
     const convertedMessages = convertMessages(options.messages);
+    const requestConfig = {
+        ...(convertedMessages.systemInstruction
+            ? { systemInstruction: convertedMessages.systemInstruction }
+            : {}),
+        ...(options.tools && Object.keys(options.tools).length > 0
+            ? { tools: convertTools(options.tools) }
+            : {}),
+        ...(options.toolChoice
+            ? { toolConfig: convertToolChoice(options.toolChoice) }
+            : {}),
+        ...mapSamplingToConfig(options),
+        ...mapReasoningToConfig(modelId, options, googleOptions),
+        ...mapGoogleProviderOptionsToConfig(googleOptions),
+    };
+
     const baseRequest: GenerateContentParameters = {
         model: modelId,
         contents: convertedMessages.contents,
-        config: {
-            ...(convertedMessages.systemInstruction
-                ? { systemInstruction: convertedMessages.systemInstruction }
-                : {}),
-            ...(options.tools && Object.keys(options.tools).length > 0
-                ? { tools: convertTools(options.tools) }
-                : {}),
-            ...(options.toolChoice
-                ? { toolConfig: convertToolChoice(options.toolChoice) }
-                : {}),
-            ...(options.config?.temperature !== undefined
-                ? { temperature: options.config.temperature }
-                : {}),
-            ...(options.config?.maxTokens !== undefined
-                ? { maxOutputTokens: options.config.maxTokens }
-                : {}),
-            ...(options.config?.topP !== undefined
-                ? { topP: options.config.topP }
-                : {}),
-            ...(options.config?.stopSequences
-                ? { stopSequences: options.config.stopSequences }
-                : {}),
-            ...(options.config?.frequencyPenalty !== undefined
-                ? { frequencyPenalty: options.config.frequencyPenalty }
-                : {}),
-            ...(options.config?.presencePenalty !== undefined
-                ? { presencePenalty: options.config.presencePenalty }
-                : {}),
-            ...mapReasoningToConfig(modelId, options),
-        },
+        config: requestConfig,
     };
+    return baseRequest;
+}
 
-    const providerOptions = options.providerOptions;
-    if (!providerOptions) {
-        return baseRequest;
-    }
-
-    const providerConfig = asObject(providerOptions['config']);
+function mapSamplingToConfig(
+    options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>
+) {
     return {
-        ...baseRequest,
-        ...(providerOptions as Partial<GenerateContentParameters>),
-        config: {
-            ...baseRequest.config,
-            ...providerConfig,
-        },
+        ...(options.temperature !== undefined
+            ? { temperature: options.temperature }
+            : {}),
+        ...(options.maxTokens !== undefined
+            ? { maxOutputTokens: options.maxTokens }
+            : {}),
+        ...(options.topP !== undefined ? { topP: options.topP } : {}),
+    };
+}
+
+function mapGoogleProviderOptionsToConfig(
+    options: GoogleGenerateProviderOptions | undefined
+): Record<string, unknown> {
+    return {
+        ...(options?.stopSequences
+            ? { stopSequences: options.stopSequences }
+            : {}),
+        ...(options?.frequencyPenalty !== undefined
+            ? { frequencyPenalty: options.frequencyPenalty }
+            : {}),
+        ...(options?.presencePenalty !== undefined
+            ? { presencePenalty: options.presencePenalty }
+            : {}),
+        ...(options?.seed !== undefined ? { seed: options.seed } : {}),
+        ...(options?.topK !== undefined ? { topK: options.topK } : {}),
+        ...(options?.config ?? {}),
     };
 }
 
@@ -466,7 +488,10 @@ export async function* transformStream(
         if (chunk.text) {
             if (reasoningOpen) {
                 reasoningOpen = false;
-                yield { type: 'reasoning-end', providerMetadata: { google: {} } };
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: { google: {} },
+                };
             }
             yield {
                 type: 'text-delta',
@@ -478,7 +503,10 @@ export async function* transformStream(
         if (functionCalls.length > 0) {
             if (reasoningOpen) {
                 reasoningOpen = false;
-                yield { type: 'reasoning-end', providerMetadata: { google: {} } };
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: { google: {} },
+                };
             }
             sawToolCalls = true;
             for (const [index, functionCall] of functionCalls.entries()) {
@@ -550,14 +578,15 @@ export async function* transformStream(
 
 function mapReasoningToConfig(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    googleProviderOptions: GoogleGenerateProviderOptions | undefined
 ): Record<string, unknown> {
     if (!options.reasoning) {
         return {};
     }
 
     const capabilities = getGoogleModelCapabilities(modelId);
-    const providerConfig = asObject(options.providerOptions?.['config']);
+    const providerConfig = asObject(googleProviderOptions?.config);
     const providerThinkingConfig = asObject(providerConfig['thinkingConfig']);
     if (Object.keys(providerThinkingConfig).length > 0) {
         return {};
@@ -594,15 +623,17 @@ function extractAssistantParts(
                 continue;
             }
             const thoughtSignature =
-                typeof (part as { thoughtSignature?: unknown }).thoughtSignature ===
-                'string'
+                typeof (part as { thoughtSignature?: unknown })
+                    .thoughtSignature === 'string'
                     ? (part as { thoughtSignature?: string }).thoughtSignature
                     : undefined;
             parts.push({
                 type: 'reasoning',
                 text: thoughtText,
                 providerMetadata: {
-                    google: { ...(thoughtSignature ? { thoughtSignature } : {}) },
+                    google: {
+                        ...(thoughtSignature ? { thoughtSignature } : {}),
+                    },
                 },
             });
             continue;
@@ -629,7 +660,9 @@ function extractAssistantParts(
         }
     }
 
-    for (const [index, functionCall] of (response.functionCalls ?? []).entries()) {
+    for (const [index, functionCall] of (
+        response.functionCalls ?? []
+    ).entries()) {
         const toolCall = mapFunctionCall(functionCall, index);
         const key = `${toolCall.id}:${toolCall.name}`;
         if (seenToolCalls.has(key)) {
@@ -655,7 +688,11 @@ function extractAssistantParts(
 function extractReasoningDeltas(response: GenerateContentResponse): string[] {
     const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
     return candidateParts.flatMap((part) => {
-        if (!part.thought || typeof part.text !== 'string' || part.text.length === 0) {
+        if (
+            !part.thought ||
+            typeof part.text !== 'string' ||
+            part.text.length === 0
+        ) {
             return [];
         }
         return [part.text];

@@ -5,7 +5,10 @@ import type {
     ImageModel,
 } from '@core-ai/core-ai';
 import { wrapGoogleError } from './google-error.js';
-import { asObject } from './object-utils.js';
+import {
+    parseGoogleImageProviderOptions,
+    type GoogleImageProviderOptions,
+} from './provider-options.js';
 
 type GoogleGenAIImageClient = {
     models: GoogleGenAI['models'];
@@ -32,20 +35,21 @@ export function createGoogleGenAIImageModel(
                         ...mapSizeToImageConfig(options.size),
                     },
                 };
-                const providerOptions = options.providerOptions;
-                const request: GenerateImagesParameters = providerOptions
-                    ? {
-                          ...baseRequest,
-                          ...(providerOptions as Partial<GenerateImagesParameters>),
-                          config: {
-                              ...baseRequest.config,
-                              ...(asObject(providerOptions['config']) as Record<
-                                  string,
-                                  unknown
-                              >),
-                          },
-                      }
-                    : baseRequest;
+                const googleOptions = parseGoogleImageProviderOptions(
+                    options.providerOptions
+                );
+                const providerConfig =
+                    mapGoogleImageProviderOptionsToConfig(googleOptions);
+                const request: GenerateImagesParameters =
+                    Object.keys(providerConfig).length > 0
+                        ? {
+                              ...baseRequest,
+                              config: {
+                                  ...baseRequest.config,
+                                  ...providerConfig,
+                              },
+                          }
+                        : baseRequest;
                 const response = await client.models.generateImages(request);
 
                 return {
@@ -59,6 +63,58 @@ export function createGoogleGenAIImageModel(
                 throw wrapGoogleError(error);
             }
         },
+    };
+}
+
+function mapGoogleImageProviderOptionsToConfig(
+    options: GoogleImageProviderOptions | undefined
+): Record<string, unknown> {
+    return {
+        ...(options?.outputGcsUri !== undefined
+            ? { outputGcsUri: options.outputGcsUri }
+            : {}),
+        ...(options?.negativePrompt !== undefined
+            ? { negativePrompt: options.negativePrompt }
+            : {}),
+        ...(options?.aspectRatio !== undefined
+            ? { aspectRatio: options.aspectRatio }
+            : {}),
+        ...(options?.guidanceScale !== undefined
+            ? { guidanceScale: options.guidanceScale }
+            : {}),
+        ...(options?.seed !== undefined ? { seed: options.seed } : {}),
+        ...(options?.safetyFilterLevel !== undefined
+            ? { safetyFilterLevel: options.safetyFilterLevel }
+            : {}),
+        ...(options?.personGeneration !== undefined
+            ? { personGeneration: options.personGeneration }
+            : {}),
+        ...(options?.includeSafetyAttributes !== undefined
+            ? { includeSafetyAttributes: options.includeSafetyAttributes }
+            : {}),
+        ...(options?.includeRaiReason !== undefined
+            ? { includeRaiReason: options.includeRaiReason }
+            : {}),
+        ...(options?.language !== undefined
+            ? { language: options.language }
+            : {}),
+        ...(options?.outputMimeType !== undefined
+            ? { outputMimeType: options.outputMimeType }
+            : {}),
+        ...(options?.outputCompressionQuality !== undefined
+            ? { outputCompressionQuality: options.outputCompressionQuality }
+            : {}),
+        ...(options?.addWatermark !== undefined
+            ? { addWatermark: options.addWatermark }
+            : {}),
+        ...(options?.labels !== undefined ? { labels: options.labels } : {}),
+        ...(options?.imageSize !== undefined
+            ? { imageSize: options.imageSize }
+            : {}),
+        ...(options?.enhancePrompt !== undefined
+            ? { enhancePrompt: options.enhancePrompt }
+            : {}),
+        ...(options?.config ?? {}),
     };
 }
 

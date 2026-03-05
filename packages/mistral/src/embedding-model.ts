@@ -6,6 +6,7 @@ import type {
     EmbeddingModel,
 } from '@core-ai/core-ai';
 import { wrapMistralError } from './mistral-error.js';
+import { parseMistralEmbedProviderOptions } from './provider-options.js';
 
 type MistralEmbeddingClient = {
     embeddings: Mistral['embeddings'];
@@ -27,11 +28,14 @@ export function createMistralEmbeddingModel(
                         ? { outputDimension: options.dimensions }
                         : {}),
                 };
+                const mistralOptions = parseMistralEmbedProviderOptions(
+                    options.providerOptions
+                );
 
-                const request = options.providerOptions
+                const request = mistralOptions
                     ? {
                           ...baseRequest,
-                          ...(options.providerOptions as Partial<EmbeddingRequest>),
+                          ...mistralOptions,
                       }
                     : baseRequest;
 

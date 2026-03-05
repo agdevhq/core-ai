@@ -18,9 +18,9 @@ describe('normalizeModelId', () => {
 
 describe('getOpenAIModelCapabilities', () => {
     it('should return explicit capabilities for known models', () => {
-        expect(getOpenAIModelCapabilities('gpt-5.2').reasoning.supportedRange).toEqual(
-            ['low', 'medium', 'high', 'max']
-        );
+        expect(
+            getOpenAIModelCapabilities('gpt-5.2').reasoning.supportedRange
+        ).toEqual(['low', 'medium', 'high', 'max']);
     });
 
     it('should apply defaults for unknown models', () => {

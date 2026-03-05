@@ -61,7 +61,9 @@ describe('createMistral', () => {
         await provider
             .chatModel('mistral-large-latest')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
-        await provider.embeddingModel('mistral-embed').embed({ input: 'hello' });
+        await provider
+            .embeddingModel('mistral-embed')
+            .embed({ input: 'hello' });
 
         expect(complete).toHaveBeenCalledTimes(1);
         expect(createEmbedding).toHaveBeenCalledTimes(1);
