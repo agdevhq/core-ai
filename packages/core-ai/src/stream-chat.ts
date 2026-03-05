@@ -1,4 +1,4 @@
-import { LLMError } from './errors.ts';
+import { assertNonEmptyMessages } from './assertions.ts';
 import type { ChatModel, GenerateOptions, StreamResult } from './types.ts';
 
 export type StreamParams = GenerateOptions & {
@@ -6,9 +6,7 @@ export type StreamParams = GenerateOptions & {
 };
 
 export async function stream(params: StreamParams): Promise<StreamResult> {
-    if (params.messages.length === 0) {
-        throw new LLMError('messages must not be empty');
-    }
+    assertNonEmptyMessages(params.messages);
 
     const { model, ...options } = params;
     return model.stream(options);

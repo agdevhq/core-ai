@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import { LLMError } from './errors.ts';
+import { assertNonEmptyMessages } from './assertions.ts';
 import type {
     ChatModel,
     GenerateObjectOptions,
@@ -14,9 +14,7 @@ export type GenerateObjectParams<TSchema extends z.ZodType> =
 export async function generateObject<TSchema extends z.ZodType>(
     params: GenerateObjectParams<TSchema>
 ): Promise<GenerateObjectResult<TSchema>> {
-    if (params.messages.length === 0) {
-        throw new LLMError('messages must not be empty');
-    }
+    assertNonEmptyMessages(params.messages);
 
     const { model, ...options } = params;
     return model.generateObject(options);

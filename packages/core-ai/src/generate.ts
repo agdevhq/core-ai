@@ -1,4 +1,4 @@
-import { LLMError } from './errors.ts';
+import { assertNonEmptyMessages } from './assertions.ts';
 import type { ChatModel, GenerateOptions, GenerateResult } from './types.ts';
 
 export type GenerateParams = GenerateOptions & {
@@ -8,9 +8,7 @@ export type GenerateParams = GenerateOptions & {
 export async function generate(
     params: GenerateParams
 ): Promise<GenerateResult> {
-    if (params.messages.length === 0) {
-        throw new LLMError('messages must not be empty');
-    }
+    assertNonEmptyMessages(params.messages);
 
     const { model, ...options } = params;
     return model.generate(options);

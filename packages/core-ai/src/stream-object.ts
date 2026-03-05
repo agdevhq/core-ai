@@ -1,5 +1,7 @@
 import type { z } from 'zod';
+import { assertNonEmptyMessages } from './assertions.ts';
 import { LLMError } from './errors.ts';
+import { createSingleUseStreamResult } from './single-use-stream.ts';
 import type {
     ChatModel,
     GenerateObjectResult,
@@ -16,9 +18,7 @@ export type StreamObjectParams<TSchema extends z.ZodType> =
 export async function streamObject<TSchema extends z.ZodType>(
     params: StreamObjectParams<TSchema>
 ): Promise<StreamObjectResult<TSchema>> {
-    if (params.messages.length === 0) {
-        throw new LLMError('messages must not be empty');
-    }
+    assertNonEmptyMessages(params.messages);
 
     const { model, ...options } = params;
     return model.streamObject(options);
@@ -37,8 +37,6 @@ export function createObjectStreamResult<TSchema extends z.ZodType>(
             rejectResponse = reject;
         }
     );
-
-    let iteratorCreated = false;
 
     async function* iterate(): AsyncGenerator<ObjectStreamEvent<TSchema>> {
         let objectResult: z.infer<TSchema> | undefined;
@@ -84,29 +82,11 @@ export function createObjectStreamResult<TSchema extends z.ZodType>(
     }
 
     const generator = iterate();
-
-    return {
-        [Symbol.asyncIterator]() {
-            if (iteratorCreated) {
-                throw new Error('Stream can only be iterated once');
-            }
-            iteratorCreated = true;
-            return generator;
+    return createSingleUseStreamResult({
+        generator,
+        responsePromise,
+        onAutoConsumeError: () => {
+            // The rejection is handled by rejectResponse.
         },
-        toResponse() {
-            if (!iteratorCreated) {
-                iteratorCreated = true;
-                (async () => {
-                    try {
-                        for await (const _event of generator) {
-                            // Consume the stream to build the final response.
-                        }
-                    } catch {
-                        // The rejection is handled by rejectResponse.
-                    }
-                })();
-            }
-            return responsePromise;
-        },
-    };
+    });
 }

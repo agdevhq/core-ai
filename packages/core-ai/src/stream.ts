@@ -4,6 +4,7 @@ import type {
     StreamEvent,
     StreamResult,
 } from './types.ts';
+import { createSingleUseStreamResult } from './single-use-stream.ts';
 
 export function createStreamResult(
     source: AsyncIterable<StreamEvent>
@@ -12,8 +13,6 @@ export function createStreamResult(
     const responsePromise = new Promise<GenerateResult>((resolve) => {
         resolveResponse = resolve;
     });
-
-    let iteratorCreated = false;
 
     async function* iterate(): AsyncGenerator<StreamEvent> {
         const parts: AssistantContentPart[] = [];
@@ -124,25 +123,8 @@ export function createStreamResult(
     }
 
     const generator = iterate();
-
-    return {
-        [Symbol.asyncIterator]() {
-            if (iteratorCreated) {
-                throw new Error('Stream can only be iterated once');
-            }
-            iteratorCreated = true;
-            return generator;
-        },
-        toResponse() {
-            if (!iteratorCreated) {
-                iteratorCreated = true;
-                (async () => {
-                    for await (const _event of generator) {
-                        // Consume the stream to build the final response.
-                    }
-                })();
-            }
-            return responsePromise;
-        },
-    };
+    return createSingleUseStreamResult({
+        generator,
+        responsePromise,
+    });
 }
