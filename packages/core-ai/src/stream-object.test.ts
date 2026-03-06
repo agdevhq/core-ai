@@ -256,14 +256,13 @@ describe('createObjectStream', () => {
     });
 
     it('should reject result and iterators on abort while preserving events', async () => {
-        const abort = vi.fn();
+        const controller = new AbortController();
         const source = createPushableAsyncIterable<
             ObjectStreamEvent<typeof weatherSchema>
         >();
-        const objectStream = createObjectStream(
-            source.iterable,
-            { abort }
-        );
+        const objectStream = createObjectStream(source.iterable, {
+            signal: controller.signal,
+        });
 
         const iterator = objectStream[Symbol.asyncIterator]();
 
@@ -280,8 +279,7 @@ describe('createObjectStream', () => {
             },
         });
 
-        objectStream.abort();
-        objectStream.abort();
+        controller.abort();
 
         await expect(objectStream.result).rejects.toBeInstanceOf(StreamAbortedError);
         await expect(objectStream.events).resolves.toEqual([
@@ -293,6 +291,5 @@ describe('createObjectStream', () => {
         await expect(iterator.next()).rejects.toBeInstanceOf(
             StreamAbortedError
         );
-        expect(abort).toHaveBeenCalledTimes(1);
     });
 });

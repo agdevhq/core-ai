@@ -397,22 +397,45 @@ describe('stream', () => {
         });
     });
 
-    it('should pass the merged abort signal to streaming requests', async () => {
-        const create = vi.fn(async () =>
-            toAsyncIterable<RawMessageStreamEvent>([
-                {
-                    type: 'message_stop',
-                },
-            ])
+    it('should pass the caller abort signal to streaming requests', async () => {
+        const create = vi.fn(
+            async (_request: unknown, requestOptions?: unknown) => {
+                const typedRequestOptions = requestOptions as
+                    | { signal?: AbortSignal }
+                    | undefined;
+                return {
+                    [Symbol.asyncIterator]() {
+                        return {
+                            async next() {
+                                await new Promise<never>((_resolve, reject) => {
+                                    typedRequestOptions?.signal?.addEventListener(
+                                        'abort',
+                                        () => {
+                                            reject(new Error('aborted'));
+                                        },
+                                        { once: true }
+                                    );
+                                });
+                                return {
+                                    done: true,
+                                    value: undefined,
+                                };
+                            },
+                        };
+                    },
+                } as AsyncIterable<RawMessageStreamEvent>;
+            }
         );
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
             4096
         );
+        const controller = new AbortController();
 
         const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
+            signal: controller.signal,
         });
 
         expect(create).toHaveBeenCalledWith(
@@ -429,7 +452,7 @@ describe('stream', () => {
             | undefined;
         expect(requestOptions?.signal?.aborted).toBe(false);
 
-        chatStream.abort();
+        controller.abort();
 
         await expect(chatStream.result).rejects.toBeInstanceOf(Error);
         expect(requestOptions?.signal?.aborted).toBe(true);

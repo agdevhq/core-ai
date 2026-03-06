@@ -9,11 +9,10 @@ import { createStream } from './base-stream.ts';
 export function createChatStream(
     source: AsyncIterable<StreamEvent>,
     options: {
-        abort?: () => void;
-        abortSignal?: AbortSignal;
+        signal?: AbortSignal;
     } = {}
 ): ChatStream {
-    const { abort, abortSignal } = options;
+    const { signal } = options;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
     let reasoningBuffer = '';
@@ -63,8 +62,7 @@ export function createChatStream(
 
     return createStream({
         source,
-        abort,
-        abortSignal,
+        signal,
         reduceEvent(event) {
             if (event.type === 'reasoning-start') {
                 flushText();

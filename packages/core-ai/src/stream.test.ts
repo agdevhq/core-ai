@@ -397,10 +397,12 @@ describe('createChatStream', () => {
         await expect(iterator.next()).rejects.toBe(failure);
     });
 
-    it('should reject result and iterators with StreamAbortedError on abort', async () => {
+    it('should reject result and iterators with StreamAbortedError on signal abort', async () => {
         const source = createPushableAsyncIterable<StreamEvent>();
-        const abort = vi.fn();
-        const chatStream = createChatStream(source.iterable, { abort });
+        const controller = new AbortController();
+        const chatStream = createChatStream(source.iterable, {
+            signal: controller.signal,
+        });
         const iterator = chatStream[Symbol.asyncIterator]();
 
         source.push({ type: 'text-delta', text: 'partial' });
@@ -410,8 +412,7 @@ describe('createChatStream', () => {
             value: { type: 'text-delta', text: 'partial' },
         });
 
-        chatStream.abort();
-        chatStream.abort();
+        controller.abort();
 
         await expect(chatStream.result).rejects.toBeInstanceOf(
             StreamAbortedError
@@ -431,7 +432,6 @@ describe('createChatStream', () => {
         await expect(replayIterator.next()).rejects.toBeInstanceOf(
             StreamAbortedError
         );
-        expect(abort).toHaveBeenCalledTimes(1);
     });
 
     it('should reject immediately when created with an already-aborted signal', async () => {
@@ -450,7 +450,7 @@ describe('createChatStream', () => {
                 },
             },
             {
-                abortSignal: controller.signal,
+                signal: controller.signal,
             }
         );
 

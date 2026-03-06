@@ -3,16 +3,13 @@ import { StreamAbortedError } from './errors.ts';
 type BaseStream<TEvent, TResult> = AsyncIterable<TEvent> & {
     readonly result: Promise<TResult>;
     readonly events: Promise<readonly TEvent[]>;
-    abort(): void;
 };
 
 export type CreateStreamOptions<TEvent, TResult> = {
     source: AsyncIterable<TEvent>;
     reduceEvent(event: TEvent): void;
     finalizeResult(): TResult;
-    abort?: () => void;
-    abortSignal?: AbortSignal;
-    createAbortError?: () => unknown;
+    signal?: AbortSignal;
 };
 
 type TerminalState<TResult> =
@@ -23,14 +20,7 @@ type TerminalState<TResult> =
 export function createStream<TEvent, TResult>(
     options: CreateStreamOptions<TEvent, TResult>
 ): BaseStream<TEvent, TResult> {
-    const {
-        source,
-        reduceEvent,
-        finalizeResult,
-        abort,
-        abortSignal,
-        createAbortError,
-    } = options;
+    const { source, reduceEvent, finalizeResult, signal } = options;
     const iterator = source[Symbol.asyncIterator]();
     const bufferedEvents: TEvent[] = [];
     let terminalState: TerminalState<TResult> = { status: 'running' };
@@ -45,7 +35,6 @@ export function createStream<TEvent, TResult>(
         resolveEvents = resolve;
     });
     const waiters = new Set<() => void>();
-    let abortError: unknown | undefined;
 
     function notifyWaiters(): void {
         for (const waiter of waiters) {
@@ -89,16 +78,6 @@ export function createStream<TEvent, TResult>(
         notifyWaiters();
     }
 
-    function getAbortError(): unknown {
-        if (abortError !== undefined) {
-            return abortError;
-        }
-        abortError =
-            createAbortError?.() ??
-            new StreamAbortedError('stream aborted');
-        return abortError;
-    }
-
     async function closeSourceIterator(): Promise<void> {
         try {
             await iterator.return?.();
@@ -107,32 +86,22 @@ export function createStream<TEvent, TResult>(
         }
     }
 
-    function abortStream(callAbort: boolean): void {
+    function abortStream(): void {
         if (terminalState.status !== 'running') {
             return;
         }
-
-        const error = getAbortError();
-        if (callAbort) {
-            try {
-                abort?.();
-            } catch (abortFailure) {
-                abortError = abortFailure;
-            }
-        }
-
-        settleRejected(abortError ?? error);
+        settleRejected(new StreamAbortedError('stream aborted'));
         void closeSourceIterator();
     }
 
-    if (abortSignal) {
-        if (abortSignal.aborted) {
-            abortStream(false);
+    if (signal) {
+        if (signal.aborted) {
+            abortStream();
         } else {
-            abortSignal.addEventListener(
+            signal.addEventListener(
                 'abort',
                 () => {
-                    abortStream(false);
+                    abortStream();
                 },
                 { once: true }
             );
@@ -148,10 +117,6 @@ export function createStream<TEvent, TResult>(
                     return;
                 }
                 if (next.done) {
-                    if (abortError !== undefined) {
-                        settleRejected(getAbortError());
-                        return;
-                    }
                     try {
                         settleCompleted(finalizeResult());
                     } catch (error) {
@@ -165,11 +130,7 @@ export function createStream<TEvent, TResult>(
                 reduceEvent(next.value);
             }
         } catch (error) {
-            settleRejected(abortError ?? error);
-        } finally {
-            if (abortError !== undefined) {
-                await closeSourceIterator();
-            }
+            settleRejected(error);
         }
     }
 
@@ -210,8 +171,5 @@ export function createStream<TEvent, TResult>(
         },
         result,
         events,
-        abort() {
-            abortStream(true);
-        },
     };
 }

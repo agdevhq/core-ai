@@ -60,7 +60,6 @@ function createMockChatStream(): ChatStream {
             },
         }),
         events: Promise.resolve([]),
-        abort() {},
     };
 }
 

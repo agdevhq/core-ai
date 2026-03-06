@@ -616,11 +616,10 @@ describe('stream', () => {
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
                 reasoning_effort: 'medium',
-            }),
-            expect.objectContaining({
-                signal: expect.any(AbortSignal),
             })
         );
+        const requestOptions = (create.mock.calls as unknown[][])[0]?.[1];
+        expect(requestOptions).toBeUndefined();
     });
 });
 

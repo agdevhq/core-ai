@@ -66,17 +66,12 @@ export function createGoogleGenAIChatModel(
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const { controller, signal } = createStreamAbortController(
-            options.signal
-        );
         const request = createGenerateRequest(modelId, {
             ...options,
-            signal,
         });
         const stream = await callGenerateContentStreamApi(request);
         return createChatStream(transformStream(stream), {
-            abort: () => controller.abort(),
-            abortSignal: signal,
+            signal: options.signal,
         });
     }
 
@@ -119,24 +114,10 @@ export function createGoogleGenAIChatModel(
                     toolName
                 ),
                 {
-                    abort: () => stream.abort(),
+                    signal: options.signal,
                 }
             );
         },
-    };
-}
-
-function createStreamAbortController(signal?: AbortSignal): {
-    controller: AbortController;
-    signal: AbortSignal;
-} {
-    const controller = new AbortController();
-    // One signal represents either caller-driven or handle-driven cancellation.
-    return {
-        controller,
-        signal: signal
-            ? AbortSignal.any([signal, controller.signal])
-            : controller.signal,
     };
 }
 

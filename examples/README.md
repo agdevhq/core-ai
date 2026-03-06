@@ -52,3 +52,4 @@ npx tsx examples/01-chat-completion.ts
 - `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
 - `11-generate-object.ts`: Typed structured output with `generateObject()`
 - `12-stream-object.ts`: Streaming structured output with `streamObject()`
+- `13-stream-abort.ts`: Cancelling a streaming call with `AbortController`

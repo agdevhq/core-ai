@@ -363,21 +363,44 @@ describe('stream', () => {
         });
     });
 
-    it('should pass the merged abort signal to streaming requests', async () => {
-        const generateContentStream = vi.fn(async () => {
-            return toAsyncIterable<GenerateContentResponse>([
-                asGenerateContentResponse({
-                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
-                }),
-            ]);
-        });
+    it('should pass the caller abort signal to streaming requests', async () => {
+        const generateContentStream = vi.fn(
+            async (request?: unknown) => {
+                const typedRequest = request as
+                    | { config?: { abortSignal?: AbortSignal } }
+                    | undefined;
+                return {
+                    [Symbol.asyncIterator]() {
+                        return {
+                            async next() {
+                                await new Promise<never>((_resolve, reject) => {
+                                    typedRequest?.config?.abortSignal?.addEventListener(
+                                        'abort',
+                                        () => {
+                                            reject(new Error('aborted'));
+                                        },
+                                        { once: true }
+                                    );
+                                });
+                                return {
+                                    done: true,
+                                    value: undefined,
+                                };
+                            },
+                        };
+                    },
+                } as AsyncIterable<GenerateContentResponse>;
+            }
+        );
         const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
         );
+        const controller = new AbortController();
 
         const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
+            signal: controller.signal,
         });
 
         expect(generateContentStream).toHaveBeenCalledWith(
@@ -393,7 +416,7 @@ describe('stream', () => {
             | undefined;
         expect(request?.config?.abortSignal?.aborted).toBe(false);
 
-        chatStream.abort();
+        controller.abort();
 
         await expect(chatStream.result).rejects.toBeInstanceOf(Error);
         expect(request?.config?.abortSignal?.aborted).toBe(true);

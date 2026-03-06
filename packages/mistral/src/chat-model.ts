@@ -60,19 +60,14 @@ export function createMistralChatModel(
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const { controller, signal } = createStreamAbortController(
-            options.signal
-        );
         const request = createStreamRequest(modelId, {
             ...options,
-            signal,
         });
         const stream = (await callMistralChatApi(() =>
             client.chat.stream(request)
         )) as unknown as AsyncIterable<CompletionEvent>;
         return createChatStream(transformStream(stream), {
-            abort: () => controller.abort(),
-            abortSignal: signal,
+            signal: options.signal,
         });
     }
 
@@ -115,23 +110,10 @@ export function createMistralChatModel(
                     toolName
                 ),
                 {
-                    abort: () => stream.abort(),
+                    signal: options.signal,
                 }
             );
         },
-    };
-}
-
-function createStreamAbortController(signal?: AbortSignal): {
-    controller: AbortController;
-    signal: AbortSignal;
-} {
-    const controller = new AbortController();
-    return {
-        controller,
-        signal: signal
-            ? AbortSignal.any([signal, controller.signal])
-            : controller.signal,
     };
 }
 

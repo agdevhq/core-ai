@@ -27,10 +27,10 @@ export async function streamObject<TSchema extends z.ZodType>(
 export function createObjectStream<TSchema extends z.ZodType>(
     source: AsyncIterable<ObjectStreamEvent<TSchema>>,
     options: {
-        abort?: () => void;
+        signal?: AbortSignal;
     } = {}
 ): ObjectStream<TSchema> {
-    const { abort } = options;
+    const { signal } = options;
     let objectResult: z.infer<TSchema> | undefined;
     let finishReason: GenerateObjectResult<TSchema>['finishReason'] = 'unknown';
     let usage: GenerateObjectResult<TSchema>['usage'] = {
@@ -45,7 +45,7 @@ export function createObjectStream<TSchema extends z.ZodType>(
 
     return createStream({
         source,
-        abort,
+        signal,
         reduceEvent(event) {
             if (event.type === 'object') {
                 objectResult = event.object;

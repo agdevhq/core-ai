@@ -68,20 +68,15 @@ export function createAnthropicChatModel(
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const { controller, signal } = createStreamAbortController(
-            options.signal
-        );
         const request = createStreamRequest(modelId, defaultMaxTokens, {
             ...options,
-            signal,
         });
         const stream =
             await callAnthropicMessagesApi<
                 AsyncIterable<RawMessageStreamEvent>
-            >(request, signal);
+            >(request, options.signal);
         return createChatStream(transformStream(stream), {
-            abort: () => controller.abort(),
-            abortSignal: signal,
+            signal: options.signal,
         });
     }
 
@@ -120,23 +115,10 @@ export function createAnthropicChatModel(
                     provider
                 ),
                 {
-                    abort: () => stream.abort(),
+                    signal: options.signal,
                 }
             );
         },
-    };
-}
-
-function createStreamAbortController(signal?: AbortSignal): {
-    controller: AbortController;
-    signal: AbortSignal;
-} {
-    const controller = new AbortController();
-    return {
-        controller,
-        signal: signal
-            ? AbortSignal.any([signal, controller.signal])
-            : controller.signal,
     };
 }
 

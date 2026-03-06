@@ -245,14 +245,10 @@ export type StreamEvent =
  *
  * `events` always resolves with all observed events up to the terminal point,
  * including abort and failure cases.
- *
- * `abort()` is idempotent and rejects active and future iterators with the same
- * abort error used for `result`.
  */
 export type ChatStream = AsyncIterable<StreamEvent> & {
     readonly result: Promise<GenerateResult>;
     readonly events: Promise<readonly StreamEvent[]>;
-    abort(): void;
 };
 
 export type ObjectStreamEvent<TSchema extends z.ZodType> =
@@ -264,15 +260,14 @@ export type ObjectStreamEvent<TSchema extends z.ZodType> =
  * Handle for a single in-flight structured object streaming operation.
  *
  * The lifecycle semantics mirror `ChatStream`: iteration is replayable,
- * `result` settles independently of event consumption, `events` resolves with
- * the observed history, and `abort()` is idempotent.
+ * `result` settles independently of event consumption, and `events` resolves
+ * with the observed history.
  */
 export type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
     ObjectStreamEvent<TSchema>
 > & {
     readonly result: Promise<GenerateObjectResult<TSchema>>;
     readonly events: Promise<readonly ObjectStreamEvent<TSchema>[]>;
-    abort(): void;
 };
 
 export type EmbeddingModel = {
