@@ -322,6 +322,7 @@ export function createGenerateRequest(
     );
     const convertedMessages = convertMessages(options.messages);
     const requestConfig = {
+        ...(options.signal ? { abortSignal: options.signal } : {}),
         ...(convertedMessages.systemInstruction
             ? { systemInstruction: convertedMessages.systemInstruction }
             : {}),

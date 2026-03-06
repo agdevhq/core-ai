@@ -39,9 +39,14 @@ export function createAnthropicChatModel(
 ): ChatModel {
     const provider = 'anthropic';
 
-    async function callAnthropicMessagesApi<T>(request: unknown): Promise<T> {
+    async function callAnthropicMessagesApi<T>(
+        request: unknown,
+        signal?: AbortSignal
+    ): Promise<T> {
         try {
-            return (await client.messages.create(request as never)) as T;
+            return (await client.messages.create(request as never, {
+                signal,
+            })) as T;
         } catch (error) {
             throw wrapError(error);
         }
@@ -73,7 +78,7 @@ export function createAnthropicChatModel(
         const stream =
             await callAnthropicMessagesApi<
                 AsyncIterable<RawMessageStreamEvent>
-            >(request);
+            >(request, signal);
         return createChatStream(transformStream(stream), {
             abort: () => controller.abort(),
             abortSignal: signal,

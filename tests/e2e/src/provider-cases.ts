@@ -128,7 +128,7 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.content?.trim().length ?? 0).toBeGreaterThan(0);
             expect(
                 result.parts.some((part) => part.type === 'reasoning') ||
-                    (result.usage.outputTokenDetails.reasoningTokens ?? 0) >= 0
+                    result.usage.outputTokenDetails.reasoningTokens !== undefined
             ).toBe(true);
             assertChatUsage(result.usage);
         },
@@ -175,8 +175,8 @@ export const providerCases: ProviderContractCase[] = [
             expect(
                 sawReasoningDelta ||
                     response.parts.some((part) => part.type === 'reasoning') ||
-                    (response.usage.outputTokenDetails.reasoningTokens ?? 0) >=
-                        0
+                    response.usage.outputTokenDetails.reasoningTokens !==
+                        undefined
             ).toBe(true);
             expect(response.content?.trim().length ?? 0).toBeGreaterThan(0);
             assertChatUsage(response.usage);

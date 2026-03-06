@@ -433,4 +433,34 @@ describe('createChatStream', () => {
         );
         expect(abort).toHaveBeenCalledTimes(1);
     });
+
+    it('should reject immediately when created with an already-aborted signal', async () => {
+        const controller = new AbortController();
+        controller.abort();
+        const next = vi.fn(async () => ({
+            done: false as const,
+            value: { type: 'text-delta', text: 'late event' } satisfies StreamEvent,
+        }));
+        const chatStream = createChatStream(
+            {
+                [Symbol.asyncIterator]() {
+                    return {
+                        next,
+                    };
+                },
+            },
+            {
+                abortSignal: controller.signal,
+            }
+        );
+
+        await expect(chatStream.result).rejects.toBeInstanceOf(
+            StreamAbortedError
+        );
+        await expect(chatStream.events).resolves.toEqual([]);
+        await expect(
+            chatStream[Symbol.asyncIterator]().next()
+        ).rejects.toBeInstanceOf(StreamAbortedError);
+        expect(next).not.toHaveBeenCalled();
+    });
 });

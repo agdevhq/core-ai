@@ -363,6 +363,42 @@ describe('stream', () => {
         });
     });
 
+    it('should pass the merged abort signal to streaming requests', async () => {
+        const generateContentStream = vi.fn(async () => {
+            return toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
+                }),
+            ]);
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+
+        expect(generateContentStream).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: expect.objectContaining({
+                    abortSignal: expect.any(AbortSignal),
+                }),
+            })
+        );
+
+        const request = (generateContentStream.mock.calls as unknown[][])[0]?.[0] as
+            | { config?: { abortSignal?: AbortSignal } }
+            | undefined;
+        expect(request?.config?.abortSignal?.aborted).toBe(false);
+
+        chatStream.abort();
+
+        await expect(chatStream.result).rejects.toBeInstanceOf(Error);
+        expect(request?.config?.abortSignal?.aborted).toBe(true);
+    });
+
     it('should map cached and reasoning usage in stream responses', async () => {
         const generateContentStream = vi.fn(async () => {
             return toAsyncIterable<GenerateContentResponse>([

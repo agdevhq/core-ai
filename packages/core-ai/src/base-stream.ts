@@ -127,7 +127,7 @@ export function createStream<TEvent, TResult>(
 
     if (abortSignal) {
         if (abortSignal.aborted) {
-            abortError = getAbortError();
+            abortStream(false);
         } else {
             abortSignal.addEventListener(
                 'abort',

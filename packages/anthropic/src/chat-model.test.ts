@@ -297,6 +297,9 @@ describe('generate', () => {
             expect.objectContaining({
                 thinking: { type: 'adaptive' },
                 output_config: { effort: 'high' },
+            }),
+            expect.objectContaining({
+                signal: undefined,
             })
         );
     });
@@ -392,6 +395,44 @@ describe('stream', () => {
             },
             outputTokenDetails: {},
         });
+    });
+
+    it('should pass the merged abort signal to streaming requests', async () => {
+        const create = vi.fn(async () =>
+            toAsyncIterable<RawMessageStreamEvent>([
+                {
+                    type: 'message_stop',
+                },
+            ])
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4',
+            4096
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                stream: true,
+            }),
+            expect.objectContaining({
+                signal: expect.any(AbortSignal),
+            })
+        );
+
+        const requestOptions = (create.mock.calls as unknown[][])[0]?.[1] as
+            | { signal?: AbortSignal }
+            | undefined;
+        expect(requestOptions?.signal?.aborted).toBe(false);
+
+        chatStream.abort();
+
+        await expect(chatStream.result).rejects.toBeInstanceOf(Error);
+        expect(requestOptions?.signal?.aborted).toBe(true);
     });
 
     it('should normalize cached usage in streaming events', async () => {
@@ -648,7 +689,7 @@ describe('stream', () => {
 });
 
 function createMockClient(
-    create?: (options: unknown) => Promise<unknown>
+    create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
 ): Pick<Anthropic, 'messages'> {
     return {
         messages: {
