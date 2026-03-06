@@ -145,25 +145,31 @@ export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
 ) {
-    const openaiOptions = parseOpenAICompatGenerateProviderOptions(
-        options.providerOptions
-    );
-    return {
-        ...createRequestBase(modelId, options),
-        ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
-    };
+    return createRequest(modelId, options, false);
 }
 
 export function createStreamRequest(modelId: string, options: GenerateOptions) {
+    return createRequest(modelId, options, true);
+}
+
+function createRequest(
+    modelId: string,
+    options: GenerateOptions,
+    stream: boolean
+) {
     const openaiOptions = parseOpenAICompatGenerateProviderOptions(
         options.providerOptions
     );
     return {
         ...createRequestBase(modelId, options),
-        stream: true as const,
-        stream_options: {
-            include_usage: true,
-        },
+        ...(stream
+            ? {
+                  stream: true as const,
+                  stream_options: {
+                      include_usage: true,
+                  },
+              }
+            : {}),
         ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 }

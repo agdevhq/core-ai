@@ -202,33 +202,35 @@ export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions
 ): ResponseCreateParamsNonStreaming {
-    const openaiOptions = parseOpenAIResponsesGenerateProviderOptions(
-        options.providerOptions
-    );
-    const request: Record<string, unknown> = {
-        ...createRequestBase(modelId, options),
-        ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
-    };
-
-    if (options.reasoning) {
-        request.include = mergeInclude(request.include, [
-            ENCRYPTED_REASONING_INCLUDE,
-        ]);
-    }
-
-    return request as unknown as ResponseCreateParamsNonStreaming;
+    return createRequest(
+        modelId,
+        options,
+        false
+    ) as unknown as ResponseCreateParamsNonStreaming;
 }
 
 export function createStreamRequest(
     modelId: string,
     options: GenerateOptions
 ): ResponseCreateParamsStreaming {
+    return createRequest(
+        modelId,
+        options,
+        true
+    ) as unknown as ResponseCreateParamsStreaming;
+}
+
+function createRequest(
+    modelId: string,
+    options: GenerateOptions,
+    stream: boolean
+) {
     const openaiOptions = parseOpenAIResponsesGenerateProviderOptions(
         options.providerOptions
     );
     const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options),
-        stream: true as const,
+        ...(stream ? { stream: true as const } : {}),
         ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 
@@ -238,7 +240,7 @@ export function createStreamRequest(
         ]);
     }
 
-    return request as unknown as ResponseCreateParamsStreaming;
+    return request;
 }
 
 function createRequestBase(modelId: string, options: GenerateOptions) {

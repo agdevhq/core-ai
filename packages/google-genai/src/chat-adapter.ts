@@ -394,17 +394,6 @@ export function mapGenerateResponse(
         response.candidates?.[0]?.finishReason ?? undefined
     );
 
-    if (!response.candidates?.[0]) {
-        return {
-            parts,
-            content: content.length > 0 ? content : null,
-            reasoning: reasoning.length > 0 ? reasoning : null,
-            toolCalls,
-            finishReason: toolCalls.length > 0 ? 'tool-calls' : finishReason,
-            usage: mapUsage(response),
-        };
-    }
-
     return {
         parts,
         content: content.length > 0 ? content : null,
@@ -464,6 +453,16 @@ export async function* transformStream(
         },
         outputTokenDetails: {},
     };
+    const closeReasoning = (): StreamEvent | null => {
+        if (!reasoningOpen) {
+            return null;
+        }
+        reasoningOpen = false;
+        return {
+            type: 'reasoning-end',
+            providerMetadata: { google: {} },
+        };
+    };
 
     for await (const chunk of stream) {
         usage = mapUsage(chunk, usage);
@@ -486,12 +485,9 @@ export async function* transformStream(
         }
 
         if (chunk.text) {
-            if (reasoningOpen) {
-                reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                    providerMetadata: { google: {} },
-                };
+            const reasoningEnd = closeReasoning();
+            if (reasoningEnd) {
+                yield reasoningEnd;
             }
             yield {
                 type: 'text-delta',
@@ -501,12 +497,9 @@ export async function* transformStream(
 
         const functionCalls = chunk.functionCalls ?? [];
         if (functionCalls.length > 0) {
-            if (reasoningOpen) {
-                reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                    providerMetadata: { google: {} },
-                };
+            const reasoningEnd = closeReasoning();
+            if (reasoningEnd) {
+                yield reasoningEnd;
             }
             sawToolCalls = true;
             for (const [index, functionCall] of functionCalls.entries()) {
@@ -554,8 +547,9 @@ export async function* transformStream(
         }
     }
 
-    if (reasoningOpen) {
-        yield { type: 'reasoning-end', providerMetadata: { google: {} } };
+    const reasoningEnd = closeReasoning();
+    if (reasoningEnd) {
+        yield reasoningEnd;
     }
 
     for (const toolCall of bufferedToolCalls.values()) {
