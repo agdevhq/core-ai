@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./logo.svg" alt="core-ai logo" width="128" />
+  <img src="./logo.svg" alt="core-ai logo" width="128" style="padding: 16px 0;" />
 </p>
 
 <p align="center">
