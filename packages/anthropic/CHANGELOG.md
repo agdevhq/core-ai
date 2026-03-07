@@ -1,5 +1,20 @@
 # @core-ai/anthropic
 
+## 0.6.0
+
+### Minor Changes
+
+- 308a307: Namespace provider options under `anthropic` key with Zod validation. Generate options: `topK`, `stopSequences`, `betas`, `outputConfig`.
+- dbe063d: Restructure reasoning `providerMetadata` to use provider-namespaced keys (e.g. `{ anthropic: { signature: '...' } }`). Adapters now detect cross-provider reasoning blocks and downgrade them to plain text instead of forwarding opaque metadata. Add `getProviderMetadata` helper to `@core-ai/core-ai`.
+- c6882e4: Update provider streaming adapters to expose replayable stream handles using the new `ChatStream` and `ObjectStream` types.
+
+### Patch Changes
+
+- Updated dependencies [308a307]
+- Updated dependencies [dbe063d]
+- Updated dependencies [c6882e4]
+    - @core-ai/core-ai@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

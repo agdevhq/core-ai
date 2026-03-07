@@ -1,5 +1,21 @@
 # @core-ai/openai
 
+## 0.6.0
+
+### Minor Changes
+
+- dbe063d: Migrate `@core-ai/openai` default chat models to the OpenAI Responses API and add a `@core-ai/openai/compat` entrypoint for Chat Completions compatibility. This also adds dedicated OpenAI compat E2E coverage and provider-targeted E2E scripts.
+- 308a307: Namespace provider options under `openai` key with Zod validation. Responses API generate options: `store`, `serviceTier`, `include`, `parallelToolCalls`, `user`. Compat (Chat Completions) adds `stopSequences`, `frequencyPenalty`, `presencePenalty`, `seed`. Embed options: `encodingFormat`, `user`. Image options: `background`, `moderation`, `outputCompression`, `outputFormat`, `quality`, `responseFormat`, `style`, `user`.
+- c6882e4: Update provider streaming adapters to expose replayable stream handles using the new `ChatStream` and `ObjectStream` types.
+
+### Patch Changes
+
+- be5f32a: Refactor adapter internals to remove duplicated request assembly and reasoning stream cleanup logic without changing behavior.
+- Updated dependencies [308a307]
+- Updated dependencies [dbe063d]
+- Updated dependencies [c6882e4]
+    - @core-ai/core-ai@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes

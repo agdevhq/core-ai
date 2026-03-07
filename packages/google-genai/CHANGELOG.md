@@ -1,5 +1,21 @@
 # @core-ai/google-genai
 
+## 0.6.0
+
+### Minor Changes
+
+- 308a307: Namespace provider options under the `google` key with strict Zod validation. Only explicitly supported, typed provider options are accepted now. Generate options: `stopSequences`, `frequencyPenalty`, `presencePenalty`, `seed`, `topK`. Embed options: `taskType`, `title`, `mimeType`, `autoTruncate`. Image options: `aspectRatio`, `personGeneration`, `safetyFilterLevel`, `negativePrompt`, `guidanceScale`, `seed`, and other documented top-level fields.
+- dbe063d: Restructure reasoning `providerMetadata` to use provider-namespaced keys (e.g. `{ anthropic: { signature: '...' } }`). Adapters now detect cross-provider reasoning blocks and downgrade them to plain text instead of forwarding opaque metadata. Add `getProviderMetadata` helper to `@core-ai/core-ai`.
+- c6882e4: Update provider streaming adapters to expose replayable stream handles using the new `ChatStream` and `ObjectStream` types.
+
+### Patch Changes
+
+- be5f32a: Refactor adapter internals to remove duplicated request assembly and reasoning stream cleanup logic without changing behavior.
+- Updated dependencies [308a307]
+- Updated dependencies [dbe063d]
+- Updated dependencies [c6882e4]
+    - @core-ai/core-ai@0.6.0
+
 ## 0.5.1
 
 ### Patch Changes
