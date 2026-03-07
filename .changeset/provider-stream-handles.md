@@ -5,4 +5,4 @@
 '@core-ai/mistral': minor
 ---
 
-Update provider streaming adapters to expose replayable stream handles with consistent abort semantics and the new `ChatStream` and `ObjectStream` types.
+Update provider streaming adapters to expose replayable stream handles using the new `ChatStream` and `ObjectStream` types.
