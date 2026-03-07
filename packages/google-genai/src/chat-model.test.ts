@@ -478,12 +478,14 @@ describe('stream', () => {
             signal: controller.signal,
         });
 
-        expect(generateContentStream).toHaveBeenCalledWith(
-            expect.objectContaining({
-                config: expect.objectContaining({
-                    abortSignal: expect.any(AbortSignal),
-                }),
-            })
+        await vi.waitFor(() =>
+            expect(generateContentStream).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    config: expect.objectContaining({
+                        abortSignal: expect.any(AbortSignal),
+                    }),
+                })
+            )
         );
 
         const request = (generateContentStream.mock.calls as unknown[][])[0]?.[0] as

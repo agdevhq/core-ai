@@ -68,7 +68,7 @@ export function createStream<TEvent, TResult>(
         };
         cleanupSignalListener();
         resolveResult?.(finalResult);
-        resolveEvents?.(bufferedEvents);
+        resolveEvents?.([...bufferedEvents]);
         notifyWaiters();
     }
 
@@ -82,7 +82,7 @@ export function createStream<TEvent, TResult>(
         };
         cleanupSignalListener();
         rejectResult?.(error);
-        resolveEvents?.(bufferedEvents);
+        resolveEvents?.([...bufferedEvents]);
         notifyWaiters();
     }
 

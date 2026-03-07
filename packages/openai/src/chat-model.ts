@@ -72,14 +72,15 @@ export function createOpenAIChatModel(
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
         const request = createStreamRequest(modelId, options);
-        const stream =
-            await callOpenAIResponsesApi<AsyncIterable<ResponseStreamEvent>>(
-                request,
-                options.signal
-            );
-        return createChatStream(transformStream(stream), {
-            signal: options.signal,
-        });
+        return createChatStream(
+            async () =>
+                transformStream(
+                    await callOpenAIResponsesApi<
+                        AsyncIterable<ResponseStreamEvent>
+                    >(request, options.signal)
+                ),
+            { signal: options.signal }
+        );
     }
 
     return {

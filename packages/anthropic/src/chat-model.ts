@@ -60,22 +60,23 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options
         );
-        const response =
-            await callAnthropicMessagesApi<
-                Parameters<typeof mapGenerateResponse>[0]
-            >(request, options.signal);
+        const response = await callAnthropicMessagesApi<
+            Parameters<typeof mapGenerateResponse>[0]
+        >(request, options.signal);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
         const request = createStreamRequest(modelId, defaultMaxTokens, options);
-        const stream =
-            await callAnthropicMessagesApi<
-                AsyncIterable<RawMessageStreamEvent>
-            >(request, options.signal);
-        return createChatStream(transformStream(stream), {
-            signal: options.signal,
-        });
+        return createChatStream(
+            async () =>
+                transformStream(
+                    await callAnthropicMessagesApi<
+                        AsyncIterable<RawMessageStreamEvent>
+                    >(request, options.signal)
+                ),
+            { signal: options.signal }
+        );
     }
 
     return {

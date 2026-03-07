@@ -44,10 +44,9 @@ export function createOpenAICompatChatModel(
         signal?: AbortSignal
     ): Promise<TResponse> {
         try {
-            return (await client.chat.completions.create(
-                request as never,
-                { signal }
-            )) as TResponse;
+            return (await client.chat.completions.create(request as never, {
+                signal,
+            })) as TResponse;
         } catch (error) {
             throw wrapOpenAIError(error);
         }
@@ -57,22 +56,23 @@ export function createOpenAICompatChatModel(
         options: GenerateOptions
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options);
-        const response =
-            await callOpenAIChatCompletionsApi<
-                Parameters<typeof mapGenerateResponse>[0]
-            >(request, options.signal);
+        const response = await callOpenAIChatCompletionsApi<
+            Parameters<typeof mapGenerateResponse>[0]
+        >(request, options.signal);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
         const request = createStreamRequest(modelId, options);
-        const stream =
-            await callOpenAIChatCompletionsApi<
-                AsyncIterable<ChatCompletionChunk>
-            >(request, options.signal);
-        return createChatStream(transformStream(stream), {
-            signal: options.signal,
-        });
+        return createChatStream(
+            async () =>
+                transformStream(
+                    await callOpenAIChatCompletionsApi<
+                        AsyncIterable<ChatCompletionChunk>
+                    >(request, options.signal)
+                ),
+            { signal: options.signal }
+        );
     }
 
     return {

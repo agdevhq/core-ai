@@ -7,12 +7,20 @@ import type {
 import { createStream } from './base-stream.ts';
 
 export function createChatStream(
-    source: AsyncIterable<StreamEvent>,
+    source:
+        | AsyncIterable<StreamEvent>
+        | (() => Promise<AsyncIterable<StreamEvent>>),
     options: {
         signal?: AbortSignal;
     } = {}
 ): ChatStream {
     const { signal } = options;
+    const resolvedSource: AsyncIterable<StreamEvent> =
+        typeof source === 'function'
+            ? (async function* () {
+                  yield* await source();
+              })()
+            : source;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
     let reasoningBuffer = '';
@@ -61,7 +69,7 @@ export function createChatStream(
     };
 
     return createStream({
-        source,
+        source: resolvedSource,
         signal,
         reduceEvent(event) {
             if (event.type === 'reasoning-start') {
