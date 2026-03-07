@@ -159,11 +159,7 @@ export function convertToolChoice(
 export function getStructuredOutputToolName<TSchema extends z.ZodType>(
     options: GenerateObjectOptions<TSchema>
 ): string {
-    const trimmedName = options.schemaName?.trim();
-    if (trimmedName && trimmedName.length > 0) {
-        return trimmedName;
-    }
-    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+    return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
 export function createStructuredOutputOptions<TSchema extends z.ZodType>(
@@ -260,7 +256,7 @@ function mapMistralProviderOptionsToRequest<TRequest extends object>(
         return baseRequest;
     }
 
-    const mergedRequest = {
+    return {
         ...baseRequest,
         ...(providerOptions.stopSequences
             ? { stop: providerOptions.stopSequences }
@@ -284,7 +280,6 @@ function mapMistralProviderOptionsToRequest<TRequest extends object>(
             ? { safePrompt: providerOptions.safePrompt }
             : {}),
     };
-    return mergedRequest as TRequest;
 }
 
 export function mapGenerateResponse(
@@ -350,6 +345,17 @@ export async function* transformStream(
         },
         outputTokenDetails: {},
     };
+    const closeReasoning = (): StreamEvent | null => {
+        if (!reasoningOpen) {
+            return null;
+        }
+
+        reasoningOpen = false;
+        return {
+            type: 'reasoning-end',
+            providerMetadata: { mistral: {} },
+        };
+    };
 
     for await (const event of stream) {
         const chunk = event.data;
@@ -380,12 +386,9 @@ export async function* transformStream(
         }
 
         for (const textDelta of extractTextDeltas(choice.delta.content)) {
-            if (reasoningOpen) {
-                reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                    providerMetadata: { mistral: {} },
-                };
+            const reasoningEnd = closeReasoning();
+            if (reasoningEnd) {
+                yield reasoningEnd;
             }
             yield {
                 type: 'text-delta',
@@ -394,12 +397,9 @@ export async function* transformStream(
         }
 
         if (choice.delta.toolCalls) {
-            if (reasoningOpen) {
-                reasoningOpen = false;
-                yield {
-                    type: 'reasoning-end',
-                    providerMetadata: { mistral: {} },
-                };
+            const reasoningEnd = closeReasoning();
+            if (reasoningEnd) {
+                yield reasoningEnd;
             }
             for (const [
                 position,
@@ -464,11 +464,9 @@ export async function* transformStream(
         }
     }
 
-    if (reasoningOpen) {
-        yield {
-            type: 'reasoning-end',
-            providerMetadata: { mistral: {} },
-        };
+    const reasoningEnd = closeReasoning();
+    if (reasoningEnd) {
+        yield reasoningEnd;
     }
 
     yield* emitBufferedToolCalls(bufferedToolCalls, emittedToolCalls);
