@@ -14,7 +14,7 @@ async function main(): Promise<void> {
     const openai = createOpenAI({ apiKey: getRequiredEnv('OPENAI_API_KEY') });
     const model = openai.chatModel('gpt-5-mini');
 
-    const result = await stream({
+    const chatStream = await stream({
         model,
         messages: [
             {
@@ -25,15 +25,17 @@ async function main(): Promise<void> {
     });
 
     console.log('Streaming output:\n');
-    for await (const event of result) {
+    for await (const event of chatStream) {
         if (event.type === 'text-delta') {
             process.stdout.write(event.text);
         }
     }
 
-    const response = await result.toResponse();
+    const response = await chatStream.result;
+    const events = await chatStream.events;
     console.log('\n\nFinish reason:', response.finishReason);
     console.log('Usage:', response.usage);
+    console.log('Event count:', events.length);
 }
 
 void main().catch((error: unknown) => {

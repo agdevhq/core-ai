@@ -445,26 +445,16 @@ describe('reasoning support', () => {
         });
     });
 
-    it('should respect provider thinking config override', () => {
+    it('should not allow provider reasoning config overrides', () => {
         const request = createGenerateRequest('gemini-3-pro', {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
-            providerOptions: {
-                google: {
-                    config: {
-                        thinkingConfig: {
-                            thinkingLevel: 'LOW',
-                            includeThoughts: false,
-                        },
-                    },
-                },
-            },
         });
 
         expect(request.config).toMatchObject({
             thinkingConfig: {
-                thinkingLevel: 'LOW',
-                includeThoughts: false,
+                thinkingLevel: 'HIGH',
+                includeThoughts: true,
             },
         });
     });
@@ -514,6 +504,25 @@ describe('reasoning support', () => {
                 providerOptions: invalidProviderOptions,
             })
         ).toThrowError(/Expected object, received null/);
+    });
+
+    it('should reject raw google config on generate requests', () => {
+        const invalidProviderOptions = {
+            google: {
+                config: {
+                    thinkingConfig: {
+                        thinkingLevel: 'LOW',
+                    },
+                },
+            },
+        } as unknown as GenerateOptions['providerOptions'];
+
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).toThrowError(/Unrecognized key\(s\) in object: 'config'/);
     });
 
     it('should extract reasoning parts from thought response parts', () => {

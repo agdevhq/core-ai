@@ -12,7 +12,6 @@ export const googleGenerateProviderOptionsSchema = z
         presencePenalty: z.number().optional(),
         seed: z.number().int().optional(),
         topK: z.number().int().optional(),
-        config: z.record(z.string(), z.unknown()).optional(),
     })
     .strict();
 
@@ -26,7 +25,6 @@ export const googleEmbedProviderOptionsSchema = z
         title: z.string().optional(),
         mimeType: z.string().optional(),
         autoTruncate: z.boolean().optional(),
-        config: z.record(z.string(), z.unknown()).optional(),
     })
     .strict();
 
@@ -61,7 +59,6 @@ export const googleImageProviderOptionsSchema = z
         labels: z.record(z.string(), z.string()).optional(),
         imageSize: z.string().optional(),
         enhancePrompt: z.boolean().optional(),
-        config: z.record(z.string(), z.unknown()).optional(),
     })
     .strict();
 

@@ -334,6 +334,7 @@ export function createGenerateRequest(
         ...mapSamplingToConfig(options),
         ...mapReasoningToConfig(modelId, options, googleOptions),
         ...mapGoogleProviderOptionsToConfig(googleOptions),
+        ...(options.signal ? { abortSignal: options.signal } : {}),
     };
 
     const baseRequest: GenerateContentParameters = {
@@ -373,7 +374,6 @@ function mapGoogleProviderOptionsToConfig(
             : {}),
         ...(options?.seed !== undefined ? { seed: options.seed } : {}),
         ...(options?.topK !== undefined ? { topK: options.topK } : {}),
-        ...(options?.config ?? {}),
     };
 }
 
@@ -579,19 +579,13 @@ export async function* transformStream(
 function mapReasoningToConfig(
     modelId: string,
     options: GenerateOptions,
-    googleProviderOptions: GoogleGenerateProviderOptions | undefined
+    _googleProviderOptions: GoogleGenerateProviderOptions | undefined
 ): Record<string, unknown> {
     if (!options.reasoning) {
         return {};
     }
 
     const capabilities = getGoogleModelCapabilities(modelId);
-    const providerConfig = asObject(googleProviderOptions?.config);
-    const providerThinkingConfig = asObject(providerConfig['thinkingConfig']);
-    if (Object.keys(providerThinkingConfig).length > 0) {
-        return {};
-    }
-
     if (capabilities.reasoning.thinkingParam === 'thinkingLevel') {
         return {
             thinkingConfig: {

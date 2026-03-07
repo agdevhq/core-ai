@@ -7,6 +7,7 @@ import {
     generateObject,
     resultToMessage,
     stream,
+    StreamAbortedError,
 } from '../../../packages/core-ai/src/index.ts';
 import type { ProviderCapabilities } from './adapters/provider-adapter.ts';
 import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
@@ -14,6 +15,7 @@ import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
 export type ProviderContractCaseId =
     | 'chatGenerate'
     | 'chatStream'
+    | 'chatStreamAbort'
     | 'chatGenerateReasoning'
     | 'chatStreamReasoning'
     | 'chatReasoningMultiTurn'
@@ -70,7 +72,7 @@ export const providerCases: ProviderContractCase[] = [
         requiredCapability: 'stream',
         run: async ({ adapter }) => {
             const model = adapter.createChatModel();
-            const result = await stream({
+            const chatStream = await stream({
                 model,
                 messages: [
                     {
@@ -83,19 +85,71 @@ export const providerCases: ProviderContractCase[] = [
 
             let sawContentDelta = false;
             let streamedText = '';
-            for await (const event of result) {
+            for await (const event of chatStream) {
                 if (event.type === 'text-delta') {
                     sawContentDelta = true;
                     streamedText += event.text;
                 }
             }
 
-            const response = await result.toResponse();
+            const response = await chatStream.result;
+            const events = await chatStream.events;
             expect(sawContentDelta).toBe(true);
             expect(streamedText.trim().length).toBeGreaterThan(0);
+            expect(events.length).toBeGreaterThan(0);
             expect(response.content).toBeTypeOf('string');
             expect(response.content?.trim().length ?? 0).toBeGreaterThan(0);
             assertChatUsage(response.usage);
+        },
+    },
+    {
+        id: 'chatStreamAbort',
+        name: 'stream abort rejects result and preserves partial events',
+        requiredCapability: 'stream',
+        run: async ({ adapter }) => {
+            const model = adapter.createChatModel();
+            const abortController = new AbortController();
+            const chatStream = await stream({
+                model,
+                messages: [
+                    {
+                        role: 'user',
+                        content:
+                            'Write exactly 200 short numbered lines about software testing, one line per number from 1 to 200.',
+                    },
+                ],
+                signal: abortController.signal,
+            });
+
+            const iterator = chatStream[Symbol.asyncIterator]();
+            let sawTextDeltaBeforeAbort = false;
+            for (let i = 0; i < 20; i += 1) {
+                const next = await iterator.next();
+                if (next.done) {
+                    break;
+                }
+                if (next.value.type === 'text-delta') {
+                    sawTextDeltaBeforeAbort = true;
+                    break;
+                }
+            }
+
+            expect(sawTextDeltaBeforeAbort).toBe(true);
+
+            abortController.abort();
+
+            await expect(iterator.next()).rejects.toBeInstanceOf(
+                StreamAbortedError
+            );
+            await expect(chatStream.result).rejects.toBeInstanceOf(
+                StreamAbortedError
+            );
+
+            const events = await chatStream.events;
+            expect(events.length).toBeGreaterThan(0);
+            expect(events.some((event) => event.type === 'text-delta')).toBe(
+                true
+            );
         },
     },
     {
@@ -116,7 +170,7 @@ export const providerCases: ProviderContractCase[] = [
                     {
                         role: 'user',
                         content:
-                            'Think briefly and answer in one sentence: why are tests useful?',
+                            'Solve this arithmetic problem and provide only the final numeric answer: (37 * 48) + (19 * 17).',
                     },
                 ],
                 reasoning: { effort: 'medium' },
@@ -126,7 +180,7 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.content?.trim().length ?? 0).toBeGreaterThan(0);
             expect(
                 result.parts.some((part) => part.type === 'reasoning') ||
-                    (result.usage.outputTokenDetails.reasoningTokens ?? 0) >= 0
+                    result.usage.outputTokenDetails.reasoningTokens !== undefined
             ).toBe(true);
             assertChatUsage(result.usage);
         },
@@ -143,7 +197,7 @@ export const providerCases: ProviderContractCase[] = [
                 );
             }
 
-            const result = await stream({
+            const chatStream = await stream({
                 model,
                 messages: [
                     {
@@ -157,7 +211,7 @@ export const providerCases: ProviderContractCase[] = [
 
             let sawTextDelta = false;
             let sawReasoningDelta = false;
-            for await (const event of result) {
+            for await (const event of chatStream) {
                 if (event.type === 'text-delta') {
                     sawTextDelta = true;
                 }
@@ -166,13 +220,15 @@ export const providerCases: ProviderContractCase[] = [
                 }
             }
 
-            const response = await result.toResponse();
+            const response = await chatStream.result;
+            const events = await chatStream.events;
             expect(sawTextDelta).toBe(true);
+            expect(events.length).toBeGreaterThan(0);
             expect(
                 sawReasoningDelta ||
                     response.parts.some((part) => part.type === 'reasoning') ||
-                    (response.usage.outputTokenDetails.reasoningTokens ?? 0) >=
-                        0
+                    response.usage.outputTokenDetails.reasoningTokens !==
+                        undefined
             ).toBe(true);
             expect(response.content?.trim().length ?? 0).toBeGreaterThan(0);
             assertChatUsage(response.usage);

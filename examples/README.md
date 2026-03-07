@@ -41,7 +41,7 @@ npx tsx examples/01-chat-completion.ts
 ## Available Examples
 
 - `01-chat-completion.ts`: Basic `generate()` chat completion with OpenAI
-- `02-streaming.ts`: Streaming output with `stream()` and `toResponse()`
+- `02-streaming.ts`: Streaming output with `stream()`, `result`, and `events`
 - `03-tool-calling.ts`: Tool definition and a full tool-call round trip
 - `04-multi-modal.ts`: Multi-modal input using text + image URL
 - `05-embeddings.ts`: Embeddings with `embed()`
@@ -52,3 +52,4 @@ npx tsx examples/01-chat-completion.ts
 - `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
 - `11-generate-object.ts`: Typed structured output with `generateObject()`
 - `12-stream-object.ts`: Streaming structured output with `streamObject()`
+- `13-stream-abort.ts`: Cancelling a streaming call with `AbortController`

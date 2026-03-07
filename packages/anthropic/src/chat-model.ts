@@ -9,15 +9,15 @@ import type {
     GenerateResult,
     ObjectStreamEvent,
     StreamObjectOptions,
-    StreamObjectResult,
-    StreamResult,
+    ObjectStream,
+    ChatStream,
 } from '@core-ai/core-ai';
 import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
-    createObjectStreamResult,
-    createStreamResult,
+    createObjectStream,
+    createChatStream,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -39,9 +39,14 @@ export function createAnthropicChatModel(
 ): ChatModel {
     const provider = 'anthropic';
 
-    async function callAnthropicMessagesApi<T>(request: unknown): Promise<T> {
+    async function callAnthropicMessagesApi<T>(
+        request: unknown,
+        signal?: AbortSignal
+    ): Promise<T> {
         try {
-            return (await client.messages.create(request as never)) as T;
+            return (await client.messages.create(request as never, {
+                signal,
+            })) as T;
         } catch (error) {
             throw wrapError(error);
         }
@@ -55,20 +60,23 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options
         );
-        const response =
-            await callAnthropicMessagesApi<
-                Parameters<typeof mapGenerateResponse>[0]
-            >(request);
+        const response = await callAnthropicMessagesApi<
+            Parameters<typeof mapGenerateResponse>[0]
+        >(request, options.signal);
         return mapGenerateResponse(response);
     }
 
-    async function streamChat(options: GenerateOptions): Promise<StreamResult> {
+    async function streamChat(options: GenerateOptions): Promise<ChatStream> {
         const request = createStreamRequest(modelId, defaultMaxTokens, options);
-        const stream =
-            await callAnthropicMessagesApi<
-                AsyncIterable<RawMessageStreamEvent>
-            >(request);
-        return createStreamResult(transformStream(stream));
+        return createChatStream(
+            async () =>
+                transformStream(
+                    await callAnthropicMessagesApi<
+                        AsyncIterable<RawMessageStreamEvent>
+                    >(request, options.signal)
+                ),
+            { signal: options.signal }
+        );
     }
 
     return {
@@ -95,16 +103,19 @@ export function createAnthropicChatModel(
         },
         async streamObject<TSchema extends z.ZodType>(
             options: StreamObjectOptions<TSchema>
-        ): Promise<StreamObjectResult<TSchema>> {
+        ): Promise<ObjectStream<TSchema>> {
             const structuredOptions = createStructuredOutputOptions(options);
             const stream = await streamChat(structuredOptions);
 
-            return createObjectStreamResult(
+            return createObjectStream(
                 transformStructuredOutputStream(
                     stream,
                     options.schema,
                     provider
-                )
+                ),
+                {
+                    signal: options.signal,
+                }
             );
         },
     };
@@ -125,7 +136,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
 }
 
 async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
-    stream: StreamResult,
+    stream: ChatStream,
     schema: TSchema,
     provider: string
 ): AsyncIterable<ObjectStreamEvent<TSchema>> {

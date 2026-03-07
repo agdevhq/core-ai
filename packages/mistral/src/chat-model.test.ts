@@ -71,6 +71,41 @@ describe('generate', () => {
             expect.objectContaining({
                 model: 'mistral-large-latest',
                 messages: [{ role: 'user', content: 'Hi' }],
+            }),
+            expect.anything()
+        );
+    });
+
+    it('should pass the caller abort signal to generate requests', async () => {
+        const complete = vi.fn(async () =>
+            asChatCompletionResponse({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: 'stop',
+                        message: {
+                            role: 'assistant',
+                            content: 'Hello!',
+                        },
+                    },
+                ],
+            })
+        );
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+        const controller = new AbortController();
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+            signal: controller.signal,
+        });
+
+        expect(complete).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                signal: controller.signal,
             })
         );
     });
@@ -217,6 +252,57 @@ describe('generate', () => {
         expect(result.finishReason).toBe('tool-calls');
     });
 
+    it('should pass the caller abort signal to generateObject requests', async () => {
+        const complete = vi.fn(async () =>
+            asChatCompletionResponse({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: 'tool_calls',
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            toolCalls: [
+                                {
+                                    id: 'tc_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'weather_schema',
+                                        arguments:
+                                            '{"city":"Berlin","temperatureC":21}',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            })
+        );
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+        const controller = new AbortController();
+
+        await model.generateObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+            signal: controller.signal,
+        });
+
+        expect(complete).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                signal: controller.signal,
+            })
+        );
+    });
+
     it('should throw validation error for invalid structured output', async () => {
         const complete = vi.fn(async () => {
             return asChatCompletionResponse({
@@ -326,7 +412,8 @@ describe('generate', () => {
         expect(complete).toHaveBeenCalledWith(
             expect.objectContaining({
                 model: 'magistral-medium-latest',
-            })
+            }),
+            expect.anything()
         );
     });
 });
@@ -365,19 +452,19 @@ describe('stream', () => {
             'mistral-large-latest'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
         });
 
         const events: string[] = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             if (event.type === 'text-delta') {
                 events.push(event.text);
             }
         }
 
         expect(events.join('')).toBe('Hello world');
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
         expect(response.usage).toEqual({
@@ -389,6 +476,66 @@ describe('stream', () => {
             },
             outputTokenDetails: {},
         });
+    });
+
+    it('should pass the caller abort signal to streaming requests', async () => {
+        const stream = vi.fn(async (_request: unknown, requestOptions?: unknown) => {
+            const typedRequestOptions = requestOptions as
+                | { signal?: AbortSignal }
+                | undefined;
+            return {
+                [Symbol.asyncIterator]() {
+                    return {
+                        async next() {
+                            await new Promise<never>((_resolve, reject) => {
+                                typedRequestOptions?.signal?.addEventListener(
+                                    'abort',
+                                    () => {
+                                        reject(new Error('aborted'));
+                                    },
+                                    { once: true }
+                                );
+                            });
+                            return {
+                                done: true,
+                                value: undefined,
+                            };
+                        },
+                    };
+                },
+            } as AsyncIterable<CompletionEvent>;
+        });
+        const model = createMistralChatModel(
+            createMockClient({ stream }),
+            'mistral-large-latest'
+        );
+        const controller = new AbortController();
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+            signal: controller.signal,
+        });
+
+        await vi.waitFor(() =>
+            expect(stream).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    stream: true,
+                }),
+                expect.objectContaining({
+                    signal: expect.any(AbortSignal),
+                })
+            )
+        );
+
+        const requestOptions = (stream.mock.calls as unknown[][])[0]?.[1] as
+            | { signal?: AbortSignal }
+            | undefined;
+        expect(requestOptions?.signal?.aborted).toBe(false);
+
+        controller.abort();
+
+        await expect(chatStream.result).rejects.toBeInstanceOf(Error);
+        expect(requestOptions?.signal?.aborted).toBe(true);
     });
 
     it('should emit tool call events in stream', async () => {
@@ -422,12 +569,12 @@ describe('stream', () => {
             'mistral-large-latest'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'weather?' }],
         });
 
         const events = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             events.push(event);
         }
 
@@ -438,7 +585,7 @@ describe('stream', () => {
             true
         );
 
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.finishReason).toBe('tool-calls');
         expect(response.toolCalls).toEqual([
             {
@@ -508,21 +655,21 @@ describe('stream', () => {
             temperatureC: z.number(),
         });
 
-        const streamResult = await model.streamObject({
+        const objectStream = await model.streamObject({
             messages: [{ role: 'user', content: 'Return weather JSON' }],
             schema,
             schemaName: 'weather_schema',
         });
 
         const objects: Array<{ city: string; temperatureC: number }> = [];
-        for await (const event of streamResult) {
+        for await (const event of objectStream) {
             if (event.type === 'object') {
                 objects.push(event.object);
             }
         }
 
         expect(objects).toEqual([{ city: 'Berlin', temperatureC: 21 }]);
-        const response = await streamResult.toResponse();
+        const response = await objectStream.result;
         expect(response.object).toEqual({
             city: 'Berlin',
             temperatureC: 21,
@@ -577,13 +724,13 @@ describe('stream', () => {
             'magistral-medium-latest'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'Explain' }],
             reasoning: { effort: 'medium' },
         });
 
         const eventTypes: string[] = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             eventTypes.push(event.type);
         }
 
@@ -591,14 +738,14 @@ describe('stream', () => {
         expect(eventTypes).toContain('reasoning-delta');
         expect(eventTypes).toContain('reasoning-end');
 
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.reasoning).toBe('reason ');
     });
 });
 
 function createMockClient(overrides?: {
-    complete?: (options: unknown) => Promise<unknown>;
-    stream?: (options: unknown) => Promise<unknown>;
+    complete?: (options: unknown, requestOptions?: unknown) => Promise<unknown>;
+    stream?: (options: unknown, requestOptions?: unknown) => Promise<unknown>;
 }): Pick<Mistral, 'chat'> {
     const complete =
         overrides?.complete ??

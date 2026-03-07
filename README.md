@@ -9,7 +9,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 - **Unified API** across providers — switch between OpenAI, Anthropic, Mistral, and others without changing application code
 - **Full type safety** — strict TypeScript types, Zod-based tool definitions, no `any`
-- **Streaming** — async iterable-based streaming with optional aggregation via `toResponse()`
+- **Streaming** — eagerly-started replayable streams with live iteration, `result`, `events`, and `AbortSignal` support
 - **Structured outputs** — schema-validated object generation and object streaming with `z.infer<TSchema>`
 - **Tool / function calling** — define tools with Zod schemas, automatically converted to JSON Schema
 - **Multi-modal** — text, images (base64 and URL), and file inputs
@@ -75,20 +75,60 @@ console.log(result.usage);
 ```typescript
 import { stream } from '@core-ai/core-ai';
 
-const result = await stream({
+const chatStream = await stream({
     model,
     messages: [{ role: 'user', content: 'Tell me a story.' }],
 });
 
-for await (const event of result) {
+// The request starts immediately; iteration is optional.
+for await (const event of chatStream) {
     if (event.type === 'text-delta') {
         process.stdout.write(event.text);
     }
 }
 
-// Or aggregate the full response
-const response = await result.toResponse();
+// Read the final aggregated response and full event history.
+const response = await chatStream.result;
+const events = await chatStream.events;
 console.log(response.content);
+console.log(events.length);
+```
+
+### Aborting
+
+All generation and streaming functions accept a `signal` option (a standard `AbortSignal`) for cancellation. When the signal fires:
+
+- **`generate` / `generateObject`** — the underlying provider request is cancelled and the promise rejects.
+- **`stream` / `streamObject`** — the stream settles with a `StreamAbortedError`. The `for await` loop throws the error, and `.result` rejects. `.events` always resolves with whatever events were observed before the abort.
+
+```typescript
+import { stream, StreamAbortedError } from '@core-ai/core-ai';
+
+const controller = new AbortController();
+
+const chatStream = await stream({
+    model,
+    messages: [{ role: 'user', content: 'Write a long essay.' }],
+    signal: controller.signal,
+});
+
+// Cancel after 5 seconds.
+setTimeout(() => controller.abort(), 5000);
+
+try {
+    for await (const event of chatStream) {
+        if (event.type === 'text-delta') {
+            process.stdout.write(event.text);
+        }
+    }
+} catch (error) {
+    if (error instanceof StreamAbortedError) {
+        console.log('Stream was aborted.');
+        // .events still resolves with everything received so far.
+        const events = await chatStream.events;
+        console.log(`Received ${events.length} events before abort.`);
+    }
+}
 ```
 
 ### Reasoning
@@ -153,20 +193,20 @@ const analysisSchema = z.object({
     tags: z.array(z.string()),
 });
 
-const result = await streamObject({
+const objectStream = await streamObject({
     model,
     messages: [{ role: 'user', content: 'Analyze this text and return JSON.' }],
     schema: analysisSchema,
     schemaName: 'text_analysis',
 });
 
-for await (const event of result) {
+for await (const event of objectStream) {
     if (event.type === 'object') {
         console.log('Validated update:', event.object);
     }
 }
 
-const response = await result.toResponse();
+const response = await objectStream.result;
 console.log(response.object);
 ```
 

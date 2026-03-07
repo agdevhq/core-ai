@@ -21,7 +21,7 @@ async function main(): Promise<void> {
         tags: z.array(z.string()),
     });
 
-    const result = await streamObject({
+    const objectStream = await streamObject({
         model,
         messages: [
             {
@@ -35,7 +35,7 @@ async function main(): Promise<void> {
         schemaDescription: 'Structured text analysis output.',
     });
 
-    for await (const event of result) {
+    for await (const event of objectStream) {
         if (event.type === 'object-delta') {
             process.stdout.write(event.text);
             continue;
@@ -46,9 +46,11 @@ async function main(): Promise<void> {
         }
     }
 
-    const response = await result.toResponse();
+    const response = await objectStream.result;
+    const events = await objectStream.events;
     console.log('\nFinal object:', response.object);
     console.log('Finish reason:', response.finishReason);
+    console.log('Event count:', events.length);
 }
 
 void main().catch((error: unknown) => {

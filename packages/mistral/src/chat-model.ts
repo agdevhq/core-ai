@@ -9,15 +9,15 @@ import type {
     GenerateResult,
     ObjectStreamEvent,
     StreamObjectOptions,
-    StreamObjectResult,
-    StreamResult,
+    ObjectStream,
+    ChatStream,
 } from '@core-ai/core-ai';
 import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
-    createObjectStreamResult,
-    createStreamResult,
+    createObjectStream,
+    createChatStream,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -54,17 +54,24 @@ export function createMistralChatModel(
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options);
         const response = await callMistralChatApi(() =>
-            client.chat.complete(request)
+            client.chat.complete(request, { signal: options.signal })
         );
         return mapGenerateResponse(response);
     }
 
-    async function streamChat(options: GenerateOptions): Promise<StreamResult> {
+    async function streamChat(options: GenerateOptions): Promise<ChatStream> {
         const request = createStreamRequest(modelId, options);
-        const stream = (await callMistralChatApi(() =>
-            client.chat.stream(request)
-        )) as unknown as AsyncIterable<CompletionEvent>;
-        return createStreamResult(transformStream(stream));
+        return createChatStream(
+            async () =>
+                transformStream(
+                    (await callMistralChatApi(() =>
+                        client.chat.stream(request, {
+                            signal: options.signal,
+                        })
+                    )) as unknown as AsyncIterable<CompletionEvent>
+                ),
+            { signal: options.signal }
+        );
     }
 
     return {
@@ -93,18 +100,21 @@ export function createMistralChatModel(
         },
         async streamObject<TSchema extends z.ZodType>(
             options: StreamObjectOptions<TSchema>
-        ): Promise<StreamObjectResult<TSchema>> {
+        ): Promise<ObjectStream<TSchema>> {
             const structuredOptions = createStructuredOutputOptions(options);
             const stream = await streamChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
 
-            return createObjectStreamResult(
+            return createObjectStream(
                 transformStructuredOutputStream(
                     stream,
                     options.schema,
                     provider,
                     toolName
-                )
+                ),
+                {
+                    signal: options.signal,
+                }
             );
         },
     };
@@ -139,7 +149,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
 }
 
 async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
-    stream: StreamResult,
+    stream: ChatStream,
     schema: TSchema,
     provider: string,
     toolName: string

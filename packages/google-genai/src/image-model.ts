@@ -114,7 +114,6 @@ function mapGoogleImageProviderOptionsToConfig(
         ...(options?.enhancePrompt !== undefined
             ? { enhancePrompt: options.enhancePrompt }
             : {}),
-        ...(options?.config ?? {}),
     };
 }
 

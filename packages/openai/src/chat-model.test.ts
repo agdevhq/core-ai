@@ -7,11 +7,15 @@ import type {
 } from 'openai/resources/responses/responses';
 import {
     ProviderError,
+    StreamAbortedError,
     StructuredOutputValidationError,
     resultToMessage,
 } from '@core-ai/core-ai';
 import { createOpenAIChatModel } from './chat-model.js';
-import { toAsyncIterable } from '@core-ai/testing';
+import {
+    toAsyncIterable,
+    createPushableAsyncIterable,
+} from '@core-ai/testing';
 
 describe('createOpenAIChatModel', () => {
     it('should create model metadata', () => {
@@ -71,6 +75,39 @@ describe('generate', () => {
             expect.objectContaining({
                 model: 'gpt-5-mini',
                 input: [{ role: 'user', content: 'Hi' }],
+            }),
+            expect.anything()
+        );
+    });
+
+    it('should pass the caller abort signal to generate requests', async () => {
+        const create = vi.fn(async () =>
+            asResponse({
+                output: [
+                    {
+                        type: 'message',
+                        role: 'assistant',
+                        content: [{ type: 'output_text', text: 'Hello!' }],
+                    },
+                ],
+                status: 'completed',
+            })
+        );
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const controller = new AbortController();
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+            signal: controller.signal,
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                signal: controller.signal,
             })
         );
     });
@@ -173,6 +210,46 @@ describe('generate', () => {
                     type: 'function',
                     name: 'weather_schema',
                 },
+            }),
+            expect.anything()
+        );
+    });
+
+    it('should pass the caller abort signal to generateObject requests', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            asResponse({
+                output: [
+                    {
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'weather_schema',
+                        arguments: '{"city":"Berlin","temperatureC":21}',
+                    },
+                ],
+                status: 'completed',
+            })
+        );
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+        const controller = new AbortController();
+
+        await model.generateObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+            signal: controller.signal,
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.anything(),
+            expect.objectContaining({
+                signal: controller.signal,
             })
         );
     });
@@ -259,21 +336,62 @@ describe('stream', () => {
             'gpt-5-mini'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
         });
 
         const events: string[] = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             if (event.type === 'text-delta') {
                 events.push(event.text);
             }
         }
 
         expect(events.join('')).toBe('Hello world');
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
+    });
+
+    it('should reject iteration and result on abort while preserving partial events', async () => {
+        const source = createPushableAsyncIterable<ResponseStreamEvent>();
+        const create = vi.fn(async () => source.iterable);
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const controller = new AbortController();
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+            signal: controller.signal,
+        });
+        const resultRejection = expect(chatStream.result).rejects.toBeInstanceOf(
+            StreamAbortedError
+        );
+
+        const consumeStream = (async () => {
+            for await (const event of chatStream) {
+                if (event.type === 'text-delta') {
+                    controller.abort();
+                }
+            }
+        })();
+
+        source.push(
+            asStreamEvent({
+                type: 'response.output_text.delta',
+                delta: 'partial',
+            })
+        );
+
+        await expect(consumeStream).rejects.toBeInstanceOf(StreamAbortedError);
+        await resultRejection;
+        await expect(chatStream.events).resolves.toEqual([
+            {
+                type: 'text-delta',
+                text: 'partial',
+            },
+        ]);
     });
 });
 
@@ -338,31 +456,92 @@ describe('streamObject', () => {
             temperatureC: z.number(),
         });
 
-        const streamResult = await model.streamObject({
+        const objectStream = await model.streamObject({
             messages: [{ role: 'user', content: 'Return weather JSON' }],
             schema,
             schemaName: 'weather_schema',
         });
 
         const objects: Array<{ city: string; temperatureC: number }> = [];
-        for await (const event of streamResult) {
+        for await (const event of objectStream) {
             if (event.type === 'object') {
                 objects.push(event.object);
             }
         }
 
         expect(objects).toEqual([{ city: 'Berlin', temperatureC: 21 }]);
-        const response = await streamResult.toResponse();
+        const response = await objectStream.result;
         expect(response.object).toEqual({
             city: 'Berlin',
             temperatureC: 21,
         });
         expect(response.finishReason).toBe('tool-calls');
     });
+
+    it('should reject iteration and result on abort while preserving partial events', async () => {
+        const source = createPushableAsyncIterable<ResponseStreamEvent>();
+        const create = vi.fn(async () => source.iterable);
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+        const controller = new AbortController();
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+        const objectStream = await model.streamObject({
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema,
+            schemaName: 'weather_schema',
+            signal: controller.signal,
+        });
+        const resultRejection = expect(
+            objectStream.result
+        ).rejects.toBeInstanceOf(StreamAbortedError);
+
+        const consumeStream = (async () => {
+            for await (const event of objectStream) {
+                if (event.type === 'object-delta') {
+                    controller.abort();
+                }
+            }
+        })();
+
+        source.push(
+            asStreamEvent({
+                type: 'response.output_item.added',
+                output_index: 0,
+                item: {
+                    type: 'function_call',
+                    call_id: 'tc_1',
+                    name: 'weather_schema',
+                    arguments: '',
+                },
+            })
+        );
+        source.push(
+            asStreamEvent({
+                type: 'response.function_call_arguments.delta',
+                output_index: 0,
+                item_id: 'item_1',
+                delta: '{"city":"Berlin"',
+            })
+        );
+
+        await expect(consumeStream).rejects.toBeInstanceOf(StreamAbortedError);
+        await resultRejection;
+        await expect(objectStream.events).resolves.toEqual([
+            {
+                type: 'object-delta',
+                text: '{"city":"Berlin"',
+            },
+        ]);
+    });
 });
 
 function createMockClient(
-    create?: (options: unknown) => Promise<unknown>
+    create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
 ): Pick<OpenAI, 'responses'> {
     return {
         responses: {

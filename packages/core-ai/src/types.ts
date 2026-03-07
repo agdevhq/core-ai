@@ -111,13 +111,13 @@ export type ChatModel = {
     readonly provider: string;
     readonly modelId: string;
     generate(options: GenerateOptions): Promise<GenerateResult>;
-    stream(options: GenerateOptions): Promise<StreamResult>;
+    stream(options: GenerateOptions): Promise<ChatStream>;
     generateObject<TSchema extends z.ZodType>(
         options: GenerateObjectOptions<TSchema>
     ): Promise<GenerateObjectResult<TSchema>>;
     streamObject<TSchema extends z.ZodType>(
         options: StreamObjectOptions<TSchema>
-    ): Promise<StreamObjectResult<TSchema>>;
+    ): Promise<ObjectStream<TSchema>>;
 };
 
 export interface GenerateProviderOptions {
@@ -234,8 +234,21 @@ export type StreamEvent =
     | { type: 'tool-call-end'; toolCall: ToolCall }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 
-export type StreamResult = AsyncIterable<StreamEvent> & {
-    toResponse(): Promise<GenerateResult>;
+/**
+ * Handle for a single in-flight chat streaming operation.
+ *
+ * The handle is replayable: iterating after some or all events have already
+ * arrived replays the buffered event history before waiting for later events.
+ *
+ * `result` resolves with the aggregated final response when the operation
+ * completes successfully, and rejects on abort or upstream failure.
+ *
+ * `events` always resolves with all observed events up to the terminal point,
+ * including abort and failure cases.
+ */
+export type ChatStream = AsyncIterable<StreamEvent> & {
+    readonly result: Promise<GenerateResult>;
+    readonly events: Promise<readonly StreamEvent[]>;
 };
 
 export type ObjectStreamEvent<TSchema extends z.ZodType> =
@@ -243,10 +256,18 @@ export type ObjectStreamEvent<TSchema extends z.ZodType> =
     | { type: 'object'; object: z.infer<TSchema> }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 
-export type StreamObjectResult<TSchema extends z.ZodType> = AsyncIterable<
+/**
+ * Handle for a single in-flight structured object streaming operation.
+ *
+ * The lifecycle semantics mirror `ChatStream`: iteration is replayable,
+ * `result` settles independently of event consumption, and `events` resolves
+ * with the observed history.
+ */
+export type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
     ObjectStreamEvent<TSchema>
 > & {
-    toResponse(): Promise<GenerateObjectResult<TSchema>>;
+    readonly result: Promise<GenerateObjectResult<TSchema>>;
+    readonly events: Promise<readonly ObjectStreamEvent<TSchema>[]>;
 };
 
 export type EmbeddingModel = {

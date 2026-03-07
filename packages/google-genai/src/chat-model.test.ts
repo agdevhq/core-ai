@@ -111,6 +111,36 @@ describe('generate', () => {
         });
     });
 
+    it('should reject raw google config on generate', async () => {
+        const generateContent = vi.fn(async () =>
+            asGenerateContentResponse({
+                text: 'Hello!',
+                candidates: [{ finishReason: GoogleFinishReason.STOP }],
+            })
+        );
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+        const invalidProviderOptions = {
+            google: {
+                config: {
+                    thinkingConfig: {
+                        thinkingLevel: 'LOW',
+                    },
+                },
+            },
+        } as unknown as Parameters<typeof model.generate>[0]['providerOptions'];
+
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: invalidProviderOptions,
+            })
+        ).rejects.toThrow(/Unrecognized key\(s\) in object: 'config'/);
+        expect(generateContent).not.toHaveBeenCalled();
+    });
+
     it('should map tool call responses', async () => {
         const generateContent = vi.fn(async () => {
             return asGenerateContentResponse({
@@ -197,6 +227,51 @@ describe('generate', () => {
             temperatureC: 21,
         });
         expect(result.finishReason).toBe('tool-calls');
+    });
+
+    it('should reject raw google config on generateObject', async () => {
+        const generateContent = vi.fn(async () =>
+            asGenerateContentResponse({
+                functionCalls: [
+                    {
+                        id: 'tc_1',
+                        name: 'weather_schema',
+                        args: {
+                            city: 'Berlin',
+                            temperatureC: 21,
+                        },
+                    },
+                ],
+                candidates: [{ finishReason: GoogleFinishReason.STOP }],
+            })
+        );
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+        const schema = z.object({
+            city: z.string(),
+            temperatureC: z.number(),
+        });
+        const invalidProviderOptions = {
+            google: {
+                config: {
+                    thinkingConfig: {
+                        thinkingLevel: 'LOW',
+                    },
+                },
+            },
+        } as unknown as Parameters<typeof model.generateObject<typeof schema>>[0]['providerOptions'];
+
+        await expect(
+            model.generateObject({
+                messages: [{ role: 'user', content: 'Return weather JSON' }],
+                schema,
+                schemaName: 'weather_schema',
+                providerOptions: invalidProviderOptions,
+            })
+        ).rejects.toThrow(/Unrecognized key\(s\) in object: 'config'/);
+        expect(generateContent).not.toHaveBeenCalled();
     });
 
     it('should throw validation error for invalid structured output', async () => {
@@ -337,19 +412,19 @@ describe('stream', () => {
             'gemini-2.5-flash'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
         });
 
         const events: string[] = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             if (event.type === 'text-delta') {
                 events.push(event.text);
             }
         }
 
         expect(events.join('')).toBe('Hello world');
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.content).toBe('Hello world');
         expect(response.finishReason).toBe('stop');
         expect(response.usage).toEqual({
@@ -361,6 +436,67 @@ describe('stream', () => {
             },
             outputTokenDetails: {},
         });
+    });
+
+    it('should pass the caller abort signal to streaming requests', async () => {
+        const generateContentStream = vi.fn(
+            async (request?: unknown) => {
+                const typedRequest = request as
+                    | { config?: { abortSignal?: AbortSignal } }
+                    | undefined;
+                return {
+                    [Symbol.asyncIterator]() {
+                        return {
+                            async next() {
+                                await new Promise<never>((_resolve, reject) => {
+                                    typedRequest?.config?.abortSignal?.addEventListener(
+                                        'abort',
+                                        () => {
+                                            reject(new Error('aborted'));
+                                        },
+                                        { once: true }
+                                    );
+                                });
+                                return {
+                                    done: true,
+                                    value: undefined,
+                                };
+                            },
+                        };
+                    },
+                } as AsyncIterable<GenerateContentResponse>;
+            }
+        );
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+        const controller = new AbortController();
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+            signal: controller.signal,
+        });
+
+        await vi.waitFor(() =>
+            expect(generateContentStream).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    config: expect.objectContaining({
+                        abortSignal: expect.any(AbortSignal),
+                    }),
+                })
+            )
+        );
+
+        const request = (generateContentStream.mock.calls as unknown[][])[0]?.[0] as
+            | { config?: { abortSignal?: AbortSignal } }
+            | undefined;
+        expect(request?.config?.abortSignal?.aborted).toBe(false);
+
+        controller.abort();
+
+        await expect(chatStream.result).rejects.toBeInstanceOf(Error);
+        expect(request?.config?.abortSignal?.aborted).toBe(true);
     });
 
     it('should map cached and reasoning usage in stream responses', async () => {
@@ -388,15 +524,15 @@ describe('stream', () => {
             'gemini-2.5-flash'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
         });
 
-        for await (const _event of streamResult) {
+        for await (const _event of chatStream) {
             // Consume stream.
         }
 
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.usage).toEqual({
             inputTokens: 25,
             outputTokens: 8,
@@ -430,11 +566,11 @@ describe('stream', () => {
             'gemini-2.5-flash'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'weather?' }],
         });
         const events = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             events.push(event);
         }
 
@@ -445,7 +581,7 @@ describe('stream', () => {
             true
         );
 
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.finishReason).toBe('tool-calls');
         expect(response.toolCalls).toEqual([
             {
@@ -488,21 +624,21 @@ describe('stream', () => {
             temperatureC: z.number(),
         });
 
-        const streamResult = await model.streamObject({
+        const objectStream = await model.streamObject({
             messages: [{ role: 'user', content: 'Return weather JSON' }],
             schema,
             schemaName: 'weather_schema',
         });
 
         const objects: Array<{ city: string; temperatureC: number }> = [];
-        for await (const event of streamResult) {
+        for await (const event of objectStream) {
             if (event.type === 'object') {
                 objects.push(event.object);
             }
         }
 
         expect(objects).toEqual([{ city: 'Berlin', temperatureC: 21 }]);
-        const response = await streamResult.toResponse();
+        const response = await objectStream.result;
         expect(response.object).toEqual({
             city: 'Berlin',
             temperatureC: 21,
@@ -540,13 +676,13 @@ describe('stream', () => {
             'gemini-2.5-pro'
         );
 
-        const streamResult = await model.stream({
+        const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'Explain' }],
             reasoning: { effort: 'medium' },
         });
 
         const eventTypes: string[] = [];
-        for await (const event of streamResult) {
+        for await (const event of chatStream) {
             eventTypes.push(event.type);
         }
 
@@ -554,7 +690,7 @@ describe('stream', () => {
         expect(eventTypes).toContain('reasoning-delta');
         expect(eventTypes).toContain('reasoning-end');
 
-        const response = await streamResult.toResponse();
+        const response = await chatStream.result;
         expect(response.reasoning).toBe('reason ');
         expect(generateContentStream).toHaveBeenCalledWith(
             expect.objectContaining({

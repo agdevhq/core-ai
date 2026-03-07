@@ -95,6 +95,5 @@ function mapGoogleEmbedProviderOptionsToConfig(
         ...(options?.autoTruncate !== undefined
             ? { autoTruncate: options.autoTruncate }
             : {}),
-        ...(options?.config ?? {}),
     };
 }

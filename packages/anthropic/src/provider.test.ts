@@ -39,13 +39,14 @@ describe('createAnthropic', () => {
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
         expect(create).toHaveBeenCalledWith(
-            expect.objectContaining({ max_tokens: 2048 })
+            expect.objectContaining({ max_tokens: 2048 }),
+            expect.objectContaining({ signal: undefined })
         );
     });
 });
 
 function createMockClient(
-    create?: (options: unknown) => Promise<unknown>
+    create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
 ): Anthropic {
     return {
         messages: {

@@ -74,7 +74,7 @@ describe('createGoogleGenAIEmbeddingModel', () => {
         expect(result.usage).toBeUndefined();
     });
 
-    it('should pass dimensions and provider config options', async () => {
+    it('should pass dimensions and explicit provider options', async () => {
         const embedContent = vi.fn(async () => ({
             embeddings: [{ values: [0.1] }],
         }));
@@ -91,9 +91,7 @@ describe('createGoogleGenAIEmbeddingModel', () => {
             dimensions: 256,
             providerOptions: {
                 google: {
-                    config: {
-                        taskType: 'RETRIEVAL_DOCUMENT',
-                    },
+                    taskType: 'RETRIEVAL_DOCUMENT',
                 },
             },
         });
@@ -106,5 +104,32 @@ describe('createGoogleGenAIEmbeddingModel', () => {
                 }),
             })
         );
+    });
+
+    it('should reject raw google config for embeddings', async () => {
+        const embedContent = vi.fn(async () => ({
+            embeddings: [{ values: [0.1] }],
+        }));
+        const model = createGoogleGenAIEmbeddingModel(
+            {
+                models: { embedContent },
+            } as unknown as Pick<GoogleGenAI, 'models'>,
+            'gemini-embedding-001'
+        );
+        const invalidProviderOptions = {
+            google: {
+                config: {
+                    taskType: 'RETRIEVAL_DOCUMENT',
+                },
+            },
+        } as Parameters<typeof model.embed>[0]['providerOptions'];
+
+        await expect(
+            model.embed({
+                input: 'test',
+                providerOptions: invalidProviderOptions,
+            })
+        ).rejects.toThrow(/Unrecognized key\(s\) in object: 'config'/);
+        expect(embedContent).not.toHaveBeenCalled();
     });
 });

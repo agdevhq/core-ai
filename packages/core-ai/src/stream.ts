@@ -2,67 +2,76 @@ import type {
     AssistantContentPart,
     GenerateResult,
     StreamEvent,
-    StreamResult,
+    ChatStream,
 } from './types.ts';
-import { createSingleUseStreamResult } from './single-use-stream.ts';
+import { createStream } from './base-stream.ts';
 
-export function createStreamResult(
-    source: AsyncIterable<StreamEvent>
-): StreamResult {
-    let resolveResponse: ((result: GenerateResult) => void) | undefined;
-    const responsePromise = new Promise<GenerateResult>((resolve) => {
-        resolveResponse = resolve;
-    });
+export function createChatStream(
+    source:
+        | AsyncIterable<StreamEvent>
+        | (() => Promise<AsyncIterable<StreamEvent>>),
+    options: {
+        signal?: AbortSignal;
+    } = {}
+): ChatStream {
+    const { signal } = options;
+    const resolvedSource: AsyncIterable<StreamEvent> =
+        typeof source === 'function'
+            ? (async function* () {
+                  yield* await source();
+              })()
+            : source;
+    const parts: AssistantContentPart[] = [];
+    let textBuffer = '';
+    let reasoningBuffer = '';
+    let reasoningProviderMetadata:
+        | Record<string, Record<string, unknown>>
+        | undefined;
+    let insideReasoning = false;
+    let finishReason: GenerateResult['finishReason'] = 'unknown';
+    let usage: GenerateResult['usage'] = {
+        inputTokens: 0,
+        outputTokens: 0,
+        inputTokenDetails: {
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+        },
+        outputTokenDetails: {},
+    };
 
-    async function* iterate(): AsyncGenerator<StreamEvent> {
-        const parts: AssistantContentPart[] = [];
-        let textBuffer = '';
-        let reasoningBuffer = '';
-        let reasoningProviderMetadata:
-            | Record<string, Record<string, unknown>>
-            | undefined;
-        let insideReasoning = false;
-        let finishReason: GenerateResult['finishReason'] = 'unknown';
-        let usage: GenerateResult['usage'] = {
-            inputTokens: 0,
-            outputTokens: 0,
-            inputTokenDetails: {
-                cacheReadTokens: 0,
-                cacheWriteTokens: 0,
-            },
-            outputTokenDetails: {},
-        };
+    const flushText = () => {
+        if (textBuffer.length === 0) {
+            return;
+        }
+        parts.push({
+            type: 'text',
+            text: textBuffer,
+        });
+        textBuffer = '';
+    };
 
-        const flushText = () => {
-            if (textBuffer.length === 0) {
-                return;
-            }
-            parts.push({
-                type: 'text',
-                text: textBuffer,
-            });
-            textBuffer = '';
-        };
+    const flushReasoning = () => {
+        if (
+            reasoningBuffer.length === 0 &&
+            reasoningProviderMetadata === undefined
+        ) {
+            return;
+        }
+        parts.push({
+            type: 'reasoning',
+            text: reasoningBuffer,
+            ...(reasoningProviderMetadata
+                ? { providerMetadata: reasoningProviderMetadata }
+                : {}),
+        });
+        reasoningBuffer = '';
+        reasoningProviderMetadata = undefined;
+    };
 
-        const flushReasoning = () => {
-            if (
-                reasoningBuffer.length === 0 &&
-                reasoningProviderMetadata === undefined
-            ) {
-                return;
-            }
-            parts.push({
-                type: 'reasoning',
-                text: reasoningBuffer,
-                ...(reasoningProviderMetadata
-                    ? { providerMetadata: reasoningProviderMetadata }
-                    : {}),
-            });
-            reasoningBuffer = '';
-            reasoningProviderMetadata = undefined;
-        };
-
-        for await (const event of source) {
+    return createStream({
+        source: resolvedSource,
+        signal,
+        reduceEvent(event) {
             if (event.type === 'reasoning-start') {
                 flushText();
                 flushReasoning();
@@ -95,36 +104,31 @@ export function createStreamResult(
                 finishReason = event.finishReason;
                 usage = event.usage;
             }
+        },
+        finalizeResult() {
+            flushText();
+            flushReasoning();
 
-            yield event;
-        }
+            const content = parts
+                .flatMap((part) => (part.type === 'text' ? [part.text] : []))
+                .join('');
+            const reasoning = parts
+                .flatMap((part) =>
+                    part.type === 'reasoning' ? [part.text] : []
+                )
+                .join('');
+            const toolCalls = parts.flatMap((part) =>
+                part.type === 'tool-call' ? [part.toolCall] : []
+            );
 
-        flushText();
-        flushReasoning();
-
-        const content = parts
-            .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-            .join('');
-        const reasoning = parts
-            .flatMap((part) => (part.type === 'reasoning' ? [part.text] : []))
-            .join('');
-        const toolCalls = parts.flatMap((part) =>
-            part.type === 'tool-call' ? [part.toolCall] : []
-        );
-
-        resolveResponse?.({
-            parts,
-            content: content.length > 0 ? content : null,
-            reasoning: reasoning.length > 0 ? reasoning : null,
-            toolCalls,
-            finishReason,
-            usage,
-        });
-    }
-
-    const generator = iterate();
-    return createSingleUseStreamResult({
-        generator,
-        responsePromise,
+            return {
+                parts,
+                content: content.length > 0 ? content : null,
+                reasoning: reasoning.length > 0 ? reasoning : null,
+                toolCalls,
+                finishReason,
+                usage,
+            };
+        },
     });
 }

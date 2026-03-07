@@ -63,9 +63,7 @@ describe('createGoogleGenAIImageModel', () => {
             size: '1024x1024',
             providerOptions: {
                 google: {
-                    config: {
-                        guidanceScale: 7,
-                    },
+                    guidanceScale: 7,
                 },
             },
         });
@@ -82,5 +80,32 @@ describe('createGoogleGenAIImageModel', () => {
                 }),
             })
         );
+    });
+
+    it('should reject raw google config for images', async () => {
+        const generateImages = vi.fn(async () => ({
+            generatedImages: [],
+        }));
+        const model = createGoogleGenAIImageModel(
+            {
+                models: { generateImages },
+            } as unknown as Pick<GoogleGenAI, 'models'>,
+            'imagen-4.0-generate-001'
+        );
+        const invalidProviderOptions = {
+            google: {
+                config: {
+                    guidanceScale: 7,
+                },
+            },
+        } as Parameters<typeof model.generate>[0]['providerOptions'];
+
+        await expect(
+            model.generate({
+                prompt: 'A cat with a top hat',
+                providerOptions: invalidProviderOptions,
+            })
+        ).rejects.toThrow(/Unrecognized key\(s\) in object: 'config'/);
+        expect(generateImages).not.toHaveBeenCalled();
     });
 });

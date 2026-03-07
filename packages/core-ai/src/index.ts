@@ -33,9 +33,9 @@ export type {
     ChatInputTokenDetails,
     ChatOutputTokenDetails,
     StreamEvent,
-    StreamResult,
+    ChatStream,
     ObjectStreamEvent,
-    StreamObjectResult,
+    ObjectStream,
     EmbeddingModel,
     EmbedOptions,
     EmbedResult,
@@ -47,6 +47,7 @@ export type {
 } from './types.ts';
 export {
     LLMError,
+    StreamAbortedError,
     ProviderError,
     StructuredOutputError,
     StructuredOutputNoObjectGeneratedError,
@@ -58,8 +59,8 @@ export { resultToMessage, assistantMessage } from './result-to-message.ts';
 export { generate } from './generate.ts';
 export { generateObject } from './generate-object.ts';
 export { stream } from './stream-chat.ts';
-export { streamObject, createObjectStreamResult } from './stream-object.ts';
-export { createStreamResult } from './stream.ts';
+export { streamObject, createObjectStream } from './stream-object.ts';
+export { createChatStream } from './stream.ts';
 export { getProviderMetadata } from './provider-metadata.ts';
 export { embed } from './embed.ts';
 export { generateImage } from './generate-image.ts';

@@ -9,15 +9,15 @@ import type {
     GenerateResult,
     ObjectStreamEvent,
     StreamObjectOptions,
-    StreamObjectResult,
-    StreamResult,
+    ObjectStream,
+    ChatStream,
 } from '@core-ai/core-ai';
 import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
-    createObjectStreamResult,
-    createStreamResult,
+    createObjectStream,
+    createChatStream,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -40,12 +40,13 @@ export function createOpenAICompatChatModel(
     const provider = 'openai';
 
     async function callOpenAIChatCompletionsApi<TResponse>(
-        request: unknown
+        request: unknown,
+        signal?: AbortSignal
     ): Promise<TResponse> {
         try {
-            return (await client.chat.completions.create(
-                request as never
-            )) as TResponse;
+            return (await client.chat.completions.create(request as never, {
+                signal,
+            })) as TResponse;
         } catch (error) {
             throw wrapOpenAIError(error);
         }
@@ -55,20 +56,23 @@ export function createOpenAICompatChatModel(
         options: GenerateOptions
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options);
-        const response =
-            await callOpenAIChatCompletionsApi<
-                Parameters<typeof mapGenerateResponse>[0]
-            >(request);
+        const response = await callOpenAIChatCompletionsApi<
+            Parameters<typeof mapGenerateResponse>[0]
+        >(request, options.signal);
         return mapGenerateResponse(response);
     }
 
-    async function streamChat(options: GenerateOptions): Promise<StreamResult> {
+    async function streamChat(options: GenerateOptions): Promise<ChatStream> {
         const request = createStreamRequest(modelId, options);
-        const stream =
-            await callOpenAIChatCompletionsApi<
-                AsyncIterable<ChatCompletionChunk>
-            >(request);
-        return createStreamResult(transformStream(stream));
+        return createChatStream(
+            async () =>
+                transformStream(
+                    await callOpenAIChatCompletionsApi<
+                        AsyncIterable<ChatCompletionChunk>
+                    >(request, options.signal)
+                ),
+            { signal: options.signal }
+        );
     }
 
     return {
@@ -97,18 +101,21 @@ export function createOpenAICompatChatModel(
         },
         async streamObject<TSchema extends z.ZodType>(
             options: StreamObjectOptions<TSchema>
-        ): Promise<StreamObjectResult<TSchema>> {
+        ): Promise<ObjectStream<TSchema>> {
             const structuredOptions = createStructuredOutputOptions(options);
             const stream = await streamChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
 
-            return createObjectStreamResult(
+            return createObjectStream(
                 transformStructuredOutputStream(
                     stream,
                     options.schema,
                     provider,
                     toolName
-                )
+                ),
+                {
+                    signal: options.signal,
+                }
             );
         },
     };
@@ -143,7 +150,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
 }
 
 async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
-    stream: StreamResult,
+    stream: ChatStream,
     schema: TSchema,
     provider: string,
     toolName: string

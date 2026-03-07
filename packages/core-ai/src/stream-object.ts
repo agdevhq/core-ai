@@ -1,13 +1,13 @@
 import type { z } from 'zod';
 import { assertNonEmptyMessages } from './assertions.ts';
 import { LLMError } from './errors.ts';
-import { createSingleUseStreamResult } from './single-use-stream.ts';
+import { createStream } from './base-stream.ts';
 import type {
     ChatModel,
     GenerateObjectResult,
     ObjectStreamEvent,
     StreamObjectOptions,
-    StreamObjectResult,
+    ObjectStream,
 } from './types.ts';
 
 export type StreamObjectParams<TSchema extends z.ZodType> =
@@ -17,76 +17,62 @@ export type StreamObjectParams<TSchema extends z.ZodType> =
 
 export async function streamObject<TSchema extends z.ZodType>(
     params: StreamObjectParams<TSchema>
-): Promise<StreamObjectResult<TSchema>> {
+): Promise<ObjectStream<TSchema>> {
     assertNonEmptyMessages(params.messages);
 
     const { model, ...options } = params;
     return model.streamObject(options);
 }
 
-export function createObjectStreamResult<TSchema extends z.ZodType>(
-    source: AsyncIterable<ObjectStreamEvent<TSchema>>
-): StreamObjectResult<TSchema> {
-    let resolveResponse:
-        | ((result: GenerateObjectResult<TSchema>) => void)
-        | undefined;
-    let rejectResponse: ((error: unknown) => void) | undefined;
-    const responsePromise = new Promise<GenerateObjectResult<TSchema>>(
-        (resolve, reject) => {
-            resolveResponse = resolve;
-            rejectResponse = reject;
-        }
-    );
+export function createObjectStream<TSchema extends z.ZodType>(
+    source: AsyncIterable<ObjectStreamEvent<TSchema>>,
+    options: {
+        signal?: AbortSignal;
+    } = {}
+): ObjectStream<TSchema> {
+    const { signal } = options;
+    let objectState:
+        | { status: 'pending' }
+        | { status: 'ready'; object: z.infer<TSchema> } = {
+        status: 'pending',
+    };
+    let finishReason: GenerateObjectResult<TSchema>['finishReason'] = 'unknown';
+    let usage: GenerateObjectResult<TSchema>['usage'] = {
+        inputTokens: 0,
+        outputTokens: 0,
+        inputTokenDetails: {
+            cacheReadTokens: 0,
+            cacheWriteTokens: 0,
+        },
+        outputTokenDetails: {},
+    };
 
-    async function* iterate(): AsyncGenerator<ObjectStreamEvent<TSchema>> {
-        let objectResult: z.infer<TSchema> | undefined;
-        let finishReason: GenerateObjectResult<TSchema>['finishReason'] =
-            'unknown';
-        let usage: GenerateObjectResult<TSchema>['usage'] = {
-            inputTokens: 0,
-            outputTokens: 0,
-            inputTokenDetails: {
-                cacheReadTokens: 0,
-                cacheWriteTokens: 0,
-            },
-            outputTokenDetails: {},
-        };
-
-        try {
-            for await (const event of source) {
-                if (event.type === 'object') {
-                    objectResult = event.object;
-                } else if (event.type === 'finish') {
-                    finishReason = event.finishReason;
-                    usage = event.usage;
-                }
-
-                yield event;
+    return createStream({
+        source,
+        signal,
+        reduceEvent(event) {
+            if (event.type === 'object') {
+                objectState = {
+                    status: 'ready',
+                    object: event.object,
+                };
+            } else if (event.type === 'finish') {
+                finishReason = event.finishReason;
+                usage = event.usage;
             }
-
-            if (objectResult === undefined) {
+        },
+        finalizeResult() {
+            if (objectState.status !== 'ready') {
                 throw new LLMError(
                     'object stream completed without emitting a final object'
                 );
             }
 
-            resolveResponse?.({
-                object: objectResult,
+            return {
+                object: objectState.object,
                 finishReason,
                 usage,
-            });
-        } catch (error) {
-            rejectResponse?.(error);
-            throw error;
-        }
-    }
-
-    const generator = iterate();
-    return createSingleUseStreamResult({
-        generator,
-        responsePromise,
-        onAutoConsumeError: () => {
-            // The rejection is handled by rejectResponse.
+            };
         },
     });
 }

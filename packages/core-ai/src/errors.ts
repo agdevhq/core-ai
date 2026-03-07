@@ -8,6 +8,13 @@ export class LLMError extends Error {
     }
 }
 
+export class StreamAbortedError extends LLMError {
+    constructor(message = 'stream aborted', cause?: unknown) {
+        super(message, cause);
+        this.name = 'StreamAbortedError';
+    }
+}
+
 export class ProviderError extends LLMError {
     public readonly provider: string;
     public readonly statusCode?: number;
