@@ -245,11 +245,7 @@ export function convertToolChoice(choice: ToolChoice): ToolConfig {
 export function getStructuredOutputToolName<TSchema extends z.ZodType>(
     options: GenerateObjectOptions<TSchema>
 ): string {
-    const trimmedName = options.schemaName?.trim();
-    if (trimmedName && trimmedName.length > 0) {
-        return trimmedName;
-    }
-    return DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
+    return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
 export function createStructuredOutputOptions<TSchema extends z.ZodType>(
@@ -337,12 +333,11 @@ export function createGenerateRequest(
         ...(options.signal ? { abortSignal: options.signal } : {}),
     };
 
-    const baseRequest: GenerateContentParameters = {
+    return {
         model: modelId,
         contents: convertedMessages.contents,
         config: requestConfig,
     };
-    return baseRequest;
 }
 
 function mapSamplingToConfig(
