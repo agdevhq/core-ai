@@ -170,7 +170,7 @@ export const providerCases: ProviderContractCase[] = [
                     {
                         role: 'user',
                         content:
-                            'Think briefly and answer in one sentence: why are tests useful?',
+                            'Solve this arithmetic problem and provide only the final numeric answer: (37 * 48) + (19 * 17).',
                     },
                 ],
                 reasoning: { effort: 'medium' },
