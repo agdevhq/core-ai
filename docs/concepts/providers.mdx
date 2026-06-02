@@ -181,7 +181,6 @@ import { createOmnifact } from '@core-ai/omnifact';
 const omnifact = createOmnifact({
   apiKey: process.env.OMNIFACT_API_KEY,
   // baseURL defaults to https://connect.omnifact.ai/v1/gateway
-  // baseURL: 'http://localhost:3001/v1/gateway', // local dev
 });
 ```
 
@@ -198,12 +197,7 @@ type OmnifactProviderOptions = {
 ### Getting Models
 
 ```typescript
-// List enabled models for your organization (OpenAI SDK example).
-const models = await fetch('https://connect.omnifact.ai/v1/gateway/models', {
-  headers: { Authorization: `Bearer ${process.env.OMNIFACT_API_KEY}` },
-}).then((res) => res.json());
-
-// Pass the returned id verbatim — EU-hosted models use the eu/ prefix.
+// EU-hosted models use the eu/ prefix.
 const model = omnifact.chatModel('eu/gpt-5-mini');
 ```
 
