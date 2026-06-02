@@ -31,14 +31,7 @@ const result = await generate({
 console.log(result.content);
 ```
 
-By default, requests go to `https://connect.omnifact.ai/v1/gateway`. Override for local development:
-
-```ts
-const omnifact = createOmnifact({
-    apiKey: process.env.OMNIFACT_API_KEY,
-    baseURL: 'http://localhost:3001/v1/gateway',
-});
-```
+By default, requests go to `https://connect.omnifact.ai/v1/gateway`. Set `baseURL` to use a custom gateway URL.
 
 Use your Omnifact organization API key as the `apiKey`.
 
