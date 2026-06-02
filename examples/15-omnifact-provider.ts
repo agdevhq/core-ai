@@ -18,9 +18,6 @@ function getModelId(): string {
 async function main(): Promise<void> {
     const omnifact = createOmnifact({
         apiKey: getRequiredEnv('OMNIFACT_API_KEY'),
-        // Defaults to production. Set OMNIFACT_BASE_URL for local dev, e.g.
-        // http://localhost:3001/v1/gateway
-        baseURL: process.env.OMNIFACT_BASE_URL,
     });
     const model = omnifact.chatModel(getModelId());
 
