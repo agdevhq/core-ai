@@ -35,10 +35,6 @@ const omnifact = createOmnifact({
   Custom gateway base URL. Defaults to `https://connect.omnifact.ai/v1/gateway`.
 </ParamField>
 
-<ParamField path="client" type="OpenAI" optional>
-  Provide your own configured OpenAI client instance (the gateway uses the OpenAI Chat Completions API).
-</ParamField>
-
 ### Returns
 
 `OmnifactProvider` with method `chatModel()`.

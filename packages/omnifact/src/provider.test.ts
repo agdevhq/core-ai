@@ -1,22 +1,39 @@
-import type { OpenAIChatClient } from '@core-ai/openai/compat';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
 import { createOmnifact } from './provider.js';
 
+const { chatCreate } = vi.hoisted(() => ({ chatCreate: vi.fn() }));
+
+vi.mock('openai', async (importActual) => {
+    const actual = await importActual<typeof import('openai')>();
+    return {
+        ...actual,
+        default: class {
+            chat = {
+                completions: {
+                    create: chatCreate,
+                },
+            };
+        },
+    };
+});
+
 describe('createOmnifact', () => {
-    it('should throw when neither apiKey nor client is provided', () => {
+    beforeEach(() => {
+        chatCreate.mockReset();
+    });
+
+    it('should throw when apiKey is not provided', () => {
         expect(() => createOmnifact()).toThrow(
-            'createOmnifact: apiKey is required when no client is provided.'
+            'createOmnifact: apiKey is required.'
         );
         expect(() => createOmnifact({})).toThrow(
-            'createOmnifact: apiKey is required when no client is provided.'
+            'createOmnifact: apiKey is required.'
         );
     });
 
     it('should create a chat model with provider omnifact', () => {
-        const provider = createOmnifact({
-            client: createMockClient(),
-        });
+        const provider = createOmnifact({ apiKey: 'test-key' });
 
         const chatModel = provider.chatModel('gpt-5-mini');
 
@@ -24,8 +41,8 @@ describe('createOmnifact', () => {
         expect(chatModel.modelId).toBe('gpt-5-mini');
     });
 
-    it('should use a shared client instance when injected', async () => {
-        const chatCreate = vi.fn(async () => ({
+    it('should call the underlying OpenAI-compatible client', async () => {
+        chatCreate.mockResolvedValue({
             id: 'chatcmpl-1',
             object: 'chat.completion',
             created: Date.now(),
@@ -47,11 +64,9 @@ describe('createOmnifact', () => {
                 completion_tokens: 1,
                 total_tokens: 2,
             },
-        }));
-
-        const provider = createOmnifact({
-            client: createMockClient({ chatCreate }),
         });
+
+        const provider = createOmnifact({ apiKey: 'test-key' });
 
         await provider
             .chatModel('gpt-5-mini')
@@ -61,13 +76,9 @@ describe('createOmnifact', () => {
     });
 
     it('should tag errors with provider "omnifact"', async () => {
-        const chatCreate = vi.fn(async () => {
-            throw new Error('upstream failure');
-        });
+        chatCreate.mockRejectedValue(new Error('upstream failure'));
 
-        const provider = createOmnifact({
-            client: createMockClient({ chatCreate }),
-        });
+        const provider = createOmnifact({ apiKey: 'test-key' });
 
         const error = await provider
             .chatModel('eu/gpt-5-mini')
@@ -78,21 +89,3 @@ describe('createOmnifact', () => {
         expect((error as ProviderError).provider).toBe('omnifact');
     });
 });
-
-function createMockClient(overrides?: {
-    chatCreate?: (options: unknown) => Promise<unknown>;
-}): OpenAIChatClient {
-    const chatCreate =
-        overrides?.chatCreate ??
-        (async () => {
-            throw new Error('chat create not implemented');
-        });
-
-    return {
-        chat: {
-            completions: {
-                create: chatCreate,
-            },
-        },
-    } as unknown as OpenAIChatClient;
-}
