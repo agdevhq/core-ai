@@ -32,7 +32,7 @@ const omnifact = createOmnifact({
 </ParamField>
 
 <ParamField path="baseURL" type="string" optional>
-  Gateway base URL. Defaults to `https://connect.omnifact.ai/v1/gateway`. Override for local development, e.g. `http://localhost:3001/v1/gateway`.
+  Custom gateway base URL. Defaults to `https://connect.omnifact.ai/v1/gateway`.
 </ParamField>
 
 <ParamField path="client" type="OpenAI" optional>
@@ -116,17 +116,6 @@ const result = await stream({
 for await (const chunk of result.textStream) {
   process.stdout.write(chunk);
 }
-```
-
-### Local development
-
-```typescript
-import { createOmnifact } from '@core-ai/omnifact';
-
-const omnifact = createOmnifact({
-  apiKey: process.env.OMNIFACT_API_KEY,
-  baseURL: 'http://localhost:3001/v1/gateway',
-});
 ```
 
 ## Provider-specific options
