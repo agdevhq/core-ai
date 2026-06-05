@@ -44,7 +44,7 @@ npx tsx examples/01-chat-completion.ts
 The telemetry example uses a real OpenAI model and requires `OPENAI_API_KEY`:
 
 ```bash
-npx tsx examples/14-telemetry-console-exporter.ts
+npx tsx examples/15-telemetry-console-exporter.ts
 ```
 
 ## Available Examples
@@ -59,8 +59,8 @@ npx tsx examples/14-telemetry-console-exporter.ts
 - `08-anthropic-provider.ts`: Using Anthropic with the same `generate()` API
 - `09-google-genai-provider.ts`: Using Google GenAI (Gemini) with the same `generate()` API
 - `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
-- `11-generate-object.ts`: Typed structured output with `generateObject()`
-- `12-stream-object.ts`: Streaming structured output with `streamObject()`
-- `13-stream-abort.ts`: Cancelling a streaming call with `AbortController`
-- `14-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
-- `15-omnifact-provider.ts`: Using Omnifact API Gateway with the same `generate()` API
+- `11-omnifact-provider.ts`: Using Omnifact API Gateway with the same `generate()` API
+- `12-generate-object.ts`: Typed structured output with `generateObject()`
+- `13-stream-object.ts`: Streaming structured output with `streamObject()`
+- `14-stream-abort.ts`: Cancelling a streaming call with `AbortController`
+- `15-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
