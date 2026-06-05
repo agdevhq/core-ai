@@ -16,6 +16,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/anthropic` — Anthropic provider
 - `@core-ai/google-genai` — Google GenAI provider
 - `@core-ai/mistral` — Mistral provider
+- `@core-ai/omnifact` — Omnifact provider
 
 Internal packages (`eslint-config`, `typescript-config`, `esbuild-config`) are not built or published.
 
@@ -86,7 +87,8 @@ Providers depend on `core-ai` (acyclic — no reverse dependency):
 @core-ai/openai      ──┐
 @core-ai/anthropic    ──┤
 @core-ai/google-genai ──┼──▶ @core-ai/core-ai
-@core-ai/mistral     ──┘
+@core-ai/mistral     ──┤
+@core-ai/omnifact    ──┘
 ```
 
 ## Troubleshooting

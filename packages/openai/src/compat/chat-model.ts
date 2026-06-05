@@ -26,15 +26,16 @@ import {
     transformStructuredOutputStream,
 } from '../shared/structured-output.js';
 
-type OpenAIChatClient = {
+export type OpenAIChatClient = {
     chat: OpenAI['chat'];
 };
 
 export function createOpenAICompatChatModel(
     client: OpenAIChatClient,
-    modelId: string
+    modelId: string,
+    providerId = 'openai'
 ): ChatModel {
-    const provider = 'openai';
+    const provider = providerId;
 
     async function callOpenAIChatCompletionsApi<TResponse>(
         request: unknown,
@@ -45,7 +46,7 @@ export function createOpenAICompatChatModel(
                 signal,
             })) as TResponse;
         } catch (error) {
-            throw wrapOpenAIError(error);
+            throw wrapOpenAIError(error, provider);
         }
     }
 

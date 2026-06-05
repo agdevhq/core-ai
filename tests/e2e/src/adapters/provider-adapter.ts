@@ -9,7 +9,8 @@ export type ProviderId =
     | 'openai-compat'
     | 'anthropic'
     | 'google'
-    | 'mistral';
+    | 'mistral'
+    | 'omnifact';
 
 export type ProviderCapabilities = {
     chat: boolean;

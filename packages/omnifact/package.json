@@ -1,0 +1,57 @@
+{
+    "name": "@core-ai/omnifact",
+    "version": "0.10.3",
+    "description": "Omnifact provider package for @core-ai/core-ai",
+    "license": "MIT",
+    "author": "Omnifact (https://omnifact.ai)",
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/agdevhq/core-ai.git",
+        "directory": "packages/omnifact"
+    },
+    "keywords": [
+        "llm",
+        "ai",
+        "omnifact",
+        "provider",
+        "sdk"
+    ],
+    "type": "module",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        }
+    },
+    "files": [
+        "dist",
+        "README.md",
+        "LICENSE"
+    ],
+    "publishConfig": {
+        "access": "public"
+    },
+    "scripts": {
+        "build": "tsup",
+        "lint": "eslint src/ --max-warnings 0",
+        "check-types": "tsc --noEmit",
+        "test": "vitest run",
+        "test:watch": "vitest"
+    },
+    "dependencies": {
+        "@core-ai/core-ai": "^0.10.3",
+        "@core-ai/openai": "^0.10.3"
+    },
+    "peerDependencies": {
+        "zod": "^4.0.0"
+    },
+    "devDependencies": {
+        "@core-ai/eslint-config": "*",
+        "@core-ai/testing": "*",
+        "@core-ai/typescript-config": "*",
+        "typescript": "^5.7.3",
+        "vitest": "^3.2.4"
+    }
+}

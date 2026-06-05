@@ -35,6 +35,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | Anthropic             | `@core-ai/anthropic`     | Yes  | Yes       | —          | —                |
 | Google GenAI (Gemini) | `@core-ai/google-genai`  | Yes  | Yes       | Yes        | Yes              |
 | Mistral               | `@core-ai/mistral`       | Yes  | Yes       | Yes        | —                |
+| Omnifact              | `@core-ai/omnifact`      | Yes  | Yes       | —          | —                |
 
 > **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the legacy Chat Completions API (e.g. for Azure OpenAI or third-party OpenAI-compatible endpoints), import from `@core-ai/openai/compat` instead.
 

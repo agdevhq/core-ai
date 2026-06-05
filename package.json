@@ -11,6 +11,7 @@
         "test:e2e:anthropic": "E2E_PROVIDER=anthropic npm run test:e2e",
         "test:e2e:google": "E2E_PROVIDER=google npm run test:e2e",
         "test:e2e:mistral": "E2E_PROVIDER=mistral npm run test:e2e",
+        "test:e2e:omnifact": "E2E_PROVIDER=omnifact npm run test:e2e",
         "package": "changeset version",
         "publish": "changeset publish",
         "deploy": "turbo deploy",

@@ -169,6 +169,39 @@ const mistralSmall = mistral.chatModel('mistral-small');
 const embeddings = mistral.embeddingModel('mistral-embed');
 ```
 
+## Omnifact
+
+Omnifact provides access to the Omnifact API Gateway — an OpenAI-compatible endpoint for chat completions backed by your organization's enabled models.
+
+### Creating a Provider
+
+```typescript
+import { createOmnifact } from '@core-ai/omnifact';
+
+const omnifact = createOmnifact({
+  apiKey: process.env.OMNIFACT_API_KEY,
+  // baseURL defaults to https://connect.omnifact.ai/v1/gateway
+});
+```
+
+### Provider Options
+
+```typescript
+type OmnifactProviderOptions = {
+  apiKey?: string;
+  baseURL?: string;
+};
+```
+
+### Getting Models
+
+```typescript
+// EU-hosted models use the eu/ prefix.
+const model = omnifact.chatModel('eu/gpt-5-mini');
+```
+
+Use model IDs enabled for your organization in Omnifact. Pass `providerOptions.openai` for supported Chat Completions options (same API surface as `@core-ai/openai/compat`).
+
 ## Using Custom Clients
 
 All providers support bringing your own client instance, which is useful for advanced configuration:

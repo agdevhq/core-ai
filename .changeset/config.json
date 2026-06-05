@@ -10,7 +10,8 @@
             "@core-ai/openai",
             "@core-ai/anthropic",
             "@core-ai/google-genai",
-            "@core-ai/mistral"
+            "@core-ai/mistral",
+            "@core-ai/omnifact"
         ]
     ],
     "linked": [],

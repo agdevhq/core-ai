@@ -8,18 +8,26 @@ function isOpenAIAbortError(error: unknown): error is Error {
     );
 }
 
-export function wrapOpenAIError(error: unknown): AbortedError | ProviderError {
+export function wrapOpenAIError(
+    error: unknown,
+    provider = 'openai'
+): AbortedError | ProviderError {
     if (isOpenAIAbortError(error)) {
-        return new AbortedError(error, 'openai');
+        return new AbortedError(error, provider);
     }
 
     if (error instanceof APIError) {
-        return new ProviderError(error.message, 'openai', error.status, error);
+        return new ProviderError(
+            error.message,
+            provider,
+            error.status,
+            error
+        );
     }
 
     return new ProviderError(
         error instanceof Error ? error.message : String(error),
-        'openai',
+        provider,
         undefined,
         error
     );

@@ -1,5 +1,6 @@
 import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
+import { createOpenAICompatChatModel } from './chat-model.js';
 import { createOpenAICompat } from './provider.js';
 
 describe('createOpenAICompat', () => {
@@ -86,6 +87,17 @@ describe('createOpenAICompat', () => {
         expect(chatCreate).toHaveBeenCalledTimes(1);
         expect(embeddingCreate).toHaveBeenCalledTimes(1);
         expect(imageGenerate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should allow a custom provider id when creating a compat chat model', () => {
+        const chatModel = createOpenAICompatChatModel(
+            createMockClient(),
+            'gpt-5-mini',
+            'custom-provider'
+        );
+
+        expect(chatModel.provider).toBe('custom-provider');
+        expect(chatModel.modelId).toBe('gpt-5-mini');
     });
 });
 

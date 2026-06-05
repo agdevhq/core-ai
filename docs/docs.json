@@ -98,7 +98,8 @@
                             "api/providers/openai",
                             "api/providers/anthropic",
                             "api/providers/google-genai",
-                            "api/providers/mistral"
+                            "api/providers/mistral",
+                            "api/providers/omnifact"
                         ]
                     }
                 ]

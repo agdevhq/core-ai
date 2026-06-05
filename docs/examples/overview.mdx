@@ -27,6 +27,7 @@ OPENAI_API_KEY=your_openai_api_key
 ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_API_KEY=your_google_api_key
 MISTRAL_API_KEY=your_mistral_api_key
+OMNIFACT_API_KEY=your_omnifact_org_api_key
 ```
 
 <Note>
@@ -107,7 +108,7 @@ npx tsx examples/01-chat-completion.ts
   <Card
     title="Structured Outputs"
     icon="brackets-curly"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/11-generate-object.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/12-generate-object.ts"
   >
     Typed structured output with `generateObject()`. Shows how to generate strongly-typed JSON objects validated with Zod schemas.
   </Card>
@@ -115,7 +116,7 @@ npx tsx examples/01-chat-completion.ts
   <Card
     title="Streaming Objects"
     icon="code"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/12-stream-object.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/13-stream-object.ts"
   >
     Streaming structured output with `streamObject()`. Demonstrates real-time streaming of structured JSON with incremental validation.
   </Card>
@@ -123,7 +124,7 @@ npx tsx examples/01-chat-completion.ts
   <Card
     title="Stream Abort"
     icon="circle-stop"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/13-stream-abort.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/14-stream-abort.ts"
   >
     Abort an in-progress stream with `AbortSignal` and handle `StreamAbortedError`.
   </Card>
@@ -157,6 +158,14 @@ core-ai supports multiple AI providers with the same unified API.
   >
     Using Mistral with the same `generate()` API. Shows how easily you can integrate Mistral's models into your application.
   </Card>
+
+  <Card
+    title="Omnifact Provider"
+    icon="o"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/11-omnifact-provider.ts"
+  >
+    Using the Omnifact API Gateway with the same `generate()` API. Connect with your organization API key and any enabled model.
+  </Card>
 </CardGroup>
 
 ## Example Categories
@@ -176,18 +185,19 @@ Explore powerful features:
 
 ### 3. Structured Data
 Work with typed, validated outputs:
-- **11-generate-object.ts** - Generate structured JSON
-- **12-stream-object.ts** - Stream structured data
+- **12-generate-object.ts** - Generate structured JSON
+- **13-stream-object.ts** - Stream structured data
 
 ### 4. Stream control
 Manage in-flight streams:
-- **13-stream-abort.ts** - Abort a stream with `AbortSignal`
+- **14-stream-abort.ts** - Abort a stream with `AbortSignal`
 
 ### 5. Multi-Provider
 Experience true provider portability:
 - **08-anthropic-provider.ts** - Claude models
 - **09-google-genai-provider.ts** - Gemini models
 - **10-mistral-provider.ts** - Mistral models
+- **11-omnifact-provider.ts** - Omnifact API Gateway models
 
 ## Next Steps
 

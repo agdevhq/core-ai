@@ -1,0 +1,133 @@
+---
+title: 'Omnifact Provider'
+description: 'Create and configure the Omnifact provider for chat completions via the API Gateway'
+---
+
+## Overview
+
+The Omnifact provider connects to the [Omnifact API Gateway](https://connect.omnifact.ai) — an OpenAI-compatible endpoint for chat completions. Use your Omnifact organization API key and any model enabled for your organization.
+
+## Installation
+
+```bash
+npm install @core-ai/omnifact
+```
+
+## createOmnifact()
+
+Create an Omnifact provider instance.
+
+```typescript
+import { createOmnifact } from '@core-ai/omnifact';
+
+const omnifact = createOmnifact({
+  apiKey: process.env.OMNIFACT_API_KEY,
+});
+```
+
+### Options
+
+<ParamField path="apiKey" type="string" optional>
+  Your Omnifact organization API key.
+</ParamField>
+
+<ParamField path="baseURL" type="string" optional>
+  Custom gateway base URL. Defaults to `https://connect.omnifact.ai/v1/gateway`.
+</ParamField>
+
+### Returns
+
+`OmnifactProvider` with method `chatModel()`.
+
+## Model IDs
+
+Use the exact `id` values returned by `GET /v1/gateway/models`. The SDK passes the model id through unchanged.
+
+EU-hosted backends (Azure OpenAI, Vertex Google, Vertex Anthropic, Mistral, etc.) always use the `eu/` prefix:
+
+- `eu/gpt-5-mini` — Azure OpenAI
+- `eu/claude-4-6-sonnet` — Vertex Anthropic
+- `eu/mistral-large` — Mistral
+
+Direct non-EU providers use the plain type id:
+
+- `gpt-5-mini` — OpenAI
+- `claude-4-6-sonnet` — Anthropic
+
+When both a direct and an EU backend exist for the same model type, both ids may appear in the model list. Use the one that matches where you want the request routed.
+
+## Capabilities
+
+| Feature | Support |
+|---------|--------|
+| Chat Completion | Yes |
+| Streaming | Yes |
+| Function Calling | No |
+| Vision | No |
+| Reasoning | Depends on model |
+| Embeddings | No |
+| Image Generation | No |
+
+## Examples
+
+### Basic chat
+
+```typescript
+import { createOmnifact } from '@core-ai/omnifact';
+import { generate } from '@core-ai/core-ai';
+
+const omnifact = createOmnifact({
+  apiKey: process.env.OMNIFACT_API_KEY,
+});
+
+// Use an id from GET /v1/gateway/models (eu/ prefix for EU-hosted models).
+const model = omnifact.chatModel('eu/gpt-5-mini');
+
+const result = await generate({
+  model,
+  messages: [{ role: 'user', content: 'Hello!' }],
+});
+
+console.log(result.content);
+```
+
+### Streaming
+
+```typescript
+import { createOmnifact } from '@core-ai/omnifact';
+import { stream } from '@core-ai/core-ai';
+
+const omnifact = createOmnifact({
+  apiKey: process.env.OMNIFACT_API_KEY,
+});
+
+// Use an id from GET /v1/gateway/models (eu/ prefix for EU-hosted models).
+const model = omnifact.chatModel('eu/gpt-5-mini');
+
+const result = await stream({
+  model,
+  messages: [{ role: 'user', content: 'Count to five.' }],
+});
+
+for await (const chunk of result.textStream) {
+  process.stdout.write(chunk);
+}
+```
+
+## Provider-specific options
+
+The gateway follows the OpenAI Chat Completions API. Pass options via `providerOptions.openai`:
+
+```typescript
+await generate({
+  model: omnifact.chatModel('eu/gpt-5-mini'),
+  messages: [{ role: 'user', content: 'Hello!' }],
+  providerOptions: {
+    openai: {
+      temperature: 0.7,
+    },
+  },
+});
+```
+
+See the [OpenAI compat provider](/api/providers/openai#createopenaicompat) docs for available Chat Completions options.
