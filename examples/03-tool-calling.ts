@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { defineTool, generate } from '@core-ai/core-ai';
+import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 import { z } from 'zod';
 
@@ -98,11 +98,7 @@ async function main(): Promise<void> {
         model,
         messages: [
             ...initialMessages,
-            {
-                role: 'assistant',
-                content: firstResult.content,
-                toolCalls: firstResult.toolCalls,
-            },
+            resultToMessage(firstResult),
             ...toolMessages,
         ],
         tools: { get_weather: weatherTool },
