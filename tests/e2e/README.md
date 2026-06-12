@@ -8,6 +8,7 @@ The harness runs one shared behavioral contract against provider adapters:
 
 - OpenAI
 - OpenAI Compat
+- Azure OpenAI
 - Anthropic
 - Google GenAI
 - Mistral
@@ -39,13 +40,15 @@ E2E_PROVIDER=omnifact npm run test:e2e
 ```
 
 Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:compat`,
-`test:e2e:anthropic`, `test:e2e:google`, `test:e2e:mistral`.
+`test:e2e:azure-openai`, `test:e2e:anthropic`, `test:e2e:google`,
+`test:e2e:mistral`.
 
 ## Required Environment Variables
 
 Provider keys:
 
 - `OPENAI_API_KEY`
+- `AZURE_OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
@@ -61,6 +64,11 @@ Optional model and endpoint overrides:
 - `OPENAI_COMPAT_E2E_REASONING_MODEL` (default: `gpt-5-mini`)
 - `OPENAI_COMPAT_E2E_EMBED_MODEL` (default: `text-embedding-3-small`)
 - `OPENAI_COMPAT_E2E_IMAGE_MODEL` (default: `gpt-image-1`)
+- `AZURE_OPENAI_ENDPOINT`
+- `AZURE_OPENAI_API` (default: `v1`; set to `classic` for the classic Azure API)
+- `AZURE_OPENAI_API_VERSION` (classic only; default: `2025-04-01-preview`)
+- `AZURE_OPENAI_E2E_CHAT_DEPLOYMENT` (default: `gpt-5-mini`)
+- `AZURE_OPENAI_E2E_REASONING_DEPLOYMENT` (default: chat deployment)
 - `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
@@ -81,6 +89,8 @@ provider uses a lighter chat model and a stronger reasoning model.
 
 For Omnifact, use model ids enabled for your organization; EU-hosted models
 require the `eu/` prefix.
+
+For Azure OpenAI, use deployment names for chat and reasoning overrides.
 
 ## Add a New Provider Adapter
 

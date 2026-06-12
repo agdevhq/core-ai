@@ -7,6 +7,7 @@ import type {
 export type ProviderId =
     | 'openai'
     | 'openai-compat'
+    | 'azure-openai'
     | 'anthropic'
     | 'google'
     | 'mistral'

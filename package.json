@@ -8,6 +8,7 @@
         "test:e2e": "vitest run --config tests/e2e/vitest.config.ts",
         "test:e2e:openai": "E2E_PROVIDER=openai npm run test:e2e",
         "test:e2e:openai:compat": "E2E_PROVIDER=openai-compat npm run test:e2e",
+        "test:e2e:azure-openai": "E2E_PROVIDER=azure-openai npm run test:e2e",
         "test:e2e:anthropic": "E2E_PROVIDER=anthropic npm run test:e2e",
         "test:e2e:google": "E2E_PROVIDER=google npm run test:e2e",
         "test:e2e:mistral": "E2E_PROVIDER=mistral npm run test:e2e",

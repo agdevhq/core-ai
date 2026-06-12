@@ -96,6 +96,7 @@
                         "group": "Providers",
                         "pages": [
                             "api/providers/openai",
+                            "api/providers/azure-openai",
                             "api/providers/anthropic",
                             "api/providers/google-genai",
                             "api/providers/mistral",

@@ -25,6 +25,8 @@ ANTHROPIC_API_KEY=your_anthropic_api_key
 GOOGLE_API_KEY=your_google_api_key
 MISTRAL_API_KEY=your_mistral_api_key
 OMNIFACT_API_KEY=your_omnifact_org_api_key
+AZURE_OPENAI_API_KEY=your_azure_openai_api_key
+AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 ```
 
 `ANTHROPIC_API_KEY` is only required for the Anthropic example.
@@ -32,6 +34,8 @@ OMNIFACT_API_KEY=your_omnifact_org_api_key
 `MISTRAL_API_KEY` is only required for the Mistral example.
 `OMNIFACT_API_KEY` is only required for the Omnifact example.
 Optional: `OMNIFACT_MODEL` overrides the model id (default in the example: `eu/gpt-5-mini`). Use ids from `GET /v1/gateway/models`.
+`AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT` are only required for the Azure OpenAI example.
+Optional: `AZURE_OPENAI_DEPLOYMENT` overrides the deployment name (default in the example: `gpt-5-mini`). Set `AZURE_OPENAI_API=classic` to use the classic Azure API; `AZURE_OPENAI_API_VERSION` overrides the classic API version.
 
 ## Run an Example
 
@@ -44,7 +48,7 @@ npx tsx examples/01-chat-completion.ts
 The telemetry example uses a real OpenAI model and requires `OPENAI_API_KEY`:
 
 ```bash
-npx tsx examples/15-telemetry-console-exporter.ts
+npx tsx examples/16-telemetry-console-exporter.ts
 ```
 
 ## Available Examples
@@ -60,7 +64,8 @@ npx tsx examples/15-telemetry-console-exporter.ts
 - `09-google-genai-provider.ts`: Using Google GenAI (Gemini) with the same `generate()` API
 - `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
 - `11-omnifact-provider.ts`: Using Omnifact API Gateway with the same `generate()` API
-- `12-generate-object.ts`: Typed structured output with `generateObject()`
-- `13-stream-object.ts`: Streaming structured output with `streamObject()`
-- `14-stream-abort.ts`: Cancelling a streaming call with `AbortController`
-- `15-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
+- `12-azure-openai-provider.ts`: Using Azure OpenAI deployments with the same `generate()` API
+- `13-generate-object.ts`: Typed structured output with `generateObject()`
+- `14-stream-object.ts`: Streaming structured output with `streamObject()`
+- `15-stream-abort.ts`: Cancelling a streaming call with `AbortController`
+- `16-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
