@@ -21,27 +21,28 @@ Create an Anthropic provider instance.
 import { createAnthropic } from '@core-ai/anthropic';
 
 const anthropic = createAnthropic({
-  apiKey: process.env.ANTHROPIC_API_KEY,
-  defaultMaxTokens: 4096,
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    defaultMaxTokens: 4096,
 });
 ```
 
 ### Options
 
 <ParamField path="apiKey" type="string" optional>
-  Your Anthropic API key. Defaults to `ANTHROPIC_API_KEY` environment variable.
+    Your Anthropic API key. Defaults to `ANTHROPIC_API_KEY` environment
+    variable.
 </ParamField>
 
 <ParamField path="baseURL" type="string" optional>
-  Custom base URL for API requests.
+    Custom base URL for API requests.
 </ParamField>
 
 <ParamField path="defaultMaxTokens" type="number" optional default="4096">
-  Default maximum tokens for completions. Can be overridden per request.
+    Default maximum tokens for completions. Can be overridden per request.
 </ParamField>
 
 <ParamField path="client" type="Anthropic" optional>
-  Provide your own configured Anthropic client instance.
+    Provide your own configured Anthropic client instance.
 </ParamField>
 
 ### Returns
@@ -51,41 +52,62 @@ const anthropic = createAnthropic({
 ## Supported models
 
 <AccordionGroup>
-  <Accordion title="Claude 4.6 (adaptive thinking)" icon="sparkles">
-    Latest generation with adaptive thinking mode.
-    
-    - **claude-opus-4-6** - Most capable, supports max effort
-    - **claude-sonnet-4-6** - Balanced performance and speed
+  <Accordion title="Claude Fable and Mythos (adaptive thinking)" icon="sparkles">
+    Claude Fable and Mythos models use adaptive thinking mode.
+
+    <ul>
+      <li><strong>claude-fable-5</strong> - Widely available model for demanding reasoning and agentic work</li>
+      <li><strong>claude-mythos-5</strong> - Limited-access model with the same capability handling</li>
+      <li><strong>claude-mythos-preview</strong> - Limited-access preview model</li>
+    </ul>
+
   </Accordion>
-  
+
+  <Accordion title="Claude Opus and Sonnet (adaptive thinking)" icon="brain">
+    Current Opus and Sonnet models use effort-based adaptive thinking.
+
+    <ul>
+      <li><strong>claude-opus-4-8</strong> - Opus model for complex reasoning and agentic coding</li>
+      <li><strong>claude-opus-4-7</strong> - Opus model with max effort support</li>
+      <li><strong>claude-opus-4-6</strong> - Opus model with max effort support</li>
+      <li><strong>claude-sonnet-4-6</strong> - Balanced performance and speed with max effort support</li>
+    </ul>
+
+  </Accordion>
+
   <Accordion title="Claude 4.5 (manual thinking)" icon="brain">
-    Previous generation with manual thinking budget control.
-    
-    - **claude-opus-4-5** - High capability
-    - **claude-sonnet-4-5** - Efficient reasoning
-    - **claude-haiku-4-5** - Fast and lightweight
+    Models with manual thinking budget control.
+
+    <ul>
+      <li><strong>claude-opus-4-5</strong> - High capability</li>
+      <li><strong>claude-sonnet-4-5</strong> - Efficient reasoning</li>
+      <li><strong>claude-haiku-4-5</strong> - Fast and lightweight</li>
+    </ul>
+
   </Accordion>
-  
+
   <Accordion title="Claude 4 and earlier" icon="circle">
-    - **claude-opus-4-1** - Enhanced reasoning
-    - **claude-opus-4** - Strong performance
-    - **claude-sonnet-4** - Balanced model
-    - **claude-sonnet-3-7** - Previous generation
+    <ul>
+      <li><strong>claude-opus-4-1</strong> - Enhanced reasoning</li>
+      <li><strong>claude-opus-4</strong> - Strong performance</li>
+      <li><strong>claude-sonnet-4</strong> - Balanced model</li>
+      <li><strong>claude-sonnet-3-7</strong> - Previous generation</li>
+    </ul>
   </Accordion>
 </AccordionGroup>
 
 ## Capabilities
 
-| Feature | Support |
-|---------|--------|
-| Chat Completion | Yes |
-| Streaming | Yes |
-| Function Calling | Yes |
-| Vision | Yes |
-| Reasoning | Yes |
-| Prompt Caching | Yes |
-| Embeddings | No |
-| Image Generation | No |
+| Feature          | Support |
+| ---------------- | ------- |
+| Chat Completion  | Yes     |
+| Streaming        | Yes     |
+| Function Calling | Yes     |
+| Vision           | Yes     |
+| Reasoning        | Yes     |
+| Prompt Caching   | Yes     |
+| Embeddings       | No      |
+| Image Generation | No      |
 
 ## Examples
 
@@ -98,10 +120,8 @@ import { generate } from '@core-ai/core-ai';
 const anthropic = createAnthropic();
 
 const result = await generate({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [
-    { role: 'user', content: 'Explain the theory of relativity' },
-  ],
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Explain the theory of relativity' }],
 });
 
 console.log(result.content);
@@ -111,18 +131,21 @@ console.log(result.content);
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-opus-4-6'),
-  messages: [
-    { role: 'user', content: 'Analyze this complex dataset and provide insights...' },
-  ],
-  reasoning: {
-    effort: 'max',
-  },
-  maxTokens: 8192,
+    model: anthropic.chatModel('claude-opus-4-8'),
+    messages: [
+        {
+            role: 'user',
+            content: 'Analyze this complex dataset and provide insights...',
+        },
+    ],
+    reasoning: {
+        effort: 'max',
+    },
+    maxTokens: 8192,
 });
 
 if (result.reasoning) {
-  console.log('Reasoning:', result.reasoning);
+    console.log('Reasoning:', result.reasoning);
 }
 console.log('Answer:', result.content);
 ```
@@ -133,21 +156,19 @@ console.log('Answer:', result.content);
 import { stream } from '@core-ai/core-ai';
 
 const chatStream = await stream({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [
-    { role: 'user', content: 'Write a detailed analysis of...' },
-  ],
-  reasoning: {
-    effort: 'high',
-  },
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Write a detailed analysis of...' }],
+    reasoning: {
+        effort: 'high',
+    },
 });
 
 for await (const event of chatStream) {
-  if (event.type === 'reasoning-delta') {
-    process.stdout.write(event.text);
-  } else if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'reasoning-delta') {
+        process.stdout.write(event.text);
+    } else if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 ```
 
@@ -158,19 +179,19 @@ import { generate, defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const result = await generate({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [
-    { role: 'user', content: 'What is the weather in San Francisco?' },
-  ],
-  tools: {
-    getWeather: defineTool({
-      name: 'getWeather',
-      description: 'Get weather for a location',
-      parameters: z.object({
-        location: z.string(),
-      }),
-    }),
-  },
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [
+        { role: 'user', content: 'What is the weather in San Francisco?' },
+    ],
+    tools: {
+        getWeather: defineTool({
+            name: 'getWeather',
+            description: 'Get weather for a location',
+            parameters: z.object({
+                location: z.string(),
+            }),
+        }),
+    },
 });
 ```
 
@@ -178,47 +199,50 @@ const result = await generate({
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [
-    {
-      role: 'user',
-      content: [
-        { type: 'text', text: 'What is in this image?' },
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [
         {
-          type: 'image',
-          source: {
-            type: 'url',
-            url: 'https://example.com/image.jpg',
-          },
+            role: 'user',
+            content: [
+                { type: 'text', text: 'What is in this image?' },
+                {
+                    type: 'image',
+                    source: {
+                        type: 'url',
+                        url: 'https://example.com/image.jpg',
+                    },
+                },
+            ],
         },
-      ],
-    },
-  ],
+    ],
 });
 ```
 
 <Note>
-  Anthropic accepts image parts and PDF file parts. Other file MIME types are rejected.
+    Anthropic accepts image parts and PDF file parts. Other file MIME types are
+    rejected.
 </Note>
 
 ## Thinking modes
 
-### Adaptive thinking (Claude 4.6)
+### Adaptive thinking
 
 The model automatically determines thinking depth based on the effort level.
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-opus-4-6'),
-  messages: [{ role: 'user', content: 'Complex problem...' }],
-  reasoning: {
-    effort: 'high',
-  },
+    model: anthropic.chatModel('claude-opus-4-8'),
+    messages: [{ role: 'user', content: 'Complex problem...' }],
+    reasoning: {
+        effort: 'high',
+    },
 });
 ```
 
 <Note>
-  Only `claude-opus-4-6` supports `'max'` effort directly. On `claude-sonnet-4-6`, `'max'` is clamped to `'high'`.
+    `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
+    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, and
+    `claude-sonnet-4-6` support `'max'` effort directly.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)
@@ -227,11 +251,11 @@ Token budgets: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192, `high` -> 
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-opus-4-5'),
-  messages: [{ role: 'user', content: 'Complex reasoning task...' }],
-  reasoning: {
-    effort: 'high',
-  },
+    model: anthropic.chatModel('claude-opus-4-5'),
+    messages: [{ role: 'user', content: 'Complex reasoning task...' }],
+    reasoning: {
+        effort: 'high',
+    },
 });
 ```
 
@@ -245,11 +269,13 @@ When reasoning is enabled, Anthropic enforces additional request constraints:
 - `providerOptions.anthropic.topK` must be omitted
 
 <Warning>
-  Violating these constraints throws a `ProviderError` before the request is sent.
+    Violating these constraints throws a `ProviderError` before the request is
+    sent.
 </Warning>
 
 <Note>
-  When you combine reasoning with tools, the adapter automatically adds the `interleaved-thinking-2025-05-14` beta.
+    When you combine reasoning with tools, the adapter automatically adds the
+    `interleaved-thinking-2025-05-14` beta.
 </Note>
 
 ### Reasoning metadata
@@ -261,21 +287,21 @@ import { generate, getProviderMetadata } from '@core-ai/core-ai';
 import type { AnthropicReasoningMetadata } from '@core-ai/anthropic';
 
 const result = await generate({
-  model: anthropic.chatModel('claude-opus-4-6'),
-  messages: [{ role: 'user', content: 'Think step by step.' }],
-  reasoning: { effort: 'high' },
+    model: anthropic.chatModel('claude-opus-4-8'),
+    messages: [{ role: 'user', content: 'Think step by step.' }],
+    reasoning: { effort: 'high' },
 });
 
 for (const part of result.parts) {
-  if (part.type !== 'reasoning') continue;
+    if (part.type !== 'reasoning') continue;
 
-  const metadata = getProviderMetadata<AnthropicReasoningMetadata>(
-    part.providerMetadata,
-    'anthropic'
-  );
+    const metadata = getProviderMetadata<AnthropicReasoningMetadata>(
+        part.providerMetadata,
+        'anthropic'
+    );
 
-  console.log(metadata?.signature);
-  console.log(metadata?.redactedData);
+    console.log(metadata?.signature);
+    console.log(metadata?.redactedData);
 }
 ```
 
@@ -290,14 +316,14 @@ Options are namespaced under `anthropic` in `providerOptions`:
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [{ role: 'user', content: 'Hello' }],
-  providerOptions: {
-    anthropic: {
-      stopSequences: ['\n\n'],
-      betas: ['interleaved-thinking-2025-05-14'],
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    providerOptions: {
+        anthropic: {
+            stopSequences: ['\n\n'],
+            betas: ['interleaved-thinking-2025-05-14'],
+        },
     },
-  },
 });
 ```
 
@@ -309,16 +335,19 @@ Use `cacheControl` to enable Anthropic prompt caching. This maps to Anthropic's 
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [
-    { role: 'system', content: 'You are a careful technical editor.' },
-    { role: 'user', content: 'Summarize this document and keep all key dates.' },
-  ],
-  providerOptions: {
-    anthropic: {
-      cacheControl: { type: 'ephemeral' },
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [
+        { role: 'system', content: 'You are a careful technical editor.' },
+        {
+            role: 'user',
+            content: 'Summarize this document and keep all key dates.',
+        },
+    ],
+    providerOptions: {
+        anthropic: {
+            cacheControl: { type: 'ephemeral' },
+        },
     },
-  },
 });
 
 console.log(result.usage.inputTokenDetails.cacheReadTokens);
@@ -329,13 +358,13 @@ You can request a 1-hour cache TTL when you expect follow-up requests to arrive 
 
 ```typescript
 const result = await generate({
-  model: anthropic.chatModel('claude-sonnet-4-6'),
-  messages: [{ role: 'user', content: 'Summarize this large document.' }],
-  providerOptions: {
-    anthropic: {
-      cacheControl: { type: 'ephemeral', ttl: '1h' },
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Summarize this large document.' }],
+    providerOptions: {
+        anthropic: {
+            cacheControl: { type: 'ephemeral', ttl: '1h' },
+        },
     },
-  },
 });
 ```
 
@@ -346,6 +375,7 @@ Anthropic reports cache usage in `result.usage.inputTokenDetails`:
 
 Anthropic only caches prompts above the model's minimum cacheable length:
 
+- 1024 tokens for Claude Opus 4.8
 - 1024 tokens for Claude Sonnet 4.5, Claude Opus 4.1, Claude Opus 4, Claude Sonnet 4, and Claude Sonnet 3.7
 - 2048 tokens for Claude Sonnet 4.6
 - 4096 tokens for Claude Opus 4.6, Claude Opus 4.5, and Claude Haiku 4.5
@@ -356,28 +386,36 @@ Anthropic only caches prompts above the model's minimum cacheable length:
 import { ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await generate({
-    model: anthropic.chatModel('claude-sonnet-4-6'),
-    messages: [{ role: 'user', content: 'Hello!' }],
-  });
+    const result = await generate({
+        model: anthropic.chatModel('claude-sonnet-4-6'),
+        messages: [{ role: 'user', content: 'Hello!' }],
+    });
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('Anthropic API error:', error.message);
-    console.error('Status:', error.statusCode);
-  }
+    if (error instanceof ProviderError) {
+        console.error('Anthropic API error:', error.message);
+        console.error('Status:', error.statusCode);
+    }
 }
 ```
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="OpenAI Provider" icon="robot" href="/api/providers/openai">
-    GPT models with reasoning capabilities
-  </Card>
-  <Card title="Google GenAI Provider" icon="sparkles" href="/api/providers/google-genai">
-    Gemini models with multimodal support
-  </Card>
-  <Card title="Chat Completion Guide" icon="message" href="/guides/chat-completion">
-    Learn how to use chat completion
-  </Card>
+    <Card title="OpenAI Provider" icon="robot" href="/api/providers/openai">
+        GPT models with reasoning capabilities
+    </Card>
+    <Card
+        title="Google GenAI Provider"
+        icon="sparkles"
+        href="/api/providers/google-genai"
+    >
+        Gemini models with multimodal support
+    </Card>
+    <Card
+        title="Chat Completion Guide"
+        icon="message"
+        href="/guides/chat-completion"
+    >
+        Learn how to use chat completion
+    </Card>
 </CardGroup>

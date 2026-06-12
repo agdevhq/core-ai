@@ -23,22 +23,23 @@ Create an OpenAI provider instance using the Responses API.
 import { createOpenAI } from '@core-ai/openai';
 
 const openai = createOpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY,
 });
 ```
 
 ### Options
 
 <ParamField path="apiKey" type="string" optional>
-  Your OpenAI API key. Defaults to `OPENAI_API_KEY` environment variable.
+    Your OpenAI API key. Defaults to `OPENAI_API_KEY` environment variable.
 </ParamField>
 
 <ParamField path="baseURL" type="string" optional>
-  Custom base URL for API requests. Useful for proxies or OpenAI-compatible APIs.
+    Custom base URL for API requests. Useful for proxies or OpenAI-compatible
+    APIs.
 </ParamField>
 
 <ParamField path="client" type="OpenAI" optional>
-  Provide your own configured OpenAI client instance.
+    Provide your own configured OpenAI client instance.
 </ParamField>
 
 ### Returns
@@ -53,7 +54,7 @@ Create an OpenAI provider instance using the Chat Completions API.
 import { createOpenAICompat } from '@core-ai/openai/compat';
 
 const openai = createOpenAICompat({
-  apiKey: process.env.OPENAI_API_KEY,
+    apiKey: process.env.OPENAI_API_KEY,
 });
 ```
 
@@ -87,29 +88,40 @@ const imageGen = openai.imageModel('gpt-image-1');
 
 <AccordionGroup>
   <Accordion title="GPT-5 Series" icon="star">
-    - **gpt-5.4** - Latest flagship model with max reasoning effort
-    - **gpt-5.4-pro** - Most advanced model with enhanced reasoning
-    - **gpt-5.2** - Flagship with reasoning control
-    - **gpt-5.2-codex** - Optimized for code generation
-    - **gpt-5.2-pro** - Enhanced reasoning capabilities
-    - **gpt-5.1** - Previous generation flagship
-    - **gpt-5** - Balanced performance and cost
-    - **gpt-5-mini** - Fast and efficient
-    - **gpt-5-nano** - Lightweight model
+    <ul>
+      <li><strong>gpt-5.5</strong> - Flagship model for complex reasoning and coding</li>
+      <li><strong>gpt-5.5-pro</strong> - Pro model for demanding reasoning tasks</li>
+      <li><strong>gpt-5.4</strong> - Frontier model with max reasoning effort</li>
+      <li><strong>gpt-5.4-pro</strong> - Pro model with enhanced reasoning</li>
+      <li><strong>gpt-5.4-mini</strong> - Efficient GPT-5.4-class model for high-volume workloads</li>
+      <li><strong>gpt-5.4-nano</strong> - Lightweight GPT-5.4-class model for simple high-volume tasks</li>
+      <li><strong>gpt-5.3-codex</strong> - Agentic coding model</li>
+      <li><strong>gpt-5.2</strong> - Flagship with reasoning control</li>
+      <li><strong>gpt-5.2-codex</strong> - Optimized for code generation</li>
+      <li><strong>gpt-5.2-pro</strong> - Enhanced reasoning capabilities</li>
+      <li><strong>gpt-5.1</strong> - Previous generation flagship</li>
+      <li><strong>gpt-5</strong> - Balanced performance and cost</li>
+      <li><strong>gpt-5-pro</strong> - Pro model with high-only reasoning effort</li>
+      <li><strong>gpt-5-mini</strong> - Fast and efficient</li>
+      <li><strong>gpt-5-nano</strong> - Lightweight model</li>
+    </ul>
   </Accordion>
-  
+
   <Accordion title="o-Series (Reasoning Models)" icon="brain">
-    - **o4-mini** - Latest compact reasoning model
-    - **o3** - Advanced reasoning capabilities
-    - **o3-mini** - Efficient reasoning model
-    - **o1** - First-generation reasoning model
-    - **o1-mini** - Compact reasoning model (no effort control)
+    <ul>
+      <li><strong>o4-mini</strong> - Compact reasoning model</li>
+      <li><strong>o3-pro</strong> - o3 model with more compute for harder reasoning tasks</li>
+      <li><strong>o3</strong> - Advanced reasoning capabilities</li>
+      <li><strong>o3-mini</strong> - Efficient reasoning model</li>
+      <li><strong>o1</strong> - First-generation reasoning model</li>
+      <li><strong>o1-mini</strong> - Compact reasoning model with no effort control</li>
+    </ul>
   </Accordion>
-  
 </AccordionGroup>
 
 <Note>
-  Any valid OpenAI chat model ID is accepted. The models above are the ones with explicit capability handling in core-ai.
+    Any valid OpenAI chat model ID is accepted. The models above are the ones
+    with explicit capability handling in core-ai.
 </Note>
 
 ### Embedding models
@@ -120,6 +132,7 @@ const imageGen = openai.imageModel('gpt-image-1');
 
 ### Image models
 
+- **gpt-image-2** - Image generation model
 - **gpt-image-1** - Image generation model used throughout the docs examples
 
 ## Examples
@@ -133,10 +146,10 @@ import { generate } from '@core-ai/core-ai';
 const openai = createOpenAI();
 
 const result = await generate({
-  model: openai.chatModel('gpt-5-mini'),
-  messages: [
-    { role: 'user', content: 'Explain quantum computing in simple terms' },
-  ],
+    model: openai.chatModel('gpt-5-mini'),
+    messages: [
+        { role: 'user', content: 'Explain quantum computing in simple terms' },
+    ],
 });
 
 console.log(result.content);
@@ -146,13 +159,13 @@ console.log(result.content);
 
 ```typescript
 const result = await generate({
-  model: openai.chatModel('gpt-5.4'),
-  messages: [
-    { role: 'user', content: 'Solve this complex mathematical proof...' },
-  ],
-  reasoning: {
-    effort: 'max',
-  },
+    model: openai.chatModel('gpt-5.4'),
+    messages: [
+        { role: 'user', content: 'Solve this complex mathematical proof...' },
+    ],
+    reasoning: {
+        effort: 'max',
+    },
 });
 ```
 
@@ -162,8 +175,8 @@ const result = await generate({
 import { embed } from '@core-ai/core-ai';
 
 const result = await embed({
-  model: openai.embeddingModel('text-embedding-3-large'),
-  input: 'Search query text',
+    model: openai.embeddingModel('text-embedding-3-large'),
+    input: 'Search query text',
 });
 
 console.log(result.embeddings[0]);
@@ -175,9 +188,9 @@ console.log(result.embeddings[0]);
 import { generateImage } from '@core-ai/core-ai';
 
 const result = await generateImage({
-  model: openai.imageModel('gpt-image-1'),
-  prompt: 'A futuristic city at sunset',
-  size: '1024x1024',
+    model: openai.imageModel('gpt-image-1'),
+    prompt: 'A futuristic city at sunset',
+    size: '1024x1024',
 });
 
 console.log(result.images);
@@ -187,8 +200,8 @@ console.log(result.images);
 
 ```typescript
 const openai = createOpenAI({
-  apiKey: 'your-api-key',
-  baseURL: 'https://your-proxy.com/v1',
+    apiKey: 'your-api-key',
+    baseURL: 'https://your-proxy.com/v1',
 });
 ```
 
@@ -196,16 +209,19 @@ const openai = createOpenAI({
 
 Reasoning support depends on the selected model family:
 
-| Models | Supported effort levels |
-|--------|-------------------------|
-| `gpt-5.4`, `gpt-5.4-pro`, `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.2-pro` | `low`, `medium`, `high`, `max` |
-| `gpt-5.1` | `low`, `medium`, `high` |
-| `gpt-5`, `gpt-5-mini`, `gpt-5-nano` | `minimal`, `low`, `medium`, `high` |
-| `o3`, `o3-mini`, `o4-mini`, `o1` | `low`, `medium`, `high` |
-| `o1-mini` | No effort control |
+| Models                                                                                                           | Supported effort levels            |
+| ---------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.2-pro` | `low`, `medium`, `high`, `max`     |
+| `gpt-5.5-pro`, `gpt-5.4-pro`                                                                                     | `medium`, `high`, `max`            |
+| `gpt-5-pro`                                                                                                      | `high`                             |
+| `gpt-5.1`                                                                                                        | `low`, `medium`, `high`            |
+| `gpt-5`, `gpt-5-mini`, `gpt-5-nano`                                                                              | `minimal`, `low`, `medium`, `high` |
+| `o3`, `o3-pro`, `o3-mini`, `o4-mini`, `o1`                                                                       | `low`, `medium`, `high`            |
+| `o1-mini`                                                                                                        | No effort control                  |
 
 <Warning>
-  GPT-5 family models throw a `ProviderError` if you set `temperature` or `topP` while reasoning is enabled.
+    GPT-5 family models throw a `ProviderError` if you set `temperature` or
+    `topP` while reasoning is enabled.
 </Warning>
 
 ### Reasoning metadata
@@ -217,20 +233,20 @@ import { generate, getProviderMetadata } from '@core-ai/core-ai';
 import type { OpenAIReasoningMetadata } from '@core-ai/openai';
 
 const result = await generate({
-  model: openai.chatModel('gpt-5.4'),
-  messages: [{ role: 'user', content: 'Think carefully before answering.' }],
-  reasoning: { effort: 'high' },
+    model: openai.chatModel('gpt-5.4'),
+    messages: [{ role: 'user', content: 'Think carefully before answering.' }],
+    reasoning: { effort: 'high' },
 });
 
 for (const part of result.parts) {
-  if (part.type !== 'reasoning') continue;
+    if (part.type !== 'reasoning') continue;
 
-  const metadata = getProviderMetadata<OpenAIReasoningMetadata>(
-    part.providerMetadata,
-    'openai'
-  );
+    const metadata = getProviderMetadata<OpenAIReasoningMetadata>(
+        part.providerMetadata,
+        'openai'
+    );
 
-  console.log(metadata?.encryptedContent);
+    console.log(metadata?.encryptedContent);
 }
 ```
 
@@ -244,23 +260,25 @@ Options are namespaced under `openai` in `providerOptions` and validated with Zo
 import { generate } from '@core-ai/core-ai';
 
 const result = await generate({
-  model: openai.chatModel('gpt-5-mini'),
-  messages: [{ role: 'user', content: 'Hello' }],
-  providerOptions: {
-    openai: {
-      store: true,
-      serviceTier: 'auto',
-      parallelToolCalls: true,
-      user: 'user-123',
+    model: openai.chatModel('gpt-5-mini'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    providerOptions: {
+        openai: {
+            store: true,
+            serviceTier: 'auto',
+            parallelToolCalls: true,
+            user: 'user-123',
+        },
     },
-  },
 });
 ```
 
 Available fields: `store`, `serviceTier` (`'auto'` | `'default'` | `'flex'` | `'scale'` | `'priority'`), `include`, `parallelToolCalls`, `user`.
 
 <Note>
-  Responses requests default to `store: false`. If reasoning is enabled, core-ai also ensures `reasoning.encrypted_content` is included automatically.
+    Responses requests default to `store: false`. If reasoning is enabled,
+    core-ai also ensures `reasoning.encrypted_content` is included
+    automatically.
 </Note>
 
 ### Generate options (Chat Completions API)
@@ -274,39 +292,41 @@ import { generate } from '@core-ai/core-ai';
 const openai = createOpenAICompat();
 
 const result = await generate({
-  model: openai.chatModel('gpt-5-mini'),
-  messages: [{ role: 'user', content: 'Hello' }],
-  providerOptions: {
-    openai: {
-      store: true,
-      serviceTier: 'auto',
-      parallelToolCalls: true,
-      stopSequences: ['\n\n'],
-      frequencyPenalty: 0.5,
-      presencePenalty: 0.3,
-      seed: 42,
-      user: 'user-123',
+    model: openai.chatModel('gpt-5-mini'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    providerOptions: {
+        openai: {
+            store: true,
+            serviceTier: 'auto',
+            parallelToolCalls: true,
+            stopSequences: ['\n\n'],
+            frequencyPenalty: 0.5,
+            presencePenalty: 0.3,
+            seed: 42,
+            user: 'user-123',
+        },
     },
-  },
 });
 ```
 
 <Note>
-  Chat Completions uses `reasoning_effort` instead of the Responses API reasoning payload shape. The compat options do not support the `include` field.
+    Chat Completions uses `reasoning_effort` instead of the Responses API
+    reasoning payload shape. The compat options do not support the `include`
+    field.
 </Note>
 
 ### Embed options
 
 ```typescript
 const result = await embed({
-  model: openai.embeddingModel('text-embedding-3-small'),
-  input: 'text to embed',
-  providerOptions: {
-    openai: {
-      encodingFormat: 'float',
-      user: 'user-123',
+    model: openai.embeddingModel('text-embedding-3-small'),
+    input: 'text to embed',
+    providerOptions: {
+        openai: {
+            encodingFormat: 'float',
+            user: 'user-123',
+        },
     },
-  },
 });
 ```
 
@@ -314,17 +334,17 @@ const result = await embed({
 
 ```typescript
 const result = await generateImage({
-  model: openai.imageModel('gpt-image-1'),
-  prompt: 'A cat',
-  providerOptions: {
-    openai: {
-      quality: 'hd',
-      style: 'vivid',
-      responseFormat: 'url',
-      background: 'auto',
-      outputFormat: 'png',
+    model: openai.imageModel('gpt-image-1'),
+    prompt: 'A cat',
+    providerOptions: {
+        openai: {
+            quality: 'hd',
+            style: 'vivid',
+            responseFormat: 'url',
+            background: 'auto',
+            outputFormat: 'png',
+        },
     },
-  },
 });
 ```
 
@@ -336,28 +356,36 @@ Available fields: `background`, `moderation`, `outputCompression`, `outputFormat
 import { ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await generate({
-    model: openai.chatModel('gpt-5-mini'),
-    messages: [{ role: 'user', content: 'Hello!' }],
-  });
+    const result = await generate({
+        model: openai.chatModel('gpt-5-mini'),
+        messages: [{ role: 'user', content: 'Hello!' }],
+    });
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('OpenAI API error:', error.message);
-    console.error('Status:', error.statusCode);
-  }
+    if (error instanceof ProviderError) {
+        console.error('OpenAI API error:', error.message);
+        console.error('Status:', error.statusCode);
+    }
 }
 ```
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="Anthropic Provider" icon="message" href="/api/providers/anthropic">
-    Claude models with extended thinking
-  </Card>
-  <Card title="Google GenAI Provider" icon="sparkles" href="/api/providers/google-genai">
-    Gemini models with multimodal capabilities
-  </Card>
-  <Card title="core-ai Functions" icon="function" href="/api/core/generate">
-    Learn about generate, stream, and more
-  </Card>
+    <Card
+        title="Anthropic Provider"
+        icon="message"
+        href="/api/providers/anthropic"
+    >
+        Claude models with extended thinking
+    </Card>
+    <Card
+        title="Google GenAI Provider"
+        icon="sparkles"
+        href="/api/providers/google-genai"
+    >
+        Gemini models with multimodal capabilities
+    </Card>
+    <Card title="core-ai Functions" icon="function" href="/api/core/generate">
+        Learn about generate, stream, and more
+    </Card>
 </CardGroup>

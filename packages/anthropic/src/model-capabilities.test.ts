@@ -15,10 +15,28 @@ describe('normalizeModelId', () => {
 });
 
 describe('getAnthropicModelCapabilities', () => {
-    it('should resolve explicit model capabilities', () => {
-        const capabilities = getAnthropicModelCapabilities('claude-opus-4-6');
-        expect(capabilities.reasoning.thinkingMode).toBe('adaptive');
-        expect(capabilities.reasoning.supportsMaxEffort).toBe(true);
+    it.each([
+        'claude-fable-5',
+        'claude-mythos-5',
+        'claude-mythos-preview',
+        'claude-opus-4-8',
+        'claude-opus-4-7',
+        'claude-opus-4-6',
+        'claude-sonnet-4-6',
+    ])('should resolve adaptive max-effort capabilities for %s', (modelId) => {
+        const capabilities = getAnthropicModelCapabilities(modelId);
+        expect(capabilities.reasoning).toEqual({
+            thinkingMode: 'adaptive',
+            supportsMaxEffort: true,
+        });
+    });
+
+    it('should resolve manual thinking capabilities', () => {
+        const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
+        expect(capabilities.reasoning).toEqual({
+            thinkingMode: 'manual',
+            supportsMaxEffort: false,
+        });
     });
 
     it('should fallback to defaults for unknown models', () => {

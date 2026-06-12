@@ -1,7 +1,4 @@
-import {
-    stripModelDateSuffix,
-    type ReasoningEffort,
-} from '@core-ai/core-ai';
+import { stripModelDateSuffix, type ReasoningEffort } from '@core-ai/core-ai';
 
 export type AnthropicModelCapabilities = {
     reasoning: {
@@ -17,19 +14,21 @@ const DEFAULT_CAPABILITIES: AnthropicModelCapabilities = {
     },
 };
 
+const ADAPTIVE_MAX_EFFORT_CAPABILITIES: AnthropicModelCapabilities = {
+    reasoning: {
+        thinkingMode: 'adaptive',
+        supportsMaxEffort: true,
+    },
+};
+
 const MODEL_CAPABILITIES: Record<string, AnthropicModelCapabilities> = {
-    'claude-opus-4-6': {
-        reasoning: {
-            thinkingMode: 'adaptive',
-            supportsMaxEffort: true,
-        },
-    },
-    'claude-sonnet-4-6': {
-        reasoning: {
-            thinkingMode: 'adaptive',
-            supportsMaxEffort: false,
-        },
-    },
+    'claude-fable-5': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-mythos-5': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-mythos-preview': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-opus-4-8': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-opus-4-7': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-opus-4-6': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-sonnet-4-6': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
     'claude-opus-4-5': {
         reasoning: {
             thinkingMode: 'manual',
