@@ -25,7 +25,7 @@ npm run release:version
 
 Changesets reads pending `.changeset/*.md` files and:
 
-- Bumps `version` in all five package.json files
+- Bumps `version` in all publishable package.json files
 - Updates internal dependency ranges (e.g., providers' `@core-ai/core-ai` range)
 - Generates/updates `CHANGELOG.md` per package
 - Deletes consumed `.changeset/*.md` files
@@ -62,7 +62,7 @@ git push && git push --tags
 
 ### `.changeset/config.json`
 
-- `"fixed"` — groups all five packages to the same version
+- `"fixed"` — groups all publishable packages to the same version
 - `"access": "public"` — scoped packages publish as public
 - `"updateInternalDependencies": "patch"` — auto-bumps internal dep ranges on any release
 
@@ -70,7 +70,7 @@ git push && git push --tags
 
 Each publishable package has:
 
-- `"publishConfig": { "access": "public" }`
+- `"publishConfig": { "access": "public", "provenance": true }`
 - `"files": ["dist", "README.md", "LICENSE"]` — only ships compiled output
 
 **Note:** No `prepublishOnly` — the release workflow runs `npm run build` before the changesets action. Per-package `prepublishOnly` causes a race when `changeset publish` runs builds concurrently: provider packages can fail with "Cannot find module '@core-ai/core-ai'" if core-ai's tsup (with `clean: true`) clears its dist while they resolve types.
@@ -80,6 +80,8 @@ Each publishable package has:
 1. Remove `"private": true` from the package's `package.json`.
 2. Add `publishConfig`, `files`, `main`, `types`, `exports` (see existing packages).
 3. Add the package name to the `"fixed"` array in `.changeset/config.json`.
+4. Publish the first version manually (see below).
+5. Configure a trusted publisher on npmjs.com for the new package (workflow: `release.yml`, repo: `agdevhq/core-ai`).
 
 ## Manual Publish (without Changesets)
 
@@ -91,6 +93,20 @@ npm publish -w @core-ai/openai --access public
 npm publish -w @core-ai/anthropic --access public
 npm publish -w @core-ai/google-genai --access public
 npm publish -w @core-ai/mistral --access public
+npm publish -w @core-ai/azure-openai --access public
+npm publish -w @core-ai/omnifact --access public
 ```
 
 Publish `core-ai` first since providers depend on it.
+
+## Trusted Publishing
+
+CI releases use npm OIDC trusted publishing (no long-lived `NPM_TOKEN`). The release workflow already sets `id-token: write` and upgrades npm before publishing.
+
+Each package needs its own trusted publisher on npmjs.com:
+
+- **Organization or user:** `agdevhq`
+- **Repository:** `core-ai`
+- **Workflow filename:** `release.yml`
+
+Trusted publishing generates provenance attestations automatically. Keep `"provenance": true` in each package's `publishConfig` for consistency with local publishes.
