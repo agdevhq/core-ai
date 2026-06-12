@@ -1,5 +1,17 @@
 # @core-ai/openai
 
+## 0.11.0
+
+### Minor Changes
+
+- 27601f7: Add `@core-ai/omnifact` provider for the Omnifact API Gateway with a default production base URL. Export `createOpenAICompatChatModel` from `@core-ai/openai/compat` and allow a custom provider id in the compat chat layer.
+- b077b82: Add explicit capability handling and docs for recent OpenAI models including GPT-5.5, GPT-5.4 mini/nano, GPT-5.3 Codex, GPT-5 Pro, o3-pro, and GPT Image 2.
+
+### Patch Changes
+
+- Updated dependencies [b077b82]
+    - @core-ai/core-ai@0.11.0
+
 ## 0.10.3
 
 ### Patch Changes
