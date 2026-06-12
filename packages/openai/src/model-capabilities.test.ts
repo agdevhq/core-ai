@@ -68,7 +68,9 @@ describe('getOpenAIModelCapabilities', () => {
             'low',
             'medium',
             'high',
+            'max',
         ]);
+        expect(capabilities.reasoning.supportedRange).toContain('max');
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
     });
 

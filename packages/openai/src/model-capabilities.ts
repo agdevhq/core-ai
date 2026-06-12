@@ -56,6 +56,14 @@ const NO_REASONING_EFFORT_CAPABILITIES: OpenAIModelCapabilities = {
     },
 };
 
+const O_SERIES_MAX_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
+    reasoning: {
+        supportsEffort: true,
+        supportedRange: ['low', 'medium', 'high', 'max'],
+        restrictsSamplingParams: false,
+    },
+};
+
 const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'gpt-5.5': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.5-pro': GPT_5_PRO_REASONING_CAPABILITIES,
@@ -82,13 +90,7 @@ const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'gpt-5-nano': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5-pro': GPT_5_HIGH_REASONING_CAPABILITIES,
     'gpt-5-codex': GPT_5_MAX_REASONING_CAPABILITIES,
-    'o3-pro': {
-        reasoning: {
-            supportsEffort: true,
-            supportedRange: ['low', 'medium', 'high'],
-            restrictsSamplingParams: false,
-        },
-    },
+    'o3-pro': O_SERIES_MAX_REASONING_CAPABILITIES,
     o3: {
         reasoning: {
             supportsEffort: true,
