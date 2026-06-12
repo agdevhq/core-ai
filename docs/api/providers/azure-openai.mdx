@@ -1,0 +1,188 @@
+---
+title: 'Azure OpenAI Provider'
+description: 'Create and configure the Azure OpenAI provider for chat completions'
+---
+
+## Overview
+
+The Azure OpenAI provider connects core-ai to Azure OpenAI chat deployments. It uses the Azure OpenAI v1 Chat Completions API by default through the official OpenAI SDK.
+
+Pass Azure OpenAI deployment names to `chatModel()`. The provider sends the deployment name as the Chat Completions `model` field.
+
+## Installation
+
+```bash
+npm install @core-ai/azure-openai
+```
+
+## createAzureOpenAI()
+
+Create an Azure OpenAI provider instance.
+
+```typescript
+import { createAzureOpenAI } from '@core-ai/azure-openai';
+
+const azure = createAzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
+```
+
+### Options
+
+<ParamField path="apiKey" type="string" optional>
+    Your Azure OpenAI API key.
+</ParamField>
+
+<ParamField path="endpoint" type="string" optional>
+    Your Azure OpenAI resource endpoint, for example
+    `https://my-resource.openai.azure.com`. You can also pass a full v1 base URL
+    such as `https://my-resource.openai.azure.com/openai/v1`.
+</ParamField>
+
+<ParamField path="api" type="'v1' | 'classic'" optional>
+    API surface to use. Defaults to `v1`. Set `classic` to use Azure's classic
+    API surface.
+</ParamField>
+
+<ParamField path="apiVersion" type="string" optional>
+    Required when `api` is `classic`. Azure OpenAI API version, for example
+    `2025-04-01-preview`.
+</ParamField>
+
+<ParamField path="deployment" type="string" optional>
+    Classic mode only. Default Azure OpenAI deployment for the underlying SDK
+    client.
+</ParamField>
+
+<ParamField path="azureADTokenProvider" type="() => Promise<string>" optional>
+    Classic mode only. Token provider for Microsoft Entra ID authentication.
+</ParamField>
+
+<ParamField path="client" type="OpenAIChatClient" optional>
+    Provide your own configured Azure OpenAI chat client.
+</ParamField>
+
+### Returns
+
+`AzureOpenAIProvider` with method `chatModel()`.
+
+## Authentication
+
+Use an API key with the v1 API:
+
+```typescript
+const azure = createAzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
+```
+
+Use the classic API by setting `api: 'classic'` and passing an API version:
+
+```typescript
+const azure = createAzureOpenAI({
+    api: 'classic',
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    apiVersion: '2025-04-01-preview',
+});
+```
+
+Classic mode can use Microsoft Entra ID by passing a token provider:
+
+```typescript
+import {
+    DefaultAzureCredential,
+    getBearerTokenProvider,
+} from '@azure/identity';
+import { createAzureOpenAI } from '@core-ai/azure-openai';
+
+const credential = new DefaultAzureCredential();
+const azureADTokenProvider = getBearerTokenProvider(
+    credential,
+    'https://cognitiveservices.azure.com/.default'
+);
+
+const azure = createAzureOpenAI({
+    api: 'classic',
+    azureADTokenProvider,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+    apiVersion: '2025-04-01-preview',
+});
+```
+
+## Model IDs
+
+Use your Azure OpenAI deployment name as the model id:
+
+```typescript
+const model = azure.chatModel('customer-support-gpt-5-mini');
+```
+
+If your deployment name is different from the base model name, pass the deployment name.
+
+## Examples
+
+### Basic chat
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createAzureOpenAI } from '@core-ai/azure-openai';
+
+const azure = createAzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
+
+const result = await generate({
+    model: azure.chatModel('gpt-5-mini-deployment'),
+    messages: [{ role: 'user', content: 'Hello!' }],
+});
+
+console.log(result.content);
+```
+
+### Streaming
+
+```typescript
+import { stream } from '@core-ai/core-ai';
+import { createAzureOpenAI } from '@core-ai/azure-openai';
+
+const azure = createAzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
+
+const result = await stream({
+    model: azure.chatModel('gpt-5-mini-deployment'),
+    messages: [{ role: 'user', content: 'Count to five.' }],
+});
+
+for await (const chunk of result.textStream) {
+    process.stdout.write(chunk);
+}
+```
+
+## Provider-specific options
+
+The provider follows the OpenAI Chat Completions API. Pass options via `providerOptions.openai`:
+
+```typescript
+await generate({
+    model: azure.chatModel('gpt-5-mini-deployment'),
+    messages: [{ role: 'user', content: 'Hello!' }],
+    providerOptions: {
+        openai: {
+            temperature: 0.7,
+        },
+    },
+});
+```
+
+See the [OpenAI compat provider](/api/providers/openai#createopenaicompat) docs for available Chat Completions options.
+
+<Note>
+    The Azure OpenAI provider supports chat models. Use `@core-ai/openai` for
+    OpenAI Responses API, embeddings, and image generation.
+</Note>

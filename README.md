@@ -32,12 +32,13 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | --------------------- | ------------------------ | ---- | --------- | ---------- | ---------------- |
 | OpenAI (Responses)    | `@core-ai/openai`        | Yes  | Yes       | Yes        | Yes              |
 | OpenAI (Completions)  | `@core-ai/openai/compat` | Yes  | Yes       | Yes        | Yes              |
+| Azure OpenAI          | `@core-ai/azure-openai`  | Yes  | Yes       | —          | —                |
 | Anthropic             | `@core-ai/anthropic`     | Yes  | Yes       | —          | —                |
 | Google GenAI (Gemini) | `@core-ai/google-genai`  | Yes  | Yes       | Yes        | Yes              |
 | Mistral               | `@core-ai/mistral`       | Yes  | Yes       | Yes        | —                |
 | Omnifact              | `@core-ai/omnifact`      | Yes  | Yes       | —          | —                |
 
-> **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the legacy Chat Completions API (e.g. for Azure OpenAI or third-party OpenAI-compatible endpoints), import from `@core-ai/openai/compat` instead.
+> **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the Chat Completions API for third-party OpenAI-compatible endpoints, import from `@core-ai/openai/compat` instead.
 
 ## Quick Start
 
@@ -394,9 +395,11 @@ This is a Turborepo monorepo:
 packages/
   core-ai/       — Core types, functions, and provider re-exports
   openai/        — OpenAI provider (Responses API + Chat Completions compat)
+  azure-openai/  — Azure OpenAI provider implementation
   anthropic/     — Anthropic provider implementation
   google-genai/  — Google GenAI (Gemini) provider implementation
   mistral/       — Mistral provider implementation
+  omnifact/      — Omnifact API Gateway provider implementation
   testing/       — Shared test utilities (internal)
 ```
 

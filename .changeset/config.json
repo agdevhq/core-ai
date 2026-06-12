@@ -11,6 +11,7 @@
             "@core-ai/anthropic",
             "@core-ai/google-genai",
             "@core-ai/mistral",
+            "@core-ai/azure-openai",
             "@core-ai/omnifact"
         ]
     ],
