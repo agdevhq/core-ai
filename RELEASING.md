@@ -5,10 +5,14 @@ This repository uses Turborepo for build/test tasks and Changesets for versionin
 ## Publishable Packages
 
 - `@core-ai/core-ai`
+- `@core-ai/opentelemetry`
+- `@core-ai/langfuse`
 - `@core-ai/openai`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
 - `@core-ai/mistral`
+- `@core-ai/azure-openai`
+- `@core-ai/omnifact`
 
 These packages are configured as a fixed group in `.changeset/config.json`, so they always share the same version.
 
@@ -54,3 +58,26 @@ npm login
 ```
 
 - If this is the first release for the scoped packages, keep `publishConfig.access` as `public` (already configured).
+
+### Initial publish for a new package
+
+New packages must exist on npm before trusted publishing can be configured. Publish the first version manually:
+
+```bash
+npm run build
+npm publish -w @core-ai/azure-openai --access public
+npm publish -w @core-ai/omnifact --access public
+```
+
+### Trusted publishing (CI releases)
+
+The `.github/workflows/release.yml` workflow publishes via npm OIDC trusted publishing. For each new package, configure a trusted publisher on [npmjs.com](https://www.npmjs.com):
+
+1. Open the package **Settings → Trusted publishing**
+2. Select **GitHub Actions**
+3. Set **Organization or user** to `agdevhq`
+4. Set **Repository** to `core-ai`
+5. Set **Workflow filename** to `release.yml` (exact match, including extension)
+6. Leave **Environment name** blank unless the workflow uses a deployment environment
+
+After the trusted publisher is saved, future releases from `main` publish automatically with provenance attestations. Each package needs its own trusted publisher configuration.
