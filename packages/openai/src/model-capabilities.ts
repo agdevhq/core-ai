@@ -1,7 +1,4 @@
-import {
-    stripModelDateSuffix,
-    type ReasoningEffort,
-} from '@core-ai/core-ai';
+import { stripModelDateSuffix, type ReasoningEffort } from '@core-ai/core-ai';
 
 export type OpenAIModelCapabilities = {
     reasoning: {
@@ -35,6 +32,22 @@ const GPT_5_MINIMAL_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
     },
 };
 
+const GPT_5_PRO_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
+    reasoning: {
+        supportsEffort: true,
+        supportedRange: ['medium', 'high', 'max'],
+        restrictsSamplingParams: true,
+    },
+};
+
+const GPT_5_HIGH_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
+    reasoning: {
+        supportsEffort: true,
+        supportedRange: ['high'],
+        restrictsSamplingParams: true,
+    },
+};
+
 const NO_REASONING_EFFORT_CAPABILITIES: OpenAIModelCapabilities = {
     reasoning: {
         supportsEffort: false,
@@ -43,12 +56,28 @@ const NO_REASONING_EFFORT_CAPABILITIES: OpenAIModelCapabilities = {
     },
 };
 
+const O_SERIES_MAX_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
+    reasoning: {
+        supportsEffort: true,
+        supportedRange: ['low', 'medium', 'high', 'max'],
+        restrictsSamplingParams: false,
+    },
+};
+
 const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
+    'gpt-5.5': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.5-pro': GPT_5_PRO_REASONING_CAPABILITIES,
     'gpt-5.4': GPT_5_MAX_REASONING_CAPABILITIES,
-    'gpt-5.4-pro': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.4-pro': GPT_5_PRO_REASONING_CAPABILITIES,
+    'gpt-5.4-mini': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.4-nano': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.3-codex': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.2': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.2-codex': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.2-pro': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.1-codex': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.1-codex-max': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.1-codex-mini': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.1': {
         reasoning: {
             supportsEffort: true,
@@ -59,6 +88,9 @@ const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'gpt-5': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5-mini': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5-nano': GPT_5_MINIMAL_REASONING_CAPABILITIES,
+    'gpt-5-pro': GPT_5_HIGH_REASONING_CAPABILITIES,
+    'gpt-5-codex': GPT_5_MAX_REASONING_CAPABILITIES,
+    'o3-pro': O_SERIES_MAX_REASONING_CAPABILITIES,
     o3: {
         reasoning: {
             supportsEffort: true,

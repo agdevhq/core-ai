@@ -11,6 +11,10 @@ describe('normalizeProviderModelId', () => {
         expect(normalizeProviderModelId('gpt-5.2-20260215')).toBe('gpt-5.2');
     });
 
+    it('strips dashed date suffixes from dated model IDs', () => {
+        expect(normalizeProviderModelId('gpt-5.5-2026-04-23')).toBe('gpt-5.5');
+    });
+
     it('preserves model IDs without date suffixes', () => {
         expect(normalizeProviderModelId('o4-mini')).toBe('o4-mini');
     });
