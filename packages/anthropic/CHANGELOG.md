@@ -1,5 +1,16 @@
 # @core-ai/anthropic
 
+## 0.11.0
+
+### Minor Changes
+
+- b077b82: Add explicit capability handling and docs for Claude Fable 5, Claude Mythos 5, Claude Opus 4.8, Claude Opus 4.7, and related adaptive-thinking effort support.
+
+### Patch Changes
+
+- Updated dependencies [b077b82]
+    - @core-ai/core-ai@0.11.0
+
 ## 0.10.3
 
 ### Patch Changes

@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.11.0
+
+### Patch Changes
+
+- b077b82: Normalize provider model IDs with dashed `YYYY-MM-DD` snapshot suffixes so current model aliases and snapshots share capability handling.
+
 ## 0.10.3
 
 ## 0.10.2
