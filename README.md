@@ -340,6 +340,25 @@ const result = await generate({
 console.log(result.content);
 ```
 
+### Using Omnifact
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createOmnifact } from '@core-ai/omnifact';
+
+const omnifact = createOmnifact({ apiKey: process.env.OMNIFACT_API_KEY });
+
+// Use an id from GET /v1/gateway/models (eu/ prefix for EU-hosted models).
+const model = omnifact.chatModel('eu/gpt-5-mini');
+
+const result = await generate({
+    model,
+    messages: [{ role: 'user', content: 'Hello!' }],
+});
+
+console.log(result.content);
+```
+
 ## Configuration
 
 Common sampling parameters are passed as top-level fields on the generate call:
@@ -441,6 +460,7 @@ Provider keys:
 - `ANTHROPIC_API_KEY`
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
+- `OMNIFACT_API_KEY`
 
 ## Contributing
 
