@@ -19,6 +19,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/mistral` — Mistral provider
 - `@core-ai/omnifact` — Omnifact provider
 - `@core-ai/anthropic-vertex` — Vertex AI Anthropic (Claude) provider
+- `@core-ai/kimi` — Kimi API provider
 
 Internal packages (`eslint-config`, `typescript-config`, `esbuild-config`) are not built or published.
 
@@ -94,6 +95,7 @@ layers are:
     - `anthropic-vertex` → `anthropic`
     - `azure-openai`, `openai-compat`, `omnifact` → `openai`
     - `google-vertex` → `google-genai`
+    - `kimi` → `openai`
 - Integrations:
     - `langfuse`, `opentelemetry` → `core-ai`
     - `axiom` → `opentelemetry`

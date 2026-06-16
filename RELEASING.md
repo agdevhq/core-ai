@@ -17,6 +17,7 @@ This repository uses Turborepo for build/test tasks and Changesets for versionin
 - `@core-ai/azure-openai`
 - `@core-ai/omnifact`
 - `@core-ai/anthropic-vertex`
+- `@core-ai/kimi`
 
 These packages are configured as a fixed group in `.changeset/config.json`, so they always share the same version.
 

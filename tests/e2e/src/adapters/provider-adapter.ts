@@ -16,7 +16,8 @@ export type ProviderId =
     | 'google'
     | 'google-vertex'
     | 'mistral'
-    | 'omnifact';
+    | 'omnifact'
+    | 'kimi';
 
 export type ProviderCapabilities = {
     chat: boolean;
