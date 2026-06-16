@@ -7,6 +7,7 @@ import {
 import { createGoogleGenAIAdapter } from './adapters/google-genai.adapter.ts';
 import { createGoogleVertexAdapter } from './adapters/google-vertex.adapter.ts';
 import { createKimiAdapter } from './adapters/kimi.adapter.ts';
+import { createXAIAdapter } from './adapters/xai.adapter.ts';
 import { createMistralAdapter } from './adapters/mistral.adapter.ts';
 import { createOmnifactAdapter } from './adapters/omnifact.adapter.ts';
 import { createOpenAICompatAdapter } from './adapters/openai-compat.adapter.ts';
@@ -33,6 +34,7 @@ export function getRegisteredProviders(): ProviderE2EAdapter[] {
         createMistralAdapter(),
         createOmnifactAdapter(),
         createKimiAdapter(),
+        createXAIAdapter(),
     ];
 
     const providerFilter = getProviderFilter();

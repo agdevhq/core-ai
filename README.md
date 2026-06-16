@@ -40,6 +40,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | Omnifact              | `@core-ai/omnifact`         | Yes  | Yes       | —          | —                |
 | Vertex AI Anthropic   | `@core-ai/anthropic-vertex` | Yes  | Yes       | —          | —                |
 | Kimi (Moonshot AI)    | `@core-ai/kimi`             | Yes  | Yes       | —          | —                |
+| xAI (Grok)            | `@core-ai/xai`             | Yes  | Yes       | —          | —                |
 
 > **Note:** `@core-ai/openai` uses the Responses API by default and exposes
 > strict Chat Completions through `openai.chat.chatModel()`. Use
