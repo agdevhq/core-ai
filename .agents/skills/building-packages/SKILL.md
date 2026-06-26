@@ -68,7 +68,9 @@ Each `package.json` points to built output:
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "require": "./dist/index.js",
+            "default": "./dist/index.js"
         }
     },
     "files": ["dist", "README.md", "LICENSE"]
