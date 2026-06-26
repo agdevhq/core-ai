@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/azure-openai",
-    "version": "0.11.0",
+    "version": "0.11.1",
     "description": "Azure OpenAI provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -46,8 +46,8 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.11.0",
-        "@core-ai/openai": "^0.11.0",
+        "@core-ai/core-ai": "^0.11.1",
+        "@core-ai/openai": "^0.11.1",
         "openai": "^6.1.0"
     },
     "peerDependencies": {

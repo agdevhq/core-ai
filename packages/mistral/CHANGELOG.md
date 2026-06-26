@@ -1,5 +1,13 @@
 # @core-ai/mistral
 
+## 0.11.1
+
+### Patch Changes
+
+- 43d926e: Add `require` and `default` export conditions so packages resolve under CommonJS loaders such as tsx.
+- Updated dependencies [43d926e]
+    - @core-ai/core-ai@0.11.1
+
 ## 0.11.0
 
 ### Patch Changes
