@@ -6,6 +6,7 @@
         [
             "@core-ai/core-ai",
             "@core-ai/opentelemetry",
+            "@core-ai/axiom",
             "@core-ai/langfuse",
             "@core-ai/openai",
             "@core-ai/anthropic",
