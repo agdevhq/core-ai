@@ -21,18 +21,28 @@ import { generate, wrapChatModel } from '@core-ai/core-ai';
 import { createAxiomExporterOptions, createAxiomMiddleware } from '@core-ai/axiom';
 import { createOpenAI } from '@core-ai/openai';
 
+function getRequiredEnv(
+    name: 'AXIOM_DATASET' | 'AXIOM_TOKEN' | 'OPENAI_API_KEY'
+): string {
+    const value = process.env[name];
+    if (!value) {
+        throw new Error(`Missing required environment variable: ${name}`);
+    }
+    return value;
+}
+
 const sdk = new NodeSDK({
     traceExporter: new OTLPTraceExporter(
         createAxiomExporterOptions({
-            token: process.env.AXIOM_TOKEN,
-            dataset: process.env.AXIOM_DATASET,
+            token: getRequiredEnv('AXIOM_TOKEN'),
+            dataset: getRequiredEnv('AXIOM_DATASET'),
         })
     ),
 });
 
 sdk.start();
 
-const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = createOpenAI({ apiKey: getRequiredEnv('OPENAI_API_KEY') });
 const model = wrapChatModel({
     model: openai.chatModel('gpt-5-mini'),
     middleware: [createAxiomMiddleware()],
