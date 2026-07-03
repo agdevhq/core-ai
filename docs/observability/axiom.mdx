@@ -1,0 +1,182 @@
+---
+title: Axiom
+description: Send GenAI OpenTelemetry spans to Axiom dashboards and trace views
+---
+
+## Overview
+
+`@core-ai/axiom` provides [middleware](/concepts/middleware) that records model operations as OpenTelemetry GenAI spans for Axiom. Axiom automatically provisions a GenAI dashboard for datasets that receive spans with `gen_ai.*` attributes.
+
+The package exposes Axiom-named middleware factories and an exporter helper for Axiom's OTLP traces endpoint. The middleware emits the same OpenTelemetry GenAI semantic convention attributes as `@core-ai/opentelemetry`.
+
+## Installation
+
+<CodeGroup>
+```bash npm
+npm install @core-ai/axiom @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-http
+```
+
+```bash yarn
+yarn add @core-ai/axiom @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-http
+```
+
+```bash pnpm
+pnpm add @core-ai/axiom @opentelemetry/api @opentelemetry/sdk-node @opentelemetry/exporter-trace-otlp-http
+```
+</CodeGroup>
+
+<Note>
+  `@opentelemetry/api` is a peer dependency. You also need an Axiom API token and dataset name.
+</Note>
+
+## Configure Axiom export
+
+Create and start an OpenTelemetry SDK before you create or call traced models.
+
+```typescript
+import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
+import { NodeSDK } from '@opentelemetry/sdk-node';
+import { createAxiomExporterOptions } from '@core-ai/axiom';
+
+function getRequiredEnv(name: 'AXIOM_TOKEN' | 'AXIOM_DATASET'): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+export const sdk = new NodeSDK({
+  traceExporter: new OTLPTraceExporter(
+    createAxiomExporterOptions({
+      token: getRequiredEnv('AXIOM_TOKEN'),
+      dataset: getRequiredEnv('AXIOM_DATASET'),
+    })
+  ),
+});
+
+sdk.start();
+```
+
+`createAxiomExporterOptions` returns the Axiom OTLP traces endpoint and the required `Authorization` and `X-Axiom-Dataset` headers.
+
+```typescript
+type AxiomExporterConfig = {
+  token: string;
+  dataset: string;
+  endpoint?: string;
+};
+```
+
+Set `endpoint` only when you need to send traces through a proxy or custom collector.
+
+## Usage
+
+### Chat models
+
+```typescript
+import { generate, wrapChatModel } from '@core-ai/core-ai';
+import { createAxiomMiddleware } from '@core-ai/axiom';
+
+const tracedModel = wrapChatModel({
+  model,
+  middleware: createAxiomMiddleware(),
+});
+
+const result = await generate({
+  model: tracedModel,
+  messages: [{ role: 'user', content: 'Explain quantum computing.' }],
+});
+```
+
+All four chat operations (`generate`, `stream`, `generateObject`, `streamObject`) are traced. For streaming operations, the span stays open until the stream completes and captures the final usage and finish reason.
+
+### Embedding models
+
+```typescript
+import { embed, wrapEmbeddingModel } from '@core-ai/core-ai';
+import { createAxiomEmbeddingMiddleware } from '@core-ai/axiom';
+
+const tracedModel = wrapEmbeddingModel({
+  model: embeddingModel,
+  middleware: createAxiomEmbeddingMiddleware(),
+});
+
+const result = await embed({
+  model: tracedModel,
+  input: 'Sample text for embedding',
+});
+```
+
+### Image models
+
+```typescript
+import { generateImage, wrapImageModel } from '@core-ai/core-ai';
+import { createAxiomImageMiddleware } from '@core-ai/axiom';
+
+const tracedModel = wrapImageModel({
+  model: imageModel,
+  middleware: createAxiomImageMiddleware(),
+});
+
+const result = await generateImage({
+  model: tracedModel,
+  prompt: 'A mountain landscape at sunset',
+});
+```
+
+## Options
+
+All three factory functions accept an optional `AxiomMiddlewareOptions` object:
+
+```typescript
+type AxiomMiddlewareOptions = {
+  recordContent?: boolean;
+  tracerName?: string;
+};
+```
+
+### recordContent
+
+When `true`, input messages, tool definitions, and output content are recorded as span attributes. Defaults to `false` to avoid sending sensitive data to Axiom.
+
+```typescript
+const middleware = createAxiomMiddleware({ recordContent: true });
+```
+
+### tracerName
+
+The OpenTelemetry tracer name. Defaults to `'core-ai'`.
+
+```typescript
+const middleware = createAxiomMiddleware({ tracerName: 'my-app' });
+```
+
+## Axiom dashboard
+
+Axiom automatically creates the **Generative AI Overview** dashboard when your dataset receives spans with `attributes.gen_ai.operation.name`.
+
+You can query AI spans in Axiom with APL:
+
+```kusto
+['your-dataset']
+| where ['attributes.gen_ai.operation.name'] == "chat"
+```
+
+## Span attributes
+
+Spans follow [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/) and include Axiom-recognized attributes:
+
+| Attribute | Description |
+| --- | --- |
+| `gen_ai.provider.name` | Provider name |
+| `gen_ai.request.model` | Model ID |
+| `gen_ai.operation.name` | Operation name (`chat`, `embeddings`, or `image_generation`) |
+| `gen_ai.output.type` | Output type (`text`, `json`, or `image`) |
+| `gen_ai.response.finish_reasons` | Why generation stopped |
+| `gen_ai.usage.input_tokens` | Input token count |
+| `gen_ai.usage.output_tokens` | Output token count |
+
+When `recordContent` is enabled, input messages and output content are recorded as additional attributes.
+
+Errors are recorded with `error.type` and the span status is set to `ERROR`.

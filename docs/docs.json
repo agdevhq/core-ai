@@ -55,6 +55,7 @@
                         "pages": [
                             "observability/overview",
                             "observability/opentelemetry",
+                            "observability/axiom",
                             "observability/langfuse"
                         ]
                     },

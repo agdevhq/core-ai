@@ -1,6 +1,6 @@
 ---
 title: Observability
-description: Trace and monitor model operations with OpenTelemetry or Langfuse
+description: Trace and monitor model operations with OpenTelemetry, Axiom, or Langfuse
 ---
 
 ## Overview
@@ -29,6 +29,9 @@ const result = await generate({
 <CardGroup cols={2}>
   <Card title="OpenTelemetry" icon="signal" href="/observability/opentelemetry">
     Export traces to any OpenTelemetry-compatible backend (Jaeger, Grafana, Datadog, etc.)
+  </Card>
+  <Card title="Axiom" icon="chart-mixed" href="/observability/axiom">
+    Send GenAI OpenTelemetry spans to Axiom dashboards and trace views
   </Card>
   <Card title="Langfuse" icon="chart-line" href="/observability/langfuse">
     Track generations, token usage, and costs in Langfuse
