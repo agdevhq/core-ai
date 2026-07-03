@@ -1,5 +1,15 @@
 # @core-ai/axiom
 
+## 0.12.0
+
+### Minor Changes
+
+- 5484f76: Add Axiom GenAI telemetry middleware aliases and OTLP exporter configuration helpers.
+
+### Patch Changes
+
+- @core-ai/opentelemetry@0.12.0
+
 ## 0.11.1
 
 ### Patch Changes
