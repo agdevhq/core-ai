@@ -67,6 +67,7 @@ const anthropic = createAnthropic({
     Current Opus and Sonnet models use effort-based adaptive thinking.
 
     <ul>
+      <li><strong>claude-sonnet-5</strong> - Most agentic Sonnet model with near-Opus performance at lower cost</li>
       <li><strong>claude-opus-4-8</strong> - Opus model for complex reasoning and agentic coding</li>
       <li><strong>claude-opus-4-7</strong> - Opus model with max effort support</li>
       <li><strong>claude-opus-4-6</strong> - Opus model with max effort support</li>
@@ -241,8 +242,8 @@ const result = await generate({
 
 <Note>
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
-    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, and
-    `claude-sonnet-4-6` support `'max'` effort directly.
+    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
+    `claude-sonnet-5`, and `claude-sonnet-4-6` support `'max'` effort directly.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)

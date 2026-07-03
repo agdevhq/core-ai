@@ -21,6 +21,38 @@ describe('normalizeModelId', () => {
 });
 
 describe('getOpenAIModelCapabilities', () => {
+    it('should return max-range capabilities for gpt-5.6-sol', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.6-sol');
+        expect(capabilities.reasoning.supportedRange).toEqual([
+            'low',
+            'medium',
+            'high',
+            'max',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+    });
+
+    it('should return high-range capabilities for gpt-5.6-terra', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.6-terra');
+        expect(capabilities.reasoning.supportedRange).toEqual([
+            'low',
+            'medium',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+    });
+
+    it('should return minimal-range capabilities for gpt-5.6-luna', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.6-luna');
+        expect(capabilities.reasoning.supportedRange).toEqual([
+            'minimal',
+            'low',
+            'medium',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+    });
+
     it.each([
         'gpt-5.5',
         'gpt-5.4',
