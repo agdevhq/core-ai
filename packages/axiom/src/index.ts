@@ -1,9 +1,12 @@
+import type { OtelMiddlewareOptions } from '@core-ai/opentelemetry';
+
 export {
     createOtelEmbeddingMiddleware as createAxiomEmbeddingMiddleware,
     createOtelImageMiddleware as createAxiomImageMiddleware,
     createOtelMiddleware as createAxiomMiddleware,
-    type OtelMiddlewareOptions as AxiomMiddlewareOptions,
 } from '@core-ai/opentelemetry';
+
+export type AxiomMiddlewareOptions = OtelMiddlewareOptions;
 
 export const AXIOM_OTLP_TRACES_ENDPOINT = 'https://api.axiom.co/v1/traces' as const;
 
