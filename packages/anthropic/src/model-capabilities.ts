@@ -28,6 +28,7 @@ const MODEL_CAPABILITIES: Record<string, AnthropicModelCapabilities> = {
     'claude-opus-4-8': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
     'claude-opus-4-7': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
     'claude-opus-4-6': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
+    'claude-sonnet-5': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
     'claude-sonnet-4-6': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
     'claude-opus-4-5': {
         reasoning: {

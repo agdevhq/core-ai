@@ -89,6 +89,9 @@ const imageGen = openai.imageModel('gpt-image-1');
 <AccordionGroup>
   <Accordion title="GPT-5 Series" icon="star">
     <ul>
+      <li><strong>gpt-5.6-sol</strong> - Flagship model with max reasoning effort for complex agentic work</li>
+      <li><strong>gpt-5.6-terra</strong> - Balanced everyday model with GPT-5.5-class performance at lower cost</li>
+      <li><strong>gpt-5.6-luna</strong> - Fast and affordable model for high-volume tasks</li>
       <li><strong>gpt-5.5</strong> - Flagship model for complex reasoning and coding</li>
       <li><strong>gpt-5.5-pro</strong> - Pro model for demanding reasoning tasks</li>
       <li><strong>gpt-5.4</strong> - Frontier model with max reasoning effort</li>
@@ -211,6 +214,9 @@ Reasoning support depends on the selected model family:
 
 | Models                                                                                                           | Supported effort levels            |
 | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `gpt-5.6-sol`                                                                                                    | `low`, `medium`, `high`, `max`     |
+| `gpt-5.6-terra`                                                                                                  | `low`, `medium`, `high`            |
+| `gpt-5.6-luna`                                                                                                   | `minimal`, `low`, `medium`, `high` |
 | `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.2-pro` | `low`, `medium`, `high`, `max`     |
 | `gpt-5.5-pro`, `gpt-5.4-pro`                                                                                     | `medium`, `high`, `max`            |
 | `gpt-5-pro`                                                                                                      | `high`                             |

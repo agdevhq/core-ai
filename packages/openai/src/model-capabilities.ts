@@ -64,7 +64,18 @@ const O_SERIES_MAX_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
     },
 };
 
+const GPT_5_6_TERRA_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
+    reasoning: {
+        supportsEffort: true,
+        supportedRange: ['low', 'medium', 'high'],
+        restrictsSamplingParams: true,
+    },
+};
+
 const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
+    'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.6-terra': GPT_5_6_TERRA_REASONING_CAPABILITIES,
+    'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5.5': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.5-pro': GPT_5_PRO_REASONING_CAPABILITIES,
     'gpt-5.4': GPT_5_MAX_REASONING_CAPABILITIES,
