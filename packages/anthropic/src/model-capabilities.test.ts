@@ -41,7 +41,7 @@ describe('getAnthropicModelCapabilities', () => {
         const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
         expect(capabilities.reasoning).toEqual({
             supported: true,
-            supportedEfforts: ['minimal', 'low', 'medium', 'high'],
+            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
             restrictsSamplingParams: true,
         });
         expect(getAnthropicThinkingMode('claude-opus-4-5')).toBe('manual');

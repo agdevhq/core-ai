@@ -80,9 +80,14 @@ const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
 export function getAnthropicModelCapabilities(
     modelId: string
 ): AnthropicModelCapabilities {
-    return supportsAnthropicMaxEffort(modelId)
-        ? MAX_EFFORT_CAPABILITIES
-        : STANDARD_CAPABILITIES;
+    if (
+        supportsAnthropicMaxEffort(modelId) ||
+        getAnthropicThinkingMode(modelId) === 'manual'
+    ) {
+        return MAX_EFFORT_CAPABILITIES;
+    }
+
+    return STANDARD_CAPABILITIES;
 }
 
 export function normalizeModelId(modelId: string): string {
