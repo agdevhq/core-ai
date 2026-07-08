@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/langfuse",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "description": "Langfuse middleware for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -43,7 +43,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.12.0"
+        "@core-ai/core-ai": "^0.13.0"
     },
     "peerDependencies": {
         "@langfuse/otel": "^5.1.0",

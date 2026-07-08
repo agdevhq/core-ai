@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.13.0
+
+### Minor Changes
+
+- de090e2: Expose a shared ModelCapabilities contract on ChatModel and via provider get\*ModelCapabilities helpers so consumers can inspect reasoning support without duplicating provider maps.
+
 ## 0.12.0
 
 ## 0.11.1

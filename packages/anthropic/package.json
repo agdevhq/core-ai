@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/anthropic",
-    "version": "0.12.0",
+    "version": "0.13.0",
     "description": "Anthropic provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -44,7 +44,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.12.0",
+        "@core-ai/core-ai": "^0.13.0",
         "@anthropic-ai/sdk": "^0.78.0"
     },
     "peerDependencies": {
