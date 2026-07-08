@@ -3,6 +3,66 @@ title: Releases
 description: Release history for all core-ai packages.
 ---
 
+<Update label="0.13.0" description="Model capabilities and new models" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add a shared `ModelCapabilities` contract on `ChatModel` with reasoning support and sampling restrictions. Expose provider `get*ModelCapabilities` helpers so consumers can inspect model behavior without duplicating provider maps.
+
+  ### @core-ai/openai
+
+  - Add model capability support for `gpt-5.6-sol`, `gpt-5.6-terra`, and `gpt-5.6-luna`.
+
+  ### @core-ai/anthropic
+
+  - Add model capability support for `claude-sonnet-5`.
+</Update>
+
+<Update label="0.12.0" description="Axiom GenAI telemetry" tags={["improvement"]}>
+  ### @core-ai/axiom
+
+  - Add a first-party Axiom GenAI telemetry package with `createAxiomMiddleware`, embedding and image middleware aliases, and OTLP exporter configuration helpers.
+</Update>
+
+<Update label="0.11.1" description="CommonJS interop" tags={["fix"]}>
+  ### All packages
+
+  - Add `require` and `default` export conditions so packages resolve under CommonJS loaders such as tsx.
+</Update>
+
+<Update label="0.11.0" description="Omnifact, Azure OpenAI, and model updates" tags={["improvement"]}>
+  ### @core-ai/omnifact
+
+  - Add a first-party Omnifact provider for the Omnifact API Gateway with a default production base URL.
+
+  ### @core-ai/azure-openai
+
+  - Add an Azure OpenAI chat provider with v1 Chat Completions support by default and classic API fallback.
+
+  ### @core-ai/openai
+
+  - Add model capability support for GPT-5.5, GPT-5.4 mini/nano, GPT-5.3 Codex, GPT-5 Pro, o3-pro, and GPT Image 2.
+  - Export `createOpenAICompatChatModel` from `@core-ai/openai/compat` and allow a custom provider id in the compat chat layer.
+
+  ### @core-ai/anthropic
+
+  - Add model capability support for Claude Fable 5, Claude Mythos 5, Claude Opus 4.8, and Claude Opus 4.7, including adaptive-thinking effort support.
+
+  ### @core-ai/core-ai
+
+  - Normalize provider model IDs with dashed `YYYY-MM-DD` snapshot suffixes so current model aliases and snapshots share capability handling.
+</Update>
+
+<Update label="0.10.3" description="Langfuse usage fixes and OpenAI reasoning spacing" tags={["fix"]}>
+  ### @core-ai/openai
+
+  - Preserve spacing between OpenAI reasoning summary parts.
+
+  ### @core-ai/langfuse
+
+  - Fix `usageDetails` keys to match Langfuse's expected naming convention so cost inference and UI aggregation work correctly.
+  - Fix double-counting of cache and reasoning tokens in the Langfuse usage breakdown.
+</Update>
+
 <Update label="0.10.0" description="Langfuse middleware" tags={["improvement"]}>
   ### @core-ai/langfuse
 
