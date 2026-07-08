@@ -1,80 +1,77 @@
-import { stripModelDateSuffix, type ReasoningEffort } from '@core-ai/core-ai';
+import {
+    stripModelDateSuffix,
+    type ModelCapabilities,
+    type ReasoningEffort,
+} from '@core-ai/core-ai';
 
-export type OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: boolean;
-        supportedRange: readonly ReasoningEffort[];
-        restrictsSamplingParams: boolean;
+export type OpenAIModelCapabilities = ModelCapabilities;
+
+const STANDARD_EFFORTS = [
+    'low',
+    'medium',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+const MAX_EFFORTS = [
+    'low',
+    'medium',
+    'high',
+    'max',
+] as const satisfies readonly ReasoningEffort[];
+const MINIMAL_EFFORTS = [
+    'minimal',
+    'low',
+    'medium',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+const PRO_EFFORTS = [
+    'medium',
+    'high',
+    'max',
+] as const satisfies readonly ReasoningEffort[];
+const HIGH_EFFORT = ['high'] as const satisfies readonly ReasoningEffort[];
+
+function createCapabilities(
+    supportedEfforts: readonly ReasoningEffort[],
+    restrictsSamplingParams: boolean
+): OpenAIModelCapabilities {
+    return {
+        reasoning: {
+            supported: true,
+            supportedEfforts,
+            restrictsSamplingParams,
+        },
     };
-};
+}
 
-const DEFAULT_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['low', 'medium', 'high'],
-        restrictsSamplingParams: false,
-    },
-};
-
-const GPT_5_MAX_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['low', 'medium', 'high', 'max'],
-        restrictsSamplingParams: true,
-    },
-};
-
-const GPT_5_MINIMAL_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['minimal', 'low', 'medium', 'high'],
-        restrictsSamplingParams: true,
-    },
-};
-
-const GPT_5_PRO_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['medium', 'high', 'max'],
-        restrictsSamplingParams: true,
-    },
-};
-
-const GPT_5_HIGH_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['high'],
-        restrictsSamplingParams: true,
-    },
-};
+const DEFAULT_CAPABILITIES = createCapabilities(STANDARD_EFFORTS, false);
+const SAMPLING_RESTRICTED_STANDARD_CAPABILITIES = createCapabilities(
+    STANDARD_EFFORTS,
+    true
+);
+const GPT_5_MAX_REASONING_CAPABILITIES = createCapabilities(MAX_EFFORTS, true);
+const GPT_5_MINIMAL_REASONING_CAPABILITIES = createCapabilities(
+    MINIMAL_EFFORTS,
+    true
+);
+const GPT_5_PRO_REASONING_CAPABILITIES = createCapabilities(PRO_EFFORTS, true);
+const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities(HIGH_EFFORT, true);
 
 const NO_REASONING_EFFORT_CAPABILITIES: OpenAIModelCapabilities = {
     reasoning: {
-        supportsEffort: false,
-        supportedRange: [],
+        supported: false,
+        supportedEfforts: [],
         restrictsSamplingParams: false,
     },
 };
 
-const O_SERIES_MAX_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['low', 'medium', 'high', 'max'],
-        restrictsSamplingParams: false,
-    },
-};
-
-const GPT_5_6_TERRA_REASONING_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supportsEffort: true,
-        supportedRange: ['low', 'medium', 'high'],
-        restrictsSamplingParams: true,
-    },
-};
+const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities(
+    MAX_EFFORTS,
+    false
+);
 
 const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
-    'gpt-5.6-terra': GPT_5_6_TERRA_REASONING_CAPABILITIES,
+    'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5.5': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.5-pro': GPT_5_PRO_REASONING_CAPABILITIES,
@@ -89,56 +86,18 @@ const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'gpt-5.1-codex': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.1-codex-max': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.1-codex-mini': GPT_5_MAX_REASONING_CAPABILITIES,
-    'gpt-5.1': {
-        reasoning: {
-            supportsEffort: true,
-            supportedRange: ['low', 'medium', 'high'],
-            restrictsSamplingParams: true,
-        },
-    },
+    'gpt-5.1': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5-mini': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5-nano': GPT_5_MINIMAL_REASONING_CAPABILITIES,
     'gpt-5-pro': GPT_5_HIGH_REASONING_CAPABILITIES,
     'gpt-5-codex': GPT_5_MAX_REASONING_CAPABILITIES,
     'o3-pro': O_SERIES_MAX_REASONING_CAPABILITIES,
-    o3: {
-        reasoning: {
-            supportsEffort: true,
-            supportedRange: ['low', 'medium', 'high'],
-            restrictsSamplingParams: false,
-        },
-    },
-    'o3-mini': {
-        reasoning: {
-            supportsEffort: true,
-            supportedRange: ['low', 'medium', 'high'],
-            restrictsSamplingParams: false,
-        },
-    },
-    'o4-mini': {
-        reasoning: {
-            supportsEffort: true,
-            supportedRange: ['low', 'medium', 'high'],
-            restrictsSamplingParams: false,
-        },
-    },
-    o1: {
-        reasoning: {
-            supportsEffort: true,
-            supportedRange: ['low', 'medium', 'high'],
-            restrictsSamplingParams: false,
-        },
-    },
+    o3: DEFAULT_CAPABILITIES,
+    'o3-mini': DEFAULT_CAPABILITIES,
+    'o4-mini': DEFAULT_CAPABILITIES,
+    o1: DEFAULT_CAPABILITIES,
     'o1-mini': NO_REASONING_EFFORT_CAPABILITIES,
-};
-
-const EFFORT_RANK: Record<ReasoningEffort, number> = {
-    minimal: 0,
-    low: 1,
-    medium: 2,
-    high: 3,
-    max: 4,
 };
 
 const OPENAI_REASONING_EFFORT_MAP: Record<
@@ -161,28 +120,6 @@ export function getOpenAIModelCapabilities(
 
 export function normalizeModelId(modelId: string): string {
     return stripModelDateSuffix(modelId);
-}
-
-export function clampReasoningEffort(
-    effort: ReasoningEffort,
-    supportedRange: readonly ReasoningEffort[]
-): ReasoningEffort {
-    if (supportedRange.length === 0 || supportedRange.includes(effort)) {
-        return effort;
-    }
-
-    const targetRank = EFFORT_RANK[effort];
-    let best = supportedRange[0] ?? effort;
-    let bestDistance = Math.abs(EFFORT_RANK[best] - targetRank);
-    for (const candidate of supportedRange) {
-        const distance = Math.abs(EFFORT_RANK[candidate] - targetRank);
-        if (distance < bestDistance) {
-            best = candidate;
-            bestDistance = distance;
-        }
-    }
-
-    return best;
 }
 
 export function toOpenAIReasoningEffort(

@@ -21,6 +21,7 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { wrapOpenAIError } from '../openai-error.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import {
     extractStructuredObject,
     transformStructuredOutputStream,
@@ -76,6 +77,7 @@ export function createOpenAICompatChatModel(
     return {
         provider,
         modelId,
+        capabilities: getOpenAIModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

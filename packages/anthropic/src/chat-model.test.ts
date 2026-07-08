@@ -13,6 +13,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createAnthropicChatModel } from './chat-model.js';
+import { getAnthropicModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createAnthropicChatModel', () => {
@@ -25,6 +26,9 @@ describe('createAnthropicChatModel', () => {
 
         expect(model.provider).toBe('anthropic');
         expect(model.modelId).toBe('claude-sonnet-4');
+        expect(model.capabilities).toEqual(
+            getAnthropicModelCapabilities('claude-sonnet-4')
+        );
     });
 });
 

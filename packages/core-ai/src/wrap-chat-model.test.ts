@@ -82,15 +82,20 @@ function createMockChatModel(): {
     const generateMock = vi.fn<ChatModel['generate']>(async (options) => {
         const firstMessage = options.messages[0];
         const content =
-            firstMessage?.role === 'user' && typeof firstMessage.content === 'string'
+            firstMessage?.role === 'user' &&
+            typeof firstMessage.content === 'string'
                 ? firstMessage.content
                 : 'default';
 
         return createGenerateResult(content);
     });
-    const streamMock = vi.fn<ChatModel['stream']>(async () => createMockChatStream('hello'));
+    const streamMock = vi.fn<ChatModel['stream']>(async () =>
+        createMockChatStream('hello')
+    );
     const generateObjectMock = vi.fn(
-        async <TSchema extends z.ZodType>(options: StreamObjectOptions<TSchema>) =>
+        async <TSchema extends z.ZodType>(
+            options: StreamObjectOptions<TSchema>
+        ) =>
             ({
                 object: {
                     schemaName: options.schemaName ?? 'unknown',
@@ -100,7 +105,9 @@ function createMockChatModel(): {
             }) as GenerateObjectResult<TSchema>
     ) as ChatModel['generateObject'];
     const streamObjectMock = vi.fn(
-        async <TSchema extends z.ZodType>(options: StreamObjectOptions<TSchema>) =>
+        async <TSchema extends z.ZodType>(
+            options: StreamObjectOptions<TSchema>
+        ) =>
             createMockObjectStream(options, {
                 city: 'Berlin',
                 temperatureC: 21,
@@ -111,6 +118,13 @@ function createMockChatModel(): {
         model: {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: generateMock,
             stream: streamMock,
             generateObject: generateObjectMock,
@@ -125,8 +139,13 @@ function createMockChatModel(): {
 
 describe('wrapChatModel', () => {
     it('passes through to the original model when no hooks are defined', async () => {
-        const { model, generateMock, streamMock, generateObjectMock, streamObjectMock } =
-            createMockChatModel();
+        const {
+            model,
+            generateMock,
+            streamMock,
+            generateObjectMock,
+            streamObjectMock,
+        } = createMockChatModel();
         const schema = z.object({
             city: z.string(),
             temperatureC: z.number(),
@@ -153,6 +172,7 @@ describe('wrapChatModel', () => {
 
         expect(wrapped.provider).toBe(model.provider);
         expect(wrapped.modelId).toBe(model.modelId);
+        expect(wrapped.capabilities).toBe(model.capabilities);
         expect(generateResult.content).toBe('hello');
         expect(await chatStream.result).toMatchObject({ content: 'hello' });
         expect(objectResult.object).toEqual({ schemaName: 'unknown' });
@@ -258,7 +278,8 @@ describe('wrapChatModel', () => {
             const firstMessage = options.messages[0];
 
             return createGenerateResult(
-                firstMessage?.role === 'user' && typeof firstMessage.content === 'string'
+                firstMessage?.role === 'user' &&
+                    typeof firstMessage.content === 'string'
                     ? firstMessage.content
                     : 'ok'
             );
@@ -333,9 +354,11 @@ describe('wrapChatModel', () => {
             },
         });
 
-        const result = await (await wrapped.stream({
-            messages: [{ role: 'user', content: 'hello' }],
-        })).result;
+        const result = await (
+            await wrapped.stream({
+                messages: [{ role: 'user', content: 'hello' }],
+            })
+        ).result;
 
         expect(result.content).toBe('HELLO');
     });

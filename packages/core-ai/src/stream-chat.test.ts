@@ -1,11 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { ValidationError } from './errors.ts';
 import { stream } from './stream-chat.ts';
-import type {
-    ChatModel,
-    ChatOutputTokenDetails,
-    ChatStream,
-} from './types.ts';
+import type { ChatModel, ChatOutputTokenDetails, ChatStream } from './types.ts';
 
 async function* events(): AsyncIterable<{
     type: 'finish';
@@ -69,6 +65,13 @@ describe('stream', () => {
         const model: ChatModel = {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
             }),
@@ -96,6 +99,13 @@ describe('stream', () => {
         const model: ChatModel = {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
             }),

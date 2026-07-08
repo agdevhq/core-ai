@@ -15,6 +15,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createOpenAICompatChatModel } from './chat-model.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createOpenAICompatChatModel', () => {
@@ -26,6 +27,9 @@ describe('createOpenAICompatChatModel', () => {
 
         expect(model.provider).toBe('openai');
         expect(model.modelId).toBe('gpt-5-mini');
+        expect(model.capabilities).toEqual(
+            getOpenAIModelCapabilities('gpt-5-mini')
+        );
     });
 });
 

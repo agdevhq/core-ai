@@ -1,25 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import {
-    toAsyncIterable,
-    createPushableAsyncIterable,
-} from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 import { CoreAIError, StreamAbortedError, ValidationError } from './errors.ts';
 import { createObjectStream, streamObject } from './stream-object.ts';
-import type {
-    ChatModel,
-    ObjectStreamEvent,
-    ObjectStream,
-} from './types.ts';
+import type { ChatModel, ObjectStreamEvent, ObjectStream } from './types.ts';
 
 const weatherSchema = z.object({
     city: z.string(),
     temperatureC: z.number(),
 });
 
-function createMockObjectStream(): ObjectStream<
-    typeof weatherSchema
-> {
+function createMockObjectStream(): ObjectStream<typeof weatherSchema> {
     const events: ObjectStreamEvent<typeof weatherSchema>[] = [
         {
             type: 'object',
@@ -51,6 +42,13 @@ describe('streamObject', () => {
         const model: ChatModel = {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
             }),
@@ -81,6 +79,13 @@ describe('streamObject', () => {
         const model: ChatModel = {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
             }),
@@ -279,9 +284,10 @@ describe('createObjectStream', () => {
 
     it('should reject result and iterators on abort while preserving events', async () => {
         const controller = new AbortController();
-        const source = createPushableAsyncIterable<
-            ObjectStreamEvent<typeof weatherSchema>
-        >();
+        const source =
+            createPushableAsyncIterable<
+                ObjectStreamEvent<typeof weatherSchema>
+            >();
         const objectStream = createObjectStream(source.iterable, {
             signal: controller.signal,
         });
@@ -303,7 +309,9 @@ describe('createObjectStream', () => {
 
         controller.abort();
 
-        await expect(objectStream.result).rejects.toBeInstanceOf(StreamAbortedError);
+        await expect(objectStream.result).rejects.toBeInstanceOf(
+            StreamAbortedError
+        );
         await expect(objectStream.events).resolves.toEqual([
             {
                 type: 'object',

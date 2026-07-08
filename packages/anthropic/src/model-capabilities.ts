@@ -1,78 +1,63 @@
-import { stripModelDateSuffix, type ReasoningEffort } from '@core-ai/core-ai';
+import {
+    stripModelDateSuffix,
+    type ModelCapabilities,
+    type ReasoningEffort,
+} from '@core-ai/core-ai';
 
-export type AnthropicModelCapabilities = {
-    reasoning: {
-        thinkingMode: 'adaptive' | 'manual';
-        supportsMaxEffort: boolean;
+export type AnthropicModelCapabilities = ModelCapabilities;
+
+type AnthropicThinkingMode = 'adaptive' | 'manual';
+
+const STANDARD_EFFORTS = [
+    'minimal',
+    'low',
+    'medium',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+
+const MAX_EFFORTS = [
+    'minimal',
+    'low',
+    'medium',
+    'high',
+    'max',
+] as const satisfies readonly ReasoningEffort[];
+
+function createCapabilities(
+    supportedEfforts: readonly ReasoningEffort[]
+): AnthropicModelCapabilities {
+    return {
+        reasoning: {
+            supported: true,
+            supportedEfforts,
+            restrictsSamplingParams: true,
+        },
     };
-};
+}
 
-const DEFAULT_CAPABILITIES: AnthropicModelCapabilities = {
-    reasoning: {
-        thinkingMode: 'adaptive',
-        supportsMaxEffort: false,
-    },
-};
+const STANDARD_CAPABILITIES = createCapabilities(STANDARD_EFFORTS);
+const MAX_EFFORT_CAPABILITIES = createCapabilities(MAX_EFFORTS);
 
-const ADAPTIVE_MAX_EFFORT_CAPABILITIES: AnthropicModelCapabilities = {
-    reasoning: {
-        thinkingMode: 'adaptive',
-        supportsMaxEffort: true,
-    },
-};
+const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
+    'claude-fable-5',
+    'claude-mythos-5',
+    'claude-mythos-preview',
+    'claude-opus-4-8',
+    'claude-opus-4-7',
+    'claude-opus-4-6',
+    'claude-sonnet-5',
+    'claude-sonnet-4-6',
+]);
 
-const MODEL_CAPABILITIES: Record<string, AnthropicModelCapabilities> = {
-    'claude-fable-5': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-mythos-5': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-mythos-preview': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-opus-4-8': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-opus-4-7': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-opus-4-6': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-sonnet-5': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-sonnet-4-6': ADAPTIVE_MAX_EFFORT_CAPABILITIES,
-    'claude-opus-4-5': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-    'claude-sonnet-4-5': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-    'claude-opus-4-1': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-    'claude-opus-4': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-    'claude-sonnet-4': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-    'claude-haiku-4-5': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-    'claude-sonnet-3-7': {
-        reasoning: {
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
-        },
-    },
-};
+const MANUAL_THINKING_MODELS = new Set([
+    'claude-opus-4-5',
+    'claude-sonnet-4-5',
+    'claude-opus-4-1',
+    'claude-opus-4',
+    'claude-sonnet-4',
+    'claude-haiku-4-5',
+    'claude-sonnet-3-7',
+]);
 
 const ANTHROPIC_ADAPTIVE_EFFORT_MAP: Record<
     Exclude<ReasoningEffort, 'max'>,
@@ -95,12 +80,25 @@ const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
 export function getAnthropicModelCapabilities(
     modelId: string
 ): AnthropicModelCapabilities {
-    const normalizedModelId = normalizeModelId(modelId);
-    return MODEL_CAPABILITIES[normalizedModelId] ?? DEFAULT_CAPABILITIES;
+    return supportsAnthropicMaxEffort(modelId)
+        ? MAX_EFFORT_CAPABILITIES
+        : STANDARD_CAPABILITIES;
 }
 
 export function normalizeModelId(modelId: string): string {
     return stripModelDateSuffix(modelId);
+}
+
+export function getAnthropicThinkingMode(
+    modelId: string
+): AnthropicThinkingMode {
+    return MANUAL_THINKING_MODELS.has(normalizeModelId(modelId))
+        ? 'manual'
+        : 'adaptive';
+}
+
+export function supportsAnthropicMaxEffort(modelId: string): boolean {
+    return ADAPTIVE_MAX_EFFORT_MODELS.has(normalizeModelId(modelId));
 }
 
 export function toAnthropicAdaptiveEffort(

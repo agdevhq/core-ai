@@ -27,6 +27,7 @@ import {
     transformStream,
     wrapError,
 } from './chat-adapter.js';
+import { getAnthropicModelCapabilities } from './model-capabilities.js';
 
 type AnthropicMessagesClient = {
     messages: Anthropic['messages'];
@@ -82,6 +83,7 @@ export function createAnthropicChatModel(
     return {
         provider,
         modelId,
+        capabilities: getAnthropicModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

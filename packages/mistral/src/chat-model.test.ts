@@ -12,6 +12,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.js';
+import { getMistralModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createMistralChatModel', () => {
@@ -23,6 +24,9 @@ describe('createMistralChatModel', () => {
 
         expect(model.provider).toBe('mistral');
         expect(model.modelId).toBe('mistral-large-latest');
+        expect(model.capabilities).toEqual(
+            getMistralModelCapabilities('mistral-large-latest')
+        );
     });
 });
 
@@ -497,32 +501,34 @@ describe('stream', () => {
     });
 
     it('should pass the caller abort signal to streaming requests', async () => {
-        const stream = vi.fn(async (_request: unknown, requestOptions?: unknown) => {
-            const typedRequestOptions = requestOptions as
-                | { signal?: AbortSignal }
-                | undefined;
-            return {
-                [Symbol.asyncIterator]() {
-                    return {
-                        async next() {
-                            await new Promise<never>((_resolve, reject) => {
-                                typedRequestOptions?.signal?.addEventListener(
-                                    'abort',
-                                    () => {
-                                        reject(new Error('aborted'));
-                                    },
-                                    { once: true }
-                                );
-                            });
-                            return {
-                                done: true,
-                                value: undefined,
-                            };
-                        },
-                    };
-                },
-            } as AsyncIterable<CompletionEvent>;
-        });
+        const stream = vi.fn(
+            async (_request: unknown, requestOptions?: unknown) => {
+                const typedRequestOptions = requestOptions as
+                    | { signal?: AbortSignal }
+                    | undefined;
+                return {
+                    [Symbol.asyncIterator]() {
+                        return {
+                            async next() {
+                                await new Promise<never>((_resolve, reject) => {
+                                    typedRequestOptions?.signal?.addEventListener(
+                                        'abort',
+                                        () => {
+                                            reject(new Error('aborted'));
+                                        },
+                                        { once: true }
+                                    );
+                                });
+                                return {
+                                    done: true,
+                                    value: undefined,
+                                };
+                            },
+                        };
+                    },
+                } as AsyncIterable<CompletionEvent>;
+            }
+        );
         const model = createMistralChatModel(
             createMockClient({ stream }),
             'mistral-large-latest'

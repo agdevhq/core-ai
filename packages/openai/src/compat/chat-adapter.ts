@@ -15,8 +15,8 @@ import type {
     ToolCall,
     UserContentPart,
 } from '@core-ai/core-ai';
+import { clampReasoningEffort } from '@core-ai/core-ai';
 import {
-    clampReasoningEffort,
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.js';
@@ -457,13 +457,13 @@ function mapReasoningToRequestFields(
     }
 
     const capabilities = getOpenAIModelCapabilities(modelId);
-    if (!capabilities.reasoning.supportsEffort) {
+    if (!capabilities.reasoning.supported) {
         return {};
     }
 
     const clampedEffort = clampReasoningEffort(
         options.reasoning.effort,
-        capabilities.reasoning.supportedRange
+        capabilities.reasoning.supportedEfforts
     );
 
     return {

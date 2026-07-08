@@ -295,6 +295,45 @@ describe('createGenerateRequest', () => {
         expect(request.store).toBe(false);
         expect(request.include).toEqual(['reasoning.encrypted_content']);
     });
+
+    it('should omit reasoning fields for models without reasoning support', () => {
+        const request = createGenerateRequest('o1-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        expect(request.reasoning).toBeUndefined();
+        expect(request.include).toBeUndefined();
+    });
+
+    it('should map and clamp reasoning effort for supported models', () => {
+        const maxRequest = createGenerateRequest('gpt-5.2', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(maxRequest.reasoning).toEqual({
+            effort: 'xhigh',
+            summary: 'auto',
+        });
+
+        const clampedMinimal = createGenerateRequest('gpt-5.1', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+        expect(clampedMinimal.reasoning).toEqual({
+            effort: 'low',
+            summary: 'auto',
+        });
+
+        const clampedPro = createGenerateRequest('gpt-5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'medium' },
+        });
+        expect(clampedPro.reasoning).toEqual({
+            effort: 'high',
+            summary: 'auto',
+        });
+    });
 });
 
 describe('mapGenerateResponse', () => {

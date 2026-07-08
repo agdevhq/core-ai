@@ -81,10 +81,7 @@ type AssistantMessage = {
     parts: AssistantContentPart[];
 };
 
-type AssistantContentPart =
-    | AssistantTextPart
-    | ReasoningPart
-    | ToolCallPart;
+type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
 ```
 
 ### AssistantTextPart
@@ -174,6 +171,7 @@ type ToolChoice =
 type ChatModel = {
     readonly provider: string;
     readonly modelId: string;
+    readonly capabilities: ModelCapabilities;
     generate(options: GenerateOptions): Promise<GenerateResult>;
     stream(options: GenerateOptions): Promise<ChatStream>;
     generateObject<TSchema extends z.ZodType>(
@@ -184,6 +182,32 @@ type ChatModel = {
     ): Promise<ObjectStream<TSchema>>;
 };
 ```
+
+`capabilities` describes what the model supports for the unified API. Use it to decide whether to pass `reasoning` and which effort levels are valid.
+
+### ModelCapabilities
+
+```typescript
+type ModelCapabilities = {
+    reasoning: {
+        supported: boolean;
+        supportedEfforts: readonly ReasoningEffort[];
+        /**
+         * When true, sampling parameters such as `temperature` and `topP`
+         * must not be set alongside `reasoning`.
+         */
+        restrictsSamplingParams: boolean;
+    };
+};
+```
+
+| Field                               | Meaning                                                                  |
+| ----------------------------------- | ------------------------------------------------------------------------ |
+| `reasoning.supported`               | Whether the model accepts `reasoning.effort` on generate/stream requests |
+| `reasoning.supportedEfforts`        | Effort values the adapter accepts (empty when unsupported)               |
+| `reasoning.restrictsSamplingParams` | When `true`, omit `temperature` / `topP` while reasoning is enabled      |
+
+Provider packages also export `get*ModelCapabilities(modelId)` helpers that return the same data without constructing a `ChatModel`.
 
 ### EmbeddingModel
 
@@ -214,12 +238,7 @@ type ReasoningConfig = {
     effort: ReasoningEffort;
 };
 
-type ReasoningEffort =
-    | 'minimal'
-    | 'low'
-    | 'medium'
-    | 'high'
-    | 'max';
+type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'max';
 ```
 
 ## Provider options types
@@ -280,12 +299,11 @@ type GenerateOptions = BaseGenerateOptions & {
 ### GenerateObjectOptions
 
 ```typescript
-type GenerateObjectOptions<TSchema extends z.ZodType> =
-    BaseGenerateOptions & {
-        schema: TSchema;
-        schemaName?: string;
-        schemaDescription?: string;
-    };
+type GenerateObjectOptions<TSchema extends z.ZodType> = BaseGenerateOptions & {
+    schema: TSchema;
+    schemaName?: string;
+    schemaDescription?: string;
+};
 ```
 
 ### StreamObjectOptions
@@ -350,7 +368,10 @@ type ChatStream = AsyncIterable<StreamEvent> & {
 type StreamEvent =
     | { type: 'reasoning-start' }
     | { type: 'reasoning-delta'; text: string }
-    | { type: 'reasoning-end'; providerMetadata?: Record<string, Record<string, unknown>> }
+    | {
+          type: 'reasoning-end';
+          providerMetadata?: Record<string, Record<string, unknown>>;
+      }
     | { type: 'text-delta'; text: string }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
@@ -480,22 +501,22 @@ type GeneratedImage = {
 import type { Message } from '@core-ai/core-ai';
 
 const conversation: Message[] = [
-  {
-    role: 'system',
-    content: 'You are a helpful assistant.'
-  },
-  {
-    role: 'user',
-    content: 'Hello!'
-  },
-  {
-    role: 'assistant',
-    parts: [{ type: 'text', text: 'Hi! How can I help?' }]
-  },
-  {
-    role: 'user',
-    content: 'What is 2+2?'
-  }
+    {
+        role: 'system',
+        content: 'You are a helpful assistant.',
+    },
+    {
+        role: 'user',
+        content: 'Hello!',
+    },
+    {
+        role: 'assistant',
+        parts: [{ type: 'text', text: 'Hi! How can I help?' }],
+    },
+    {
+        role: 'user',
+        content: 'What is 2+2?',
+    },
 ];
 ```
 
@@ -505,10 +526,10 @@ const conversation: Message[] = [
 import type { ToolCall, ToolResultMessage } from '@core-ai/core-ai';
 
 function handleToolCall(toolCall: ToolCall): ToolResultMessage {
-  return {
-    role: 'tool',
-    toolCallId: toolCall.id,
-    content: JSON.stringify({ result: 'success' })
-  };
+    return {
+        role: 'tool',
+        toolCallId: toolCall.id,
+        content: JSON.stringify({ result: 'success' }),
+    };
 }
 ```

@@ -107,9 +107,22 @@ export type ToolChoice =
     | 'required'
     | { type: 'tool'; toolName: string };
 
+export type ModelCapabilities = {
+    reasoning: {
+        supported: boolean;
+        supportedEfforts: readonly ReasoningEffort[];
+        /**
+         * When true, sampling parameters such as `temperature` and `topP`
+         * must not be set alongside `reasoning`.
+         */
+        restrictsSamplingParams: boolean;
+    };
+};
+
 export type ChatModel = {
     readonly provider: string;
     readonly modelId: string;
+    readonly capabilities: ModelCapabilities;
     generate(options: GenerateOptions): Promise<GenerateResult>;
     stream(options: GenerateOptions): Promise<ChatStream>;
     generateObject<TSchema extends z.ZodType>(
@@ -169,7 +182,9 @@ export type EmbeddingModelMiddleware = {
 
 export type ImageModelMiddleware = {
     generate?: (args: {
-        execute: (options?: ImageGenerateOptions) => Promise<ImageGenerateResult>;
+        execute: (
+            options?: ImageGenerateOptions
+        ) => Promise<ImageGenerateResult>;
         options: ImageGenerateOptions;
         model: ImageModel;
     }) => Promise<ImageGenerateResult>;

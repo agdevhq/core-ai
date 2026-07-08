@@ -4,6 +4,8 @@ export type {
     AnthropicProviderOptions,
 } from './provider.js';
 export type { AnthropicReasoningMetadata } from './chat-adapter.js';
+export type { AnthropicModelCapabilities } from './model-capabilities.js';
+export { getAnthropicModelCapabilities } from './model-capabilities.js';
 export {
     anthropicCacheControlSchema,
     anthropicGenerateProviderOptionsSchema,

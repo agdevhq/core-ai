@@ -28,6 +28,7 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { wrapMistralError } from './mistral-error.js';
+import { getMistralModelCapabilities } from './model-capabilities.js';
 
 type MistralChatClient = {
     chat: Mistral['chat'];
@@ -77,6 +78,7 @@ export function createMistralChatModel(
     return {
         provider,
         modelId,
+        capabilities: getMistralModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

@@ -118,25 +118,42 @@ function expectDefined<T>(value: T | undefined): T {
     return value;
 }
 
-function createMockChatModel(overrides?: Partial<{
-    generate: ChatModel['generate'];
-    stream: ChatModel['stream'];
-    generateObject: ChatModel['generateObject'];
-    streamObject: ChatModel['streamObject'];
-}>): ChatModel {
+function createMockChatModel(
+    overrides?: Partial<{
+        generate: ChatModel['generate'];
+        stream: ChatModel['stream'];
+        generateObject: ChatModel['generateObject'];
+        streamObject: ChatModel['streamObject'];
+    }>
+): ChatModel {
     return {
         provider: 'test',
         modelId: 'test-model',
-        generate: overrides?.generate ?? vi.fn(async () => createGenerateResult('Hello')),
-        stream: overrides?.stream ?? vi.fn(async () => {
-            throw new Error('not implemented');
-        }),
-        generateObject: overrides?.generateObject ?? vi.fn(async () => {
-            throw new Error('not implemented');
-        }) as ChatModel['generateObject'],
-        streamObject: overrides?.streamObject ?? vi.fn(async () => {
-            throw new Error('not implemented');
-        }) as ChatModel['streamObject'],
+        capabilities: {
+            reasoning: {
+                supported: false,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        },
+        generate:
+            overrides?.generate ??
+            vi.fn(async () => createGenerateResult('Hello')),
+        stream:
+            overrides?.stream ??
+            vi.fn(async () => {
+                throw new Error('not implemented');
+            }),
+        generateObject:
+            overrides?.generateObject ??
+            (vi.fn(async () => {
+                throw new Error('not implemented');
+            }) as ChatModel['generateObject']),
+        streamObject:
+            overrides?.streamObject ??
+            (vi.fn(async () => {
+                throw new Error('not implemented');
+            }) as ChatModel['streamObject']),
     };
 }
 
@@ -190,7 +207,9 @@ describe('@core-ai/opentelemetry', () => {
         expect(span.attributes['gen_ai.operation.name']).toBe('chat');
         expect(span.attributes['gen_ai.output.type']).toBe('text');
         expect(span.attributes['gen_ai.request.temperature']).toBe(0.3);
-        expect(span.attributes['gen_ai.response.finish_reasons']).toEqual(['stop']);
+        expect(span.attributes['gen_ai.response.finish_reasons']).toEqual([
+            'stop',
+        ]);
         expect(span.attributes['gen_ai.usage.input_tokens']).toBe(5);
         expect(span.attributes['gen_ai.usage.output_tokens']).toBe(3);
         expect(span.attributes['core_ai.function_id']).toBe('generate-test');
@@ -246,7 +265,9 @@ describe('@core-ai/opentelemetry', () => {
         const span = expectDefined(exporter.getFinishedSpans()[0]);
         expect(span.attributes['gen_ai.output.type']).toBe('json');
         expect(span.attributes['gen_ai.request.schema_name']).toBe('Answer');
-        expect(span.attributes['output.value']).toBe(JSON.stringify({ answer: '42' }));
+        expect(span.attributes['output.value']).toBe(
+            JSON.stringify({ answer: '42' })
+        );
     });
 
     it('keeps stream spans open until the stream result resolves', async () => {
@@ -348,7 +369,9 @@ describe('@core-ai/opentelemetry', () => {
             events: Promise.resolve(objectEvents),
         };
         const model = createMockChatModel({
-            streamObject: vi.fn(async () => expected) as ChatModel['streamObject'],
+            streamObject: vi.fn(
+                async () => expected
+            ) as ChatModel['streamObject'],
         });
         const wrappedModel = wrapChatModel({
             model,
@@ -392,13 +415,19 @@ describe('@core-ai/opentelemetry', () => {
         const deferred = createDeferred<GenerateObjectResult<typeof schema>>();
         const expected: ObjectStream<typeof schema> = {
             async *[Symbol.asyncIterator]() {
-                yield { type: 'finish', finishReason: 'stop', usage: createChatUsage() };
+                yield {
+                    type: 'finish',
+                    finishReason: 'stop',
+                    usage: createChatUsage(),
+                };
             },
             result: deferred.promise,
             events: Promise.resolve([]),
         };
         const model = createMockChatModel({
-            streamObject: vi.fn(async () => expected) as ChatModel['streamObject'],
+            streamObject: vi.fn(
+                async () => expected
+            ) as ChatModel['streamObject'],
         });
         const wrappedModel = wrapChatModel({
             model,
@@ -442,12 +471,16 @@ describe('@core-ai/opentelemetry', () => {
         });
 
         const spans = exporter.getFinishedSpans();
-        const parentSpan = spans.find((span) => span.name === 'chat test-model');
+        const parentSpan = spans.find(
+            (span) => span.name === 'chat test-model'
+        );
         const childSpan = spans.find((span) => span.name === 'child');
 
         expect(parentSpan).toBeDefined();
         expect(childSpan).toBeDefined();
-        expect(childSpan?.spanContext().traceId).toBe(parentSpan?.spanContext().traceId);
+        expect(childSpan?.spanContext().traceId).toBe(
+            parentSpan?.spanContext().traceId
+        );
         expect(childSpan?.parentSpanContext?.spanId).toBe(
             parentSpan?.spanContext().spanId
         );
@@ -477,7 +510,9 @@ describe('@core-ai/opentelemetry', () => {
         const span = expectDefined(exporter.getFinishedSpans()[0]);
         expect(span.name).toBe('embeddings embed-model');
         expect(span.attributes['gen_ai.usage.input_tokens']).toBe(3);
-        expect(span.attributes['input.value']).toBe(JSON.stringify(['hello', 'world']));
+        expect(span.attributes['input.value']).toBe(
+            JSON.stringify(['hello', 'world'])
+        );
     });
 
     it('records image prompts', async () => {

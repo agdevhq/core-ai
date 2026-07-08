@@ -33,7 +33,8 @@ import type {
     ToolChoice as AgToolChoice,
 } from '@core-ai/core-ai';
 import {
-    getAnthropicModelCapabilities,
+    getAnthropicThinkingMode,
+    supportsAnthropicMaxEffort,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
 } from './model-capabilities.js';
@@ -486,19 +487,19 @@ function mapReasoningToRequestFields(
         return {};
     }
 
-    const capabilities = getAnthropicModelCapabilities(modelId);
+    const thinkingMode = getAnthropicThinkingMode(modelId);
     const baseFields: Record<string, unknown> = {};
 
     if (options.tools && Object.keys(options.tools).length > 0) {
         baseFields['betas'] = ['interleaved-thinking-2025-05-14'];
     }
 
-    if (capabilities.reasoning.thinkingMode === 'adaptive') {
+    if (thinkingMode === 'adaptive') {
         baseFields['thinking'] = { type: 'adaptive' };
         baseFields['output_config'] = {
             effort: toAnthropicAdaptiveEffort(
                 options.reasoning.effort,
-                capabilities.reasoning.supportsMaxEffort
+                supportsAnthropicMaxEffort(modelId)
             ),
         };
         return baseFields;

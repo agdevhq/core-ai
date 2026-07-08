@@ -147,16 +147,31 @@ function createMockChatModel(
     return {
         provider: 'test',
         modelId: 'test-model',
-        generate: overrides?.generate ?? vi.fn(async () => createGenerateResult('Hello')),
-        stream: overrides?.stream ?? vi.fn(async () => {
-            throw new Error('not implemented');
-        }),
-        generateObject: overrides?.generateObject ?? vi.fn(async () => {
-            throw new Error('not implemented');
-        }) as ChatModel['generateObject'],
-        streamObject: overrides?.streamObject ?? vi.fn(async () => {
-            throw new Error('not implemented');
-        }) as ChatModel['streamObject'],
+        capabilities: {
+            reasoning: {
+                supported: false,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        },
+        generate:
+            overrides?.generate ??
+            vi.fn(async () => createGenerateResult('Hello')),
+        stream:
+            overrides?.stream ??
+            vi.fn(async () => {
+                throw new Error('not implemented');
+            }),
+        generateObject:
+            overrides?.generateObject ??
+            (vi.fn(async () => {
+                throw new Error('not implemented');
+            }) as ChatModel['generateObject']),
+        streamObject:
+            overrides?.streamObject ??
+            (vi.fn(async () => {
+                throw new Error('not implemented');
+            }) as ChatModel['streamObject']),
     };
 }
 
@@ -166,29 +181,31 @@ describe('@core-ai/langfuse', () => {
     beforeEach(() => {
         observations = [];
 
-        startActiveObservationMock.mockImplementation(async (_name, fn, options) => {
-            const observation: MockObservation = {
-                update: vi.fn(),
-                end: vi.fn(),
-            };
-            observations.push(observation);
+        startActiveObservationMock.mockImplementation(
+            async (_name, fn, options) => {
+                const observation: MockObservation = {
+                    update: vi.fn(),
+                    end: vi.fn(),
+                };
+                observations.push(observation);
 
-            try {
-                const result = await fn(observation);
+                try {
+                    const result = await fn(observation);
 
-                if (options?.endOnExit !== false) {
-                    observation.end();
+                    if (options?.endOnExit !== false) {
+                        observation.end();
+                    }
+
+                    return result;
+                } catch (error) {
+                    if (options?.endOnExit !== false) {
+                        observation.end();
+                    }
+
+                    throw error;
                 }
-
-                return result;
-            } catch (error) {
-                if (options?.endOnExit !== false) {
-                    observation.end();
-                }
-
-                throw error;
             }
-        });
+        );
     });
 
     afterEach(() => {
@@ -455,7 +472,9 @@ describe('@core-ai/langfuse', () => {
             events: Promise.resolve(objectEvents),
         };
         const model = createMockChatModel({
-            streamObject: vi.fn(async () => expected) as ChatModel['streamObject'],
+            streamObject: vi.fn(
+                async () => expected
+            ) as ChatModel['streamObject'],
         });
         const wrappedModel = wrapChatModel({
             model,
@@ -508,7 +527,9 @@ describe('@core-ai/langfuse', () => {
         };
         const wrappedModel = wrapEmbeddingModel({
             model,
-            middleware: createLangfuseEmbeddingMiddleware({ recordContent: true }),
+            middleware: createLangfuseEmbeddingMiddleware({
+                recordContent: true,
+            }),
         });
 
         await embed({
