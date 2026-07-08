@@ -7,6 +7,13 @@ function createMockChatModel(result: GenerateResult): ChatModel {
     return {
         provider: 'test',
         modelId: 'test-model',
+        capabilities: {
+            reasoning: {
+                supported: false,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        },
         generate: vi.fn(async () => result),
         stream: vi.fn(async () => {
             throw new Error('not implemented');

@@ -110,6 +110,37 @@ const anthropic = createAnthropic({
 | Embeddings       | No      |
 | Image Generation | No      |
 
+Use `ChatModel.capabilities` or `getAnthropicModelCapabilities(modelId)` to inspect reasoning support at runtime:
+
+```typescript
+import { clampReasoningEffort, generate } from '@core-ai/core-ai';
+import {
+    createAnthropic,
+    getAnthropicModelCapabilities,
+} from '@core-ai/anthropic';
+
+const anthropic = createAnthropic();
+const model = anthropic.chatModel('claude-opus-4-8');
+
+if (model.capabilities.reasoning.supported) {
+    const effort = clampReasoningEffort(
+        'max',
+        model.capabilities.reasoning.supportedEfforts
+    );
+
+    await generate({
+        model,
+        messages: [{ role: 'user', content: 'Analyze this carefully.' }],
+        reasoning: { effort },
+        // Anthropic sets restrictsSamplingParams: true — omit temperature/topP
+    });
+}
+
+const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
+```
+
+When `restrictsSamplingParams` is `true`, do not set `temperature` (and keep `topP` in the allowed range) while reasoning is enabled.
+
 ## Examples
 
 ### Basic chat
@@ -242,8 +273,8 @@ const result = await generate({
 
 <Note>
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
-    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
-    `claude-sonnet-5`, and `claude-sonnet-4-6` support `'max'` effort directly.
+    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-5`,
+    and `claude-sonnet-4-6` support `'max'` effort directly.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)

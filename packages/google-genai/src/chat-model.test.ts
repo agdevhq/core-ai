@@ -10,6 +10,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.js';
+import { getGoogleModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('createGoogleGenAIChatModel', () => {
@@ -21,6 +22,9 @@ describe('createGoogleGenAIChatModel', () => {
 
         expect(model.provider).toBe('google');
         expect(model.modelId).toBe('gemini-2.5-flash');
+        expect(model.capabilities).toEqual(
+            getGoogleModelCapabilities('gemini-2.5-flash')
+        );
     });
 });
 
@@ -261,7 +265,9 @@ describe('generate', () => {
                     },
                 },
             },
-        } as unknown as Parameters<typeof model.generateObject<typeof schema>>[0]['providerOptions'];
+        } as unknown as Parameters<
+            typeof model.generateObject<typeof schema>
+        >[0]['providerOptions'];
 
         await expect(
             model.generateObject({
@@ -439,34 +445,32 @@ describe('stream', () => {
     });
 
     it('should pass the caller abort signal to streaming requests', async () => {
-        const generateContentStream = vi.fn(
-            async (request?: unknown) => {
-                const typedRequest = request as
-                    | { config?: { abortSignal?: AbortSignal } }
-                    | undefined;
-                return {
-                    [Symbol.asyncIterator]() {
-                        return {
-                            async next() {
-                                await new Promise<never>((_resolve, reject) => {
-                                    typedRequest?.config?.abortSignal?.addEventListener(
-                                        'abort',
-                                        () => {
-                                            reject(new Error('aborted'));
-                                        },
-                                        { once: true }
-                                    );
-                                });
-                                return {
-                                    done: true,
-                                    value: undefined,
-                                };
-                            },
-                        };
-                    },
-                } as AsyncIterable<GenerateContentResponse>;
-            }
-        );
+        const generateContentStream = vi.fn(async (request?: unknown) => {
+            const typedRequest = request as
+                | { config?: { abortSignal?: AbortSignal } }
+                | undefined;
+            return {
+                [Symbol.asyncIterator]() {
+                    return {
+                        async next() {
+                            await new Promise<never>((_resolve, reject) => {
+                                typedRequest?.config?.abortSignal?.addEventListener(
+                                    'abort',
+                                    () => {
+                                        reject(new Error('aborted'));
+                                    },
+                                    { once: true }
+                                );
+                            });
+                            return {
+                                done: true,
+                                value: undefined,
+                            };
+                        },
+                    };
+                },
+            } as AsyncIterable<GenerateContentResponse>;
+        });
         const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
@@ -488,9 +492,9 @@ describe('stream', () => {
             )
         );
 
-        const request = (generateContentStream.mock.calls as unknown[][])[0]?.[0] as
-            | { config?: { abortSignal?: AbortSignal } }
-            | undefined;
+        const request = (
+            generateContentStream.mock.calls as unknown[][]
+        )[0]?.[0] as { config?: { abortSignal?: AbortSignal } } | undefined;
         expect(request?.config?.abortSignal?.aborted).toBe(false);
 
         controller.abort();
