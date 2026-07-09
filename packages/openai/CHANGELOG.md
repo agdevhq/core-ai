@@ -1,5 +1,12 @@
 # @core-ai/openai
 
+## 0.13.1
+
+### Patch Changes
+
+- c7362c7: Bump openai SDK from 6.23.0 to 6.46.0 for GPT-5.6 API types and Responses API fixes.
+    - @core-ai/core-ai@0.13.1
+
 ## 0.13.0
 
 ### Minor Changes
