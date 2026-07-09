@@ -900,7 +900,10 @@ export async function* transformStream(
                     cacheReadTokens,
                     cacheWriteTokens,
                 },
-                outputTokenDetails: mapAnthropicOutputTokenDetails(event.usage),
+                outputTokenDetails: {
+                    ...usage.outputTokenDetails,
+                    ...mapAnthropicOutputTokenDetails(event.usage),
+                },
             };
             continue;
         }
