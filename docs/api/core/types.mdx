@@ -48,6 +48,7 @@ type UserContentPart = TextPart | ImagePart | FilePart;
 type TextPart = {
     type: 'text';
     text: string;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -90,6 +91,7 @@ type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
 type AssistantTextPart = {
     type: 'text';
     text: string;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -99,11 +101,12 @@ type AssistantTextPart = {
 type ReasoningPart = {
     type: 'reasoning';
     text: string;
+    metadata?: Record<string, unknown>;
     providerMetadata?: Record<string, Record<string, unknown>>;
 };
 ```
 
-The `providerMetadata` is provider-namespaced. The top-level key is the provider identifier (for example `'anthropic'`, `'google'`, or `'openai'`). Use [`getProviderMetadata()`](/api/core/utilities) for typed access.
+The `metadata` field is application-owned and provider adapters ignore it. The `providerMetadata` field is provider-namespaced. The top-level key is the provider identifier (for example `'anthropic'`, `'google'`, or `'openai'`). Use [`getProviderMetadata()`](/api/core/utilities) for typed access.
 
 ### ToolCallPart
 
@@ -121,6 +124,7 @@ type ToolCall = {
     id: string;
     name: string;
     arguments: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -132,8 +136,11 @@ type ToolResultMessage = {
     toolCallId: string;
     content: string;
     isError?: boolean;
+    metadata?: Record<string, unknown>;
 };
 ```
+
+`metadata` on message parts, tool calls, and tool results is for your application and middleware. It stays in conversation history and generated results, but core-ai does not send it to provider APIs.
 
 ## Tool types
 
@@ -280,6 +287,7 @@ type BaseGenerateOptions = {
     maxTokens?: number;
     topP?: number;
     reasoning?: ReasoningConfig;
+    metadata?: Record<string, unknown>;
     providerOptions?: GenerateProviderOptions;
     signal?: AbortSignal;
 };
@@ -370,9 +378,12 @@ type StreamEvent =
     | { type: 'reasoning-delta'; text: string }
     | {
           type: 'reasoning-end';
+          metadata?: Record<string, unknown>;
           providerMetadata?: Record<string, Record<string, unknown>>;
       }
+    | { type: 'text-start' }
     | { type: 'text-delta'; text: string }
+    | { type: 'text-end'; metadata?: Record<string, unknown> }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
     | { type: 'tool-call-end'; toolCall: ToolCall }

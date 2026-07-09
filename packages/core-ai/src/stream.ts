@@ -23,10 +23,13 @@ export function createChatStream(
             : source;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
+    let textMetadata: Record<string, unknown> | undefined;
     let reasoningBuffer = '';
+    let reasoningMetadata: Record<string, unknown> | undefined;
     let reasoningProviderMetadata:
         | Record<string, Record<string, unknown>>
         | undefined;
+    let insideText = false;
     let insideReasoning = false;
     let finishReason: GenerateResult['finishReason'] = 'unknown';
     let usage: GenerateResult['usage'] = {
@@ -41,13 +44,16 @@ export function createChatStream(
 
     const flushText = () => {
         if (textBuffer.length === 0) {
+            textMetadata = undefined;
             return;
         }
         parts.push({
             type: 'text',
             text: textBuffer,
+            ...(textMetadata ? { metadata: textMetadata } : {}),
         });
         textBuffer = '';
+        textMetadata = undefined;
     };
 
     const flushReasoning = () => {
@@ -55,21 +61,34 @@ export function createChatStream(
             reasoningBuffer.length === 0 &&
             reasoningProviderMetadata === undefined
         ) {
+            reasoningMetadata = undefined;
             return;
         }
         parts.push({
             type: 'reasoning',
             text: reasoningBuffer,
+            ...(reasoningMetadata ? { metadata: reasoningMetadata } : {}),
             ...(reasoningProviderMetadata
                 ? { providerMetadata: reasoningProviderMetadata }
                 : {}),
         });
         reasoningBuffer = '';
+        reasoningMetadata = undefined;
         reasoningProviderMetadata = undefined;
+    };
+
+    const startText = () => {
+        if (insideReasoning) {
+            flushReasoning();
+            insideReasoning = false;
+        }
+        flushText();
+        insideText = true;
     };
 
     const startReasoning = () => {
         flushText();
+        insideText = false;
         flushReasoning();
         insideReasoning = true;
     };
@@ -77,23 +96,35 @@ export function createChatStream(
     const appendReasoning = (text: string) => {
         if (!insideReasoning) {
             flushText();
+            insideText = false;
             insideReasoning = true;
         }
         reasoningBuffer += text;
     };
 
     const endReasoning = (
-        providerMetadata?: Record<string, Record<string, unknown>>
+        providerMetadata?: Record<string, Record<string, unknown>>,
+        metadata?: Record<string, unknown>
     ) => {
         reasoningProviderMetadata = providerMetadata;
+        reasoningMetadata = metadata;
         flushReasoning();
         insideReasoning = false;
+    };
+
+    const endText = (metadata?: Record<string, unknown>) => {
+        textMetadata = metadata;
+        flushText();
+        insideText = false;
     };
 
     const appendText = (text: string) => {
         if (insideReasoning) {
             flushReasoning();
             insideReasoning = false;
+        }
+        if (!insideText) {
+            insideText = true;
         }
         textBuffer += text;
     };
@@ -102,6 +133,7 @@ export function createChatStream(
         toolCall: Extract<StreamEvent, { type: 'tool-call-end' }>['toolCall']
     ) => {
         flushText();
+        insideText = false;
         flushReasoning();
         insideReasoning = false;
         parts.push({
@@ -149,6 +181,9 @@ export function createChatStream(
         signal,
         reduceEvent(event) {
             switch (event.type) {
+                case 'text-start':
+                    startText();
+                    break;
                 case 'reasoning-start':
                     startReasoning();
                     break;
@@ -156,10 +191,13 @@ export function createChatStream(
                     appendReasoning(event.text);
                     break;
                 case 'reasoning-end':
-                    endReasoning(event.providerMetadata);
+                    endReasoning(event.providerMetadata, event.metadata);
                     break;
                 case 'text-delta':
                     appendText(event.text);
+                    break;
+                case 'text-end':
+                    endText(event.metadata);
                     break;
                 case 'tool-call-end':
                     appendToolCall(event.toolCall);

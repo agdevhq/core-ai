@@ -5,14 +5,19 @@ import type { GenerateResult } from './types.ts';
 function createGenerateResult(): GenerateResult {
     return {
         parts: [
-            { type: 'reasoning', text: 'Reasoning' },
-            { type: 'text', text: 'Answer' },
+            {
+                type: 'reasoning',
+                text: 'Reasoning',
+                metadata: { validation: 'complete' },
+            },
+            { type: 'text', text: 'Answer', metadata: { source: 'model' } },
             {
                 type: 'tool-call',
                 toolCall: {
                     id: 'tool-1',
                     name: 'search',
                     arguments: { q: 'hello' },
+                    metadata: { source: 'tool-router' },
                 },
             },
         ],
@@ -23,6 +28,7 @@ function createGenerateResult(): GenerateResult {
                 id: 'tool-1',
                 name: 'search',
                 arguments: { q: 'hello' },
+                metadata: { source: 'tool-router' },
             },
         ],
         finishReason: 'stop',
@@ -45,14 +51,19 @@ describe('resultToMessage', () => {
         expect(message).toEqual({
             role: 'assistant',
             parts: [
-                { type: 'reasoning', text: 'Reasoning' },
-                { type: 'text', text: 'Answer' },
+                {
+                    type: 'reasoning',
+                    text: 'Reasoning',
+                    metadata: { validation: 'complete' },
+                },
+                { type: 'text', text: 'Answer', metadata: { source: 'model' } },
                 {
                     type: 'tool-call',
                     toolCall: {
                         id: 'tool-1',
                         name: 'search',
                         arguments: { q: 'hello' },
+                        metadata: { source: 'tool-router' },
                     },
                 },
             ],
@@ -67,17 +78,25 @@ describe('resultToMessage', () => {
         expect(message).toEqual({
             role: 'assistant',
             parts: [
-                { type: 'text', text: 'Answer' },
+                { type: 'text', text: 'Answer', metadata: { source: 'model' } },
                 {
                     type: 'tool-call',
                     toolCall: {
                         id: 'tool-1',
                         name: 'search',
                         arguments: { q: 'hello' },
+                        metadata: { source: 'tool-router' },
                     },
                 },
             ],
         });
+    });
+
+    it('should preserve part metadata', () => {
+        const result = createGenerateResult();
+        const message = resultToMessage(result);
+
+        expect(message.parts).toEqual(result.parts);
     });
 });
 

@@ -142,6 +142,18 @@ try {
 }
 ```
 
+### Part metadata
+
+Text-bearing parts can carry application-owned `metadata` that stays with conversation history and generated results. Provider adapters ignore this field and never serialize it to provider APIs.
+
+Use the three metadata layers for different scopes:
+
+- `GenerateOptions.metadata` is call-level context for observability and middleware.
+- `ReasoningPart.providerMetadata` is provider-owned data for reasoning round-trips.
+- Part `metadata` belongs to your application and can annotate text parts, reasoning parts, tool calls, and tool results.
+
+Streaming chat responses include `text-start` and `text-end` events around each text segment. Middleware can attach metadata to `text-end`; `.result.parts` includes that metadata on the corresponding text part.
+
 ### Reasoning
 
 Models that support extended thinking (e.g. `gpt-5.2`, `claude-sonnet-4.6`) return reasoning blocks alongside text. Reasoning parts carry provider-namespaced metadata so you can round-trip them through multi-turn conversations:

@@ -54,7 +54,11 @@ describe('convertMessages', () => {
             {
                 role: 'user',
                 content: [
-                    { type: 'text', text: 'Analyze these files' },
+                    {
+                        type: 'text',
+                        text: 'Analyze these files',
+                        metadata: { classification: 'public' },
+                    },
                     {
                         type: 'image',
                         source: {
@@ -110,6 +114,7 @@ describe('convertMessages', () => {
                             id: 'tc_1',
                             name: 'search',
                             arguments: { query: 'weather' },
+                            metadata: { transformed: true },
                         },
                     },
                 ],
@@ -143,6 +148,7 @@ describe('convertMessages', () => {
                             id: 'tc_1',
                             name: 'search',
                             arguments: { query: 'weather' },
+                            metadata: { transformed: true },
                         },
                     },
                 ],
@@ -151,6 +157,7 @@ describe('convertMessages', () => {
                 role: 'tool',
                 toolCallId: 'tc_1',
                 content: 'Sunny',
+                metadata: { validated: true },
             },
         ];
 
@@ -299,6 +306,7 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'thought',
+                        metadata: { internal: true },
                         providerMetadata: {
                             anthropic: { signature: 'sig_123' },
                         },

@@ -40,7 +40,11 @@ describe('convertMessages', () => {
             {
                 role: 'user',
                 content: [
-                    { type: 'text', text: 'Analyze this' },
+                    {
+                        type: 'text',
+                        text: 'Analyze this',
+                        metadata: { classification: 'public' },
+                    },
                     {
                         type: 'image',
                         source: {
@@ -90,6 +94,7 @@ describe('convertMessages', () => {
                             id: 'tc_1',
                             name: 'search',
                             arguments: { query: 'weather' },
+                            metadata: { transformed: true },
                         },
                     },
                 ],
@@ -120,6 +125,7 @@ describe('convertMessages', () => {
                 role: 'tool',
                 toolCallId: 'tc_1',
                 content: 'Sunny',
+                metadata: { validated: true },
             },
         ];
 
@@ -225,8 +231,16 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 parts: [
-                    { type: 'reasoning', text: 'thoughts' },
-                    { type: 'text', text: 'answer' },
+                    {
+                        type: 'reasoning',
+                        text: 'thoughts',
+                        metadata: { internal: true },
+                    },
+                    {
+                        type: 'text',
+                        text: 'answer',
+                        metadata: { annotation: 'safe' },
+                    },
                 ],
             },
         ];

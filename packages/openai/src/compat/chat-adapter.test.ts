@@ -44,7 +44,11 @@ describe('convertMessages', () => {
             {
                 role: 'user',
                 content: [
-                    { type: 'text', text: 'What is this?' },
+                    {
+                        type: 'text',
+                        text: 'What is this?',
+                        metadata: { classification: 'public' },
+                    },
                     {
                         type: 'image',
                         source: {
@@ -112,6 +116,7 @@ describe('convertMessages', () => {
                             id: 'tc_1',
                             name: 'search',
                             arguments: { query: 'weather' },
+                            metadata: { transformed: true },
                         },
                     },
                 ],
@@ -142,6 +147,7 @@ describe('convertMessages', () => {
                 role: 'tool',
                 toolCallId: 'tc_1',
                 content: 'Sunny, 72F',
+                metadata: { validated: true },
             },
         ];
 

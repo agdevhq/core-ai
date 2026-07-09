@@ -560,6 +560,7 @@ export async function* transformStream(
     const emittedReasoningItems = new Set<string>();
 
     let latestResponse: Response | undefined;
+    let textOpen = false;
     let reasoningStarted = false;
     let latestReasoningSummaryPart: ReasoningSummaryPart | undefined;
 
@@ -580,6 +581,22 @@ export async function* transformStream(
         const transition = getReasoningStartTransition(reasoningStarted);
         reasoningStarted = transition.nextReasoningStarted;
         return transition.event;
+    };
+    const startText = function* (): Iterable<StreamEvent> {
+        if (textOpen) {
+            return;
+        }
+
+        textOpen = true;
+        yield { type: 'text-start' };
+    };
+    const closeText = function* (): Iterable<StreamEvent> {
+        if (!textOpen) {
+            return;
+        }
+
+        textOpen = false;
+        yield { type: 'text-end' };
     };
 
     const getNextReasoningEndEvent = (
@@ -626,6 +643,7 @@ export async function* transformStream(
 
             const reasoningStartEvent = getNextReasoningStartEvent();
             if (reasoningStartEvent) {
+                yield* closeText();
                 yield reasoningStartEvent;
             }
 
@@ -653,6 +671,7 @@ export async function* transformStream(
 
                 const reasoningStartEvent = getNextReasoningStartEvent();
                 if (reasoningStartEvent) {
+                    yield* closeText();
                     yield reasoningStartEvent;
                 }
 
@@ -671,6 +690,11 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.output_text.delta') {
+            const reasoningEndEvent = getNextReasoningEndEvent({ openai: {} });
+            if (reasoningEndEvent) {
+                yield reasoningEndEvent;
+            }
+            yield* startText();
             yield {
                 type: 'text-delta',
                 text: event.delta,
@@ -683,6 +707,7 @@ export async function* transformStream(
                 continue;
             }
 
+            yield* closeText();
             const toolCallId = event.item.call_id;
             const toolCallName = event.item.name;
             const toolCallArguments = event.item.arguments;
@@ -705,6 +730,7 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.function_call_arguments.delta') {
+            yield* closeText();
             const currentToolCall = upsertBufferedToolCall(
                 event.output_index,
                 (bufferedToolCall) => ({
@@ -744,6 +770,7 @@ export async function* transformStream(
                         const reasoningStartEvent =
                             getNextReasoningStartEvent();
                         if (reasoningStartEvent) {
+                            yield* closeText();
                             yield reasoningStartEvent;
                         }
                         yield {
@@ -762,6 +789,7 @@ export async function* transformStream(
                 if (encryptedContent) {
                     const reasoningStartEvent = getNextReasoningStartEvent();
                     if (reasoningStartEvent) {
+                        yield* closeText();
                         yield reasoningStartEvent;
                     }
                 }
@@ -781,6 +809,7 @@ export async function* transformStream(
                 continue;
             }
 
+            yield* closeText();
             const toolCallId = event.item.call_id;
             const toolCallName = event.item.name;
             const toolCallArguments = event.item.arguments;
@@ -813,6 +842,7 @@ export async function* transformStream(
         if (event.type === 'response.completed') {
             latestResponse = event.response;
 
+            yield* closeText();
             const reasoningEndEvent = getNextReasoningEndEvent({ openai: {} });
             if (reasoningEndEvent) {
                 yield reasoningEndEvent;
@@ -849,6 +879,7 @@ export async function* transformStream(
     const reasoningEndEvent = getNextReasoningEndEvent({
         openai: {},
     });
+    yield* closeText();
     if (reasoningEndEvent) {
         yield reasoningEndEvent;
     }

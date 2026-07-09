@@ -1,6 +1,7 @@
 import { toAsyncIterable } from '@core-ai/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
+import { resultToMessage } from './result-to-message.ts';
 import { createChatStream } from './stream.ts';
 import { createObjectStream } from './stream-object.ts';
 import { wrapChatModel } from './wrap-chat-model.ts';
@@ -40,7 +41,9 @@ function createGenerateResult(content: string): GenerateResult {
 
 function createMockChatStream(text: string): ChatStream {
     const events: StreamEvent[] = [
+        { type: 'text-start' },
         { type: 'text-delta', text },
+        { type: 'text-end' },
         {
             type: 'finish',
             finishReason: 'stop',
@@ -502,6 +505,208 @@ describe('wrapChatModel', () => {
             messages: [{ role: 'user', content: 'hello' }],
             metadata: { functionId: 'test' },
         });
+    });
+
+    it('allows generate middleware to read part metadata and preserve written metadata through resultToMessage', async () => {
+        const { model, generateMock } = createMockChatModel();
+        generateMock.mockResolvedValueOnce({
+            ...createGenerateResult('answer'),
+            parts: [{ type: 'text', text: 'answer' }],
+        });
+        const wrapped = wrapChatModel({
+            model,
+            middleware: {
+                generate: async ({ execute, options }) => {
+                    const [userMessage, toolMessage] = options.messages;
+
+                    expect(userMessage).toEqual({
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'text',
+                                text: 'question',
+                                metadata: { classification: 'public' },
+                            },
+                        ],
+                    });
+                    expect(toolMessage).toEqual({
+                        role: 'tool',
+                        toolCallId: 'tool-1',
+                        content: 'tool output',
+                        metadata: { provenance: 'retrieval' },
+                    });
+
+                    const result = await execute();
+
+                    return {
+                        ...result,
+                        parts: result.parts.map((part) =>
+                            part.type === 'text'
+                                ? {
+                                      ...part,
+                                      metadata: {
+                                          reviewed: true,
+                                          source: 'middleware',
+                                      },
+                                  }
+                                : part
+                        ),
+                    };
+                },
+            },
+        });
+
+        const result = await wrapped.generate({
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'question',
+                            metadata: { classification: 'public' },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool',
+                    toolCallId: 'tool-1',
+                    content: 'tool output',
+                    metadata: { provenance: 'retrieval' },
+                },
+            ],
+        });
+        const message = resultToMessage(result);
+
+        expect(generateMock).toHaveBeenCalledWith({
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'question',
+                            metadata: { classification: 'public' },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool',
+                    toolCallId: 'tool-1',
+                    content: 'tool output',
+                    metadata: { provenance: 'retrieval' },
+                },
+            ],
+        });
+        expect(result.parts).toEqual([
+            {
+                type: 'text',
+                text: 'answer',
+                metadata: { reviewed: true, source: 'middleware' },
+            },
+        ]);
+        expect(message).toEqual({
+            role: 'assistant',
+            parts: [
+                {
+                    type: 'text',
+                    text: 'answer',
+                    metadata: { reviewed: true, source: 'middleware' },
+                },
+            ],
+        });
+    });
+
+    it('allows stream middleware to read part metadata and preserve text-end metadata through resultToMessage', async () => {
+        const { model } = createMockChatModel();
+        const wrapped = wrapChatModel({
+            model,
+            middleware: {
+                stream: async ({ execute, options }) => {
+                    expect(options.messages).toEqual([
+                        {
+                            role: 'user',
+                            content: [
+                                {
+                                    type: 'text',
+                                    text: 'stream question',
+                                    metadata: { classification: 'internal' },
+                                },
+                            ],
+                        },
+                    ]);
+
+                    const original = await execute();
+
+                    return createChatStream(
+                        (async function* () {
+                            for await (const event of original) {
+                                if (event.type === 'text-end') {
+                                    yield {
+                                        ...event,
+                                        metadata: {
+                                            streamed: true,
+                                            source: 'middleware',
+                                        },
+                                    };
+                                    continue;
+                                }
+
+                                yield event;
+                            }
+                        })()
+                    );
+                },
+            },
+        });
+
+        const chatStream = await wrapped.stream({
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'text',
+                            text: 'stream question',
+                            metadata: { classification: 'internal' },
+                        },
+                    ],
+                },
+            ],
+        });
+        const result = await chatStream.result;
+        const message = resultToMessage(result);
+
+        expect(result.parts).toEqual([
+            {
+                type: 'text',
+                text: 'hello',
+                metadata: { streamed: true, source: 'middleware' },
+            },
+        ]);
+        expect(message).toEqual({
+            role: 'assistant',
+            parts: [
+                {
+                    type: 'text',
+                    text: 'hello',
+                    metadata: { streamed: true, source: 'middleware' },
+                },
+            ],
+        });
+        await expect(chatStream.events).resolves.toEqual([
+            { type: 'text-start' },
+            { type: 'text-delta', text: 'hello' },
+            {
+                type: 'text-end',
+                metadata: { streamed: true, source: 'middleware' },
+            },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: createChatUsage(),
+            },
+        ]);
     });
 
     it('propagates hook errors to the caller', async () => {
