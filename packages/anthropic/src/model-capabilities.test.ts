@@ -3,6 +3,8 @@ import {
     getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
     normalizeModelId,
+    requiresAnthropicInterleavedThinkingBeta,
+    restrictsAnthropicSamplingParamsAlways,
     supportsAnthropicMaxEffort,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
@@ -80,5 +82,31 @@ describe('effort mapping', () => {
     it('should map manual budgets', () => {
         expect(toAnthropicManualBudget('minimal')).toBe(1024);
         expect(toAnthropicManualBudget('max')).toBe(65536);
+        expect(toAnthropicManualBudget('medium', 4096)).toBe(4095);
+    });
+});
+
+describe('interleaved thinking beta', () => {
+    it('should only require the beta for supported manual-thinking models', () => {
+        expect(
+            requiresAnthropicInterleavedThinkingBeta('claude-sonnet-4-5')
+        ).toBe(true);
+        expect(
+            requiresAnthropicInterleavedThinkingBeta('claude-sonnet-5')
+        ).toBe(false);
+        expect(
+            requiresAnthropicInterleavedThinkingBeta('claude-haiku-4-5')
+        ).toBe(false);
+    });
+});
+
+describe('sampling restrictions', () => {
+    it('should identify models that always reject non-default sampling', () => {
+        expect(restrictsAnthropicSamplingParamsAlways('claude-sonnet-5')).toBe(
+            true
+        );
+        expect(
+            restrictsAnthropicSamplingParamsAlways('claude-sonnet-4-6')
+        ).toBe(false);
     });
 });

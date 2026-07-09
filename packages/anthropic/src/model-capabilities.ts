@@ -59,6 +59,23 @@ const MANUAL_THINKING_MODELS = new Set([
     'claude-sonnet-3-7',
 ]);
 
+const MANUAL_INTERLEAVED_THINKING_MODELS = new Set([
+    'claude-opus-4-5',
+    'claude-sonnet-4-5',
+    'claude-opus-4-1',
+    'claude-opus-4',
+    'claude-sonnet-4',
+]);
+
+const ALWAYS_RESTRICTED_SAMPLING_MODELS = new Set([
+    'claude-fable-5',
+    'claude-mythos-5',
+    'claude-mythos-preview',
+    'claude-opus-4-8',
+    'claude-opus-4-7',
+    'claude-sonnet-5',
+]);
+
 const ANTHROPIC_ADAPTIVE_EFFORT_MAP: Record<
     Exclude<ReasoningEffort, 'max'>,
     'low' | 'medium' | 'high'
@@ -106,6 +123,18 @@ export function supportsAnthropicMaxEffort(modelId: string): boolean {
     return ADAPTIVE_MAX_EFFORT_MODELS.has(normalizeModelId(modelId));
 }
 
+export function requiresAnthropicInterleavedThinkingBeta(
+    modelId: string
+): boolean {
+    return MANUAL_INTERLEAVED_THINKING_MODELS.has(normalizeModelId(modelId));
+}
+
+export function restrictsAnthropicSamplingParamsAlways(
+    modelId: string
+): boolean {
+    return ALWAYS_RESTRICTED_SAMPLING_MODELS.has(normalizeModelId(modelId));
+}
+
 export function toAnthropicAdaptiveEffort(
     effort: ReasoningEffort,
     supportsMaxEffort: boolean
@@ -116,6 +145,12 @@ export function toAnthropicAdaptiveEffort(
     return ANTHROPIC_ADAPTIVE_EFFORT_MAP[effort];
 }
 
-export function toAnthropicManualBudget(effort: ReasoningEffort): number {
-    return ANTHROPIC_MANUAL_BUDGET_MAP[effort];
+export function toAnthropicManualBudget(
+    effort: ReasoningEffort,
+    maxTokens?: number
+): number {
+    const targetBudget = ANTHROPIC_MANUAL_BUDGET_MAP[effort];
+    return maxTokens === undefined
+        ? targetBudget
+        : Math.min(targetBudget, maxTokens - 1);
 }
