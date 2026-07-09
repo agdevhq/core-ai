@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/omnifact",
-    "version": "0.13.1",
+    "version": "0.14.0",
     "description": "Omnifact provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -44,8 +44,8 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.13.1",
-        "@core-ai/openai": "^0.13.1"
+        "@core-ai/core-ai": "^0.14.0",
+        "@core-ai/openai": "^0.14.0"
     },
     "peerDependencies": {
         "zod": "^4.0.0"
