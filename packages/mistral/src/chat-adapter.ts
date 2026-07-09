@@ -336,6 +336,7 @@ export async function* transformStream(
     const emittedToolCalls = new Set<number>();
 
     let finishReason: FinishReason = 'unknown';
+    let textOpen = false;
     let reasoningOpen = false;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
@@ -357,6 +358,22 @@ export async function* transformStream(
             providerMetadata: { mistral: {} },
         };
     };
+    const startText = function* (): Iterable<StreamEvent> {
+        if (textOpen) {
+            return;
+        }
+
+        textOpen = true;
+        yield { type: 'text-start' };
+    };
+    const closeText = function* (): Iterable<StreamEvent> {
+        if (!textOpen) {
+            return;
+        }
+
+        textOpen = false;
+        yield { type: 'text-end' };
+    };
 
     for await (const event of stream) {
         const chunk = event.data;
@@ -372,6 +389,7 @@ export async function* transformStream(
 
         const thinkingDeltas = extractThinkingDeltas(choice.delta.content);
         if (thinkingDeltas.length > 0) {
+            yield* closeText();
             if (!reasoningOpen) {
                 reasoningOpen = true;
                 yield {
@@ -391,6 +409,7 @@ export async function* transformStream(
             if (reasoningEnd) {
                 yield reasoningEnd;
             }
+            yield* startText();
             yield {
                 type: 'text-delta',
                 text: textDelta,
@@ -398,6 +417,7 @@ export async function* transformStream(
         }
 
         if (choice.delta.toolCalls) {
+            yield* closeText();
             const reasoningEnd = closeReasoning();
             if (reasoningEnd) {
                 yield reasoningEnd;
@@ -469,6 +489,7 @@ export async function* transformStream(
     if (reasoningEnd) {
         yield reasoningEnd;
     }
+    yield* closeText();
 
     yield* emitBufferedToolCalls(bufferedToolCalls, emittedToolCalls);
 

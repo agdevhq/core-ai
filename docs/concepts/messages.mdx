@@ -13,10 +13,10 @@ core-ai supports four message types:
 
 ```typescript
 type Message =
-  | SystemMessage
-  | UserMessage
-  | AssistantMessage
-  | ToolResultMessage;
+    | SystemMessage
+    | UserMessage
+    | AssistantMessage
+    | ToolResultMessage;
 ```
 
 ### System Message
@@ -25,8 +25,8 @@ System messages set the context and behavior for the assistant.
 
 ```typescript
 type SystemMessage = {
-  role: 'system';
-  content: string;
+    role: 'system';
+    content: string;
 };
 ```
 
@@ -34,8 +34,9 @@ type SystemMessage = {
 
 ```typescript
 const systemMessage: SystemMessage = {
-  role: 'system',
-  content: 'You are a helpful assistant that always responds in haiku format.',
+    role: 'system',
+    content:
+        'You are a helpful assistant that always responds in haiku format.',
 };
 ```
 
@@ -45,8 +46,8 @@ User messages represent input from the user. They can be simple text or multi-mo
 
 ```typescript
 type UserMessage = {
-  role: 'user';
-  content: string | UserContentPart[];
+    role: 'user';
+    content: string | UserContentPart[];
 };
 ```
 
@@ -54,8 +55,8 @@ type UserMessage = {
 
 ```typescript
 const userMessage: UserMessage = {
-  role: 'user',
-  content: 'What is the capital of France?',
+    role: 'user',
+    content: 'What is the capital of France?',
 };
 ```
 
@@ -63,17 +64,17 @@ const userMessage: UserMessage = {
 
 ```typescript
 const userMessage: UserMessage = {
-  role: 'user',
-  content: [
-    { type: 'text', text: 'What is in this image?' },
-    {
-      type: 'image',
-      source: {
-        type: 'url',
-        url: 'https://example.com/photo.jpg',
-      },
-    },
-  ],
+    role: 'user',
+    content: [
+        { type: 'text', text: 'What is in this image?' },
+        {
+            type: 'image',
+            source: {
+                type: 'url',
+                url: 'https://example.com/photo.jpg',
+            },
+        },
+    ],
 };
 ```
 
@@ -83,29 +84,25 @@ Assistant messages contain the model's responses, including text, reasoning, and
 
 ```typescript
 type AssistantMessage = {
-  role: 'assistant';
-  parts: AssistantContentPart[];
+    role: 'assistant';
+    parts: AssistantContentPart[];
 };
 
-type AssistantContentPart =
-  | AssistantTextPart
-  | ReasoningPart
-  | ToolCallPart;
+type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
 ```
 
 **Example:**
 
 ```typescript
 const assistantMessage: AssistantMessage = {
-  role: 'assistant',
-  parts: [
-    { type: 'text', text: 'The capital of France is Paris.' },
-  ],
+    role: 'assistant',
+    parts: [{ type: 'text', text: 'The capital of France is Paris.' }],
 };
 ```
 
 <Note>
-  Assistant messages use a `parts` array to support multiple content types (text, reasoning, tool calls) in a single message.
+    Assistant messages use a `parts` array to support multiple content types
+    (text, reasoning, tool calls) in a single message.
 </Note>
 
 ### Tool Result Message
@@ -114,10 +111,11 @@ Tool result messages provide the results of tool calls back to the model.
 
 ```typescript
 type ToolResultMessage = {
-  role: 'tool';
-  toolCallId: string;
-  content: string;
-  isError?: boolean;
+    role: 'tool';
+    toolCallId: string;
+    content: string;
+    isError?: boolean;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -125,9 +123,9 @@ type ToolResultMessage = {
 
 ```typescript
 const toolResult: ToolResultMessage = {
-  role: 'tool',
-  toolCallId: 'call_123',
-  content: JSON.stringify({ temperature: 72, condition: 'sunny' }),
+    role: 'tool',
+    toolCallId: 'call_123',
+    content: JSON.stringify({ temperature: 72, condition: 'sunny' }),
 };
 ```
 
@@ -145,8 +143,9 @@ Simple text content:
 
 ```typescript
 type TextPart = {
-  type: 'text';
-  text: string;
+    type: 'text';
+    text: string;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -154,8 +153,8 @@ type TextPart = {
 
 ```typescript
 const textPart: TextPart = {
-  type: 'text',
-  text: 'Explain this concept in detail.',
+    type: 'text',
+    text: 'Explain this concept in detail.',
 };
 ```
 
@@ -165,10 +164,10 @@ Images can be provided as URLs or base64-encoded data:
 
 ```typescript
 type ImagePart = {
-  type: 'image';
-  source:
-    | { type: 'base64'; mediaType: string; data: string }
-    | { type: 'url'; url: string };
+    type: 'image';
+    source:
+        | { type: 'base64'; mediaType: string; data: string }
+        | { type: 'url'; url: string };
 };
 ```
 
@@ -176,11 +175,11 @@ type ImagePart = {
 
 ```typescript
 const urlImage: ImagePart = {
-  type: 'image',
-  source: {
-    type: 'url',
-    url: 'https://example.com/diagram.png',
-  },
+    type: 'image',
+    source: {
+        type: 'url',
+        url: 'https://example.com/diagram.png',
+    },
 };
 ```
 
@@ -193,12 +192,12 @@ const imageBuffer = readFileSync('./photo.jpg');
 const base64Data = imageBuffer.toString('base64');
 
 const base64Image: ImagePart = {
-  type: 'image',
-  source: {
-    type: 'base64',
-    mediaType: 'image/jpeg',
-    data: base64Data,
-  },
+    type: 'image',
+    source: {
+        type: 'base64',
+        mediaType: 'image/jpeg',
+        data: base64Data,
+    },
 };
 ```
 
@@ -208,10 +207,10 @@ Files can be attached with mime type information:
 
 ```typescript
 type FilePart = {
-  type: 'file';
-  data: string; // Base64-encoded file data
-  mimeType: string;
-  filename?: string;
+    type: 'file';
+    data: string; // Base64-encoded file data
+    mimeType: string;
+    filename?: string;
 };
 ```
 
@@ -224,15 +223,17 @@ const pdfBuffer = readFileSync('./document.pdf');
 const base64Data = pdfBuffer.toString('base64');
 
 const filePart: FilePart = {
-  type: 'file',
-  data: base64Data,
-  mimeType: 'application/pdf',
-  filename: 'document.pdf',
+    type: 'file',
+    data: base64Data,
+    mimeType: 'application/pdf',
+    filename: 'document.pdf',
 };
 ```
 
 <Warning>
-  Not all providers support all content types. For example, Anthropic accepts PDF file parts only. Check the provider pages for model-specific input limits.
+    Not all providers support all content types. For example, Anthropic accepts
+    PDF file parts only. Check the provider pages for model-specific input
+    limits.
 </Warning>
 
 ## Assistant Content Parts
@@ -240,10 +241,7 @@ const filePart: FilePart = {
 Assistant messages can contain text, reasoning, and tool calls:
 
 ```typescript
-type AssistantContentPart =
-  | AssistantTextPart
-  | ReasoningPart
-  | ToolCallPart;
+type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
 ```
 
 ### Text Part
@@ -252,8 +250,9 @@ Regular text responses:
 
 ```typescript
 type AssistantTextPart = {
-  type: 'text';
-  text: string;
+    type: 'text';
+    text: string;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -263,29 +262,31 @@ Extended thinking and reasoning content from the model:
 
 ```typescript
 type ReasoningPart = {
-  type: 'reasoning';
-  text: string;
-  providerMetadata?: Record<string, Record<string, unknown>>;
+    type: 'reasoning';
+    text: string;
+    metadata?: Record<string, unknown>;
+    providerMetadata?: Record<string, Record<string, unknown>>;
 };
 ```
 
-The `providerMetadata` object is provider-namespaced. The top-level key is the provider identifier, such as `'anthropic'`, `'google'`, or `'openai'`.
+The `metadata` field is application-owned. Provider adapters ignore it. The `providerMetadata` object is provider-namespaced. The top-level key is the provider identifier, such as `'anthropic'`, `'google'`, or `'openai'`.
 
 <Note>
-  Use [`getProviderMetadata()`](/api/core/utilities) when you want typed access to provider-specific metadata.
+    Use [`getProviderMetadata()`](/api/core/utilities) when you want typed
+    access to provider-specific metadata.
 </Note>
 
 **Accessing Reasoning:**
 
 ```typescript
 const result = await generate({
-  model,
-  messages: [{ role: 'user', content: 'Solve this complex problem...' }],
-  reasoning: { effort: 'high' },
+    model,
+    messages: [{ role: 'user', content: 'Solve this complex problem...' }],
+    reasoning: { effort: 'high' },
 });
 
 if (result.reasoning) {
-  console.log('Internal reasoning:', result.reasoning);
+    console.log('Internal reasoning:', result.reasoning);
 }
 ```
 
@@ -295,16 +296,29 @@ Requests to call external tools:
 
 ```typescript
 type ToolCallPart = {
-  type: 'tool-call';
-  toolCall: ToolCall;
+    type: 'tool-call';
+    toolCall: ToolCall;
 };
 
 type ToolCall = {
-  id: string;
-  name: string;
-  arguments: Record<string, unknown>;
+    id: string;
+    name: string;
+    arguments: Record<string, unknown>;
+    metadata?: Record<string, unknown>;
 };
 ```
+
+## Part metadata
+
+Text-bearing parts can carry optional `metadata` for application and middleware state. Use it for annotations such as classification results, provenance, validation status, or text transformation spans.
+
+This metadata stays with the part in message history and generated results. Provider adapters do not serialize it to provider APIs.
+
+core-ai has three metadata layers:
+
+- `GenerateOptions.metadata` is call-level context for observability and middleware.
+- `ReasoningPart.providerMetadata` is provider-owned data used to round-trip reasoning blocks with the same provider.
+- Part `metadata` is application-owned data attached to text parts, reasoning parts, tool calls, and tool results.
 
 ## Multi-Turn Conversations
 
@@ -314,22 +328,22 @@ Build conversations by passing message history:
 import { generate } from '@core-ai/core-ai';
 
 const messages: Message[] = [
-  { role: 'system', content: 'You are a helpful math tutor.' },
-  { role: 'user', content: 'What is 15 + 27?' },
+    { role: 'system', content: 'You are a helpful math tutor.' },
+    { role: 'user', content: 'What is 15 + 27?' },
 ];
 
 const result1 = await generate({ model, messages });
 
 // Add assistant response to history
 messages.push({
-  role: 'assistant',
-  parts: result1.parts,
+    role: 'assistant',
+    parts: result1.parts,
 });
 
 // Continue conversation
 messages.push({
-  role: 'user',
-  content: 'Now multiply that by 2',
+    role: 'user',
+    content: 'Now multiply that by 2',
 });
 
 const result2 = await generate({ model, messages });
@@ -348,17 +362,17 @@ import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const tools = {
-  getWeather: defineTool({
-    name: 'getWeather',
-    description: 'Get weather for a location',
-    parameters: z.object({
-      location: z.string(),
+    getWeather: defineTool({
+        name: 'getWeather',
+        description: 'Get weather for a location',
+        parameters: z.object({
+            location: z.string(),
+        }),
     }),
-  }),
 };
 
 const messages: Message[] = [
-  { role: 'user', content: 'What\'s the weather in Tokyo?' },
+    { role: 'user', content: "What's the weather in Tokyo?" },
 ];
 
 // Step 1: Model requests tool call
@@ -366,34 +380,39 @@ const result1 = await generate({ model, messages, tools });
 messages.push(resultToMessage(result1));
 
 if (result1.toolCalls.length > 0) {
-  // Step 2: Execute tool and provide result
-  const toolCall = result1.toolCalls[0];
-  const weatherData = await getWeather(toolCall.arguments.location);
-  
-  messages.push({
-    role: 'tool',
-    toolCallId: toolCall.id,
-    content: JSON.stringify(weatherData),
-  });
-  
-  // Step 3: Model generates final response
-  const result2 = await generate({ model, messages, tools });
-  console.log(result2.content);
+    // Step 2: Execute tool and provide result
+    const toolCall = result1.toolCalls[0];
+    const weatherData = await getWeather(toolCall.arguments.location);
+
+    messages.push({
+        role: 'tool',
+        toolCallId: toolCall.id,
+        content: JSON.stringify(weatherData),
+    });
+
+    // Step 3: Model generates final response
+    const result2 = await generate({ model, messages, tools });
+    console.log(result2.content);
 }
 ```
 
 ## Best Practices
 
 <Tip>
-  **Keep system messages concise:** System messages set the tone but shouldn't contain too much information. For large context, consider using user messages with retrieved content.
+    **Keep system messages concise:** System messages set the tone but shouldn't
+    contain too much information. For large context, consider using user
+    messages with retrieved content.
 </Tip>
 
 <Tip>
-  **Use `resultToMessage` for history:** Always convert generation results to messages using `resultToMessage()` to maintain proper conversation history with all content parts.
+    **Use `resultToMessage` for history:** Always convert generation results to
+    messages using `resultToMessage()` to maintain proper conversation history
+    with all content parts.
 </Tip>
 
 <Tip>
-  **Multi-modal order matters:** When combining text and images, place the text part first to provide context for what you're asking about the image.
+    **Multi-modal order matters:** When combining text and images, place the
+    text part first to provide context for what you're asking about the image.
 </Tip>
 
 ## Next Steps

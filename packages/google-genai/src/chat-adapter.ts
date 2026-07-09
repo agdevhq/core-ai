@@ -434,6 +434,7 @@ export async function* transformStream(
     const bufferedToolCalls = new Map<string, ToolCall>();
     let finishReason: FinishReason = 'unknown';
     let sawToolCalls = false;
+    let textOpen = false;
     let reasoningOpen = false;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
@@ -455,12 +456,29 @@ export async function* transformStream(
             providerMetadata: { google: {} },
         };
     };
+    const startText = function* (): Iterable<StreamEvent> {
+        if (textOpen) {
+            return;
+        }
+
+        textOpen = true;
+        yield { type: 'text-start' };
+    };
+    const closeText = function* (): Iterable<StreamEvent> {
+        if (!textOpen) {
+            return;
+        }
+
+        textOpen = false;
+        yield { type: 'text-end' };
+    };
 
     for await (const chunk of stream) {
         usage = mapUsage(chunk, usage);
 
         const reasoningDeltas = extractReasoningDeltas(chunk);
         if (reasoningDeltas.length > 0) {
+            yield* closeText();
             if (!reasoningOpen) {
                 reasoningOpen = true;
                 yield {
@@ -481,6 +499,7 @@ export async function* transformStream(
             if (reasoningEnd) {
                 yield reasoningEnd;
             }
+            yield* startText();
             yield {
                 type: 'text-delta',
                 text: chunk.text,
@@ -489,6 +508,7 @@ export async function* transformStream(
 
         const functionCalls = chunk.functionCalls ?? [];
         if (functionCalls.length > 0) {
+            yield* closeText();
             const reasoningEnd = closeReasoning();
             if (reasoningEnd) {
                 yield reasoningEnd;
@@ -543,6 +563,7 @@ export async function* transformStream(
     if (reasoningEnd) {
         yield reasoningEnd;
     }
+    yield* closeText();
 
     for (const toolCall of bufferedToolCalls.values()) {
         yield {

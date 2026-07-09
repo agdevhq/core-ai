@@ -32,7 +32,13 @@ describe('convertMessages', () => {
         const messages: Message[] = [
             {
                 role: 'user',
-                content: [{ type: 'text', text: 'Hello there' }],
+                content: [
+                    {
+                        type: 'text',
+                        text: 'Hello there',
+                        metadata: { classification: 'public' },
+                    },
+                ],
             },
         ];
 
@@ -165,17 +171,23 @@ describe('convertMessages', () => {
                     {
                         type: 'reasoning',
                         text: 'thinking...',
+                        metadata: { internal: true },
                         providerMetadata: {
                             openai: { encryptedContent: 'enc_123' },
                         },
                     },
-                    { type: 'text', text: 'answer' },
+                    {
+                        type: 'text',
+                        text: 'answer',
+                        metadata: { annotation: 'safe' },
+                    },
                     {
                         type: 'tool-call',
                         toolCall: {
                             id: 'tc_1',
                             name: 'search',
                             arguments: { query: 'weather' },
+                            metadata: { transformed: true },
                         },
                     },
                 ],
@@ -184,6 +196,7 @@ describe('convertMessages', () => {
                 role: 'tool',
                 toolCallId: 'tc_1',
                 content: 'Sunny, 72F',
+                metadata: { validated: true },
             },
         ];
 
@@ -651,7 +664,9 @@ describe('transformStream', () => {
                     arguments: { query: 'weather' },
                 },
             },
+            { type: 'text-start' },
             { type: 'text-delta', text: 'answer' },
+            { type: 'text-end' },
             {
                 type: 'finish',
                 finishReason: 'tool-calls',

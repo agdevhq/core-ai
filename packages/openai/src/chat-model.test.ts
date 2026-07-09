@@ -513,6 +513,9 @@ describe('stream', () => {
         await resultRejection;
         await expect(chatStream.events).resolves.toEqual([
             {
+                type: 'text-start',
+            },
+            {
                 type: 'text-delta',
                 text: 'partial',
             },

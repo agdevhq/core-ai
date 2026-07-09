@@ -337,6 +337,7 @@ export async function* transformStream(
     const emittedToolCalls = new Set<string>();
 
     let finishReason: FinishReason = 'unknown';
+    let textOpen = false;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -345,6 +346,22 @@ export async function* transformStream(
             cacheWriteTokens: 0,
         },
         outputTokenDetails: {},
+    };
+    const startText = function* (): Iterable<StreamEvent> {
+        if (textOpen) {
+            return;
+        }
+
+        textOpen = true;
+        yield { type: 'text-start' };
+    };
+    const closeText = function* (): Iterable<StreamEvent> {
+        if (!textOpen) {
+            return;
+        }
+
+        textOpen = false;
+        yield { type: 'text-end' };
     };
 
     for await (const chunk of stream) {
@@ -373,6 +390,7 @@ export async function* transformStream(
         }
 
         if (choice.delta.content) {
+            yield* startText();
             yield {
                 type: 'text-delta',
                 text: choice.delta.content,
@@ -380,6 +398,7 @@ export async function* transformStream(
         }
 
         if (choice.delta.tool_calls) {
+            yield* closeText();
             for (const partialToolCall of choice.delta.tool_calls) {
                 const current = bufferedToolCalls.get(
                     partialToolCall.index
@@ -423,6 +442,7 @@ export async function* transformStream(
         }
 
         if (finishReason === 'tool-calls') {
+            yield* closeText();
             for (const toolCall of bufferedToolCalls.values()) {
                 if (emittedToolCalls.has(toolCall.id)) {
                     continue;
@@ -440,6 +460,8 @@ export async function* transformStream(
             }
         }
     }
+
+    yield* closeText();
 
     yield {
         type: 'finish',

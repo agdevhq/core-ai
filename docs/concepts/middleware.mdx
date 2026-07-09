@@ -27,19 +27,19 @@ import { wrapChatModel, generate } from '@core-ai/core-ai';
 import type { ChatModelMiddleware } from '@core-ai/core-ai';
 
 const logging: ChatModelMiddleware = {
-  generate: async ({ execute, options, model }) => {
-    console.log(`Calling ${model.provider}/${model.modelId}`);
-    const result = await execute();
-    console.log(`Finished with ${result.usage.outputTokens} output tokens`);
-    return result;
-  },
+    generate: async ({ execute, options, model }) => {
+        console.log(`Calling ${model.provider}/${model.modelId}`);
+        const result = await execute();
+        console.log(`Finished with ${result.usage.outputTokens} output tokens`);
+        return result;
+    },
 };
 
 const wrappedModel = wrapChatModel({ model, middleware: logging });
 
 const result = await generate({
-  model: wrappedModel,
-  messages: [{ role: 'user', content: 'Hello!' }],
+    model: wrappedModel,
+    messages: [{ role: 'user', content: 'Hello!' }],
 });
 ```
 
@@ -47,8 +47,8 @@ You can pass a single middleware or an array:
 
 ```typescript
 const wrappedModel = wrapChatModel({
-  model,
-  middleware: [logging, validation, retry],
+    model,
+    middleware: [logging, validation, retry],
 });
 ```
 
@@ -58,26 +58,30 @@ A `ChatModelMiddleware` is an object with optional hooks. Each hook you define w
 
 ```typescript
 type ChatModelMiddleware = {
-  generate?: (args: {
-    execute: (options?: GenerateOptions) => Promise<GenerateResult>;
-    options: GenerateOptions;
-    model: ChatModel;
-  }) => Promise<GenerateResult>;
-  stream?: (args: {
-    execute: (options?: GenerateOptions) => Promise<ChatStream>;
-    options: GenerateOptions;
-    model: ChatModel;
-  }) => Promise<ChatStream>;
-  generateObject?: <TSchema extends z.ZodType>(args: {
-    execute: (options?: GenerateObjectOptions<TSchema>) => Promise<GenerateObjectResult<TSchema>>;
-    options: GenerateObjectOptions<TSchema>;
-    model: ChatModel;
-  }) => Promise<GenerateObjectResult<TSchema>>;
-  streamObject?: <TSchema extends z.ZodType>(args: {
-    execute: (options?: StreamObjectOptions<TSchema>) => Promise<ObjectStream<TSchema>>;
-    options: StreamObjectOptions<TSchema>;
-    model: ChatModel;
-  }) => Promise<ObjectStream<TSchema>>;
+    generate?: (args: {
+        execute: (options?: GenerateOptions) => Promise<GenerateResult>;
+        options: GenerateOptions;
+        model: ChatModel;
+    }) => Promise<GenerateResult>;
+    stream?: (args: {
+        execute: (options?: GenerateOptions) => Promise<ChatStream>;
+        options: GenerateOptions;
+        model: ChatModel;
+    }) => Promise<ChatStream>;
+    generateObject?: <TSchema extends z.ZodType>(args: {
+        execute: (
+            options?: GenerateObjectOptions<TSchema>
+        ) => Promise<GenerateObjectResult<TSchema>>;
+        options: GenerateObjectOptions<TSchema>;
+        model: ChatModel;
+    }) => Promise<GenerateObjectResult<TSchema>>;
+    streamObject?: <TSchema extends z.ZodType>(args: {
+        execute: (
+            options?: StreamObjectOptions<TSchema>
+        ) => Promise<ObjectStream<TSchema>>;
+        options: StreamObjectOptions<TSchema>;
+        model: ChatModel;
+    }) => Promise<ObjectStream<TSchema>>;
 };
 ```
 
@@ -97,19 +101,19 @@ import type { ChatModelMiddleware } from '@core-ai/core-ai';
 const blockedTerms = ['password', 'secret-key'];
 
 const inputGuardrail: ChatModelMiddleware = {
-  generate: async ({ execute, options }) => {
-    for (const message of options.messages) {
-      if (
-        message.role === 'user' &&
-        typeof message.content === 'string' &&
-        blockedTerms.some((term) => message.content.includes(term))
-      ) {
-        throw new Error('Message contains blocked content');
-      }
-    }
+    generate: async ({ execute, options }) => {
+        for (const message of options.messages) {
+            if (
+                message.role === 'user' &&
+                typeof message.content === 'string' &&
+                blockedTerms.some((term) => message.content.includes(term))
+            ) {
+                throw new Error('Message contains blocked content');
+            }
+        }
 
-    return execute();
-  },
+        return execute();
+    },
 };
 ```
 
@@ -121,22 +125,81 @@ This middleware retries failed calls with exponential backoff:
 import type { ChatModelMiddleware } from '@core-ai/core-ai';
 
 const retry: ChatModelMiddleware = {
-  generate: async ({ execute }) => {
-    const maxAttempts = 3;
+    generate: async ({ execute }) => {
+        const maxAttempts = 3;
 
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        return await execute();
-      } catch (error) {
-        if (attempt === maxAttempts) throw error;
-        await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-      }
-    }
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+            try {
+                return await execute();
+            } catch (error) {
+                if (attempt === maxAttempts) throw error;
+                await new Promise((resolve) =>
+                    setTimeout(resolve, 1000 * attempt)
+                );
+            }
+        }
 
-    throw new Error('Unreachable');
-  },
+        throw new Error('Unreachable');
+    },
 };
 ```
+
+### Part metadata
+
+Middleware can use part `metadata` to keep annotations next to the text they describe. This is useful for provenance, validation status, classification results, or text transformation spans.
+
+On outbound calls, read metadata from text-bearing messages:
+
+```typescript
+import type { ChatModelMiddleware } from '@core-ai/core-ai';
+
+const inspectPartMetadata: ChatModelMiddleware = {
+    generate: async ({ execute, options }) => {
+        for (const message of options.messages) {
+            if (message.role === 'user' && Array.isArray(message.content)) {
+                for (const part of message.content) {
+                    if (part.type === 'text') {
+                        console.log(part.metadata);
+                    }
+                }
+            }
+        }
+
+        return execute();
+    },
+};
+```
+
+On inbound streaming calls, wrap the stream and attach metadata to `text-end`. `createChatStream()` copies that metadata to the matching `AssistantTextPart` in `.result`.
+
+```typescript
+import { createChatStream } from '@core-ai/core-ai';
+import type { ChatModelMiddleware, StreamEvent } from '@core-ai/core-ai';
+
+const annotateText: ChatModelMiddleware = {
+    stream: async ({ execute }) => {
+        const chatStream = await execute();
+
+        async function* annotate(): AsyncIterable<StreamEvent> {
+            for await (const event of chatStream) {
+                if (event.type === 'text-end') {
+                    yield {
+                        ...event,
+                        metadata: { reviewed: true },
+                    };
+                    continue;
+                }
+
+                yield event;
+            }
+        }
+
+        return createChatStream(annotate());
+    },
+};
+```
+
+`GenerateOptions.metadata` is call-level context. Part `metadata` is application-owned state that stays on individual text parts, reasoning parts, tool calls, and tool results. `providerMetadata` on reasoning parts is provider-owned data for provider round-trips.
 
 ## Embedding and image middleware
 
@@ -149,13 +212,16 @@ import { wrapEmbeddingModel } from '@core-ai/core-ai';
 import type { EmbeddingModelMiddleware } from '@core-ai/core-ai';
 
 const logging: EmbeddingModelMiddleware = {
-  embed: async ({ execute, model }) => {
-    console.log(`Embedding with ${model.modelId}`);
-    return execute();
-  },
+    embed: async ({ execute, model }) => {
+        console.log(`Embedding with ${model.modelId}`);
+        return execute();
+    },
 };
 
-const wrappedModel = wrapEmbeddingModel({ model: embeddingModel, middleware: logging });
+const wrappedModel = wrapEmbeddingModel({
+    model: embeddingModel,
+    middleware: logging,
+});
 ```
 
 ### ImageModelMiddleware
@@ -165,10 +231,10 @@ import { wrapImageModel } from '@core-ai/core-ai';
 import type { ImageModelMiddleware } from '@core-ai/core-ai';
 
 const logging: ImageModelMiddleware = {
-  generate: async ({ execute, model }) => {
-    console.log(`Generating image with ${model.modelId}`);
-    return execute();
-  },
+    generate: async ({ execute, model }) => {
+        console.log(`Generating image with ${model.modelId}`);
+        return execute();
+    },
 };
 
 const wrappedModel = wrapImageModel({ model: imageModel, middleware: logging });
@@ -180,8 +246,8 @@ When you pass an array of middleware, they execute in order from first to last. 
 
 ```typescript
 const wrappedModel = wrapChatModel({
-  model,
-  middleware: [logging, retry, validation],
+    model,
+    middleware: [logging, retry, validation],
 });
 
 // Execution order for generate():
@@ -195,6 +261,7 @@ const wrappedModel = wrapChatModel({
 ```
 
 Each middleware can:
+
 - Modify options before calling `execute()`
 - Inspect or transform the result after `execute()` resolves
 - Short-circuit the chain by returning without calling `execute()`
@@ -205,12 +272,16 @@ Each middleware can:
 core-ai provides two observability middleware packages. These are built on the same middleware system documented above, and serve as good reference examples for writing your own middleware.
 
 <CardGroup cols={2}>
-  <Card title="OpenTelemetry" icon="signal" href="/observability/opentelemetry">
-    Automatic tracing with OpenTelemetry spans for all model operations
-  </Card>
-  <Card title="Langfuse" icon="chart-line" href="/observability/langfuse">
-    Langfuse observability with generation tracking and usage reporting
-  </Card>
+    <Card
+        title="OpenTelemetry"
+        icon="signal"
+        href="/observability/opentelemetry"
+    >
+        Automatic tracing with OpenTelemetry spans for all model operations
+    </Card>
+    <Card title="Langfuse" icon="chart-line" href="/observability/langfuse">
+        Langfuse observability with generation tracking and usage reporting
+    </Card>
 </CardGroup>
 
 ## Next steps

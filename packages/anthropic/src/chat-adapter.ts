@@ -770,6 +770,12 @@ export async function* transformStream(
                 };
                 continue;
             }
+            if (event.content_block.type === 'text') {
+                yield {
+                    type: 'text-start',
+                };
+                continue;
+            }
             if (event.content_block.type === 'tool_use') {
                 const block = event.content_block as ToolUseBlock;
                 const initialArguments =
@@ -848,6 +854,14 @@ export async function* transformStream(
         }
 
         if (event.type === 'content_block_stop') {
+            if (contentBlockTypeByIndex.get(event.index) === 'text') {
+                contentBlockTypeByIndex.delete(event.index);
+                yield {
+                    type: 'text-end',
+                };
+                continue;
+            }
+
             if (contentBlockTypeByIndex.get(event.index) === 'thinking') {
                 const signature = reasoningSignatureByIndex.get(event.index);
                 reasoningSignatureByIndex.delete(event.index);

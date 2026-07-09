@@ -21,6 +21,11 @@ export type UserContentPart = TextPart | ImagePart | FilePart;
 export type TextPart = {
     type: 'text';
     text: string;
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type ImagePart = {
@@ -46,11 +51,21 @@ export type ReasoningConfig = {
 export type AssistantTextPart = {
     type: 'text';
     text: string;
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type ReasoningPart = {
     type: 'reasoning';
     text: string;
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
     /**
      * Provider-namespaced metadata for this reasoning block. The top-level key is
      * the provider identifier (e.g. `'anthropic'`, `'openai'`), which also serves as
@@ -84,6 +99,11 @@ export type ToolCall = {
     id: string;
     name: string;
     arguments: Record<string, unknown>;
+    /**
+     * Application-owned metadata for this tool call. Provider adapters ignore
+     * this field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type ToolResultMessage = {
@@ -91,6 +111,11 @@ export type ToolResultMessage = {
     toolCallId: string;
     content: string;
     isError?: boolean;
+    /**
+     * Application-owned metadata for this tool result. Provider adapters ignore
+     * this field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type ToolDefinition = {
@@ -285,9 +310,12 @@ export type StreamEvent =
     | { type: 'reasoning-delta'; text: string }
     | {
           type: 'reasoning-end';
+          metadata?: Record<string, unknown>;
           providerMetadata?: Record<string, Record<string, unknown>>;
       }
+    | { type: 'text-start' }
     | { type: 'text-delta'; text: string }
+    | { type: 'text-end'; metadata?: Record<string, unknown> }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
     | { type: 'tool-call-end'; toolCall: ToolCall }
