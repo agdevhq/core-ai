@@ -51,7 +51,7 @@
     },
     "dependencies": {
         "@core-ai/core-ai": "^0.13.0",
-        "openai": "^6.1.0"
+        "openai": "^6.46.0"
     },
     "peerDependencies": {
         "zod": "^4.0.0"
