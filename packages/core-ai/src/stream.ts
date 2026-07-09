@@ -61,6 +61,7 @@ export function createChatStream(
             reasoningBuffer.length === 0 &&
             reasoningProviderMetadata === undefined
         ) {
+            reasoningMetadata = undefined;
             return;
         }
         parts.push({
