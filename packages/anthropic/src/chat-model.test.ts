@@ -392,13 +392,52 @@ describe('generate', () => {
         expect(result.reasoning).toBe('internal chain');
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
-                thinking: { type: 'adaptive' },
+                thinking: { type: 'adaptive', display: 'summarized' },
                 output_config: { effort: 'high' },
             }),
             expect.objectContaining({
                 signal: undefined,
             })
         );
+    });
+
+    it('should send reasoning betas as headers instead of request fields', async () => {
+        const create = vi.fn(
+            async (_body: unknown, _requestOptions?: unknown) =>
+                asMessage({
+                    content: [{ type: 'text', text: 'done', citations: null }],
+                    stop_reason: 'end_turn',
+                    usage: {
+                        input_tokens: 10,
+                        output_tokens: 2,
+                    },
+                })
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4-5',
+            4096
+        );
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Use a tool' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({ query: z.string() }),
+                },
+            },
+            reasoning: { effort: 'medium' },
+        });
+
+        const [body, requestOptions] = create.mock.calls[0] ?? [];
+        expect(body).not.toHaveProperty('betas');
+        expect(requestOptions).toMatchObject({
+            headers: {
+                'anthropic-beta': 'interleaved-thinking-2025-05-14',
+            },
+        });
     });
 });
 
@@ -448,12 +487,14 @@ describe('stream', () => {
                         stop_reason: 'end_turn',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 2,
                         cache_creation_input_tokens: null,
                         cache_read_input_tokens: null,
+                        output_tokens_details: null,
                         server_tool_use: null,
                     },
                 },
@@ -596,12 +637,14 @@ describe('stream', () => {
                         stop_reason: 'end_turn',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 2,
                         cache_creation_input_tokens: 20,
                         cache_read_input_tokens: 40,
+                        output_tokens_details: null,
                         server_tool_use: null,
                     },
                 },
@@ -685,12 +728,14 @@ describe('stream', () => {
                         stop_reason: 'end_turn',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 2,
                         cache_creation_input_tokens: null,
                         cache_read_input_tokens: null,
+                        output_tokens_details: null,
                         server_tool_use: null,
                     },
                 },
@@ -771,12 +816,14 @@ describe('stream', () => {
                         stop_reason: 'end_turn',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 2,
                         cache_creation_input_tokens: null,
                         cache_read_input_tokens: null,
+                        output_tokens_details: { thinking_tokens: 1 },
                         server_tool_use: null,
                     },
                 },
@@ -807,6 +854,7 @@ describe('stream', () => {
 
         const response = await chatStream.result;
         expect(response.reasoning).toBe('reasoning text ');
+        expect(response.usage.outputTokenDetails.reasoningTokens).toBe(1);
     });
 });
 
@@ -832,6 +880,7 @@ function asMessage(value: {
         output_tokens: number;
         cache_read_input_tokens?: number | null;
         cache_creation_input_tokens?: number | null;
+        output_tokens_details?: { thinking_tokens: number } | null;
     };
 }): Message {
     return {
@@ -853,7 +902,7 @@ function asMessage(value: {
                 value.usage.cache_read_input_tokens ?? null,
             server_tool_use: null,
             service_tier: null,
-            output_tokens_details: null,
+            output_tokens_details: value.usage.output_tokens_details ?? null,
             input_tokens_details: null,
             cache_creation_tokens: null,
             cache_read_tokens: null,

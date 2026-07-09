@@ -14,6 +14,7 @@ import type { z } from 'zod';
 import {
     AbortedError,
     asObject,
+    clampReasoningEffort,
     getProviderMetadata,
     ProviderError,
     ValidationError,
@@ -33,7 +34,10 @@ import type {
     ToolChoice as AgToolChoice,
 } from '@core-ai/core-ai';
 import {
+    getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
+    requiresAnthropicInterleavedThinkingBeta,
+    restrictsAnthropicSamplingParamsAlways,
     supportsAnthropicMaxEffort,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
@@ -135,20 +139,18 @@ export function convertMessages(
                     continue;
                 }
 
-                if (part.text.length === 0) {
+                if (typeof signature === 'string') {
+                    contentBlocks.push({
+                        type: 'thinking',
+                        thinking: part.text,
+                        signature,
+                    } as unknown as ContentBlockParam);
                     continue;
                 }
 
-                if (typeof signature !== 'string') {
+                if (part.text.length > 0) {
                     contentBlocks.push({ type: 'text', text: part.text });
-                    continue;
                 }
-
-                contentBlocks.push({
-                    type: 'thinking',
-                    thinking: part.text,
-                    signature,
-                } as unknown as ContentBlockParam);
             }
 
             convertedMessages.push({
@@ -399,14 +401,24 @@ function createRequestBase(
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined
 ) {
-    validateAnthropicReasoningConfig(modelId, options, anthropicOptions);
+    const maxTokens = options.maxTokens ?? defaultMaxTokens;
+    validateAnthropicReasoningConfig(
+        modelId,
+        maxTokens,
+        options,
+        anthropicOptions
+    );
     const converted = convertMessages(options.messages);
-    const reasoningFields = mapReasoningToRequestFields(modelId, options);
+    const reasoningFields = mapReasoningToRequestFields(
+        modelId,
+        maxTokens,
+        options
+    );
 
     return {
         model: modelId,
         messages: converted.messages,
-        max_tokens: options.maxTokens ?? defaultMaxTokens,
+        max_tokens: maxTokens,
         ...(converted.system ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
@@ -432,14 +444,58 @@ function mapSamplingToRequestFields(
 
 function validateAnthropicReasoningConfig(
     modelId: string,
+    maxTokens: number,
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined
 ): void {
+    const alwaysRestrictsSampling =
+        restrictsAnthropicSamplingParamsAlways(modelId);
+    if (
+        alwaysRestrictsSampling &&
+        options.temperature !== undefined &&
+        options.temperature !== 1
+    ) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" only supports the default temperature of 1`,
+            undefined,
+            'anthropic'
+        );
+    }
+    if (
+        alwaysRestrictsSampling &&
+        options.topP !== undefined &&
+        options.topP !== 1
+    ) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" only supports the default topP of 1`,
+            undefined,
+            'anthropic'
+        );
+    }
+    if (alwaysRestrictsSampling && anthropicOptions?.topK !== undefined) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" does not support top_k`,
+            undefined,
+            'anthropic'
+        );
+    }
+
     if (!options.reasoning) {
         return;
     }
 
-    if (options.temperature !== undefined) {
+    if (getAnthropicThinkingMode(modelId) === 'manual' && maxTokens <= 1024) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" requires maxTokens greater than 1024 when reasoning is enabled`,
+            undefined,
+            'anthropic'
+        );
+    }
+
+    if (
+        options.temperature !== undefined &&
+        (!alwaysRestrictsSampling || options.temperature !== 1)
+    ) {
         throw new ValidationError(
             `Anthropic model "${modelId}" does not support temperature when reasoning is enabled`,
             undefined,
@@ -481,6 +537,7 @@ function validateAnthropicReasoningConfig(
 
 function mapReasoningToRequestFields(
     modelId: string,
+    maxTokens: number,
     options: GenerateOptions
 ) {
     if (!options.reasoning) {
@@ -488,17 +545,21 @@ function mapReasoningToRequestFields(
     }
 
     const thinkingMode = getAnthropicThinkingMode(modelId);
+    const capabilities = getAnthropicModelCapabilities(modelId);
+    const effort = clampReasoningEffort(
+        options.reasoning.effort,
+        capabilities.reasoning.supportedEfforts
+    );
     const baseFields: Record<string, unknown> = {};
 
-    if (options.tools && Object.keys(options.tools).length > 0) {
-        baseFields['betas'] = ['interleaved-thinking-2025-05-14'];
-    }
-
     if (thinkingMode === 'adaptive') {
-        baseFields['thinking'] = { type: 'adaptive' };
+        baseFields['thinking'] = {
+            type: 'adaptive',
+            display: 'summarized',
+        };
         baseFields['output_config'] = {
             effort: toAnthropicAdaptiveEffort(
-                options.reasoning.effort,
+                effort,
                 supportsAnthropicMaxEffort(modelId)
             ),
         };
@@ -507,9 +568,32 @@ function mapReasoningToRequestFields(
 
     baseFields['thinking'] = {
         type: 'enabled',
-        budget_tokens: toAnthropicManualBudget(options.reasoning.effort),
+        budget_tokens: toAnthropicManualBudget(effort, maxTokens),
+        display: 'summarized',
     };
     return baseFields;
+}
+
+export function getAnthropicRequestBetas(
+    modelId: string,
+    options: GenerateOptions
+): string[] {
+    const providerOptions = parseAnthropicGenerateProviderOptions(
+        options.providerOptions
+    );
+    const configuredBetas = providerOptions?.betas ?? [];
+    const shouldEnableInterleavedThinking =
+        options.reasoning !== undefined &&
+        options.tools !== undefined &&
+        Object.keys(options.tools).length > 0 &&
+        requiresAnthropicInterleavedThinkingBeta(modelId);
+
+    return uniqueStrings([
+        ...configuredBetas,
+        ...(shouldEnableInterleavedThinking
+            ? ['interleaved-thinking-2025-05-14']
+            : []),
+    ]);
 }
 
 function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
@@ -528,11 +612,6 @@ function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
         ...(providerOptions.outputConfig ?? {}),
     };
 
-    const mergedBetas = [
-        ...asStringArray((baseRequest as { betas?: unknown }).betas),
-        ...(providerOptions.betas ?? []),
-    ];
-
     const mergedRequest = {
         ...baseRequest,
         ...(providerOptions.cacheControl
@@ -546,9 +625,6 @@ function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
             : {}),
         ...(Object.keys(mergedOutputConfig).length > 0
             ? { output_config: mergedOutputConfig }
-            : {}),
-        ...(mergedBetas.length > 0
-            ? { betas: uniqueStrings(mergedBetas) }
             : {}),
     };
     return mergedRequest as TRequest;
@@ -635,7 +711,7 @@ export function mapGenerateResponse(
                 cacheReadTokens,
                 cacheWriteTokens,
             },
-            outputTokenDetails: {},
+            outputTokenDetails: mapAnthropicOutputTokenDetails(response.usage),
         },
     };
 }
@@ -679,7 +755,9 @@ export async function* transformStream(
                     cacheReadTokens,
                     cacheWriteTokens,
                 },
-                outputTokenDetails: {},
+                outputTokenDetails: mapAnthropicOutputTokenDetails(
+                    event.message.usage
+                ),
             };
             continue;
         }
@@ -822,7 +900,7 @@ export async function* transformStream(
                     cacheReadTokens,
                     cacheWriteTokens,
                 },
-                outputTokenDetails: {},
+                outputTokenDetails: mapAnthropicOutputTokenDetails(event.usage),
             };
             continue;
         }
@@ -851,11 +929,12 @@ function mapStopReason(reason: StopReason | null): FinishReason {
     return 'unknown';
 }
 
-function asStringArray(value: unknown): string[] {
-    if (!Array.isArray(value)) {
-        return [];
-    }
-    return value.filter((item): item is string => typeof item === 'string');
+function mapAnthropicOutputTokenDetails(usage: unknown): {
+    reasoningTokens?: number;
+} {
+    const outputTokenDetails = asObject(asObject(usage).output_tokens_details);
+    const reasoningTokens = outputTokenDetails.thinking_tokens;
+    return typeof reasoningTokens === 'number' ? { reasoningTokens } : {};
 }
 
 function uniqueStrings(values: string[]): string[] {

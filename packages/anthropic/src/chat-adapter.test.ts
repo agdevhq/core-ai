@@ -18,6 +18,7 @@ import {
     convertMessages,
     convertToolChoice,
     convertTools,
+    getAnthropicRequestBetas,
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
@@ -306,6 +307,13 @@ describe('reasoning support', () => {
                         type: 'reasoning',
                         text: '',
                         providerMetadata: {
+                            anthropic: { signature: 'sig_omitted' },
+                        },
+                    },
+                    {
+                        type: 'reasoning',
+                        text: '',
+                        providerMetadata: {
                             anthropic: { redactedData: 'redacted_payload' },
                         },
                     },
@@ -326,6 +334,11 @@ describe('reasoning support', () => {
                         type: 'thinking',
                         thinking: 'thought',
                         signature: 'sig_123',
+                    },
+                    {
+                        type: 'thinking',
+                        thinking: '',
+                        signature: 'sig_omitted',
                     },
                     {
                         type: 'redacted_thinking',
@@ -372,8 +385,8 @@ describe('reasoning support', () => {
         ]);
     });
 
-    it('should map adaptive/manual reasoning fields and interleaved-thinking beta', () => {
-        const adaptive = createGenerateRequest('claude-opus-4-6', 4096, {
+    it('should map adaptive and manual reasoning fields within maxTokens', () => {
+        const adaptiveOptions = {
             messages: [{ role: 'user', content: 'Hi' }],
             tools: {
                 tool: defineTool({
@@ -383,22 +396,48 @@ describe('reasoning support', () => {
                 }),
             },
             reasoning: { effort: 'max' },
-        });
+        } satisfies GenerateOptions;
+        const adaptive = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            adaptiveOptions
+        );
 
         expect(adaptive).toMatchObject({
-            thinking: { type: 'adaptive' },
+            thinking: { type: 'adaptive', display: 'summarized' },
             output_config: { effort: 'max' },
-            betas: ['interleaved-thinking-2025-05-14'],
         });
+        expect(
+            getAnthropicRequestBetas('claude-opus-4-6', adaptiveOptions)
+        ).toEqual([]);
 
-        const manual = createGenerateRequest('claude-sonnet-4-5', 4096, {
+        const manualOptions = {
             messages: [{ role: 'user', content: 'Hi' }],
+            tools: adaptiveOptions.tools,
             reasoning: { effort: 'medium' },
-        });
+        } satisfies GenerateOptions;
+        const manual = createGenerateRequest(
+            'claude-sonnet-4-5',
+            4096,
+            manualOptions
+        );
         expect(manual).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 8192 },
+            thinking: {
+                type: 'enabled',
+                budget_tokens: 4095,
+                display: 'summarized',
+            },
         });
         expect(manual).not.toHaveProperty('betas');
+        expect(
+            getAnthropicRequestBetas('claude-sonnet-4-5', manualOptions)
+        ).toEqual(['interleaved-thinking-2025-05-14']);
+
+        const clamped = createGenerateRequest('claude-future-5', 4096, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(clamped).toHaveProperty('output_config.effort', 'high');
     });
 
     it('should include cache_control when cacheControl provider option is set', () => {
@@ -442,6 +481,23 @@ describe('reasoning support', () => {
 
         expect(request).toHaveProperty('cache_control', { type: 'ephemeral' });
         expect(request).toHaveProperty('stream', true);
+    });
+
+    it('should keep provider betas out of the request body', () => {
+        const options = {
+            messages: [{ role: 'user' as const, content: 'Hello' }],
+            providerOptions: {
+                anthropic: {
+                    betas: ['custom-beta'],
+                },
+            },
+        };
+        const request = createGenerateRequest('claude-sonnet-5', 4096, options);
+
+        expect(request).not.toHaveProperty('betas');
+        expect(getAnthropicRequestBetas('claude-sonnet-5', options)).toEqual([
+            'custom-beta',
+        ]);
     });
 
     it('should validate incompatible config when reasoning is enabled', () => {
@@ -501,6 +557,30 @@ describe('reasoning support', () => {
                 providerOptions: { anthropic: { topK: 5 } },
             })
         ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4-5', 1024, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'minimal' },
+            })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should reject non-default sampling for newer models without explicit reasoning', () => {
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 1,
+                topP: 1,
+            })
+        ).not.toThrow();
     });
 
     it('should reject invalid anthropic provider options', () => {
@@ -541,7 +621,11 @@ describe('reasoning support', () => {
                 { type: 'text', text: 'answer', citations: null },
             ],
             stop_reason: 'end_turn',
-            usage: { input_tokens: 10, output_tokens: 3 },
+            usage: {
+                input_tokens: 10,
+                output_tokens: 3,
+                output_tokens_details: { thinking_tokens: 2 },
+            },
         });
 
         const result = mapGenerateResponse(response);
@@ -561,6 +645,7 @@ describe('reasoning support', () => {
                 anthropic: { redactedData: 'hidden_data' },
             },
         });
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
     });
 
     it('should parse thinking block without signature', () => {
@@ -627,12 +712,14 @@ describe('reasoning support', () => {
                         stop_reason: 'end_turn',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 2,
                         cache_creation_input_tokens: null,
                         cache_read_input_tokens: null,
+                        output_tokens_details: null,
                         server_tool_use: null,
                     },
                 },
@@ -715,12 +802,14 @@ describe('reasoning support', () => {
                         stop_reason: 'tool_use',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 4,
                         cache_creation_input_tokens: null,
                         cache_read_input_tokens: null,
+                        output_tokens_details: null,
                         server_tool_use: null,
                     },
                 },
@@ -775,12 +864,14 @@ describe('reasoning support', () => {
                         stop_reason: 'end_turn',
                         stop_sequence: null,
                         container: null,
+                        stop_details: null,
                     },
                     usage: {
                         input_tokens: 10,
                         output_tokens: 1,
                         cache_creation_input_tokens: null,
                         cache_read_input_tokens: null,
+                        output_tokens_details: null,
                         server_tool_use: null,
                     },
                 },
@@ -808,6 +899,7 @@ function asAnthropicMessage(value: {
         output_tokens: number;
         cache_read_input_tokens?: number | null;
         cache_creation_input_tokens?: number | null;
+        output_tokens_details?: { thinking_tokens: number } | null;
     };
 }): AnthropicMessage {
     return {
@@ -829,7 +921,7 @@ function asAnthropicMessage(value: {
                 value.usage.cache_read_input_tokens ?? null,
             server_tool_use: null,
             service_tier: null,
-            output_tokens_details: null,
+            output_tokens_details: value.usage.output_tokens_details ?? null,
             input_tokens_details: null,
             cache_creation_tokens: null,
             cache_read_tokens: null,

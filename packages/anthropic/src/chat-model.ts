@@ -23,6 +23,7 @@ import {
     createStructuredOutputOptions,
     createGenerateRequest,
     createStreamRequest,
+    getAnthropicRequestBetas,
     mapGenerateResponse,
     transformStream,
     wrapError,
@@ -42,10 +43,18 @@ export function createAnthropicChatModel(
 
     async function callAnthropicMessagesApi<T>(
         request: unknown,
+        betas: string[],
         signal?: AbortSignal
     ): Promise<T> {
         try {
             return (await client.messages.create(request as never, {
+                ...(betas.length > 0
+                    ? {
+                          headers: {
+                              'anthropic-beta': betas.join(','),
+                          },
+                      }
+                    : {}),
                 signal,
             })) as T;
         } catch (error) {
@@ -63,7 +72,7 @@ export function createAnthropicChatModel(
         );
         const response = await callAnthropicMessagesApi<
             Parameters<typeof mapGenerateResponse>[0]
-        >(request, options.signal);
+        >(request, getAnthropicRequestBetas(modelId, options), options.signal);
         return mapGenerateResponse(response);
     }
 
@@ -74,7 +83,11 @@ export function createAnthropicChatModel(
                 transformStream(
                     await callAnthropicMessagesApi<
                         AsyncIterable<RawMessageStreamEvent>
-                    >(request, options.signal)
+                    >(
+                        request,
+                        getAnthropicRequestBetas(modelId, options),
+                        options.signal
+                    )
                 ),
             { signal: options.signal }
         );
