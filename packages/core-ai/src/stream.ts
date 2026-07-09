@@ -44,6 +44,7 @@ export function createChatStream(
 
     const flushText = () => {
         if (textBuffer.length === 0) {
+            textMetadata = undefined;
             return;
         }
         parts.push({

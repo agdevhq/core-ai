@@ -272,6 +272,49 @@ describe('createChatStream', () => {
         });
     });
 
+    it('should not apply metadata from empty text segments to later text', async () => {
+        const events: StreamEvent[] = [
+            { type: 'text-end', metadata: { segment: 'empty' } },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'tc1',
+                    name: 'search',
+                    arguments: { query: 'hello' },
+                },
+            },
+            { type: 'text-delta', text: 'Later' },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 2,
+                    outputTokens: 3,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const chatStream = createChatStream(toAsyncIterable(events));
+
+        await expect(chatStream.result).resolves.toMatchObject({
+            parts: [
+                {
+                    type: 'tool-call',
+                    toolCall: {
+                        id: 'tc1',
+                        name: 'search',
+                        arguments: { query: 'hello' },
+                    },
+                },
+                { type: 'text', text: 'Later' },
+            ],
+        });
+    });
+
     it('should resolve result without iteration', async () => {
         const events: StreamEvent[] = [
             { type: 'text-delta', text: 'auto' },
