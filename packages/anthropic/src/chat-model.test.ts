@@ -8,6 +8,7 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import {
     AbortedError,
+    defineTool,
     ProviderError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputValidationError,
@@ -394,6 +395,57 @@ describe('generate', () => {
             expect.objectContaining({
                 thinking: { type: 'adaptive' },
                 output_config: { effort: 'high' },
+            }),
+            expect.objectContaining({
+                signal: undefined,
+            })
+        );
+    });
+
+    it('should use beta messages client when Anthropic betas are enabled', async () => {
+        const create = vi.fn(async () =>
+            asMessage({
+                content: [{ type: 'text', text: 'stable', citations: null }],
+                stop_reason: 'end_turn',
+                usage: {
+                    input_tokens: 20,
+                    output_tokens: 7,
+                },
+            })
+        );
+        const betaCreate = vi.fn(async () =>
+            asMessage({
+                content: [{ type: 'text', text: 'beta', citations: null }],
+                stop_reason: 'end_turn',
+                usage: {
+                    input_tokens: 20,
+                    output_tokens: 7,
+                },
+            })
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create, betaCreate),
+            'claude-sonnet-4-5',
+            4096
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Use the tool' }],
+            reasoning: { effort: 'medium' },
+            tools: {
+                search: defineTool({
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(result.content).toBe('beta');
+        expect(create).not.toHaveBeenCalled();
+        expect(betaCreate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                betas: ['interleaved-thinking-2025-05-14'],
             }),
             expect.objectContaining({
                 signal: undefined,
@@ -811,8 +863,9 @@ describe('stream', () => {
 });
 
 function createMockClient(
-    create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
-): Pick<Anthropic, 'messages'> {
+    create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>,
+    betaCreate?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
+): Pick<Anthropic, 'messages' | 'beta'> {
     return {
         messages: {
             create:
@@ -821,7 +874,16 @@ function createMockClient(
                     throw new Error('not implemented');
                 }),
         },
-    } as unknown as Pick<Anthropic, 'messages'>;
+        ...(betaCreate
+            ? {
+                  beta: {
+                      messages: {
+                          create: betaCreate,
+                      },
+                  },
+              }
+            : {}),
+    } as unknown as Pick<Anthropic, 'messages' | 'beta'>;
 }
 
 function asMessage(value: {

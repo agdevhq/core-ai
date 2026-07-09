@@ -16,6 +16,7 @@ import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
+    ProviderError,
     createObjectStream,
     createChatStream,
 } from '@core-ai/core-ai';
@@ -31,6 +32,9 @@ import { getAnthropicModelCapabilities } from './model-capabilities.js';
 
 type AnthropicMessagesClient = {
     messages: Anthropic['messages'];
+    beta?: {
+        messages: Anthropic['beta']['messages'];
+    };
 };
 
 export function createAnthropicChatModel(
@@ -45,6 +49,24 @@ export function createAnthropicChatModel(
         signal?: AbortSignal
     ): Promise<T> {
         try {
+            if (hasAnthropicBetas(request)) {
+                if (!client.beta?.messages) {
+                    throw new ProviderError(
+                        'Anthropic beta messages client is required when beta features are enabled',
+                        provider
+                    );
+                }
+
+                return (await client.beta.messages.create(
+                    request as Parameters<
+                        Anthropic['beta']['messages']['create']
+                    >[0],
+                    { signal } as Parameters<
+                        Anthropic['beta']['messages']['create']
+                    >[1]
+                )) as T;
+            }
+
             return (await client.messages.create(request as never, {
                 signal,
             })) as T;
@@ -121,6 +143,18 @@ export function createAnthropicChatModel(
             );
         },
     };
+}
+
+function hasAnthropicBetas(request: unknown): request is { betas: string[] } {
+    if (request === null || typeof request !== 'object') {
+        return false;
+    }
+
+    const betas = (request as { betas?: unknown }).betas;
+    return (
+        Array.isArray(betas) &&
+        betas.some((beta) => typeof beta === 'string' && beta.length > 0)
+    );
 }
 
 function extractStructuredObject<TSchema extends z.ZodType>(
