@@ -19,16 +19,17 @@ Chat models are the most versatile, supporting text generation, conversations, t
 
 ```typescript
 type ChatModel = {
-  readonly provider: string;
-  readonly modelId: string;
-  generate(options: GenerateOptions): Promise<GenerateResult>;
-  stream(options: GenerateOptions): Promise<ChatStream>;
-  generateObject<TSchema extends z.ZodType>(
-    options: GenerateObjectOptions<TSchema>
-  ): Promise<GenerateObjectResult<TSchema>>;
-  streamObject<TSchema extends z.ZodType>(
-    options: StreamObjectOptions<TSchema>
-  ): Promise<ObjectStream<TSchema>>;
+    readonly provider: string;
+    readonly modelId: string;
+    readonly capabilities: ModelCapabilities;
+    generate(options: GenerateOptions): Promise<GenerateResult>;
+    stream(options: GenerateOptions): Promise<ChatStream>;
+    generateObject<TSchema extends z.ZodType>(
+        options: GenerateObjectOptions<TSchema>
+    ): Promise<GenerateObjectResult<TSchema>>;
+    streamObject<TSchema extends z.ZodType>(
+        options: StreamObjectOptions<TSchema>
+    ): Promise<ObjectStream<TSchema>>;
 };
 ```
 
@@ -42,10 +43,10 @@ const openai = createOpenAI();
 const model = openai.chatModel('gpt-5-mini');
 
 const result = await generate({
-  model,
-  messages: [
-    { role: 'user', content: 'Explain quantum computing in one sentence.' }
-  ],
+    model,
+    messages: [
+        { role: 'user', content: 'Explain quantum computing in one sentence.' },
+    ],
 });
 
 console.log(result.content);
@@ -58,16 +59,14 @@ console.log(result.content);
 import { stream } from '@core-ai/core-ai';
 
 const response = await stream({
-  model,
-  messages: [
-    { role: 'user', content: 'Write a short story.' }
-  ],
+    model,
+    messages: [{ role: 'user', content: 'Write a short story.' }],
 });
 
 for await (const event of response) {
-  if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 ```
 
@@ -80,18 +79,16 @@ import { z } from 'zod';
 import { generateObject } from '@core-ai/core-ai';
 
 const schema = z.object({
-  name: z.string(),
-  age: z.number(),
-  hobbies: z.array(z.string()),
+    name: z.string(),
+    age: z.number(),
+    hobbies: z.array(z.string()),
 });
 
 const result = await generateObject({
-  model,
-  messages: [
-    { role: 'user', content: 'Generate a random person profile.' }
-  ],
-  schema,
-  schemaName: 'Person',
+    model,
+    messages: [{ role: 'user', content: 'Generate a random person profile.' }],
+    schema,
+    schemaName: 'Person',
 });
 
 console.log(result.object);
@@ -107,27 +104,25 @@ import { defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const tools = {
-  getWeather: defineTool({
-    name: 'getWeather',
-    description: 'Get current weather for a location',
-    parameters: z.object({
-      location: z.string().describe('City name'),
-      unit: z.enum(['celsius', 'fahrenheit']).optional(),
+    getWeather: defineTool({
+        name: 'getWeather',
+        description: 'Get current weather for a location',
+        parameters: z.object({
+            location: z.string().describe('City name'),
+            unit: z.enum(['celsius', 'fahrenheit']).optional(),
+        }),
     }),
-  }),
 };
 
 const result = await generate({
-  model,
-  messages: [
-    { role: 'user', content: 'What\'s the weather in Paris?' }
-  ],
-  tools,
+    model,
+    messages: [{ role: 'user', content: "What's the weather in Paris?" }],
+    tools,
 });
 
 if (result.toolCalls.length > 0) {
-  console.log(result.toolCalls[0]);
-  // { id: "call_123", name: "getWeather", arguments: { location: "Paris" } }
+    console.log(result.toolCalls[0]);
+    // { id: "call_123", name: "getWeather", arguments: { location: "Paris" } }
 }
 ```
 
@@ -149,9 +144,9 @@ Embedding models convert text into numerical vectors for semantic similarity and
 
 ```typescript
 type EmbeddingModel = {
-  readonly provider: string;
-  readonly modelId: string;
-  embed(options: EmbedOptions): Promise<EmbedResult>;
+    readonly provider: string;
+    readonly modelId: string;
+    embed(options: EmbedOptions): Promise<EmbedResult>;
 };
 ```
 
@@ -165,8 +160,8 @@ const openai = createOpenAI();
 const model = openai.embeddingModel('text-embedding-3-small');
 
 const result = await embed({
-  model,
-  input: 'The quick brown fox jumps over the lazy dog',
+    model,
+    input: 'The quick brown fox jumps over the lazy dog',
 });
 
 console.log(result.embeddings[0].length);
@@ -177,12 +172,8 @@ console.log(result.embeddings[0].length);
 
 ```typescript
 const result = await embed({
-  model,
-  input: [
-    'First document',
-    'Second document',
-    'Third document',
-  ],
+    model,
+    input: ['First document', 'Second document', 'Third document'],
 });
 
 console.log(result.embeddings.length);
@@ -193,9 +184,9 @@ console.log(result.embeddings.length);
 
 ```typescript
 const result = await embed({
-  model,
-  input: 'Sample text',
-  dimensions: 256, // Reduce dimensions for faster search
+    model,
+    input: 'Sample text',
+    dimensions: 256, // Reduce dimensions for faster search
 });
 ```
 
@@ -203,12 +194,12 @@ const result = await embed({
 
 ```typescript
 type EmbedResult = {
-  embeddings: number[][]; // Array of embedding vectors
-  usage?: EmbeddingUsage; // Optional token usage (provider-dependent)
+    embeddings: number[][]; // Array of embedding vectors
+    usage?: EmbeddingUsage; // Optional token usage (provider-dependent)
 };
 
 type EmbeddingUsage = {
-  inputTokens: number;
+    inputTokens: number;
 };
 ```
 
@@ -220,9 +211,9 @@ Image models generate images from text descriptions.
 
 ```typescript
 type ImageModel = {
-  readonly provider: string;
-  readonly modelId: string;
-  generate(options: ImageGenerateOptions): Promise<ImageGenerateResult>;
+    readonly provider: string;
+    readonly modelId: string;
+    generate(options: ImageGenerateOptions): Promise<ImageGenerateResult>;
 };
 ```
 
@@ -236,8 +227,8 @@ const openai = createOpenAI();
 const model = openai.imageModel('gpt-image-1');
 
 const result = await generateImage({
-  model,
-  prompt: 'A futuristic city at sunset with flying cars',
+    model,
+    prompt: 'A futuristic city at sunset with flying cars',
 });
 
 console.log(result.images[0]);
@@ -248,10 +239,10 @@ console.log(result.images[0]);
 
 ```typescript
 type ImageGenerateOptions = {
-  prompt: string; // Text description of desired image
-  n?: number; // Number of images to generate
-  size?: string; // Image size (e.g., "1024x1024")
-  providerOptions?: ImageProviderOptions; // Provider-specific options
+    prompt: string; // Text description of desired image
+    n?: number; // Number of images to generate
+    size?: string; // Image size (e.g., "1024x1024")
+    providerOptions?: ImageProviderOptions; // Provider-specific options
 };
 ```
 
@@ -259,10 +250,10 @@ type ImageGenerateOptions = {
 
 ```typescript
 const result = await generateImage({
-  model,
-  prompt: 'Abstract art with geometric shapes',
-  n: 4, // Generate 4 variations
-  size: '512x512',
+    model,
+    prompt: 'Abstract art with geometric shapes',
+    n: 4, // Generate 4 variations
+    size: '512x512',
 });
 
 console.log(result.images.length);
@@ -273,23 +264,24 @@ console.log(result.images.length);
 
 ```typescript
 type ImageGenerateResult = {
-  images: GeneratedImage[];
+    images: GeneratedImage[];
 };
 
 type GeneratedImage = {
-  base64?: string; // Base64-encoded image data
-  url?: string; // URL to hosted image
-  revisedPrompt?: string; // Provider-revised prompt
+    base64?: string; // Base64-encoded image data
+    url?: string; // URL to hosted image
+    revisedPrompt?: string; // Provider-revised prompt
 };
 ```
 
 <Note>
-  Different providers may return images as URLs, base64 data, or both. Check the provider documentation for specific behavior.
+    Different providers may return images as URLs, base64 data, or both. Check
+    the provider documentation for specific behavior.
 </Note>
 
 ## Model Properties
 
-All models expose two readonly properties:
+All models expose readonly `provider` and `modelId` properties:
 
 ```typescript
 const model = openai.chatModel('gpt-5-mini');
@@ -299,6 +291,24 @@ console.log(model.modelId); // "gpt-5-mini"
 ```
 
 These properties are useful for logging, debugging, and tracking which models are used in your application.
+
+### Chat model capabilities
+
+Chat models also expose a `capabilities` property that describes what the model supports for the unified API. Use it to decide whether to pass `reasoning` and which effort levels are valid before making a request:
+
+```typescript
+const model = openai.chatModel('gpt-5.2');
+
+if (model.capabilities.reasoning.supported) {
+    console.log(model.capabilities.reasoning.supportedEfforts);
+    // ['low', 'medium', 'high', 'max']
+
+    // When true, omit temperature/topP while reasoning is enabled
+    console.log(model.capabilities.reasoning.restrictsSamplingParams);
+}
+```
+
+Provider packages also export `get*ModelCapabilities(modelId)` helpers (for example `getOpenAIModelCapabilities`) that return the same data without constructing a `ChatModel`. See the [types reference](/api/core/types) for the full `ModelCapabilities` definition and [`clampReasoningEffort`](/api/core/utilities) for adjusting an effort level to the supported set.
 
 ## Next steps
 
