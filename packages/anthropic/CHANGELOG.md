@@ -1,5 +1,12 @@
 # @core-ai/anthropic
 
+## 0.13.1
+
+### Patch Changes
+
+- 8396024: Fix Anthropic adaptive and manual reasoning requests, including tool-use beta headers, token budgets, thinking block preservation, summarized output, and reasoning token usage.
+    - @core-ai/core-ai@0.13.1
+
 ## 0.13.0
 
 ### Minor Changes
