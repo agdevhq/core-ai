@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.14.0
+
+### Minor Changes
+
+- 8e64097: Add application-owned metadata to text-bearing message parts and text boundary stream events.
+
 ## 0.13.1
 
 ## 0.13.0
