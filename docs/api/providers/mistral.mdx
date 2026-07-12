@@ -210,6 +210,31 @@ for (const [i, embedding] of result.embeddings.entries()) {
 }
 ```
 
+### Vision
+
+```typescript
+const result = await generate({
+  model: mistral.chatModel('mistral-small-2506'),
+  messages: [
+    {
+      role: 'user',
+      content: [
+        { type: 'text', text: 'Describe what you see in this image.' },
+        {
+          type: 'image',
+          source: {
+            type: 'url',
+            url: 'https://example.com/photo.jpg',
+          },
+        },
+      ],
+    },
+  ],
+});
+
+console.log(result.content);
+```
+
 ### Code generation
 
 ```typescript

@@ -5,97 +5,103 @@ description: CoreAIError, ProviderError, and structured output error types in co
 
 ## Overview
 
-core-ai provides a hierarchy of error types that help you handle failures gracefully. For the complete API surface, see the [errors reference](/api/core/errors).
+core-ai provides a hierarchy of error types that help you handle failures gracefully. All errors extend from `CoreAIError`, letting you catch any library error with a single `instanceof` check or target specific failure types for fine-grained handling.
 
-## Error Hierarchy
+For complete class definitions and constructor signatures, see the [errors reference](/api/core/errors).
 
-```typescript
-Error
-└── CoreAIError
-    ├── ValidationError
-    ├── AbortedError
-    │   └── StreamAbortedError
-    ├── ProviderError
-    └── StructuredOutputError
-        ├── StructuredOutputNoObjectGeneratedError
-        ├── StructuredOutputParseError
-        └── StructuredOutputValidationError
+## Error hierarchy
+
+```
+CoreAIError
+├── ValidationError
+├── AbortedError
+│   └── StreamAbortedError
+├── ProviderError
+└── StructuredOutputError
+    ├── StructuredOutputNoObjectGeneratedError
+    ├── StructuredOutputParseError
+    └── StructuredOutputValidationError
 ```
 
-## CoreAIError
+| Error | When thrown |
+|-------|-----------|
+| `ValidationError` | Invalid caller input (empty messages, empty embedding input, empty prompt) |
+| `AbortedError` | Operation cancelled via `AbortSignal` |
+| `StreamAbortedError` | Streaming operation cancelled via `AbortSignal` |
+| `ProviderError` | Provider API failures (network errors, rate limits, auth failures) |
+| `StructuredOutputNoObjectGeneratedError` | Model did not produce structured output |
+| `StructuredOutputParseError` | Model output is not valid JSON |
+| `StructuredOutputValidationError` | Model output does not match the Zod schema |
 
-Base error class for all core-ai errors.
+## Catching errors
+
+Check for the most specific error types first, then fall back to `CoreAIError`:
 
 ```typescript
-class CoreAIError extends Error {
-  public readonly provider?: string;
-  public readonly cause?: unknown;
-
-  constructor(message: string, cause?: unknown, provider?: string);
-}
-```
-
-**Usage:**
-
-```typescript
-import { CoreAIError, generate } from '@core-ai/core-ai';
+import {
+  CoreAIError,
+  generate,
+  ProviderError,
+  ValidationError,
+} from '@core-ai/core-ai';
 
 try {
-  const result = await generate({
-    model,
-    messages: [], // Empty messages array
-  });
+  const result = await generate({ model, messages });
 } catch (error) {
-  if (error instanceof CoreAIError) {
-    console.error('core-ai error:', error.message);
-    if (error.cause) {
-      console.error('Caused by:', error.cause);
+  if (error instanceof ProviderError) {
+    console.error(`Provider: ${error.provider}`);
+    console.error(`Status: ${error.statusCode}`);
+
+    if (error.statusCode === 429) {
+      console.log('Rate limited - retry with backoff');
+    } else if (error.statusCode === 401) {
+      console.log('Authentication failed - check API key');
     }
+  } else if (error instanceof ValidationError) {
+    console.error('Invalid input:', error.message);
+  } else if (error instanceof CoreAIError) {
+    console.error('core-ai error:', error.message);
   }
 }
 ```
 
-<Tip>
-  Check for the most specific error types first, then fall back to `CoreAIError` to catch any standardized library error.
-</Tip>
+## Handling structured output errors
 
-## ValidationError
-
-Thrown when core-ai rejects invalid caller input or local request configuration before making a provider call.
+When using `generateObject()` or `streamObject()`, you may encounter structured output errors in addition to the general error types:
 
 ```typescript
-class ValidationError extends CoreAIError {
-  constructor(message: string, cause?: unknown, provider?: string);
+import {
+  generateObject,
+  StructuredOutputNoObjectGeneratedError,
+  StructuredOutputParseError,
+  StructuredOutputValidationError,
+} from '@core-ai/core-ai';
+import { z } from 'zod';
+
+try {
+  const result = await generateObject({
+    model,
+    messages: [{ role: 'user', content: 'Generate user data' }],
+    schema: z.object({
+      name: z.string(),
+      age: z.number().int().positive(),
+    }),
+  });
+} catch (error) {
+  if (error instanceof StructuredOutputValidationError) {
+    console.error('Schema validation failed');
+    error.issues.forEach((issue) => console.error(`- ${issue}`));
+  } else if (error instanceof StructuredOutputParseError) {
+    console.error('Failed to parse JSON:', error.rawOutput);
+  } else if (error instanceof StructuredOutputNoObjectGeneratedError) {
+    console.error('Model did not generate structured output');
+  }
 }
 ```
 
-**When thrown:**
-- Empty messages array
-- Empty input for embeddings
-- Empty prompt for image generation
-- Invalid local request configuration
+## Handling stream cancellation
 
-## AbortedError
-
-Thrown when an operation is cancelled via an `AbortSignal`.
-
-```typescript
-class AbortedError extends CoreAIError {
-  constructor(cause?: unknown, provider?: string);
-}
-```
-
-## StreamAbortedError
-
-Thrown when a streaming operation is aborted via an `AbortSignal`.
-
-```typescript
-class StreamAbortedError extends AbortedError {
-  constructor(cause?: unknown, provider?: string);
-}
-```
-
-**Usage:**
+Cancel long-running streams with `AbortSignal`:
 
 ```typescript
 import { stream, StreamAbortedError } from '@core-ai/core-ai';
@@ -120,281 +126,21 @@ try {
 }
 ```
 
-<Note>
-  `StreamAbortedError` applies to an in-flight stream. Validation errors such as empty `messages` throw `ValidationError`.
-</Note>
+## Common status codes
 
-## ProviderError
+| Code | Meaning | Recommended action |
+|------|---------|--------------------|
+| 401 | Authentication failed | Check API key |
+| 403 | Forbidden | Check API permissions |
+| 429 | Rate limit exceeded | Retry with exponential backoff |
+| 500 | Server error | Retry request |
+| 503 | Service unavailable | Wait and retry |
 
-Error specific to provider API failures (network errors, API errors, rate limits, etc.).
-
-```typescript
-class ProviderError extends CoreAIError {
-  public readonly statusCode?: number;
-
-  constructor(
-    message: string,
-    provider: string,
-    statusCode?: number,
-    cause?: unknown
-  );
-}
-```
-
-**Usage:**
+## Retry with exponential backoff
 
 ```typescript
 import { generate, ProviderError } from '@core-ai/core-ai';
 
-try {
-  const result = await generate({ model, messages });
-} catch (error) {
-  if (error instanceof ProviderError) {
-    console.error(`Provider: ${error.provider}`);
-    console.error(`Status: ${error.statusCode}`);
-    console.error(`Message: ${error.message}`);
-    
-    // Handle specific status codes
-    if (error.statusCode === 429) {
-      console.log('Rate limited - retry with backoff');
-    } else if (error.statusCode === 401) {
-      console.log('Authentication failed - check API key');
-    }
-  }
-}
-```
-
-**Common Status Codes:**
-
-| Code | Meaning | Recommended Action |
-|------|---------|--------------------|
-| 401 | Authentication failed | Check API key |
-| 403 | Forbidden | Check API permissions |
-| 429 | Rate limit exceeded | Implement retry with exponential backoff |
-| 500 | Server error | Retry request |
-| 503 | Service unavailable | Wait and retry |
-
-**When thrown:**
-- Invalid API key
-- Rate limits exceeded
-- Network failures
-- Provider API errors
-- Timeout errors
-
-## Structured Output Errors
-
-Errors specific to structured output generation (`generateObject` and `streamObject`).
-
-### StructuredOutputError
-
-Base class for all structured output errors.
-
-```typescript
-class StructuredOutputError extends CoreAIError {
-  public readonly rawOutput?: string;
-  public readonly statusCode?: number;
-
-  constructor(
-    message: string,
-    provider: string,
-    options: {
-      statusCode?: number;
-      cause?: unknown;
-      rawOutput?: string;
-    }
-  );
-}
-```
-
-**Properties:**
-- `rawOutput`: The raw text output from the model (if available)
-- `provider`: Which provider was used
-- `statusCode`: HTTP status code (if applicable)
-- `cause`: Underlying error that caused this error
-
-### StructuredOutputNoObjectGeneratedError
-
-Thrown when the model doesn't generate any structured output.
-
-```typescript
-import { generateObject, StructuredOutputNoObjectGeneratedError } from '@core-ai/core-ai';
-import { z } from 'zod';
-
-const schema = z.object({
-  name: z.string(),
-  age: z.number(),
-});
-
-try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Hello' }],
-    schema,
-  });
-} catch (error) {
-  if (error instanceof StructuredOutputNoObjectGeneratedError) {
-    console.error('Model did not generate structured output');
-    console.error('Raw output:', error.rawOutput);
-  }
-}
-```
-
-**When thrown:**
-- Model responds with regular text instead of structured output
-- Tool call for structured output was not made
-- Finish reason is not 'stop' or 'tool-calls'
-
-### StructuredOutputParseError
-
-Thrown when the model's output cannot be parsed as JSON.
-
-```typescript
-import { generateObject, StructuredOutputParseError } from '@core-ai/core-ai';
-
-try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Generate user data' }],
-    schema,
-  });
-} catch (error) {
-  if (error instanceof StructuredOutputParseError) {
-    console.error('Failed to parse JSON output');
-    console.error('Raw output:', error.rawOutput);
-    console.error('Parse error:', error.cause);
-  }
-}
-```
-
-**When thrown:**
-- Model output is not valid JSON
-- JSON syntax errors in model output
-- Malformed structured output
-
-### StructuredOutputValidationError
-
-Thrown when the model's output doesn't match the Zod schema.
-
-```typescript
-import { generateObject, StructuredOutputValidationError } from '@core-ai/core-ai';
-
-const schema = z.object({
-  name: z.string().min(1),
-  age: z.number().int().positive(),
-  email: z.string().email(),
-});
-
-try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Generate user data' }],
-    schema,
-  });
-} catch (error) {
-  if (error instanceof StructuredOutputValidationError) {
-    console.error('Schema validation failed');
-    console.error('Issues:', error.issues);
-    console.error('Raw output:', error.rawOutput);
-    
-    // Display each validation issue
-    error.issues.forEach((issue, i) => {
-      console.log(`${i + 1}. ${issue}`);
-    });
-  }
-}
-```
-
-**Properties:**
-- `issues`: Array of human-readable validation error messages
-
-**When thrown:**
-- Missing required fields
-- Wrong data types
-- Values that don't match schema constraints
-- Invalid enum values
-
-## Complete Error Handling Example
-
-```typescript
-import {
-  CoreAIError,
-  generate,
-  generateObject,
-  ProviderError,
-  StructuredOutputError,
-  StructuredOutputNoObjectGeneratedError,
-  StructuredOutputParseError,
-  StructuredOutputValidationError,
-} from '@core-ai/core-ai';
-import { z } from 'zod';
-
-async function generateUserProfile(prompt: string) {
-  const schema = z.object({
-    name: z.string(),
-    age: z.number(),
-    email: z.string().email(),
-  });
-
-  try {
-    const result = await generateObject({
-      model,
-      messages: [{ role: 'user', content: prompt }],
-      schema,
-      schemaName: 'UserProfile',
-    });
-    
-    return result.object;
-  } catch (error) {
-    // Handle validation errors - most specific
-    if (error instanceof StructuredOutputValidationError) {
-      console.error('Schema validation failed:');
-      error.issues.forEach(issue => console.error(`- ${issue}`));
-      throw new Error('Invalid user profile format');
-    }
-    
-    // Handle parse errors
-    if (error instanceof StructuredOutputParseError) {
-      console.error('Failed to parse JSON output');
-      console.error('Raw output:', error.rawOutput);
-      throw new Error('Model returned invalid JSON');
-    }
-    
-    // Handle missing output
-    if (error instanceof StructuredOutputNoObjectGeneratedError) {
-      console.error('Model did not generate structured output');
-      throw new Error('Model did not follow instructions');
-    }
-    
-    // Handle provider errors
-    if (error instanceof ProviderError) {
-      if (error.statusCode === 429) {
-        console.log('Rate limited - implementing retry...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return generateUserProfile(prompt); // Retry
-      }
-      
-      console.error(`Provider error (${error.provider}):`, error.message);
-      throw new Error('AI service unavailable');
-    }
-    
-    // Handle generic core-ai errors
-    if (error instanceof CoreAIError) {
-      console.error('core-ai error:', error.message);
-      throw new Error('AI request failed');
-    }
-    
-    // Handle unexpected errors
-    console.error('Unexpected error:', error);
-    throw error;
-  }
-}
-```
-
-## Retry Strategies
-
-### Exponential Backoff
-
-```typescript
 async function generateWithRetry(
   model: ChatModel,
   messages: Message[],
@@ -405,137 +151,58 @@ async function generateWithRetry(
       return await generate({ model, messages });
     } catch (error) {
       if (error instanceof ProviderError && error.statusCode === 429) {
-        const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
+        const delay = Math.pow(2, attempt) * 1000;
         console.log(`Rate limited. Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
+        await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
-      throw error; // Don't retry other errors
+      throw error;
     }
   }
   throw new Error('Max retries exceeded');
 }
 ```
 
-### Circuit Breaker
+## Provider fallback
+
+Fall back to a different provider when the primary one fails:
 
 ```typescript
-class CircuitBreaker {
-  private failures = 0;
-  private lastFailureTime = 0;
-  private readonly threshold = 5;
-  private readonly timeout = 60000; // 1 minute
+import { generate, ProviderError } from '@core-ai/core-ai';
 
-  async execute<T>(fn: () => Promise<T>): Promise<T> {
-    if (this.isOpen()) {
-      throw new Error('Circuit breaker is open');
+async function generateWithFallback(
+  primaryModel: ChatModel,
+  fallbackModel: ChatModel,
+  messages: Message[]
+) {
+  try {
+    return await generate({ model: primaryModel, messages });
+  } catch (error) {
+    if (error instanceof ProviderError) {
+      console.warn('Primary model failed, using fallback');
+      return await generate({ model: fallbackModel, messages });
     }
-
-    try {
-      const result = await fn();
-      this.onSuccess();
-      return result;
-    } catch (error) {
-      this.onFailure();
-      throw error;
-    }
-  }
-
-  private isOpen(): boolean {
-    if (this.failures >= this.threshold) {
-      const timeSinceLastFailure = Date.now() - this.lastFailureTime;
-      return timeSinceLastFailure < this.timeout;
-    }
-    return false;
-  }
-
-  private onSuccess() {
-    this.failures = 0;
-  }
-
-  private onFailure() {
-    this.failures++;
-    this.lastFailureTime = Date.now();
+    throw error;
   }
 }
-
-const breaker = new CircuitBreaker();
-
-const result = await breaker.execute(() =>
-  generate({ model, messages })
-);
 ```
 
-## Validation Best Practices
+## Best practices
 
 <Tip>
-  **Validate inputs before sending:** Check for empty messages, validate file sizes, and ensure proper content types before making API calls to avoid unnecessary errors.
+  Check for the most specific error types first, then fall back to `CoreAIError` to catch any standardized library error.
 </Tip>
 
-```typescript
-function validateMessages(messages: Message[]): void {
-  if (messages.length === 0) {
-    throw new ValidationError('messages must not be empty');
-  }
-  
-  for (const message of messages) {
-    if (message.role === 'user' && typeof message.content === 'string') {
-      if (message.content.trim().length === 0) {
-        throw new ValidationError('user message content must not be empty');
-      }
-    }
-  }
-}
-```
-
-## Logging Errors
+<Warning>
+  Don't retry `StructuredOutputValidationError` — it indicates a schema mismatch that won't resolve by retrying.
+</Warning>
 
 <Tip>
-  **Log error details for debugging:** Include provider, model, status codes, and raw output when available to help diagnose issues.
+  Log error details including `provider`, `statusCode`, and `rawOutput` for debugging. See the [errors reference](/api/core/errors) for all available properties.
 </Tip>
 
-```typescript
-import { ProviderError } from '@core-ai/core-ai';
+## Next steps
 
-function logError(error: unknown, context: Record<string, unknown>) {
-  const errorInfo: Record<string, unknown> = {
-    ...context,
-    message: error instanceof Error ? error.message : String(error),
-    name: error instanceof Error ? error.name : 'Unknown',
-  };
-
-  if (error instanceof ProviderError) {
-    errorInfo.provider = error.provider;
-    errorInfo.statusCode = error.statusCode;
-  }
-
-  if (error instanceof StructuredOutputError) {
-    errorInfo.rawOutput = error.rawOutput;
-  }
-
-  if (error instanceof StructuredOutputValidationError) {
-    errorInfo.validationIssues = error.issues;
-  }
-
-  console.error('AI Error:', JSON.stringify(errorInfo, null, 2));
-}
-
-// Usage
-try {
-  const result = await generate({ model, messages });
-} catch (error) {
-  logError(error, {
-    operation: 'generate',
-    model: model.modelId,
-    provider: model.provider,
-    messageCount: messages.length,
-  });
-  throw error;
-}
-```
-
-## Next Steps
-
+- See the full [errors reference](/api/core/errors) for class definitions and constructor signatures
 - Learn about [Providers](/concepts/providers) for provider-specific behavior
-- Explore [Configuration](/concepts/configuration) for controlling generation
-- Understand [Messages](/concepts/messages) for building conversations
+- Configure models with [Configuration](/concepts/configuration) options

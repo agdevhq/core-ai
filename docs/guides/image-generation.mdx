@@ -53,9 +53,7 @@ const result = await generateImage({
 
 <Note>
   Available sizes depend on the provider and model. Common sizes include:
-  - `256x256`
-  - `512x512`
-  - `1024x1024`
+  - `1024x1024` (square)
   - `1792x1024` (landscape)
   - `1024x1792` (portrait)
 </Note>
@@ -85,7 +83,7 @@ const result = await generateImage({
   model,
   prompt: 'A minimalist logo for a tech startup',
   n: 4, // Generate 4 variations
-  size: '512x512',
+  size: '1024x1024',
 });
 
 console.log(`Generated ${result.images.length} images`);
@@ -373,7 +371,7 @@ const result = await generateImage({
                 `clean design, professional, vector style, ` +
                 `white background, high contrast`,
         n: 3,
-        size: '512x512',
+        size: '1024x1024',
       });
 
       return result.images;
@@ -466,21 +464,21 @@ const result = await generateImage({
   </Accordion>
 
   <Accordion title="Use appropriate sizes for your use case">
-    Smaller sizes are faster and cheaper:
+    Choose the right aspect ratio for your content:
 
     ```typescript
-    // Thumbnail: use smaller size
-    const thumbnail = await generateImage({
+    // Square: icons, logos, social media
+    const square = await generateImage({
       model,
-      prompt: 'icon design',
-      size: '256x256',
+      prompt: 'a centered logo design',
+      size: '1024x1024',
     });
 
-    // High quality print: use larger size
-    const print = await generateImage({
+    // Landscape: banners, headers, scenic images
+    const landscape = await generateImage({
       model,
-      prompt: 'artwork',
-      size: '1024x1024',
+      prompt: 'a wide panoramic landscape',
+      size: '1792x1024',
     });
     ```
   </Accordion>
