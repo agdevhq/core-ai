@@ -275,6 +275,16 @@ const result = await generate({
 });
 ```
 
+Effort mapping for adaptive thinking:
+
+| `ReasoningEffort` | Anthropic effort |
+|---|---|
+| `'minimal'` | `'low'` |
+| `'low'` | `'low'` |
+| `'medium'` | `'medium'` |
+| `'high'` | `'high'` |
+| `'max'` | `'max'` (`claude-opus-4-6` only) |
+
 <Note>
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
     `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-5`,
@@ -400,7 +410,7 @@ console.log(result.usage.inputTokenDetails.cacheReadTokens);
 console.log(result.usage.inputTokenDetails.cacheWriteTokens);
 ```
 
-You can request a 1-hour cache TTL when you expect follow-up requests to arrive later than Anthropic's default 5-minute cache window:
+Valid TTL values are `'5m'` (the default) and `'1h'`. Request a longer TTL when you expect follow-up requests to arrive later than Anthropic's default 5-minute cache window:
 
 ```typescript
 const result = await generate({

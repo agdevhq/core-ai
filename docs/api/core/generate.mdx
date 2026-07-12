@@ -64,6 +64,10 @@ export type GenerateParams = GenerateOptions & {
   - `{ type: 'tool', toolName: string }` - Force specific tool
 </ParamField>
 
+<ParamField path="metadata" type="Record<string, unknown>">
+  Custom metadata to attach to the request. Forwarded to observability middleware (OpenTelemetry, Langfuse).
+</ParamField>
+
 <ParamField path="providerOptions" type="GenerateProviderOptions">
   Provider-specific options, namespaced by provider name (e.g. `{ openai: { user: '...' } }`).
 </ParamField>

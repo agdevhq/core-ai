@@ -125,7 +125,7 @@ Each Langfuse observation includes:
 | `modelParameters` | Temperature, max tokens, top-p (when set) |
 | `input` | Input messages (when `recordContent` is `true`) |
 | `output` | Response content (when `recordContent` is `true`) |
-| `usageDetails` | Input tokens, output tokens, cache tokens, reasoning tokens |
+| `usageDetails` | Token usage with keys: `input`, `output`, `cache_read_input`, `cache_creation_input`, `reasoning_output` (when applicable) |
 | `metadata` | Custom metadata from the options |
 | `level` | Set to `ERROR` on failures |
 | `statusMessage` | Error message on failures |

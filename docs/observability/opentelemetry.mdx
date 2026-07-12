@@ -115,15 +115,24 @@ Spans follow [OpenTelemetry GenAI semantic conventions](https://opentelemetry.io
 
 | Attribute | Description |
 | --- | --- |
-| `gen_ai.system` | Provider name |
+| `gen_ai.provider.name` | Provider name |
 | `gen_ai.request.model` | Model ID |
+| `gen_ai.operation.name` | Operation type (`chat`, `embeddings`, or `image_generation`) |
+| `gen_ai.output.type` | Output type (`text`, `json`, or `image`) |
 | `gen_ai.request.temperature` | Temperature setting |
 | `gen_ai.request.max_tokens` | Max tokens setting |
 | `gen_ai.request.top_p` | Top-p setting |
-| `gen_ai.response.finish_reason` | Why generation stopped |
+| `gen_ai.request.schema_name` | Schema name (for `generateObject`/`streamObject`) |
+| `gen_ai.response.finish_reasons` | Array of finish reasons |
 | `gen_ai.usage.input_tokens` | Input token count |
 | `gen_ai.usage.output_tokens` | Output token count |
+| `gen_ai.usage.cache_read.input_tokens` | Cached input tokens read |
+| `gen_ai.usage.cache_creation.input_tokens` | Tokens written to cache |
+| `core_ai.function_id` | Function ID from `metadata.functionId` |
+| `core_ai.metadata.*` | Custom metadata fields (from the `metadata` option) |
 
-When `recordContent` is enabled, input messages and output content are recorded as additional attributes.
+Span names follow the pattern `{operation} {modelId}`, for example `chat gpt-5-mini`, `embeddings text-embedding-3-small`, or `image_generation gpt-image-1`.
+
+When `recordContent` is enabled, input messages, tool definitions, and output content are recorded as additional attributes (`gen_ai.system_instructions`, `gen_ai.input.messages`, `gen_ai.output.messages`, `gen_ai.tool.definitions`, `input.value`, `output.value`).
 
 Errors are recorded with `error.type` and the span status is set to `ERROR`.

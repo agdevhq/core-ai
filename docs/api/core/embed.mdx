@@ -34,6 +34,10 @@ export type EmbedParams = EmbedOptions & {
   Optional dimension size for the output embeddings. Not all models support this parameter.
 </ParamField>
 
+<ParamField path="metadata" type="Record<string, unknown>">
+  Custom metadata to attach to the request. Forwarded to observability middleware (OpenTelemetry, Langfuse).
+</ParamField>
+
 <ParamField path="providerOptions" type="EmbedProviderOptions">
   Provider-specific options, namespaced by provider name (e.g. `{ openai: { encodingFormat: 'float' } }`).
 </ParamField>

@@ -18,6 +18,7 @@ type BaseGenerateOptions = {
   maxTokens?: number;
   topP?: number;
   reasoning?: ReasoningConfig;
+  metadata?: Record<string, unknown>;
   providerOptions?: GenerateProviderOptions;
   signal?: AbortSignal;
 };

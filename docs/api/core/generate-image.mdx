@@ -43,6 +43,10 @@ export type GenerateImageParams = ImageGenerateOptions & {
   - `'1024x1792'` (portrait)
 </ParamField>
 
+<ParamField path="metadata" type="Record<string, unknown>">
+  Custom metadata to attach to the request. Forwarded to observability middleware (OpenTelemetry, Langfuse).
+</ParamField>
+
 <ParamField path="providerOptions" type="ImageProviderOptions">
   Provider-specific options, namespaced by provider name (e.g. `{ openai: { quality: 'hd' } }`).
 </ParamField>
