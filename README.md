@@ -29,15 +29,15 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 ## Providers
 
 | Provider              | Package                     | Chat | Streaming | Embeddings | Image Generation |
-| --------------------- | ---------------------------- | ---- | --------- | ---------- | ---------------- |
-| OpenAI (Responses)    | `@core-ai/openai`            | Yes  | Yes       | Yes        | Yes              |
-| OpenAI (Completions)  | `@core-ai/openai/compat`     | Yes  | Yes       | Yes        | Yes              |
-| Azure OpenAI          | `@core-ai/azure-openai`      | Yes  | Yes       | —          | —                |
-| Anthropic             | `@core-ai/anthropic`         | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini) | `@core-ai/google-genai`      | Yes  | Yes       | Yes        | Yes              |
-| Mistral               | `@core-ai/mistral`           | Yes  | Yes       | Yes        | —                |
-| Omnifact              | `@core-ai/omnifact`          | Yes  | Yes       | —          | —                |
-| Vertex AI Anthropic   | `@core-ai/anthropic-vertex`  | Yes  | Yes       | —          | —                |
+| --------------------- | --------------------------- | ---- | --------- | ---------- | ---------------- |
+| OpenAI (Responses)    | `@core-ai/openai`           | Yes  | Yes       | Yes        | Yes              |
+| OpenAI (Completions)  | `@core-ai/openai/compat`    | Yes  | Yes       | Yes        | Yes              |
+| Azure OpenAI          | `@core-ai/azure-openai`     | Yes  | Yes       | —          | —                |
+| Anthropic             | `@core-ai/anthropic`        | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini) | `@core-ai/google-genai`     | Yes  | Yes       | Yes        | Yes              |
+| Mistral               | `@core-ai/mistral`          | Yes  | Yes       | Yes        | —                |
+| Omnifact              | `@core-ai/omnifact`         | Yes  | Yes       | —          | —                |
+| Vertex AI Anthropic   | `@core-ai/anthropic-vertex` | Yes  | Yes       | —          | —                |
 
 > **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the Chat Completions API for third-party OpenAI-compatible endpoints, import from `@core-ai/openai/compat` instead.
 
