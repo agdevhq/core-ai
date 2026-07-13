@@ -53,8 +53,8 @@
         "@core-ai/eslint-config": "*",
         "@core-ai/typescript-config": "*",
         "@opentelemetry/api": "^1.9.1",
-        "@opentelemetry/context-async-hooks": "^2.6.1",
-        "@opentelemetry/sdk-trace-base": "^2.6.1",
+        "@opentelemetry/context-async-hooks": "^2.9.0",
+        "@opentelemetry/sdk-trace-base": "^2.9.0",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4",
         "zod": "^4.0.0"
