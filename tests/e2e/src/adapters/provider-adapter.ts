@@ -9,6 +9,7 @@ export type ProviderId =
     | 'openai-compat'
     | 'azure-openai'
     | 'anthropic'
+    | 'vertex-anthropic'
     | 'google'
     | 'mistral'
     | 'omnifact';

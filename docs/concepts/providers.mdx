@@ -1,11 +1,11 @@
 ---
 title: Providers
-description: Learn how providers work in core-ai and how to use OpenAI, Azure OpenAI, Anthropic, Google GenAI, and Mistral
+description: Learn how providers work in core-ai and how to use OpenAI, Azure OpenAI, Anthropic, Vertex AI Anthropic, Google GenAI, and Mistral
 ---
 
 ## Overview
 
-Providers are the bridge between core-ai and LLM services like OpenAI, Azure OpenAI, Anthropic, Google GenAI, and Mistral. Each provider implements a unified interface that abstracts away provider-specific details, allowing you to switch between providers with minimal code changes.
+Providers are the bridge between core-ai and LLM services like OpenAI, Azure OpenAI, Anthropic, Vertex AI Anthropic, Google GenAI, and Mistral. Each provider implements a unified interface that abstracts away provider-specific details, allowing you to switch between providers with minimal code changes.
 
 ## Provider Interface
 
@@ -121,7 +121,7 @@ const anthropic = createAnthropic({
 type AnthropicProviderOptions = {
     apiKey?: string;
     baseURL?: string;
-    client?: Anthropic; // Optional: bring your own Anthropic client
+    client?: AnthropicChatClient; // Optional: bring your own Anthropic client
     defaultMaxTokens?: number; // Optional: defaults to 4096
 };
 ```
@@ -137,6 +137,47 @@ const claudeOpus = anthropic.chatModel('claude-opus-4-6');
     Anthropic requires a `maxTokens` value for all requests. The
     `defaultMaxTokens` option sets a default value that can be overridden per
     request.
+</Note>
+
+## Vertex AI Anthropic
+
+Vertex AI Anthropic provides Claude models hosted on Google Cloud, sharing its request, streaming, and reasoning behavior with the direct Anthropic provider.
+
+### Creating a Provider
+
+```typescript
+import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+
+const vertexAnthropic = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+```
+
+### Provider Options
+
+```typescript
+type VertexAnthropicProviderOptions = {
+    projectId?: string; // Required unless client is provided
+    region?: string; // Required unless client is provided
+    credentials?: Record<string, unknown>; // Optional: service account JSON; falls back to ADC
+    client?: AnthropicChatClient; // Optional: bring your own client
+    defaultMaxTokens?: number; // Optional: defaults to 4096
+};
+```
+
+### Getting Models
+
+```typescript
+const claude = vertexAnthropic.chatModel('claude-sonnet-4-6');
+```
+
+<Note>
+    Without explicit `credentials`, the provider uses [Application Default
+    Credentials
+    (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
+    A provider instance targets a single region — create separate providers
+    for models hosted in different regions.
 </Note>
 
 ## Google GenAI
@@ -264,14 +305,15 @@ const openai = createOpenAI({ client: customClient });
 
 ## Provider Comparison
 
-| Provider     | Chat | Embeddings | Images | Special Features                        |
-| ------------ | ---- | ---------- | ------ | --------------------------------------- |
-| OpenAI       | ✓    | ✓          | ✓      | Most comprehensive model selection      |
-| Azure OpenAI | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth     |
-| Anthropic    | ✓    | ✗          | ✗      | Extended thinking, prompt caching       |
-| Google GenAI | ✓    | ✓          | ✓      | Gemini models with multimodal support   |
-| Mistral      | ✓    | ✓          | ✗      | Efficient open-source options           |
-| Omnifact     | ✓    | ✗          | ✗      | Organization gateway for enabled models |
+| Provider            | Chat | Embeddings | Images | Special Features                        |
+| ------------------- | ---- | ---------- | ------ | --------------------------------------- |
+| OpenAI              | ✓    | ✓          | ✓      | Most comprehensive model selection      |
+| Azure OpenAI        | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth     |
+| Anthropic           | ✓    | ✗          | ✗      | Extended thinking, prompt caching       |
+| Vertex AI Anthropic | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth        |
+| Google GenAI        | ✓    | ✓          | ✓      | Gemini models with multimodal support   |
+| Mistral             | ✓    | ✓          | ✗      | Efficient open-source options           |
+| Omnifact            | ✓    | ✗          | ✗      | Organization gateway for enabled models |
 
 ## Next Steps
 

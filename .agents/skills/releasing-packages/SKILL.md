@@ -95,6 +95,7 @@ npm publish -w @core-ai/google-genai --access public
 npm publish -w @core-ai/mistral --access public
 npm publish -w @core-ai/azure-openai --access public
 npm publish -w @core-ai/omnifact --access public
+npm publish -w @core-ai/vertex-anthropic --access public
 ```
 
 Publish `core-ai` first since providers depend on it.

@@ -1,0 +1,233 @@
+---
+title: 'Vertex AI Anthropic Provider'
+description: 'Create and configure the Vertex AI Anthropic provider for Claude models hosted on Google Cloud'
+---
+
+## Overview
+
+The Vertex AI Anthropic provider connects core-ai to Claude models hosted on [Google Vertex AI](https://cloud.google.com/vertex-ai) through the official [`@anthropic-ai/vertex-sdk`](https://www.npmjs.com/package/@anthropic-ai/vertex-sdk) client. It shares its request, streaming, tool-calling, structured-output, and reasoning behavior with `@core-ai/anthropic` — everything documented on the [Anthropic Provider](/api/providers/anthropic) page applies equally here.
+
+## Installation
+
+```bash
+npm install @core-ai/vertex-anthropic
+```
+
+## createVertexAnthropic()
+
+Create a Vertex AI Anthropic provider instance.
+
+```typescript
+import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+
+const vertexAnthropic = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+```
+
+### Options
+
+<ParamField path="projectId" type="string" optional>
+    Your Google Cloud project id. Required unless `client` is provided.
+</ParamField>
+
+<ParamField path="region" type="string" optional>
+    The Vertex AI region hosting the Claude model, for example
+    `europe-west1` or `eu`. Required unless `client` is provided. A provider
+    instance targets a single region — create separate providers if you need
+    models hosted in different regions.
+</ParamField>
+
+<ParamField path="credentials" type="object" optional>
+    A decoded Google service account JSON key. When omitted, the provider
+    falls back to [Application Default Credentials
+    (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
+</ParamField>
+
+<ParamField path="client" type="AnthropicChatClient" optional>
+    Provide your own configured client (for example a custom `AnthropicVertex`
+    instance).
+</ParamField>
+
+<ParamField path="defaultMaxTokens" type="number" optional default="4096">
+    Default maximum tokens for completions. Can be overridden per request.
+</ParamField>
+
+### Returns
+
+`VertexAnthropicProvider` with method `chatModel()`.
+
+## Authentication
+
+By default, the provider uses Application Default Credentials:
+
+```typescript
+const vertexAnthropic = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+```
+
+To authenticate with an explicit service account instead, pass its decoded JSON key as `credentials`. This works with the same base64-encoded service account convention used elsewhere in Omnifact:
+
+```typescript
+const vertexAnthropic = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+    credentials: JSON.parse(
+        Buffer.from(
+            process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64 ?? '',
+            'base64'
+        ).toString()
+    ),
+});
+```
+
+You can also inject a preconfigured client:
+
+```typescript
+import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
+import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+
+const vertexAnthropic = createVertexAnthropic({
+    client: new AnthropicVertex({ projectId: 'my-project', region: 'eu' }),
+});
+```
+
+## Model IDs and regions
+
+Pass the Vertex model id (as listed in the [Vertex AI Model Garden](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden)) to `chatModel()`. Model availability and naming vary by region — some Claude models are published to Vertex AI's `eu` multi-region while others are published to region-specific endpoints such as `europe-west1`. Since a provider instance targets a single region, create separate providers for models hosted in different regions:
+
+```typescript
+const vertexAnthropicEu = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'eu',
+});
+const vertexAnthropicEuWest1 = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+
+const model = vertexAnthropicEuWest1.chatModel('claude-sonnet-4-6');
+```
+
+## Capabilities
+
+| Feature          | Support |
+| ---------------- | ------- |
+| Chat Completion  | Yes     |
+| Streaming        | Yes     |
+| Function Calling | Yes     |
+| Vision           | Yes     |
+| Reasoning        | Yes     |
+| Prompt Caching   | Yes     |
+| Embeddings       | No      |
+| Image Generation | No      |
+
+Model capability helpers such as `getAnthropicModelCapabilities(modelId)` are available from `@core-ai/anthropic` and apply to Vertex-hosted Claude models.
+
+## Examples
+
+### Basic chat
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+
+const vertexAnthropic = createVertexAnthropic({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+
+const result = await generate({
+    model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Explain the theory of relativity' }],
+    maxTokens: 1024,
+});
+
+console.log(result.content);
+```
+
+### Streaming
+
+```typescript
+import { stream } from '@core-ai/core-ai';
+
+const chatStream = await stream({
+    model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Write a detailed analysis of...' }],
+    maxTokens: 1024,
+});
+
+for await (const event of chatStream) {
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
+}
+```
+
+## Provider-specific options and reasoning
+
+Provider options are namespaced under `anthropic` in `providerOptions`, matching `@core-ai/anthropic`:
+
+```typescript
+const result = await generate({
+    model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    maxTokens: 1024,
+    providerOptions: {
+        anthropic: {
+            stopSequences: ['\n\n'],
+        },
+    },
+});
+```
+
+See the [Anthropic Provider](/api/providers/anthropic#provider-specific-options) docs for the full list of available fields, reasoning restrictions, and prompt-caching behavior — they apply unchanged to Vertex-hosted Claude models.
+
+## Error handling
+
+```typescript
+import { ProviderError } from '@core-ai/core-ai';
+
+try {
+    const result = await generate({
+        model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+        messages: [{ role: 'user', content: 'Hello!' }],
+        maxTokens: 1024,
+    });
+} catch (error) {
+    if (error instanceof ProviderError) {
+        console.error('Vertex Anthropic API error:', error.message);
+        console.error('Status:', error.statusCode);
+    }
+}
+```
+
+<Note>
+    Errors are attributed to provider id `vertex-anthropic`, distinguishing
+    them from direct `@core-ai/anthropic` errors (`anthropic`).
+</Note>
+
+## Related
+
+<CardGroup cols={2}>
+    <Card title="Anthropic Provider" icon="a" href="/api/providers/anthropic">
+        Claude models via the direct Anthropic API
+    </Card>
+    <Card
+        title="Google GenAI Provider"
+        icon="sparkles"
+        href="/api/providers/google-genai"
+    >
+        Gemini models with multimodal support
+    </Card>
+    <Card
+        title="Chat Completion Guide"
+        icon="message"
+        href="/guides/chat-completion"
+    >
+        Learn how to use chat completion
+    </Card>
+</CardGroup>
