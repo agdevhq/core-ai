@@ -69,7 +69,7 @@ const vertexAnthropic = createVertexAnthropic({
 });
 ```
 
-To authenticate with an explicit service account instead, pass its decoded JSON key as `credentials`. This works with the same base64-encoded service account convention used elsewhere in Omnifact:
+To authenticate with an explicit service account instead, parse the service account JSON and pass the resulting object as `credentials`:
 
 ```typescript
 const vertexAnthropic = createVertexAnthropic({
