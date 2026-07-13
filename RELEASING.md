@@ -13,6 +13,7 @@ This repository uses Turborepo for build/test tasks and Changesets for versionin
 - `@core-ai/mistral`
 - `@core-ai/azure-openai`
 - `@core-ai/omnifact`
+- `@core-ai/anthropic-vertex`
 
 These packages are configured as a fixed group in `.changeset/config.json`, so they always share the same version.
 
@@ -67,6 +68,7 @@ New packages must exist on npm before trusted publishing can be configured. Publ
 npm run build
 npm publish -w @core-ai/azure-openai --access public
 npm publish -w @core-ai/omnifact --access public
+npm publish -w @core-ai/anthropic-vertex --access public
 ```
 
 ### Trusted publishing (CI releases)

@@ -52,6 +52,14 @@ export type AnthropicReasoningMetadata = {
     redactedData?: string;
 };
 
+/**
+ * Default provider id attributed to generation, streaming, and validation
+ * errors when no provider id is given. Callers wrapping the native Anthropic
+ * client (e.g. `@core-ai/anthropic-vertex`) pass their own provider id
+ * instead so errors and `ChatModel.provider` reflect the actual provider.
+ */
+export const DEFAULT_PROVIDER_ID = 'anthropic';
+
 const UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS = new Set([
     'minimum',
     'maximum',
@@ -115,6 +123,10 @@ export function convertMessages(
                     continue;
                 }
 
+                // 'anthropic' here is the shared reasoning-metadata namespace
+                // key, not a provider id — it stays fixed even for sibling
+                // providers like anthropic-vertex, so it is intentionally not
+                // DEFAULT_PROVIDER_ID.
                 const anthropicMeta =
                     getProviderMetadata<AnthropicReasoningMetadata>(
                         part.providerMetadata,
@@ -361,7 +373,8 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 export function createGenerateRequest(
     modelId: string,
     defaultMaxTokens: number,
-    options: GenerateOptions
+    options: GenerateOptions,
+    provider = DEFAULT_PROVIDER_ID
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
@@ -370,7 +383,8 @@ export function createGenerateRequest(
         modelId,
         defaultMaxTokens,
         options,
-        anthropicOptions
+        anthropicOptions,
+        provider
     );
     return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
 }
@@ -378,7 +392,8 @@ export function createGenerateRequest(
 export function createStreamRequest(
     modelId: string,
     defaultMaxTokens: number,
-    options: GenerateOptions
+    options: GenerateOptions,
+    provider = DEFAULT_PROVIDER_ID
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
@@ -388,7 +403,8 @@ export function createStreamRequest(
             modelId,
             defaultMaxTokens,
             options,
-            anthropicOptions
+            anthropicOptions,
+            provider
         ),
         stream: true as const,
     };
@@ -399,14 +415,16 @@ function createRequestBase(
     modelId: string,
     defaultMaxTokens: number,
     options: GenerateOptions,
-    anthropicOptions: AnthropicGenerateProviderOptions | undefined
+    anthropicOptions: AnthropicGenerateProviderOptions | undefined,
+    provider: string
 ) {
     const maxTokens = options.maxTokens ?? defaultMaxTokens;
     validateAnthropicReasoningConfig(
         modelId,
         maxTokens,
         options,
-        anthropicOptions
+        anthropicOptions,
+        provider
     );
     const converted = convertMessages(options.messages);
     const reasoningFields = mapReasoningToRequestFields(
@@ -446,7 +464,8 @@ function validateAnthropicReasoningConfig(
     modelId: string,
     maxTokens: number,
     options: GenerateOptions,
-    anthropicOptions: AnthropicGenerateProviderOptions | undefined
+    anthropicOptions: AnthropicGenerateProviderOptions | undefined,
+    provider: string
 ): void {
     const alwaysRestrictsSampling =
         restrictsAnthropicSamplingParamsAlways(modelId);
@@ -458,7 +477,7 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" only supports the default temperature of 1`,
             undefined,
-            'anthropic'
+            provider
         );
     }
     if (
@@ -469,14 +488,14 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" only supports the default topP of 1`,
             undefined,
-            'anthropic'
+            provider
         );
     }
     if (alwaysRestrictsSampling && anthropicOptions?.topK !== undefined) {
         throw new ValidationError(
             `Anthropic model "${modelId}" does not support top_k`,
             undefined,
-            'anthropic'
+            provider
         );
     }
 
@@ -488,7 +507,7 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" requires maxTokens greater than 1024 when reasoning is enabled`,
             undefined,
-            'anthropic'
+            provider
         );
     }
 
@@ -499,7 +518,7 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" does not support temperature when reasoning is enabled`,
             undefined,
-            'anthropic'
+            provider
         );
     }
 
@@ -510,7 +529,7 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" requires topP between 0.95 and 1 when reasoning is enabled`,
             undefined,
-            'anthropic'
+            provider
         );
     }
 
@@ -522,7 +541,7 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" only supports toolChoice "auto" or "none" when reasoning is enabled`,
             undefined,
-            'anthropic'
+            provider
         );
     }
 
@@ -530,7 +549,7 @@ function validateAnthropicReasoningConfig(
         throw new ValidationError(
             `Anthropic model "${modelId}" does not support top_k when reasoning is enabled`,
             undefined,
-            'anthropic'
+            provider
         );
     }
 }
@@ -662,6 +681,8 @@ export function mapGenerateResponse(
                 typeof block.signature === 'string'
                     ? block.signature
                     : undefined;
+            // 'anthropic' below is the shared reasoning-metadata namespace
+            // key (see the matching read side), not a provider id.
             parts.push({
                 type: 'reasoning',
                 text: thinkingText,
@@ -866,6 +887,8 @@ export async function* transformStream(
                 const signature = reasoningSignatureByIndex.get(event.index);
                 reasoningSignatureByIndex.delete(event.index);
                 contentBlockTypeByIndex.delete(event.index);
+                // 'anthropic' below is the shared reasoning-metadata
+                // namespace key, not a provider id.
                 yield {
                     type: 'reasoning-end',
                     providerMetadata: {
@@ -977,26 +1000,24 @@ function extractThinkingText(value: unknown): string {
         .join('');
 }
 
-export function wrapError(error: unknown): AbortedError | ProviderError {
+export function wrapError(
+    error: unknown,
+    provider = DEFAULT_PROVIDER_ID
+): AbortedError | ProviderError {
     if (
         error instanceof APIUserAbortError ||
         (error instanceof Error && error.name === 'AbortError')
     ) {
-        return new AbortedError(error, 'anthropic');
+        return new AbortedError(error, provider);
     }
 
     if (error instanceof APIError) {
-        return new ProviderError(
-            error.message,
-            'anthropic',
-            error.status,
-            error
-        );
+        return new ProviderError(error.message, provider, error.status, error);
     }
 
     return new ProviderError(
         error instanceof Error ? error.message : String(error),
-        'anthropic',
+        provider,
         undefined,
         error
     );

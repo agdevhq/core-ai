@@ -574,6 +574,28 @@ describe('reasoning support', () => {
         ).toThrowError(ValidationError);
     });
 
+    it('should attribute validation errors to a custom provider id', () => {
+        expect.assertions(2);
+
+        try {
+            createGenerateRequest(
+                'claude-sonnet-4',
+                4096,
+                {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    reasoning: { effort: 'high' },
+                    temperature: 0.2,
+                },
+                'anthropic-vertex'
+            );
+        } catch (error) {
+            expect(error).toBeInstanceOf(ValidationError);
+            expect((error as ValidationError).provider).toBe(
+                'anthropic-vertex'
+            );
+        }
+    });
+
     it('should reject non-default sampling for newer models without explicit reasoning', () => {
         expect(() =>
             createGenerateRequest('claude-sonnet-5', 4096, {

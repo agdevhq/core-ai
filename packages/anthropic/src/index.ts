@@ -1,5 +1,8 @@
-export { createAnthropic } from './provider.js';
+export { createAnthropic, createAnthropicChatProvider } from './provider.js';
 export type {
+    AnthropicChatClient,
+    AnthropicChatProvider,
+    AnthropicChatProviderOptions,
     AnthropicProvider,
     AnthropicProviderOptions,
 } from './provider.js';

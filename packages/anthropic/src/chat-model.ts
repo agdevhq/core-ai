@@ -23,6 +23,7 @@ import {
     createStructuredOutputOptions,
     createGenerateRequest,
     createStreamRequest,
+    DEFAULT_PROVIDER_ID,
     getAnthropicRequestBetas,
     mapGenerateResponse,
     transformStream,
@@ -30,16 +31,19 @@ import {
 } from './chat-adapter.js';
 import { getAnthropicModelCapabilities } from './model-capabilities.js';
 
-type AnthropicMessagesClient = {
-    messages: Anthropic['messages'];
+export type AnthropicChatClient = {
+    messages: {
+        create: Anthropic['messages']['create'];
+    };
 };
 
 export function createAnthropicChatModel(
-    client: AnthropicMessagesClient,
+    client: AnthropicChatClient,
     modelId: string,
-    defaultMaxTokens: number
+    defaultMaxTokens: number,
+    providerId = DEFAULT_PROVIDER_ID
 ): ChatModel {
-    const provider = 'anthropic';
+    const provider = providerId;
 
     async function callAnthropicMessagesApi<T>(
         request: unknown,
@@ -58,7 +62,7 @@ export function createAnthropicChatModel(
                 signal,
             })) as T;
         } catch (error) {
-            throw wrapError(error);
+            throw wrapError(error, provider);
         }
     }
 
@@ -68,7 +72,8 @@ export function createAnthropicChatModel(
         const request = createGenerateRequest(
             modelId,
             defaultMaxTokens,
-            options
+            options,
+            provider
         );
         const response = await callAnthropicMessagesApi<
             Parameters<typeof mapGenerateResponse>[0]
@@ -77,7 +82,12 @@ export function createAnthropicChatModel(
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const request = createStreamRequest(modelId, defaultMaxTokens, options);
+        const request = createStreamRequest(
+            modelId,
+            defaultMaxTokens,
+            options,
+            provider
+        );
         return createChatStream(
             async () =>
                 transformStream(

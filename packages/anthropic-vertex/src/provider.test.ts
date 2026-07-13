@@ -1,0 +1,144 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { ProviderError } from '@core-ai/core-ai';
+import type { AnthropicChatClient } from '@core-ai/anthropic';
+
+import { createAnthropicVertex } from './provider.js';
+
+const { anthropicVertexConstructor, messagesCreate } = vi.hoisted(() => ({
+    anthropicVertexConstructor: vi.fn(),
+    messagesCreate: vi.fn(),
+}));
+
+vi.mock('@anthropic-ai/vertex-sdk', () => ({
+    AnthropicVertex: class {
+        messages = {
+            create: messagesCreate,
+        };
+
+        constructor(options: unknown) {
+            anthropicVertexConstructor(options);
+        }
+    },
+}));
+
+describe('createAnthropicVertex', () => {
+    beforeEach(() => {
+        anthropicVertexConstructor.mockReset();
+        messagesCreate.mockReset();
+    });
+
+    it('should throw when projectId is missing and no client is provided', () => {
+        expect(() =>
+            createAnthropicVertex({ region: 'europe-west1' })
+        ).toThrowError(/projectId is required/);
+        expect(anthropicVertexConstructor).not.toHaveBeenCalled();
+    });
+
+    it('should throw when region is missing and no client is provided', () => {
+        expect(() =>
+            createAnthropicVertex({ projectId: 'my-project' })
+        ).toThrowError(/region is required/);
+    });
+
+    it('should construct an AnthropicVertex client using Application Default Credentials by default', () => {
+        createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        });
+
+        expect(anthropicVertexConstructor).toHaveBeenCalledWith({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        });
+    });
+
+    it('should construct a GoogleAuth-backed client when service account credentials are provided', () => {
+        createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+            credentials: {
+                client_email: 'test@my-project.iam.gserviceaccount.com',
+                private_key: 'test-key',
+            },
+        });
+
+        expect(anthropicVertexConstructor).toHaveBeenCalledWith(
+            expect.objectContaining({
+                projectId: 'my-project',
+                region: 'europe-west1',
+                googleAuth: expect.anything(),
+            })
+        );
+    });
+
+    it('should not construct an AnthropicVertex client when one is injected', () => {
+        const client: AnthropicChatClient = {
+            messages: { create: messagesCreate },
+        };
+
+        createAnthropicVertex({ client });
+
+        expect(anthropicVertexConstructor).not.toHaveBeenCalled();
+    });
+
+    it('should expose a chat model with the anthropic-vertex provider id', () => {
+        const provider = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        });
+
+        const chatModel = provider.chatModel('claude-sonnet-4-6');
+
+        expect(chatModel.provider).toBe('anthropic-vertex');
+        expect(chatModel.modelId).toBe('claude-sonnet-4-6');
+    });
+
+    it('should use default max tokens in generated requests', async () => {
+        messagesCreate.mockResolvedValue({
+            id: 'msg_1',
+            type: 'message',
+            role: 'assistant',
+            model: 'claude-sonnet-4-6',
+            stop_reason: 'end_turn',
+            stop_sequence: null,
+            content: [{ type: 'text', text: 'ok', citations: null }],
+            container: null,
+            usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+            },
+        });
+
+        const provider = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+            defaultMaxTokens: 2048,
+        });
+
+        await provider
+            .chatModel('claude-sonnet-4-6')
+            .generate({ messages: [{ role: 'user', content: 'hello' }] });
+
+        expect(messagesCreate).toHaveBeenCalledWith(
+            expect.objectContaining({ max_tokens: 2048 }),
+            expect.objectContaining({ signal: undefined })
+        );
+    });
+
+    it('should tag errors with provider "anthropic-vertex"', async () => {
+        messagesCreate.mockRejectedValue(new Error('upstream failure'));
+
+        const provider = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        });
+
+        const error = await provider
+            .chatModel('claude-sonnet-4-6')
+            .generate({ messages: [{ role: 'user', content: 'hello' }] })
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect((error as ProviderError).provider).toBe('anthropic-vertex');
+    });
+});
