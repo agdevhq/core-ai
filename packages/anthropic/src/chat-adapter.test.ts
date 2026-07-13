@@ -586,12 +586,12 @@ describe('reasoning support', () => {
                     reasoning: { effort: 'high' },
                     temperature: 0.2,
                 },
-                'vertex-anthropic'
+                'anthropic-vertex'
             );
         } catch (error) {
             expect(error).toBeInstanceOf(ValidationError);
             expect((error as ValidationError).provider).toBe(
-                'vertex-anthropic'
+                'anthropic-vertex'
             );
         }
     });

@@ -1,51 +1,48 @@
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
 import type { ChatModel } from '@core-ai/core-ai';
 import {
-    createAnthropicCompatChatProvider,
+    createAnthropicChatProvider,
     type AnthropicChatClient,
-} from '@core-ai/anthropic/compat';
+} from '@core-ai/anthropic';
 import { GoogleAuth, type JWTInput } from 'google-auth-library';
 
-const PROVIDER_ID = 'vertex-anthropic';
+const PROVIDER_ID = 'anthropic-vertex';
 const CLOUD_PLATFORM_AUTH_SCOPE =
     'https://www.googleapis.com/auth/cloud-platform';
 
-export type VertexAnthropicServiceAccountCredentials = Record<
-    string,
-    unknown
->;
+export type AnthropicVertexServiceAccountCredentials = Record<string, unknown>;
 
-export type VertexAnthropicProviderOptions = {
+export type AnthropicVertexProviderOptions = {
     projectId?: string;
     region?: string;
-    credentials?: VertexAnthropicServiceAccountCredentials;
+    credentials?: AnthropicVertexServiceAccountCredentials;
     client?: AnthropicChatClient;
     defaultMaxTokens?: number;
 };
 
-export type VertexAnthropicProvider = {
+export type AnthropicVertexProvider = {
     chatModel(modelId: string): ChatModel;
 };
 
-export function createVertexAnthropic(
-    options: VertexAnthropicProviderOptions = {}
-): VertexAnthropicProvider {
-    const client = options.client ?? createVertexAnthropicClient(options);
+export function createAnthropicVertex(
+    options: AnthropicVertexProviderOptions = {}
+): AnthropicVertexProvider {
+    const client = options.client ?? createAnthropicVertexClient(options);
 
-    return createAnthropicCompatChatProvider(
+    return createAnthropicChatProvider(
         { client, defaultMaxTokens: options.defaultMaxTokens },
         PROVIDER_ID
     );
 }
 
-function createVertexAnthropicClient(
-    options: VertexAnthropicProviderOptions
+function createAnthropicVertexClient(
+    options: AnthropicVertexProviderOptions
 ): AnthropicChatClient {
     if (!options.projectId) {
-        throw new Error('createVertexAnthropic: projectId is required.');
+        throw new Error('createAnthropicVertex: projectId is required.');
     }
     if (!options.region) {
-        throw new Error('createVertexAnthropic: region is required.');
+        throw new Error('createAnthropicVertex: region is required.');
     }
 
     // Without explicit credentials, the SDK falls back to Google Application

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { generate } from '@core-ai/core-ai';
-import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+import { createAnthropicVertex } from '@core-ai/anthropic-vertex';
 
 function getRequiredEnv(name: 'GOOGLE_VERTEX_PROJECT'): string {
     const value = process.env[name];
@@ -11,12 +11,12 @@ function getRequiredEnv(name: 'GOOGLE_VERTEX_PROJECT'): string {
 }
 
 async function main(): Promise<void> {
-    const vertexAnthropic = createVertexAnthropic({
+    const anthropicVertex = createAnthropicVertex({
         projectId: getRequiredEnv('GOOGLE_VERTEX_PROJECT'),
         region: process.env['GOOGLE_VERTEX_REGION'] ?? 'europe-west1',
     });
-    const model = vertexAnthropic.chatModel(
-        process.env['VERTEX_ANTHROPIC_MODEL'] ?? 'claude-sonnet-4-6'
+    const model = anthropicVertex.chatModel(
+        process.env['ANTHROPIC_VERTEX_MODEL'] ?? 'claude-sonnet-4-6'
     );
 
     const result = await generate({

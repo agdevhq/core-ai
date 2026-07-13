@@ -25,12 +25,6 @@
             "import": "./dist/index.js",
             "require": "./dist/index.js",
             "default": "./dist/index.js"
-        },
-        "./compat": {
-            "types": "./dist/compat.d.ts",
-            "import": "./dist/compat.js",
-            "require": "./dist/compat.js",
-            "default": "./dist/compat.js"
         }
     },
     "files": [

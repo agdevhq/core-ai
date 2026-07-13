@@ -39,15 +39,15 @@ describe('createAnthropicChatModel', () => {
             createMockClient(create),
             'claude-sonnet-4',
             4096,
-            'vertex-anthropic'
+            'anthropic-vertex'
         );
 
-        expect(model.provider).toBe('vertex-anthropic');
+        expect(model.provider).toBe('anthropic-vertex');
         await expect(
             model.generate({
                 messages: [{ role: 'user', content: 'hello' }],
             })
-        ).rejects.toMatchObject({ provider: 'vertex-anthropic' });
+        ).rejects.toMatchObject({ provider: 'anthropic-vertex' });
     });
 });
 

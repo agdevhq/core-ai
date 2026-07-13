@@ -7,7 +7,7 @@ import { createOpenAICompatAdapter } from './adapters/openai-compat.adapter.ts';
 import { createOpenAIAdapter } from './adapters/openai.adapter.ts';
 import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
 import type { ProviderId } from './adapters/provider-adapter.ts';
-import { createVertexAnthropicAdapter } from './adapters/vertex-anthropic.adapter.ts';
+import { createAnthropicVertexAdapter } from './adapters/anthropic-vertex.adapter.ts';
 
 export function getRegisteredProviders(): ProviderE2EAdapter[] {
     const adapters = [
@@ -15,7 +15,7 @@ export function getRegisteredProviders(): ProviderE2EAdapter[] {
         createOpenAICompatAdapter(),
         createAzureOpenAIAdapter(),
         createAnthropicAdapter(),
-        createVertexAnthropicAdapter(),
+        createAnthropicVertexAdapter(),
         createGoogleGenAIAdapter(),
         createMistralAdapter(),
         createOmnifactAdapter(),

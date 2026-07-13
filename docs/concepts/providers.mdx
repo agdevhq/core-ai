@@ -146,9 +146,9 @@ Vertex AI Anthropic provides Claude models hosted on Google Cloud, sharing its r
 ### Creating a Provider
 
 ```typescript
-import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+import { createAnthropicVertex } from '@core-ai/anthropic-vertex';
 
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
@@ -157,7 +157,7 @@ const vertexAnthropic = createVertexAnthropic({
 ### Provider Options
 
 ```typescript
-type VertexAnthropicProviderOptions = {
+type AnthropicVertexProviderOptions = {
     projectId?: string; // Required unless client is provided
     region?: string; // Required unless client is provided
     credentials?: Record<string, unknown>; // Optional: service account JSON; falls back to ADC
@@ -169,7 +169,7 @@ type VertexAnthropicProviderOptions = {
 ### Getting Models
 
 ```typescript
-const claude = vertexAnthropic.chatModel('claude-sonnet-4-6');
+const claude = anthropicVertex.chatModel('claude-sonnet-4-6');
 ```
 
 <Note>

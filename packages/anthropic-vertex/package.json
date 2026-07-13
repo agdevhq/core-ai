@@ -1,5 +1,5 @@
 {
-    "name": "@core-ai/vertex-anthropic",
+    "name": "@core-ai/anthropic-vertex",
     "version": "0.14.0",
     "description": "Vertex AI Anthropic (Claude) provider package for @core-ai/core-ai",
     "license": "MIT",
@@ -7,7 +7,7 @@
     "repository": {
         "type": "git",
         "url": "git+https://github.com/agdevhq/core-ai.git",
-        "directory": "packages/vertex-anthropic"
+        "directory": "packages/anthropic-vertex"
     },
     "keywords": [
         "llm",

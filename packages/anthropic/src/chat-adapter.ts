@@ -55,7 +55,7 @@ export type AnthropicReasoningMetadata = {
 /**
  * Default provider id attributed to generation, streaming, and validation
  * errors when no provider id is given. Callers wrapping the native Anthropic
- * client (e.g. `@core-ai/vertex-anthropic`) pass their own provider id
+ * client (e.g. `@core-ai/anthropic-vertex`) pass their own provider id
  * instead so errors and `ChatModel.provider` reflect the actual provider.
  */
 export const DEFAULT_PROVIDER_ID = 'anthropic';
@@ -124,8 +124,8 @@ export function convertMessages(
                 }
 
                 // 'anthropic' here is the shared reasoning-metadata namespace
-                // key, not a provider id — it stays fixed even for compat
-                // providers like vertex-anthropic, so it is intentionally not
+                // key, not a provider id — it stays fixed even for sibling
+                // providers like anthropic-vertex, so it is intentionally not
                 // DEFAULT_PROVIDER_ID.
                 const anthropicMeta =
                     getProviderMetadata<AnthropicReasoningMetadata>(
@@ -1012,12 +1012,7 @@ export function wrapError(
     }
 
     if (error instanceof APIError) {
-        return new ProviderError(
-            error.message,
-            provider,
-            error.status,
-            error
-        );
+        return new ProviderError(error.message, provider, error.status, error);
     }
 
     return new ProviderError(

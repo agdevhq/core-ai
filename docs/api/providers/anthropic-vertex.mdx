@@ -10,17 +10,17 @@ The Vertex AI Anthropic provider connects core-ai to Claude models hosted on [Go
 ## Installation
 
 ```bash
-npm install @core-ai/vertex-anthropic
+npm install @core-ai/anthropic-vertex
 ```
 
-## createVertexAnthropic()
+## createAnthropicVertex()
 
 Create a Vertex AI Anthropic provider instance.
 
 ```typescript
-import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+import { createAnthropicVertex } from '@core-ai/anthropic-vertex';
 
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
@@ -56,14 +56,14 @@ const vertexAnthropic = createVertexAnthropic({
 
 ### Returns
 
-`VertexAnthropicProvider` with method `chatModel()`.
+`AnthropicVertexProvider` with method `chatModel()`.
 
 ## Authentication
 
 By default, the provider uses Application Default Credentials:
 
 ```typescript
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
@@ -72,7 +72,7 @@ const vertexAnthropic = createVertexAnthropic({
 To authenticate with an explicit service account instead, parse the service account JSON and pass the resulting object as `credentials`:
 
 ```typescript
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
     credentials: JSON.parse(
@@ -85,9 +85,9 @@ You can also inject a preconfigured client:
 
 ```typescript
 import { AnthropicVertex } from '@anthropic-ai/vertex-sdk';
-import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+import { createAnthropicVertex } from '@core-ai/anthropic-vertex';
 
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     client: new AnthropicVertex({ projectId: 'my-project', region: 'eu' }),
 });
 ```
@@ -97,16 +97,16 @@ const vertexAnthropic = createVertexAnthropic({
 Pass the Vertex model id (as listed in the [Vertex AI Model Garden](https://console.cloud.google.com/vertex-ai/publishers/anthropic/model-garden)) to `chatModel()`. Model availability and naming vary by region — some Claude models are published to Vertex AI's `eu` multi-region while others are published to region-specific endpoints such as `europe-west1`. Since a provider instance targets a single region, create separate providers for models hosted in different regions:
 
 ```typescript
-const vertexAnthropicEu = createVertexAnthropic({
+const anthropicVertexEu = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'eu',
 });
-const vertexAnthropicEuWest1 = createVertexAnthropic({
+const anthropicVertexEuWest1 = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
 
-const model = vertexAnthropicEuWest1.chatModel('claude-sonnet-4-6');
+const model = anthropicVertexEuWest1.chatModel('claude-sonnet-4-6');
 ```
 
 <Note>
@@ -140,15 +140,15 @@ Model capability helpers such as `getAnthropicModelCapabilities(modelId)` are av
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+import { createAnthropicVertex } from '@core-ai/anthropic-vertex';
 
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
 
 const result = await generate({
-    model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+    model: anthropicVertex.chatModel('claude-sonnet-4-6'),
     messages: [{ role: 'user', content: 'Explain the theory of relativity' }],
     maxTokens: 1024,
 });
@@ -162,7 +162,7 @@ console.log(result.content);
 import { stream } from '@core-ai/core-ai';
 
 const chatStream = await stream({
-    model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+    model: anthropicVertex.chatModel('claude-sonnet-4-6'),
     messages: [{ role: 'user', content: 'Write a detailed analysis of...' }],
     maxTokens: 1024,
 });
@@ -180,7 +180,7 @@ Provider options are namespaced under `anthropic` in `providerOptions`, matching
 
 ```typescript
 const result = await generate({
-    model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+    model: anthropicVertex.chatModel('claude-sonnet-4-6'),
     messages: [{ role: 'user', content: 'Hello' }],
     maxTokens: 1024,
     providerOptions: {
@@ -200,7 +200,7 @@ import { ProviderError } from '@core-ai/core-ai';
 
 try {
     const result = await generate({
-        model: vertexAnthropic.chatModel('claude-sonnet-4-6'),
+        model: anthropicVertex.chatModel('claude-sonnet-4-6'),
         messages: [{ role: 'user', content: 'Hello!' }],
         maxTokens: 1024,
     });
@@ -213,7 +213,7 @@ try {
 ```
 
 <Note>
-    Errors are attributed to provider id `vertex-anthropic`, distinguishing
+    Errors are attributed to provider id `anthropic-vertex`, distinguishing
     them from direct `@core-ai/anthropic` errors (`anthropic`).
 </Note>
 

@@ -99,7 +99,7 @@
                             "api/providers/openai",
                             "api/providers/azure-openai",
                             "api/providers/anthropic",
-                            "api/providers/vertex-anthropic",
+                            "api/providers/anthropic-vertex",
                             "api/providers/google-genai",
                             "api/providers/mistral",
                             "api/providers/omnifact"

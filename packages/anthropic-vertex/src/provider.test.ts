@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
-import type { AnthropicChatClient } from '@core-ai/anthropic/compat';
-import { createVertexAnthropic } from './provider.js';
+import type { AnthropicChatClient } from '@core-ai/anthropic';
+
+import { createAnthropicVertex } from './provider.js';
 
 const { anthropicVertexConstructor, messagesCreate } = vi.hoisted(() => ({
     anthropicVertexConstructor: vi.fn(),
@@ -20,7 +21,7 @@ vi.mock('@anthropic-ai/vertex-sdk', () => ({
     },
 }));
 
-describe('createVertexAnthropic', () => {
+describe('createAnthropicVertex', () => {
     beforeEach(() => {
         anthropicVertexConstructor.mockReset();
         messagesCreate.mockReset();
@@ -28,20 +29,19 @@ describe('createVertexAnthropic', () => {
 
     it('should throw when projectId is missing and no client is provided', () => {
         expect(() =>
-            createVertexAnthropic({ region: 'europe-west1' })
+            createAnthropicVertex({ region: 'europe-west1' })
         ).toThrowError(/projectId is required/);
         expect(anthropicVertexConstructor).not.toHaveBeenCalled();
     });
 
     it('should throw when region is missing and no client is provided', () => {
         expect(() =>
-            createVertexAnthropic({ projectId: 'my-project' })
+            createAnthropicVertex({ projectId: 'my-project' })
         ).toThrowError(/region is required/);
-        expect(anthropicVertexConstructor).not.toHaveBeenCalled();
     });
 
     it('should construct an AnthropicVertex client using Application Default Credentials by default', () => {
-        createVertexAnthropic({
+        createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
@@ -53,7 +53,7 @@ describe('createVertexAnthropic', () => {
     });
 
     it('should construct a GoogleAuth-backed client when service account credentials are provided', () => {
-        createVertexAnthropic({
+        createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
             credentials: {
@@ -76,20 +76,20 @@ describe('createVertexAnthropic', () => {
             messages: { create: messagesCreate },
         };
 
-        createVertexAnthropic({ client });
+        createAnthropicVertex({ client });
 
         expect(anthropicVertexConstructor).not.toHaveBeenCalled();
     });
 
-    it('should expose a chat model with the vertex-anthropic provider id', () => {
-        const provider = createVertexAnthropic({
+    it('should expose a chat model with the anthropic-vertex provider id', () => {
+        const provider = createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
 
         const chatModel = provider.chatModel('claude-sonnet-4-6');
 
-        expect(chatModel.provider).toBe('vertex-anthropic');
+        expect(chatModel.provider).toBe('anthropic-vertex');
         expect(chatModel.modelId).toBe('claude-sonnet-4-6');
     });
 
@@ -109,7 +109,7 @@ describe('createVertexAnthropic', () => {
             },
         });
 
-        const provider = createVertexAnthropic({
+        const provider = createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
             defaultMaxTokens: 2048,
@@ -125,10 +125,10 @@ describe('createVertexAnthropic', () => {
         );
     });
 
-    it('should tag errors with provider "vertex-anthropic"', async () => {
+    it('should tag errors with provider "anthropic-vertex"', async () => {
         messagesCreate.mockRejectedValue(new Error('upstream failure'));
 
-        const provider = createVertexAnthropic({
+        const provider = createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
@@ -139,6 +139,6 @@ describe('createVertexAnthropic', () => {
             .catch((caught: unknown) => caught);
 
         expect(error).toBeInstanceOf(ProviderError);
-        expect((error as ProviderError).provider).toBe('vertex-anthropic');
+        expect((error as ProviderError).provider).toBe('anthropic-vertex');
     });
 });

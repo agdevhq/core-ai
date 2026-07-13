@@ -37,7 +37,7 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | Google GenAI (Gemini) | `@core-ai/google-genai`      | Yes  | Yes       | Yes        | Yes              |
 | Mistral               | `@core-ai/mistral`           | Yes  | Yes       | Yes        | —                |
 | Omnifact              | `@core-ai/omnifact`          | Yes  | Yes       | —          | —                |
-| Vertex AI Anthropic   | `@core-ai/vertex-anthropic`  | Yes  | Yes       | —          | —                |
+| Vertex AI Anthropic   | `@core-ai/anthropic-vertex`  | Yes  | Yes       | —          | —                |
 
 > **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the Chat Completions API for third-party OpenAI-compatible endpoints, import from `@core-ai/openai/compat` instead.
 
@@ -357,15 +357,15 @@ console.log(result.content);
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createVertexAnthropic } from '@core-ai/vertex-anthropic';
+import { createAnthropicVertex } from '@core-ai/anthropic-vertex';
 
 // Uses Google Application Default Credentials (ADC) by default.
 // Pass `credentials` for an explicit service account key instead.
-const vertexAnthropic = createVertexAnthropic({
+const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
-const model = vertexAnthropic.chatModel('claude-sonnet-4-6');
+const model = anthropicVertex.chatModel('claude-sonnet-4-6');
 
 const result = await generate({
     model,
@@ -455,7 +455,7 @@ packages/
   google-genai/  — Google GenAI (Gemini) provider implementation
   mistral/       — Mistral provider implementation
   omnifact/      — Omnifact API Gateway provider implementation
-  vertex-anthropic/ — Vertex AI Anthropic (Claude) provider implementation
+  anthropic-vertex/ — Vertex AI Anthropic (Claude) provider implementation
   testing/       — Shared test utilities (internal)
 ```
 

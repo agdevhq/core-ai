@@ -42,7 +42,7 @@ E2E_PROVIDER=omnifact npm run test:e2e
 
 Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:compat`,
 `test:e2e:azure-openai`, `test:e2e:anthropic`, `test:e2e:google`,
-`test:e2e:mistral`, `test:e2e:vertex-anthropic`.
+`test:e2e:mistral`, `test:e2e:anthropic-vertex`.
 
 ## Required Environment Variables
 
@@ -75,8 +75,8 @@ Optional model and endpoint overrides:
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
 - `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; service account JSON string. When unset, uses Application Default Credentials)
-- `VERTEX_ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
-- `VERTEX_ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
+- `ANTHROPIC_VERTEX_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
+- `ANTHROPIC_VERTEX_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
