@@ -62,24 +62,30 @@ npm login
 
 ### Initial publish for a new package
 
-New packages must exist on npm before trusted publishing can be configured. Publish the first version manually:
+New packages must exist on npm before trusted publishing can be configured. Publish the first version manually (local machines cannot mint provenance, so disable it for the bootstrap publish only — keep `"provenance": true` in `publishConfig` for CI):
 
 ```bash
 npm run build
-npm publish -w @core-ai/azure-openai --access public
-npm publish -w @core-ai/omnifact --access public
-npm publish -w @core-ai/anthropic-vertex --access public
+npm publish -w @core-ai/<package-name> --access public --provenance=false --otp=<OTP>
 ```
 
 ### Trusted publishing (CI releases)
 
-The `.github/workflows/release.yml` workflow publishes via npm OIDC trusted publishing. For each new package, configure a trusted publisher on [npmjs.com](https://www.npmjs.com):
+The `.github/workflows/release.yml` workflow publishes via npm OIDC trusted publishing. Requires **npm ≥ 11.15.0** locally (`npm install -g npm@^11.15.0`). Older CLIs fail with a vague `400 Bad Request` on `npm trust`.
 
-1. Open the package **Settings → Trusted publishing**
-2. Select **GitHub Actions**
-3. Set **Organization or user** to `agdevhq`
-4. Set **Repository** to `core-ai`
-5. Set **Workflow filename** to `release.yml` (exact match, including extension)
-6. Leave **Environment name** blank unless the workflow uses a deployment environment
+For each new package, create the trusted publisher with the CLI (`--allow-publish` is required — without it the trust config cannot publish):
 
-After the trusted publisher is saved, future releases from `main` publish automatically with provenance attestations. Each package needs its own trusted publisher configuration.
+```bash
+npm trust github @core-ai/<package-name> \
+  --file release.yml \
+  --repo agdevhq/core-ai \
+  --allow-publish \
+  -y \
+  --otp=<OTP>
+
+npm trust list @core-ai/<package-name> --otp=<OTP>
+```
+
+Verify: `type: github`, `file: release.yml`, `repository: agdevhq/core-ai`, `permissions: publish`.
+
+After that, future releases from `main` publish automatically with provenance attestations. Each package needs its own trusted publisher configuration.
