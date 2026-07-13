@@ -498,7 +498,7 @@ Provider keys:
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex Anthropic; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_BASE64`)
+- `GOOGLE_VERTEX_PROJECT` (Vertex Anthropic; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_JSON`)
 
 ## Contributing
 

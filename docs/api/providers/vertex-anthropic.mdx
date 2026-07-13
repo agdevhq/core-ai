@@ -40,7 +40,7 @@ const vertexAnthropic = createVertexAnthropic({
 </ParamField>
 
 <ParamField path="credentials" type="object" optional>
-    A decoded Google service account JSON key. When omitted, the provider
+    A parsed Google service account JSON key. When omitted, the provider
     falls back to [Application Default Credentials
     (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
 </ParamField>
@@ -76,10 +76,7 @@ const vertexAnthropic = createVertexAnthropic({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
     credentials: JSON.parse(
-        Buffer.from(
-            process.env.GOOGLE_APPLICATION_CREDENTIALS_BASE64 ?? '',
-            'base64'
-        ).toString()
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? ''
     ),
 });
 ```

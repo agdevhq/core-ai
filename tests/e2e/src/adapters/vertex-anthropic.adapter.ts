@@ -4,8 +4,8 @@ import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const GOOGLE_VERTEX_PROJECT_ENV = 'GOOGLE_VERTEX_PROJECT';
 const GOOGLE_VERTEX_REGION_ENV = 'GOOGLE_VERTEX_REGION';
-const GOOGLE_APPLICATION_CREDENTIALS_BASE64_ENV =
-    'GOOGLE_APPLICATION_CREDENTIALS_BASE64';
+const GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV =
+    'GOOGLE_APPLICATION_CREDENTIALS_JSON';
 const VERTEX_ANTHROPIC_CHAT_MODEL_ENV = 'VERTEX_ANTHROPIC_E2E_CHAT_MODEL';
 const VERTEX_ANTHROPIC_REASONING_MODEL_ENV =
     'VERTEX_ANTHROPIC_E2E_REASONING_MODEL';
@@ -47,21 +47,34 @@ export function createVertexAnthropicAdapter(): ProviderE2EAdapter {
 function createVertexAnthropicProvider() {
     const projectId = getEnvValue(GOOGLE_VERTEX_PROJECT_ENV);
     const region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1');
-    const credentialsBase64 = getEnvValue(
-        GOOGLE_APPLICATION_CREDENTIALS_BASE64_ENV
+    const credentialsJson = getEnvValue(
+        GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
     );
 
     return createVertexAnthropic({
         projectId,
         region,
-        ...(credentialsBase64
+        ...(credentialsJson
             ? {
-                  credentials: JSON.parse(
-                      Buffer.from(credentialsBase64, 'base64').toString(
-                          'utf-8'
-                      )
-                  ),
+                  credentials: parseCredentialsJson(credentialsJson),
               }
             : {}),
     });
+}
+
+function parseCredentialsJson(
+    credentialsJson: string
+): Record<string, unknown> {
+    const credentials: unknown = JSON.parse(credentialsJson);
+    if (
+        typeof credentials !== 'object' ||
+        credentials === null ||
+        Array.isArray(credentials)
+    ) {
+        throw new Error(
+            `${GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV} must contain a JSON object`
+        );
+    }
+
+    return credentials as Record<string, unknown>;
 }

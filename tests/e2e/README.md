@@ -51,7 +51,7 @@ Provider keys:
 - `OPENAI_API_KEY`
 - `AZURE_OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex AI Anthropic; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_BASE64` is set)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI Anthropic; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_JSON` is set)
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
@@ -74,7 +74,7 @@ Optional model and endpoint overrides:
 - `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
-- `GOOGLE_APPLICATION_CREDENTIALS_BASE64` (optional; base64-encoded service account JSON. When unset, uses Application Default Credentials)
+- `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; service account JSON string. When unset, uses Application Default Credentials)
 - `VERTEX_ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `VERTEX_ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
