@@ -1,32 +1,15 @@
-import Anthropic from '@anthropic-ai/sdk';
-import type { ChatModel } from '@core-ai/core-ai';
-import { createAnthropicChatModel } from './chat-model.js';
+import { DEFAULT_PROVIDER_ID } from './chat-adapter.js';
+import {
+    createAnthropicCompatChatProvider,
+    type AnthropicCompatChatProvider,
+    type AnthropicCompatChatProviderOptions,
+} from './compat.js';
 
-export type AnthropicProviderOptions = {
-    apiKey?: string;
-    baseURL?: string;
-    client?: Anthropic;
-    defaultMaxTokens?: number;
-};
-
-export type AnthropicProvider = {
-    chatModel(modelId: string): ChatModel;
-};
+export type AnthropicProviderOptions = AnthropicCompatChatProviderOptions;
+export type AnthropicProvider = AnthropicCompatChatProvider;
 
 export function createAnthropic(
     options: AnthropicProviderOptions = {}
 ): AnthropicProvider {
-    const client =
-        options.client ??
-        new Anthropic({
-            apiKey: options.apiKey,
-            baseURL: options.baseURL,
-        });
-
-    const defaultMaxTokens = options.defaultMaxTokens ?? 4096;
-
-    return {
-        chatModel: (modelId) =>
-            createAnthropicChatModel(client, modelId, defaultMaxTokens),
-    };
+    return createAnthropicCompatChatProvider(options, DEFAULT_PROVIDER_ID);
 }

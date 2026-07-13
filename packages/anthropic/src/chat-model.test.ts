@@ -30,6 +30,25 @@ describe('createAnthropicChatModel', () => {
             getAnthropicModelCapabilities('claude-sonnet-4')
         );
     });
+
+    it('should allow a custom provider id', async () => {
+        const create = vi.fn(async () => {
+            throw new Error('request failed');
+        });
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4',
+            4096,
+            'vertex-anthropic'
+        );
+
+        expect(model.provider).toBe('vertex-anthropic');
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'hello' }],
+            })
+        ).rejects.toMatchObject({ provider: 'vertex-anthropic' });
+    });
 });
 
 describe('generate', () => {
