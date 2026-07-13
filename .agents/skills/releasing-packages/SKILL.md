@@ -80,8 +80,19 @@ Each publishable package has:
 1. Remove `"private": true` from the package's `package.json`.
 2. Add `publishConfig`, `files`, `main`, `types`, `exports` (see existing packages).
 3. Add the package name to the `"fixed"` array in `.changeset/config.json`.
-4. Publish the first version manually (see below).
-5. Configure a trusted publisher on npmjs.com for the new package (workflow: `release.yml`, repo: `agdevhq/core-ai`).
+4. Publish the first version manually (see below). Use `--provenance=false` for the bootstrap publish — local npm cannot mint provenance.
+5. Configure a trusted publisher with the CLI (requires **npm ≥ 11.15.0**; older versions fail with `400 Bad Request`):
+
+```bash
+npm trust github @core-ai/<package> \
+  --file release.yml \
+  --repo agdevhq/core-ai \
+  --allow-publish \
+  -y \
+  --otp=<OTP>
+```
+
+`--allow-publish` is required. Verify with `npm trust list @core-ai/<package>`.
 
 ## Manual Publish (without Changesets)
 
@@ -104,10 +115,10 @@ Publish `core-ai` first since providers depend on it.
 
 CI releases use npm OIDC trusted publishing (no long-lived `NPM_TOKEN`). The release workflow already sets `id-token: write` and upgrades npm before publishing.
 
-Each package needs its own trusted publisher on npmjs.com:
+Each package needs its own trusted publisher, created with `npm trust github` (see above). Equivalent web UI fields if needed:
 
 - **Organization or user:** `agdevhq`
 - **Repository:** `core-ai`
 - **Workflow filename:** `release.yml`
 
-Trusted publishing generates provenance attestations automatically. Keep `"provenance": true` in each package's `publishConfig` for consistency with local publishes.
+Trusted publishing generates provenance attestations automatically. Keep `"provenance": true` in each package's `publishConfig` for CI; use `--provenance=false` only for the one-time local bootstrap publish.
