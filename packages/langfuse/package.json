@@ -54,7 +54,7 @@
         "@core-ai/typescript-config": "*",
         "@langfuse/otel": "^5.1.0",
         "@langfuse/tracing": "^5.1.0",
-        "@opentelemetry/sdk-node": "^0.214.0",
+        "@opentelemetry/sdk-node": "^0.220.0",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4",
         "zod": "^4.3.6"
