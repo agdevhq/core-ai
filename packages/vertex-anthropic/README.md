@@ -83,6 +83,8 @@ const vertexAnthropicEuWest1 = createVertexAnthropic({
 
 This package supports chat models only.
 
+> **Caveat:** Pass the unversioned Vertex model id (e.g. `claude-sonnet-4-6`) rather than a version-pinned id (e.g. `claude-sonnet-4-6@20250929`). Reasoning-effort and sampling-restriction capability detection (`getAnthropicModelCapabilities` and friends in `@core-ai/anthropic`) only recognizes the unversioned form today, so a version-pinned id silently falls back to standard capabilities instead of the model's actual ones.
+
 ## Provider options and model capabilities
 
 This provider shares its request, streaming, and reasoning behavior with `@core-ai/anthropic`. Provider-options schemas (`anthropicGenerateProviderOptionsSchema`), reasoning metadata types (`AnthropicReasoningMetadata`), and model capability helpers (`getAnthropicModelCapabilities`) are available from `@core-ai/anthropic` and apply equally to Vertex-hosted Claude models.
