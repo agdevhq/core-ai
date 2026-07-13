@@ -1,0 +1,10 @@
+{
+    "extends": "@core-ai/typescript-config/node.json",
+    "compilerOptions": {
+        "paths": {
+            "@core-ai/core-ai": ["../../packages/core-ai/src/index.ts"]
+        }
+    },
+    "include": ["src/**/*"],
+    "exclude": ["node_modules"]
+}
