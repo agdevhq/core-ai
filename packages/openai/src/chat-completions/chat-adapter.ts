@@ -18,6 +18,7 @@ import type {
 import { clampReasoningEffort } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
+    requiresMaxCompletionTokens,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.js';
 import { convertToolChoice, convertTools } from '../shared/tools.js';
@@ -157,7 +158,7 @@ function createRequest(
     );
     const structuredOutputFormat = options.structuredOutputFormat;
     return {
-        ...createRequestBase(modelId, options),
+        ...createRequestBase(modelId, options, openaiOptions),
         ...(stream
             ? {
                   stream: true as const,
@@ -188,7 +189,11 @@ function createRequest(
     };
 }
 
-function createRequestBase(modelId: string, options: GenerateOptions) {
+function createRequestBase(
+    modelId: string,
+    options: GenerateOptions,
+    openaiOptions: OpenAICompatGenerateProviderOptions | undefined
+) {
     validateOpenAIReasoningConfig(modelId, options);
 
     const reasoningFields = mapReasoningToRequestFields(modelId, options);
@@ -203,19 +208,32 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
         ...reasoningFields,
-        ...mapSamplingToRequestFields(options),
+        ...mapSamplingToRequestFields(modelId, options, openaiOptions),
     };
 }
 
 function mapSamplingToRequestFields(
-    options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>
+    modelId: string,
+    options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>,
+    openaiOptions: Pick<
+        OpenAICompatGenerateProviderOptions,
+        'maxTokensParam'
+    > | undefined
 ) {
+    const maxTokensParam =
+        openaiOptions?.maxTokensParam ??
+        (requiresMaxCompletionTokens(modelId)
+            ? 'max_completion_tokens'
+            : 'max_tokens');
+
     return {
         ...(options.temperature !== undefined
             ? { temperature: options.temperature }
             : {}),
         ...(options.maxTokens !== undefined
-            ? { max_tokens: options.maxTokens }
+            ? maxTokensParam === 'max_completion_tokens'
+              ? { max_completion_tokens: options.maxTokens }
+              : { max_tokens: options.maxTokens }
             : {}),
         ...(options.topP !== undefined ? { top_p: options.topP } : {}),
     };

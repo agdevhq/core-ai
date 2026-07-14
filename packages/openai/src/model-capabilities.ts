@@ -118,6 +118,17 @@ export function getOpenAIModelCapabilities(
     return MODEL_CAPABILITIES[normalizedModelId] ?? DEFAULT_CAPABILITIES;
 }
 
+/**
+ * Whether the model is a known OpenAI reasoning-era model that rejects the
+ * deprecated `max_tokens` Chat Completions parameter and requires
+ * `max_completion_tokens` instead. Unknown model ids return false: they are
+ * typically third-party models behind OpenAI-compatible endpoints, where
+ * `max_tokens` remains the universally supported parameter.
+ */
+export function requiresMaxCompletionTokens(modelId: string): boolean {
+    return normalizeModelId(modelId) in MODEL_CAPABILITIES;
+}
+
 export function normalizeModelId(modelId: string): string {
     return stripModelDateSuffix(modelId);
 }

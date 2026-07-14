@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getOpenAIModelCapabilities,
     normalizeModelId,
+    requiresMaxCompletionTokens,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
 
@@ -132,5 +133,26 @@ describe('getOpenAIModelCapabilities', () => {
 describe('toOpenAIReasoningEffort', () => {
     it('should map max to xhigh', () => {
         expect(toOpenAIReasoningEffort('max')).toBe('xhigh');
+    });
+});
+
+describe('requiresMaxCompletionTokens', () => {
+    it('should return true for known OpenAI reasoning-era models', () => {
+        expect(requiresMaxCompletionTokens('gpt-5-mini')).toBe(true);
+        expect(requiresMaxCompletionTokens('o3')).toBe(true);
+        // o1-mini rejects max_tokens even though it has no reasoning
+        // effort support.
+        expect(requiresMaxCompletionTokens('o1-mini')).toBe(true);
+    });
+
+    it('should normalize date suffixes', () => {
+        expect(requiresMaxCompletionTokens('gpt-5.5-2026-04-23')).toBe(true);
+    });
+
+    it('should return false for unknown model ids', () => {
+        expect(requiresMaxCompletionTokens('qwen3-235b')).toBe(false);
+        expect(requiresMaxCompletionTokens('llama-3.3-70b-versatile')).toBe(
+            false
+        );
     });
 });

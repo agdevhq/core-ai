@@ -311,6 +311,73 @@ describe('structured output helpers', () => {
     });
 });
 
+describe('max tokens parameter', () => {
+    const messages: Message[] = [{ role: 'user', content: 'Hi' }];
+
+    it('should send max_completion_tokens for known OpenAI reasoning models', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages,
+            maxTokens: 256,
+        });
+
+        expect(request).toMatchObject({ max_completion_tokens: 256 });
+        expect(request).not.toHaveProperty('max_tokens');
+    });
+
+    it('should send max_completion_tokens for date-suffixed reasoning model ids', () => {
+        const request = createGenerateRequest('gpt-5-mini-2025-08-07', {
+            messages,
+            maxTokens: 64,
+        });
+
+        expect(request).toMatchObject({ max_completion_tokens: 64 });
+        expect(request).not.toHaveProperty('max_tokens');
+    });
+
+    it('should send max_tokens for unknown model ids', () => {
+        const request = createGenerateRequest('qwen3-235b', {
+            messages,
+            maxTokens: 256,
+        });
+
+        expect(request).toMatchObject({ max_tokens: 256 });
+        expect(request).not.toHaveProperty('max_completion_tokens');
+    });
+
+    it('should honor a maxTokensParam override to max_completion_tokens', () => {
+        const request = createStreamRequest('custom-gateway-model', {
+            messages,
+            maxTokens: 128,
+            providerOptions: {
+                openai: { maxTokensParam: 'max_completion_tokens' },
+            },
+        });
+
+        expect(request).toMatchObject({ max_completion_tokens: 128 });
+        expect(request).not.toHaveProperty('max_tokens');
+    });
+
+    it('should honor a maxTokensParam override to max_tokens', () => {
+        const request = createGenerateRequest('gpt-5.2', {
+            messages,
+            maxTokens: 128,
+            providerOptions: {
+                openai: { maxTokensParam: 'max_tokens' },
+            },
+        });
+
+        expect(request).toMatchObject({ max_tokens: 128 });
+        expect(request).not.toHaveProperty('max_completion_tokens');
+    });
+
+    it('should omit both fields when maxTokens is not set', () => {
+        const request = createGenerateRequest('gpt-5-mini', { messages });
+
+        expect(request).not.toHaveProperty('max_tokens');
+        expect(request).not.toHaveProperty('max_completion_tokens');
+    });
+});
+
 describe('reasoning support', () => {
     it('should fold reasoning parts into text content wrapped in <thinking> tags', () => {
         const messages: Message[] = [
