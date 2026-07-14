@@ -4,11 +4,17 @@ import { createGoogleGenAIChatModel } from './chat-model.js';
 import { createGoogleGenAIEmbeddingModel } from './embedding-model.js';
 import { createGoogleGenAIImageModel } from './image-model.js';
 
+export const DEFAULT_PROVIDER_ID = 'google';
+
+export type GoogleGenAIClient = {
+    models: GoogleGenAI['models'];
+};
+
 export type GoogleGenAIProviderOptions = {
     apiKey?: string;
     apiVersion?: string;
     baseUrl?: string;
-    client?: GoogleGenAI;
+    client?: GoogleGenAIClient;
 };
 
 export type GoogleGenAIProvider = {
@@ -17,8 +23,9 @@ export type GoogleGenAIProvider = {
     imageModel(modelId: string): ImageModel;
 };
 
-export function createGoogleGenAI(
-    options: GoogleGenAIProviderOptions = {}
+export function createGoogleGenAIProvider(
+    options: GoogleGenAIProviderOptions = {},
+    providerId = DEFAULT_PROVIDER_ID
 ): GoogleGenAIProvider {
     const client =
         options.client ??
@@ -35,9 +42,17 @@ export function createGoogleGenAI(
         });
 
     return {
-        chatModel: (modelId) => createGoogleGenAIChatModel(client, modelId),
+        chatModel: (modelId) =>
+            createGoogleGenAIChatModel(client, modelId, providerId),
         embeddingModel: (modelId) =>
-            createGoogleGenAIEmbeddingModel(client, modelId),
-        imageModel: (modelId) => createGoogleGenAIImageModel(client, modelId),
+            createGoogleGenAIEmbeddingModel(client, modelId, providerId),
+        imageModel: (modelId) =>
+            createGoogleGenAIImageModel(client, modelId, providerId),
     };
+}
+
+export function createGoogleGenAI(
+    options: GoogleGenAIProviderOptions = {}
+): GoogleGenAIProvider {
+    return createGoogleGenAIProvider(options, DEFAULT_PROVIDER_ID);
 }

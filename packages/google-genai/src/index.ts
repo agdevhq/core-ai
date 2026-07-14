@@ -1,5 +1,6 @@
-export { createGoogleGenAI } from './provider.js';
+export { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
 export type {
+    GoogleGenAIClient,
     GoogleGenAIProvider,
     GoogleGenAIProviderOptions,
 } from './provider.js';

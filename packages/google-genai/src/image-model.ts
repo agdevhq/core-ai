@@ -1,4 +1,4 @@
-import type { GenerateImagesParameters, GoogleGenAI } from '@google/genai';
+import type { GenerateImagesParameters } from '@google/genai';
 import type {
     ImageGenerateOptions,
     ImageGenerateResult,
@@ -9,17 +9,15 @@ import {
     parseGoogleImageProviderOptions,
     type GoogleImageProviderOptions,
 } from './provider-options.js';
-
-type GoogleGenAIImageClient = {
-    models: GoogleGenAI['models'];
-};
+import type { GoogleGenAIClient } from './provider.js';
 
 export function createGoogleGenAIImageModel(
-    client: GoogleGenAIImageClient,
-    modelId: string
+    client: GoogleGenAIClient,
+    modelId: string,
+    provider = 'google'
 ): ImageModel {
     return {
-        provider: 'google',
+        provider,
         modelId,
         async generate(
             options: ImageGenerateOptions
@@ -60,7 +58,7 @@ export function createGoogleGenAIImageModel(
                     })),
                 };
             } catch (error) {
-                throw wrapGoogleError(error);
+                throw wrapGoogleError(error, provider);
             }
         },
     };

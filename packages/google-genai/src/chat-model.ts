@@ -1,4 +1,4 @@
-import type { GenerateContentResponse, GoogleGenAI } from '@google/genai';
+import type { GenerateContentResponse } from '@google/genai';
 import type { z } from 'zod';
 import type {
     ChatModel,
@@ -27,24 +27,20 @@ import {
 } from './chat-adapter.js';
 import { wrapGoogleError } from './google-error.js';
 import { getGoogleModelCapabilities } from './model-capabilities.js';
-
-type GoogleGenAIChatClient = {
-    models: GoogleGenAI['models'];
-};
+import type { GoogleGenAIClient } from './provider.js';
 
 export function createGoogleGenAIChatModel(
-    client: GoogleGenAIChatClient,
-    modelId: string
+    client: GoogleGenAIClient,
+    modelId: string,
+    provider = 'google'
 ): ChatModel {
-    const provider = 'google';
-
     async function callGenerateContentApi(
         request: unknown
     ): Promise<GenerateContentResponse> {
         try {
             return await client.models.generateContent(request as never);
         } catch (error) {
-            throw wrapGoogleError(error);
+            throw wrapGoogleError(error, provider);
         }
     }
 
@@ -54,7 +50,7 @@ export function createGoogleGenAIChatModel(
         try {
             return await client.models.generateContentStream(request as never);
         } catch (error) {
-            throw wrapGoogleError(error);
+            throw wrapGoogleError(error, provider);
         }
     }
 
