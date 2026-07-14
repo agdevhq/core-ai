@@ -525,7 +525,7 @@ Provider keys:
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS`, plain JSON or base64)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_JSON`, plain JSON or base64)
 
 ## Contributing
 

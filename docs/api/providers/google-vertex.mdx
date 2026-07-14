@@ -82,7 +82,7 @@ gcloud auth application-default login
 Parse a service-account JSON key and pass the resulting object:
 
 ```typescript
-const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const credentialsJson = rawCredentials?.trim().startsWith('{')
     ? rawCredentials
     : Buffer.from(rawCredentials ?? '', 'base64').toString('utf8');
@@ -95,8 +95,10 @@ const googleVertex = createGoogleVertex({
 ```
 
 <Note>
-    `GOOGLE_APPLICATION_CREDENTIALS` accepts either plain JSON or base64-encoded
-    JSON. This env var holds inline credentials, not a file path.
+    `GOOGLE_APPLICATION_CREDENTIALS_JSON` accepts either plain JSON or
+    base64-encoded JSON. This is separate from Google's standard
+    `GOOGLE_APPLICATION_CREDENTIALS` env var, which points to a credentials file
+    path for ADC.
 </Note>
 
 ### Custom client

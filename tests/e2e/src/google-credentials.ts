@@ -1,6 +1,6 @@
 export function parseGoogleApplicationCredentialsJson(
     rawValue: string,
-    envVar = 'GOOGLE_APPLICATION_CREDENTIALS'
+    envVar = 'GOOGLE_APPLICATION_CREDENTIALS_JSON'
 ): Record<string, unknown> {
     const trimmed = rawValue.trim();
     const parsed = parseCredentialsPayload(trimmed, envVar);
