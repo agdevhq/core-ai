@@ -18,7 +18,6 @@ import type {
 } from '@core-ai/core-ai';
 import { createObjectStream, createChatStream } from '@core-ai/core-ai';
 import {
-    createStructuredOutputOptions,
     createGenerateRequest,
     createStreamRequest,
     getStructuredOutputToolName,
@@ -31,6 +30,7 @@ import {
     extractStructuredObject,
     transformStructuredOutputStream,
 } from './shared/structured-output.js';
+import { createStructuredOutputRequestOptions } from './shared/tools.js';
 
 type OpenAIChatClient = {
     responses: OpenAI['responses'];
@@ -91,7 +91,8 @@ export function createOpenAIChatModel(
         async generateObject<TSchema extends z.ZodType>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions =
+                createStructuredOutputRequestOptions(options);
             const result = await generateChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
             const object = extractStructuredObject(
@@ -110,7 +111,8 @@ export function createOpenAIChatModel(
         async streamObject<TSchema extends z.ZodType>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions =
+                createStructuredOutputRequestOptions(options);
             const stream = await streamChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
 

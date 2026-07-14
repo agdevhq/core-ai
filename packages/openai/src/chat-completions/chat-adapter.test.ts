@@ -3,7 +3,6 @@ import { z } from 'zod';
 import {
     createGenerateRequest,
     createStreamRequest,
-    createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
@@ -19,6 +18,7 @@ import {
     type ToolSet,
 } from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.js';
+import { createStructuredOutputRequestOptions } from '../shared/tools.js';
 import type {
     ChatCompletion,
     ChatCompletionChunk,
@@ -219,36 +219,43 @@ describe('convertToolChoice', () => {
 });
 
 describe('structured output helpers', () => {
-    it('should create tool-based generate options for structured output', () => {
+    it('should create a native JSON Schema response format', () => {
         const schema = z.object({
             city: z.string(),
             temperatureC: z.number(),
         });
 
-        const result = createStructuredOutputOptions({
-            messages: [{ role: 'user', content: 'Return weather as JSON' }],
-            schema,
-            schemaName: 'weather_schema',
-            schemaDescription: 'Structured weather output',
-            temperature: 0,
-            maxTokens: 128,
-        });
+        const request = createGenerateRequest(
+            'gpt-5.6-luna',
+            createStructuredOutputRequestOptions({
+                messages: [{ role: 'user', content: 'Return weather as JSON' }],
+                schema,
+                schemaName: 'weather_schema',
+                schemaDescription: 'Structured weather output',
+                temperature: 0,
+                maxTokens: 128,
+            })
+        );
 
-        expect(result.messages).toEqual([
-            { role: 'user', content: 'Return weather as JSON' },
-        ]);
-        expect(result.toolChoice).toEqual({
-            type: 'tool',
-            toolName: 'weather_schema',
-        });
-        expect(result.tools).toMatchObject({
-            structured_output: {
-                name: 'weather_schema',
-                description: 'Structured weather output',
+        expect(request).toMatchObject({
+            model: 'gpt-5.6-luna',
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    name: 'weather_schema',
+                    description: 'Structured weather output',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        required: ['city', 'temperatureC'],
+                    },
+                },
             },
+            temperature: 0,
+            max_tokens: 128,
         });
-        expect(result.temperature).toBe(0);
-        expect(result.maxTokens).toBe(128);
+        expect(request).not.toHaveProperty('tools');
+        expect(request).not.toHaveProperty('tool_choice');
     });
 
     it('should derive default structured output tool name', () => {

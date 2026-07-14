@@ -5,11 +5,23 @@ import type {
     ToolSet,
 } from '@core-ai/core-ai';
 import { zodSchemaToJsonSchema } from '@core-ai/core-ai';
+import { zodTextFormat } from 'openai/helpers/zod';
 import type { z } from 'zod';
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
-export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
-    'Return a JSON object that matches the requested schema.';
+
+export type OpenAIStructuredOutputFormat = {
+    type: 'json_schema';
+    name: string;
+    description?: string;
+    strict: true;
+    schema: Record<string, unknown>;
+};
+
+/** Internal request options; structuredOutputFormat is not part of public generate/stream APIs. */
+export type OpenAIRequestOptions = GenerateOptions & {
+    structuredOutputFormat?: OpenAIStructuredOutputFormat;
+};
 
 export function convertTools(tools: ToolSet) {
     return Object.values(tools).map((tool) => ({
@@ -41,31 +53,40 @@ export function getStructuredOutputToolName<TSchema extends z.ZodType>(
     return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
     options: GenerateObjectOptions<TSchema>
-): GenerateOptions {
-    const toolName = getStructuredOutputToolName(options);
-
+): OpenAIRequestOptions {
     return {
         messages: options.messages,
-        tools: {
-            structured_output: {
-                name: toolName,
-                description:
-                    options.schemaDescription ??
-                    DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
-                parameters: options.schema,
-            },
-        },
-        toolChoice: {
-            type: 'tool',
-            toolName,
-        },
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
         topP: options.topP,
         providerOptions: options.providerOptions,
         signal: options.signal,
+        structuredOutputFormat: createOpenAIStructuredOutputFormat(options),
+    };
+}
+
+function createOpenAIStructuredOutputFormat<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): OpenAIStructuredOutputFormat {
+    const name = getStructuredOutputToolName(options);
+    const format = zodTextFormat(
+        options.schema,
+        name,
+        options.schemaDescription
+            ? { description: options.schemaDescription }
+            : undefined
+    );
+
+    return {
+        type: 'json_schema',
+        name,
+        ...(options.schemaDescription
+            ? { description: options.schemaDescription }
+            : {}),
+        strict: true,
+        schema: format.schema,
     };
 }

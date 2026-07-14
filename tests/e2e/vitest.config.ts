@@ -14,6 +14,10 @@ export default defineConfig({
                 process.cwd(),
                 'packages/core-ai/src/index.ts'
             ),
+            '@core-ai/openai': resolve(
+                process.cwd(),
+                'packages/openai/src/index.ts'
+            ),
         },
     },
 });

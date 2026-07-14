@@ -5,4 +5,4 @@
 '@core-ai/omnifact': patch
 ---
 
-Expose strict Chat Completions as `openai.chat.chatModel()` while keeping the Responses API at the root, add a standalone compatibility-enabled Chat Completions provider, and add Responses API support to Azure OpenAI v1. Omnifact now reuses the compatibility layer for nonstandard reasoning output.
+Expose strict Chat Completions as `openai.chat.chatModel()` while keeping the Responses API at the root, add a standalone compatibility-enabled Chat Completions provider, and add Responses API support to Azure OpenAI v1. Omnifact now reuses the compatibility layer for nonstandard reasoning output. OpenAI and Azure object generation now use native strict JSON Schema output instead of a synthetic function tool.

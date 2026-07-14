@@ -23,8 +23,8 @@ import {
 import {
     convertToolChoice,
     convertTools,
-    createStructuredOutputOptions,
     getStructuredOutputToolName,
+    type OpenAIRequestOptions,
 } from '../shared/tools.js';
 import {
     safeParseJsonObject,
@@ -43,7 +43,6 @@ export type OpenAIChatCompletionsAdapterOptions = {
 export {
     convertToolChoice,
     convertTools,
-    createStructuredOutputOptions,
     getStructuredOutputToolName,
     validateOpenAIReasoningConfig,
 };
@@ -159,12 +158,13 @@ export function createStreamRequest(modelId: string, options: GenerateOptions) {
 
 function createRequest(
     modelId: string,
-    options: GenerateOptions,
+    options: OpenAIRequestOptions,
     stream: boolean
 ) {
     const openaiOptions = parseOpenAIChatGenerateProviderOptions(
         options.providerOptions
     );
+    const structuredOutputFormat = options.structuredOutputFormat;
     return {
         ...createRequestBase(modelId, options),
         ...(stream
@@ -172,6 +172,24 @@ function createRequest(
                   stream: true as const,
                   stream_options: {
                       include_usage: true,
+                  },
+              }
+            : {}),
+        ...(structuredOutputFormat
+            ? {
+                  response_format: {
+                      type: 'json_schema' as const,
+                      json_schema: {
+                          name: structuredOutputFormat.name,
+                          ...(structuredOutputFormat.description
+                              ? {
+                                    description:
+                                        structuredOutputFormat.description,
+                                }
+                              : {}),
+                          strict: structuredOutputFormat.strict,
+                          schema: structuredOutputFormat.schema,
+                      },
                   },
               }
             : {}),

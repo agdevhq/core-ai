@@ -174,10 +174,14 @@ describe('generate', () => {
             asResponse({
                 output: [
                     {
-                        type: 'function_call',
-                        call_id: 'tc_1',
-                        name: 'weather_schema',
-                        arguments: '{"city":"Berlin","temperatureC":21}',
+                        type: 'message',
+                        role: 'assistant',
+                        content: [
+                            {
+                                type: 'output_text',
+                                text: '{"city":"Berlin","temperatureC":21}',
+                            },
+                        ],
                     },
                 ],
                 status: 'completed',
@@ -211,9 +215,12 @@ describe('generate', () => {
         });
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
-                tool_choice: {
-                    type: 'function',
-                    name: 'weather_schema',
+                text: {
+                    format: expect.objectContaining({
+                        type: 'json_schema',
+                        name: 'weather_schema',
+                        strict: true,
+                    }),
                 },
             }),
             expect.anything()
@@ -528,36 +535,12 @@ describe('streamObject', () => {
         const create = vi.fn(async () =>
             toAsyncIterable<ResponseStreamEvent>([
                 asStreamEvent({
-                    type: 'response.output_item.added',
-                    output_index: 0,
-                    item: {
-                        type: 'function_call',
-                        call_id: 'tc_1',
-                        name: 'weather_schema',
-                        arguments: '',
-                    },
-                }),
-                asStreamEvent({
-                    type: 'response.function_call_arguments.delta',
-                    output_index: 0,
-                    item_id: 'item_1',
+                    type: 'response.output_text.delta',
                     delta: '{"city":"Berlin",',
                 }),
                 asStreamEvent({
-                    type: 'response.function_call_arguments.delta',
-                    output_index: 0,
-                    item_id: 'item_1',
                     delta: '"temperatureC":21}',
-                }),
-                asStreamEvent({
-                    type: 'response.output_item.done',
-                    output_index: 0,
-                    item: {
-                        type: 'function_call',
-                        call_id: 'tc_1',
-                        name: 'weather_schema',
-                        arguments: '{"city":"Berlin","temperatureC":21}',
-                    },
+                    type: 'response.output_text.delta',
                 }),
                 asStreamEvent({
                     type: 'response.completed',
@@ -603,7 +586,20 @@ describe('streamObject', () => {
             city: 'Berlin',
             temperatureC: 21,
         });
-        expect(response.finishReason).toBe('tool-calls');
+        expect(response.finishReason).toBe('stop');
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                stream: true,
+                text: {
+                    format: expect.objectContaining({
+                        type: 'json_schema',
+                        name: 'weather_schema',
+                        strict: true,
+                    }),
+                },
+            }),
+            expect.anything()
+        );
     });
 
     it('should reject iteration and result on abort while preserving partial events', async () => {
