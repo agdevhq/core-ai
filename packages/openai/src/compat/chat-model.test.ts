@@ -15,6 +15,7 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createOpenAICompatChatModel } from './chat-model.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createOpenAICompatChatModel', () => {
@@ -26,6 +27,9 @@ describe('createOpenAICompatChatModel', () => {
 
         expect(model.provider).toBe('openai');
         expect(model.modelId).toBe('gpt-5-mini');
+        expect(model.capabilities).toEqual(
+            getOpenAIModelCapabilities('gpt-5-mini')
+        );
     });
 });
 
@@ -749,6 +753,9 @@ describe('stream', () => {
         await resultRejection;
         await expect(chatStream.events).resolves.toEqual([
             {
+                type: 'text-start',
+            },
+            {
                 type: 'text-delta',
                 text: 'partial',
             },
@@ -943,7 +950,12 @@ describe('stream', () => {
         }
 
         expect(seenEventTypes).not.toContain('reasoning-start');
-        expect(seenEventTypes).toEqual(['text-delta', 'finish']);
+        expect(seenEventTypes).toEqual([
+            'text-start',
+            'text-delta',
+            'text-end',
+            'finish',
+        ]);
 
         const response = await chatStream.result;
         expect(response.reasoning).toBeNull();

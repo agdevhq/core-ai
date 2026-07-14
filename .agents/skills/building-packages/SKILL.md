@@ -17,6 +17,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/google-genai` — Google GenAI provider
 - `@core-ai/mistral` — Mistral provider
 - `@core-ai/omnifact` — Omnifact provider
+- `@core-ai/anthropic-vertex` — Vertex AI Anthropic (Claude) provider
 
 Internal packages (`eslint-config`, `typescript-config`, `esbuild-config`) are not built or published.
 
@@ -68,7 +69,9 @@ Each `package.json` points to built output:
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "require": "./dist/index.js",
+            "default": "./dist/index.js"
         }
     },
     "files": ["dist", "README.md", "LICENSE"]

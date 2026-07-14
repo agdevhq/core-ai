@@ -17,20 +17,20 @@ const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const model = openai.chatModel('gpt-5-mini');
 
 const result = await stream({
-  model,
-  messages: [
-    {
-      role: 'user',
-      content: 'Write a short haiku about strongly typed APIs.',
-    },
-  ],
+    model,
+    messages: [
+        {
+            role: 'user',
+            content: 'Write a short haiku about strongly typed APIs.',
+        },
+    ],
 });
 
 console.log('Streaming output:\n');
 for await (const event of result) {
-  if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 
 const response = await result.result;
@@ -44,8 +44,8 @@ The `stream()` function returns a `ChatStream` -- an async iterable that also ex
 
 ```typescript
 type ChatStream = AsyncIterable<StreamEvent> & {
-  readonly result: Promise<GenerateResult>;
-  readonly events: Promise<readonly StreamEvent[]>;
+    readonly result: Promise<GenerateResult>;
+    readonly events: Promise<readonly StreamEvent[]>;
 };
 ```
 
@@ -53,14 +53,20 @@ The stream emits different event types:
 
 ```typescript
 type StreamEvent =
-  | { type: 'reasoning-start' }
-  | { type: 'reasoning-delta'; text: string }
-  | { type: 'reasoning-end'; providerMetadata?: Record<string, Record<string, unknown>> }
-  | { type: 'text-delta'; text: string }
-  | { type: 'tool-call-start'; toolCallId: string; toolName: string }
-  | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
-  | { type: 'tool-call-end'; toolCall: ToolCall }
-  | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
+    | { type: 'reasoning-start' }
+    | { type: 'reasoning-delta'; text: string }
+    | {
+          type: 'reasoning-end';
+          metadata?: Record<string, unknown>;
+          providerMetadata?: Record<string, Record<string, unknown>>;
+      }
+    | { type: 'text-start' }
+    | { type: 'text-delta'; text: string }
+    | { type: 'text-end'; metadata?: Record<string, unknown> }
+    | { type: 'tool-call-start'; toolCallId: string; toolName: string }
+    | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
+    | { type: 'tool-call-end'; toolCall: ToolCall }
+    | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
 
 ## Handling Different Event Types
@@ -74,43 +80,51 @@ let textBuffer = '';
 let reasoningBuffer = '';
 
 for await (const event of result) {
-  switch (event.type) {
-    case 'reasoning-start':
-      console.log('\n[Model is thinking...]\n');
-      break;
+    switch (event.type) {
+        case 'reasoning-start':
+            console.log('\n[Model is thinking...]\n');
+            break;
 
-    case 'reasoning-delta':
-      reasoningBuffer += event.text;
-      process.stdout.write(event.text);
-      break;
+        case 'reasoning-delta':
+            reasoningBuffer += event.text;
+            process.stdout.write(event.text);
+            break;
 
-    case 'reasoning-end':
-      console.log('\n[Reasoning complete]\n');
-      break;
+        case 'reasoning-end':
+            console.log('\n[Reasoning complete]\n');
+            break;
 
-    case 'text-delta':
-      textBuffer += event.text;
-      process.stdout.write(event.text);
-      break;
+        case 'text-start':
+            textBuffer = '';
+            break;
 
-    case 'tool-call-start':
-      console.log(`\n[Calling tool: ${event.toolName}]`);
-      break;
+        case 'text-delta':
+            textBuffer += event.text;
+            process.stdout.write(event.text);
+            break;
 
-    case 'tool-call-delta':
-      // Tool arguments are being streamed
-      break;
+        case 'text-end':
+            console.log('\n[Text metadata]', event.metadata);
+            break;
 
-    case 'tool-call-end':
-      console.log(`Tool call: ${event.toolCall.name}`);
-      console.log('Arguments:', event.toolCall.arguments);
-      break;
+        case 'tool-call-start':
+            console.log(`\n[Calling tool: ${event.toolName}]`);
+            break;
 
-    case 'finish':
-      console.log('\n\nFinished:', event.finishReason);
-      console.log('Usage:', event.usage);
-      break;
-  }
+        case 'tool-call-delta':
+            // Tool arguments are being streamed
+            break;
+
+        case 'tool-call-end':
+            console.log(`Tool call: ${event.toolCall.name}`);
+            console.log('Arguments:', event.toolCall.arguments);
+            break;
+
+        case 'finish':
+            console.log('\n\nFinished:', event.finishReason);
+            console.log('Usage:', event.usage);
+            break;
+    }
 }
 ```
 
@@ -122,9 +136,9 @@ Access the aggregated result via `.result`, and the full event list via `.events
 const chatStream = await stream({ model, messages });
 
 for await (const event of chatStream) {
-  if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 
 const response = await chatStream.result;
@@ -136,7 +150,9 @@ console.log('Token usage:', response.usage);
 ```
 
 <Note>
-  Streaming starts immediately when you create the handle. `.result` resolves when the stream completes, `.events` resolves with the observed history even on abort or failure, and the handle is replayable for late iterators.
+    Streaming starts immediately when you create the handle. `.result` resolves
+    when the stream completes, `.events` resolves with the observed history even
+    on abort or failure, and the handle is replayable for late iterators.
 </Note>
 
 ## Streaming with configuration
@@ -145,19 +161,19 @@ Apply the same configuration options as `generate()`:
 
 ```typescript
 const result = await stream({
-  model,
-  messages: [{ role: 'user', content: 'Write a story.' }],
-  temperature: 0.8,
-  maxTokens: 1000,
-  providerOptions: {
-    openai: { store: true, user: 'user-123' },
-  },
+    model,
+    messages: [{ role: 'user', content: 'Write a story.' }],
+    temperature: 0.8,
+    maxTokens: 1000,
+    providerOptions: {
+        openai: { store: true, user: 'user-123' },
+    },
 });
 
 for await (const event of result) {
-  if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 ```
 
@@ -201,6 +217,7 @@ for await (const event of result) {
       );
     }
     ```
+
   </Tab>
   <Tab title="Node.js HTTP">
     ```typescript
@@ -228,6 +245,7 @@ for await (const event of result) {
       res.end();
     }).listen(3000);
     ```
+
   </Tab>
   <Tab title="Express">
     ```typescript
@@ -257,6 +275,7 @@ for await (const event of result) {
 
     app.listen(3000);
     ```
+
   </Tab>
 </Tabs>
 
@@ -269,40 +288,40 @@ import { stream, defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherTool = defineTool({
-  name: 'get_weather',
-  description: 'Get weather information',
-  parameters: z.object({
-    location: z.string(),
-  }),
+    name: 'get_weather',
+    description: 'Get weather information',
+    parameters: z.object({
+        location: z.string(),
+    }),
 });
 
 const result = await stream({
-  model,
-  messages: [{ role: 'user', content: 'What is the weather in Berlin?' }],
-  tools: { get_weather: weatherTool },
+    model,
+    messages: [{ role: 'user', content: 'What is the weather in Berlin?' }],
+    tools: { get_weather: weatherTool },
 });
 
 const toolCalls: ToolCall[] = [];
 
 for await (const event of result) {
-  switch (event.type) {
-    case 'text-delta':
-      process.stdout.write(event.text);
-      break;
+    switch (event.type) {
+        case 'text-delta':
+            process.stdout.write(event.text);
+            break;
 
-    case 'tool-call-start':
-      console.log(`\nCalling: ${event.toolName}`);
-      break;
+        case 'tool-call-start':
+            console.log(`\nCalling: ${event.toolName}`);
+            break;
 
-    case 'tool-call-end':
-      toolCalls.push(event.toolCall);
-      break;
-  }
+        case 'tool-call-end':
+            toolCalls.push(event.toolCall);
+            break;
+    }
 }
 
 const response = await result.result;
 if (response.finishReason === 'tool-calls') {
-  console.log('Tool calls:', response.toolCalls);
+    console.log('Tool calls:', response.toolCalls);
 }
 ```
 
@@ -316,24 +335,24 @@ import { StreamAbortedError } from '@core-ai/core-ai';
 const controller = new AbortController();
 
 const result = await stream({
-  model,
-  messages: [{ role: 'user', content: 'Write a long story.' }],
-  signal: controller.signal,
+    model,
+    messages: [{ role: 'user', content: 'Write a long story.' }],
+    signal: controller.signal,
 });
 
 // Cancel after 5 seconds
 setTimeout(() => controller.abort(), 5000);
 
 try {
-  for await (const event of result) {
-    if (event.type === 'text-delta') {
-      process.stdout.write(event.text);
+    for await (const event of result) {
+        if (event.type === 'text-delta') {
+            process.stdout.write(event.text);
+        }
     }
-  }
 } catch (error) {
-  if (error instanceof StreamAbortedError) {
-    console.log('\nStream cancelled');
-  }
+    if (error instanceof StreamAbortedError) {
+        console.log('\nStream cancelled');
+    }
 }
 ```
 
@@ -345,24 +364,24 @@ Handle errors during streaming:
 import { CoreAIError, ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await stream({ model, messages });
+    const result = await stream({ model, messages });
 
-  for await (const event of result) {
-    if (event.type === 'text-delta') {
-      process.stdout.write(event.text);
+    for await (const event of result) {
+        if (event.type === 'text-delta') {
+            process.stdout.write(event.text);
+        }
     }
-  }
 
-  const response = await result.result;
-  console.log('\nComplete:', response.finishReason);
+    const response = await result.result;
+    console.log('\nComplete:', response.finishReason);
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('Provider error:', error.message);
-  } else if (error instanceof CoreAIError) {
-    console.error('CoreAIError:', error.message);
-  } else {
-    console.error('Unknown error:', error);
-  }
+    if (error instanceof ProviderError) {
+        console.error('Provider error:', error.message);
+    } else if (error instanceof CoreAIError) {
+        console.error('CoreAIError:', error.message);
+    } else {
+        console.error('Unknown error:', error);
+    }
 }
 ```
 
@@ -386,6 +405,7 @@ try {
     // You can also get all events after the fact
     const allEvents = await chatStream.events;
     ```
+
   </Accordion>
 
   <Accordion title="Buffer text for display">
@@ -401,6 +421,7 @@ try {
       }
     }
     ```
+
   </Accordion>
 
   <Accordion title="Handle reasoning separately">
@@ -420,22 +441,27 @@ try {
       }
     }
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Chat Completion" icon="message" href="/guides/chat-completion">
-    Learn about non-streaming responses
-  </Card>
-  <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
-    Stream tool calls and responses
-  </Card>
-  <Card title="Structured Outputs" icon="brackets-curly" href="/guides/structured-outputs">
-    Stream structured JSON objects
-  </Card>
-  <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
-    Stream responses with images
-  </Card>
+    <Card title="Chat Completion" icon="message" href="/guides/chat-completion">
+        Learn about non-streaming responses
+    </Card>
+    <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
+        Stream tool calls and responses
+    </Card>
+    <Card
+        title="Structured Outputs"
+        icon="brackets-curly"
+        href="/guides/structured-outputs"
+    >
+        Stream structured JSON objects
+    </Card>
+    <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
+        Stream responses with images
+    </Card>
 </CardGroup>

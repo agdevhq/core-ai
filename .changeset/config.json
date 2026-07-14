@@ -6,13 +6,15 @@
         [
             "@core-ai/core-ai",
             "@core-ai/opentelemetry",
+            "@core-ai/axiom",
             "@core-ai/langfuse",
             "@core-ai/openai",
             "@core-ai/anthropic",
             "@core-ai/google-genai",
             "@core-ai/mistral",
             "@core-ai/azure-openai",
-            "@core-ai/omnifact"
+            "@core-ai/omnifact",
+            "@core-ai/anthropic-vertex"
         ]
     ],
     "linked": [],

@@ -41,7 +41,7 @@ const anthropic = createAnthropic({
     Default maximum tokens for completions. Can be overridden per request.
 </ParamField>
 
-<ParamField path="client" type="Anthropic" optional>
+<ParamField path="client" type="AnthropicChatClient" optional>
     Provide your own configured Anthropic client instance.
 </ParamField>
 
@@ -67,6 +67,7 @@ const anthropic = createAnthropic({
     Current Opus and Sonnet models use effort-based adaptive thinking.
 
     <ul>
+      <li><strong>claude-sonnet-5</strong> - Most agentic Sonnet model with near-Opus performance at lower cost</li>
       <li><strong>claude-opus-4-8</strong> - Opus model for complex reasoning and agentic coding</li>
       <li><strong>claude-opus-4-7</strong> - Opus model with max effort support</li>
       <li><strong>claude-opus-4-6</strong> - Opus model with max effort support</li>
@@ -109,6 +110,37 @@ const anthropic = createAnthropic({
 | Embeddings       | No      |
 | Image Generation | No      |
 
+Use `ChatModel.capabilities` or `getAnthropicModelCapabilities(modelId)` to inspect reasoning support at runtime:
+
+```typescript
+import { clampReasoningEffort, generate } from '@core-ai/core-ai';
+import {
+    createAnthropic,
+    getAnthropicModelCapabilities,
+} from '@core-ai/anthropic';
+
+const anthropic = createAnthropic();
+const model = anthropic.chatModel('claude-opus-4-8');
+
+if (model.capabilities.reasoning.supported) {
+    const effort = clampReasoningEffort(
+        'max',
+        model.capabilities.reasoning.supportedEfforts
+    );
+
+    await generate({
+        model,
+        messages: [{ role: 'user', content: 'Analyze this carefully.' }],
+        reasoning: { effort },
+        // Anthropic sets restrictsSamplingParams: true — omit temperature/topP
+    });
+}
+
+const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
+```
+
+When `restrictsSamplingParams` is `true`, do not set `temperature` (and keep `topP` in the allowed range) while reasoning is enabled.
+
 ## Examples
 
 ### Basic chat
@@ -149,6 +181,10 @@ if (result.reasoning) {
 }
 console.log('Answer:', result.content);
 ```
+
+The provider requests summarized thinking, matching the OpenAI provider's
+reasoning-summary behavior. Every reasoning part also retains Anthropic's
+signature so you can safely pass the result into a later tool-result request.
 
 ### Streaming
 
@@ -241,13 +277,16 @@ const result = await generate({
 
 <Note>
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
-    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, and
-    `claude-sonnet-4-6` support `'max'` effort directly.
+    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-5`,
+    and `claude-sonnet-4-6` support `'max'` effort directly.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)
 
 Token budgets: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192, `high` -> 32,768, `max` -> 65,536.
+The adapter caps the selected budget at `maxTokens - 1` because Anthropic
+requires the thinking budget to be lower than the total output limit.
+`maxTokens` must be greater than 1,024.
 
 ```typescript
 const result = await generate({
@@ -268,14 +307,19 @@ When reasoning is enabled, Anthropic enforces additional request constraints:
 - `toolChoice` must be `'auto'` or `'none'`
 - `providerOptions.anthropic.topK` must be omitted
 
+Claude Fable 5, Mythos 5, Mythos Preview, Opus 4.8, Opus 4.7, and Sonnet 5
+also reject non-default sampling parameters when you do not explicitly enable
+reasoning. For these models, use `temperature: 1`, `topP: 1`, and omit `topK`.
+
 <Warning>
-    Violating these constraints throws a `ProviderError` before the request is
+    Violating these constraints throws a `ValidationError` before the request is
     sent.
 </Warning>
 
 <Note>
-    When you combine reasoning with tools, the adapter automatically adds the
-    `interleaved-thinking-2025-05-14` beta.
+    Adaptive thinking automatically supports reasoning between tool calls. For
+    older compatible manual-thinking models, the adapter sends the
+    `interleaved-thinking-2025-05-14` beta as an `anthropic-beta` header.
 </Note>
 
 ### Reasoning metadata
@@ -316,18 +360,20 @@ Options are namespaced under `anthropic` in `providerOptions`:
 
 ```typescript
 const result = await generate({
-    model: anthropic.chatModel('claude-sonnet-4-6'),
+    model: anthropic.chatModel('claude-sonnet-5'),
     messages: [{ role: 'user', content: 'Hello' }],
     providerOptions: {
         anthropic: {
             stopSequences: ['\n\n'],
-            betas: ['interleaved-thinking-2025-05-14'],
         },
     },
 });
 ```
 
-Available fields: `topK`, `stopSequences`, `betas`, `outputConfig`, `cacheControl`.
+Available fields: `topK`, `stopSequences`, `betas`, `outputConfig`,
+and `cacheControl`.
+
+- `betas` are sent through the `anthropic-beta` request header.
 
 ## Prompt caching
 

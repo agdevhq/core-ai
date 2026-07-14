@@ -18,6 +18,7 @@ export type {
     ToolDefinition,
     ToolSet,
     ToolChoice,
+    ModelCapabilities,
     ChatModel,
     ChatModelMiddleware,
     BaseGenerateOptions,
@@ -62,10 +63,8 @@ export {
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';
-export {
-    asObject,
-    safeParseJsonObject,
-} from './provider-utils.ts';
+export { clampReasoningEffort } from './model-capabilities.ts';
+export { asObject, safeParseJsonObject } from './provider-utils.ts';
 export { resultToMessage, assistantMessage } from './result-to-message.ts';
 export { generate } from './generate.ts';
 export { generateObject } from './generate-object.ts';

@@ -13,6 +13,7 @@
         "test:e2e:google": "E2E_PROVIDER=google npm run test:e2e",
         "test:e2e:mistral": "E2E_PROVIDER=mistral npm run test:e2e",
         "test:e2e:omnifact": "E2E_PROVIDER=omnifact npm run test:e2e",
+        "test:e2e:anthropic-vertex": "E2E_PROVIDER=anthropic-vertex npm run test:e2e",
         "package": "changeset version",
         "publish": "changeset publish",
         "deploy": "turbo deploy",
@@ -32,7 +33,7 @@
         "@vitest/coverage-v8": "^3.2.4",
         "prettier": "^3.4.2",
         "tsup": "^8.5.1",
-        "tsx": "^4.21.0",
+        "tsx": "^4.23.1",
         "turbo": "^2.4.0",
         "typescript": "5.7.3",
         "vitest": "^3.2.3"

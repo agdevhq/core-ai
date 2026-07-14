@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/opentelemetry",
-    "version": "0.11.0",
+    "version": "0.14.0",
     "description": "OpenTelemetry middleware for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -22,7 +22,9 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "require": "./dist/index.js",
+            "default": "./dist/index.js"
         }
     },
     "files": [
@@ -42,7 +44,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.11.0"
+        "@core-ai/core-ai": "^0.14.0"
     },
     "peerDependencies": {
         "@opentelemetry/api": "^1.9.1"
@@ -51,8 +53,8 @@
         "@core-ai/eslint-config": "*",
         "@core-ai/typescript-config": "*",
         "@opentelemetry/api": "^1.9.1",
-        "@opentelemetry/context-async-hooks": "^2.6.1",
-        "@opentelemetry/sdk-trace-base": "^2.6.1",
+        "@opentelemetry/context-async-hooks": "^2.9.0",
+        "@opentelemetry/sdk-trace-base": "^2.9.0",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4",
         "zod": "^4.0.0"

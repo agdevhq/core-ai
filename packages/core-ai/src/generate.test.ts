@@ -7,6 +7,13 @@ function createMockChatModel(result: GenerateResult): ChatModel {
     return {
         provider: 'test',
         modelId: 'test-model',
+        capabilities: {
+            reasoning: {
+                supported: false,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        },
         generate: vi.fn(async () => result),
         stream: vi.fn(async () => {
             throw new Error('not implemented');
@@ -23,7 +30,9 @@ function createMockChatModel(result: GenerateResult): ChatModel {
 describe('generate', () => {
     it('should delegate to model.generate', async () => {
         const expected: GenerateResult = {
-            parts: [{ type: 'text', text: 'Hello' }],
+            parts: [
+                { type: 'text', text: 'Hello', metadata: { checked: true } },
+            ],
             content: 'Hello',
             reasoning: null,
             toolCalls: [],
@@ -46,6 +55,9 @@ describe('generate', () => {
         });
 
         expect(result).toEqual(expected);
+        expect(result.parts).toEqual([
+            { type: 'text', text: 'Hello', metadata: { checked: true } },
+        ]);
         expect(model.generate).toHaveBeenCalledWith({
             messages: [{ role: 'user', content: 'Hi' }],
         });

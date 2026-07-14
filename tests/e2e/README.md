@@ -10,6 +10,7 @@ The harness runs one shared behavioral contract against provider adapters:
 - OpenAI Compat
 - Azure OpenAI
 - Anthropic
+- Vertex AI Anthropic
 - Google GenAI
 - Mistral
 - Omnifact
@@ -41,7 +42,7 @@ E2E_PROVIDER=omnifact npm run test:e2e
 
 Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:compat`,
 `test:e2e:azure-openai`, `test:e2e:anthropic`, `test:e2e:google`,
-`test:e2e:mistral`.
+`test:e2e:mistral`, `test:e2e:anthropic-vertex`.
 
 ## Required Environment Variables
 
@@ -50,6 +51,7 @@ Provider keys:
 - `OPENAI_API_KEY`
 - `AZURE_OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI Anthropic; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_JSON` is set)
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
@@ -71,6 +73,10 @@ Optional model and endpoint overrides:
 - `AZURE_OPENAI_E2E_REASONING_DEPLOYMENT` (default: chat deployment)
 - `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
+- `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
+- `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; service account JSON string. When unset, uses Application Default Credentials)
+- `ANTHROPIC_VERTEX_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
+- `ANTHROPIC_VERTEX_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)

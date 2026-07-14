@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-    clampReasoningEffort,
     getOpenAIModelCapabilities,
     normalizeModelId,
     toOpenAIReasoningEffort,
@@ -21,6 +20,39 @@ describe('normalizeModelId', () => {
 });
 
 describe('getOpenAIModelCapabilities', () => {
+    it('should return max-range capabilities for gpt-5.6-sol', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.6-sol');
+        expect(capabilities.reasoning.supported).toBe(true);
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'low',
+            'medium',
+            'high',
+            'max',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+    });
+
+    it('should return high-range capabilities for gpt-5.6-terra', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.6-terra');
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'low',
+            'medium',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+    });
+
+    it('should return minimal-range capabilities for gpt-5.6-luna', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.6-luna');
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'minimal',
+            'low',
+            'medium',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+    });
+
     it.each([
         'gpt-5.5',
         'gpt-5.4',
@@ -34,7 +66,7 @@ describe('getOpenAIModelCapabilities', () => {
         'gpt-5-codex',
     ])('should return max-range capabilities for %s', (modelId) => {
         const capabilities = getOpenAIModelCapabilities(modelId);
-        expect(capabilities.reasoning.supportedRange).toEqual([
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
             'low',
             'medium',
             'high',
@@ -47,7 +79,7 @@ describe('getOpenAIModelCapabilities', () => {
         'should return pro capabilities for %s',
         (modelId) => {
             const capabilities = getOpenAIModelCapabilities(modelId);
-            expect(capabilities.reasoning.supportedRange).toEqual([
+            expect(capabilities.reasoning.supportedEfforts).toEqual([
                 'medium',
                 'high',
                 'max',
@@ -58,40 +90,42 @@ describe('getOpenAIModelCapabilities', () => {
 
     it('should return high-only capabilities for GPT-5 Pro', () => {
         const capabilities = getOpenAIModelCapabilities('gpt-5-pro');
-        expect(capabilities.reasoning.supportedRange).toEqual(['high']);
+        expect(capabilities.reasoning.supportedEfforts).toEqual(['high']);
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
     });
 
     it('should return o-series capabilities for o3-pro', () => {
         const capabilities = getOpenAIModelCapabilities('o3-pro');
-        expect(capabilities.reasoning.supportedRange).toEqual([
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
             'low',
             'medium',
             'high',
             'max',
         ]);
-        expect(capabilities.reasoning.supportedRange).toContain('max');
+        expect(capabilities.reasoning.supportedEfforts).toContain('max');
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
+    });
+
+    it('should return unsupported capabilities for o1-mini', () => {
+        const capabilities = getOpenAIModelCapabilities('o1-mini');
+        expect(capabilities.reasoning.supported).toBe(false);
+        expect(capabilities.reasoning.supportedEfforts).toEqual([]);
+    });
+
+    it('should resolve dated model IDs to the same capabilities', () => {
+        expect(getOpenAIModelCapabilities('gpt-5.2-20260215')).toEqual(
+            getOpenAIModelCapabilities('gpt-5.2')
+        );
+        expect(getOpenAIModelCapabilities('gpt-5.5-2026-04-23')).toEqual(
+            getOpenAIModelCapabilities('gpt-5.5')
+        );
     });
 
     it('should apply defaults for unknown models', () => {
         expect(
-            getOpenAIModelCapabilities('custom-model').reasoning.supportedRange
+            getOpenAIModelCapabilities('custom-model').reasoning
+                .supportedEfforts
         ).toEqual(['low', 'medium', 'high']);
-    });
-});
-
-describe('clampReasoningEffort', () => {
-    it('should keep supported levels unchanged', () => {
-        expect(clampReasoningEffort('high', ['low', 'medium', 'high'])).toBe(
-            'high'
-        );
-    });
-
-    it('should clamp to nearest supported level', () => {
-        expect(clampReasoningEffort('max', ['low', 'medium', 'high'])).toBe(
-            'high'
-        );
     });
 });
 

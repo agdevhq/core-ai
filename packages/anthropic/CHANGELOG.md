@@ -1,5 +1,45 @@
 # @core-ai/anthropic
 
+## 0.14.0
+
+### Patch Changes
+
+- Updated dependencies [8e64097]
+    - @core-ai/core-ai@0.14.0
+
+## 0.13.1
+
+### Patch Changes
+
+- 8396024: Fix Anthropic adaptive and manual reasoning requests, including tool-use beta headers, token budgets, thinking block preservation, summarized output, and reasoning token usage.
+    - @core-ai/core-ai@0.13.1
+
+## 0.13.0
+
+### Minor Changes
+
+- 7bf38dd: Add Claude Sonnet 5 model capability handling.
+- de090e2: Expose a shared ModelCapabilities contract on ChatModel and via provider get\*ModelCapabilities helpers so consumers can inspect reasoning support without duplicating provider maps.
+
+### Patch Changes
+
+- Updated dependencies [de090e2]
+    - @core-ai/core-ai@0.13.0
+
+## 0.12.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.12.0
+
+## 0.11.1
+
+### Patch Changes
+
+- 43d926e: Add `require` and `default` export conditions so packages resolve under CommonJS loaders such as tsx.
+- Updated dependencies [43d926e]
+    - @core-ai/core-ai@0.11.1
+
 ## 0.11.0
 
 ### Minor Changes

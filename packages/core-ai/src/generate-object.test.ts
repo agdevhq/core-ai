@@ -27,6 +27,13 @@ describe('generateObject', () => {
         const model: ChatModel = {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
             }),
@@ -60,6 +67,13 @@ describe('generateObject', () => {
         const model: ChatModel = {
             provider: 'test',
             modelId: 'test-model',
+            capabilities: {
+                reasoning: {
+                    supported: false,
+                    supportedEfforts: [],
+                    restrictsSamplingParams: false,
+                },
+            },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
             }),

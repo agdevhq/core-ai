@@ -21,9 +21,8 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { getProviderMetadata } from '@core-ai/core-ai';
+import { getProviderMetadata, clampReasoningEffort } from '@core-ai/core-ai';
 import {
-    clampReasoningEffort,
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
@@ -235,7 +234,10 @@ function createRequest(
         ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 
-    if (options.reasoning) {
+    if (
+        options.reasoning &&
+        getOpenAIModelCapabilities(modelId).reasoning.supported
+    ) {
         request.include = mergeInclude(request.include, [
             ENCRYPTED_REASONING_INCLUDE,
         ]);
@@ -420,11 +422,7 @@ function getTextContent(parts: AssistantContentPart[]): string | null {
 }
 
 function getReasoningText(parts: AssistantContentPart[]): string | null {
-    return getJoinedPartText(
-        parts,
-        'reasoning',
-        REASONING_SUMMARY_SEPARATOR
-    );
+    return getJoinedPartText(parts, 'reasoning', REASONING_SUMMARY_SEPARATOR);
 }
 
 function getJoinedPartText(
@@ -562,6 +560,7 @@ export async function* transformStream(
     const emittedReasoningItems = new Set<string>();
 
     let latestResponse: Response | undefined;
+    let textOpen = false;
     let reasoningStarted = false;
     let latestReasoningSummaryPart: ReasoningSummaryPart | undefined;
 
@@ -571,7 +570,9 @@ export async function* transformStream(
             bufferedToolCall: BufferedToolCall | undefined
         ) => BufferedToolCall
     ): BufferedToolCall => {
-        const nextToolCall = getNextToolCall(bufferedToolCalls.get(outputIndex));
+        const nextToolCall = getNextToolCall(
+            bufferedToolCalls.get(outputIndex)
+        );
         bufferedToolCalls.set(outputIndex, nextToolCall);
         return nextToolCall;
     };
@@ -580,6 +581,22 @@ export async function* transformStream(
         const transition = getReasoningStartTransition(reasoningStarted);
         reasoningStarted = transition.nextReasoningStarted;
         return transition.event;
+    };
+    const startText = function* (): Iterable<StreamEvent> {
+        if (textOpen) {
+            return;
+        }
+
+        textOpen = true;
+        yield { type: 'text-start' };
+    };
+    const closeText = function* (): Iterable<StreamEvent> {
+        if (!textOpen) {
+            return;
+        }
+
+        textOpen = false;
+        yield { type: 'text-end' };
     };
 
     const getNextReasoningEndEvent = (
@@ -626,10 +643,12 @@ export async function* transformStream(
 
             const reasoningStartEvent = getNextReasoningStartEvent();
             if (reasoningStartEvent) {
+                yield* closeText();
                 yield reasoningStartEvent;
             }
 
-            const separatorEvent = getReasoningSummarySeparatorEvent(summaryPart);
+            const separatorEvent =
+                getReasoningSummarySeparatorEvent(summaryPart);
             if (separatorEvent) {
                 yield separatorEvent;
             }
@@ -652,6 +671,7 @@ export async function* transformStream(
 
                 const reasoningStartEvent = getNextReasoningStartEvent();
                 if (reasoningStartEvent) {
+                    yield* closeText();
                     yield reasoningStartEvent;
                 }
 
@@ -670,6 +690,11 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.output_text.delta') {
+            const reasoningEndEvent = getNextReasoningEndEvent({ openai: {} });
+            if (reasoningEndEvent) {
+                yield reasoningEndEvent;
+            }
+            yield* startText();
             yield {
                 type: 'text-delta',
                 text: event.delta,
@@ -682,17 +707,15 @@ export async function* transformStream(
                 continue;
             }
 
+            yield* closeText();
             const toolCallId = event.item.call_id;
             const toolCallName = event.item.name;
             const toolCallArguments = event.item.arguments;
-            upsertBufferedToolCall(
-                event.output_index,
-                () => ({
-                    id: toolCallId,
-                    name: toolCallName,
-                    arguments: toolCallArguments,
-                })
-            );
+            upsertBufferedToolCall(event.output_index, () => ({
+                id: toolCallId,
+                name: toolCallName,
+                arguments: toolCallArguments,
+            }));
 
             const shouldStartToolCall = !startedToolCalls.has(toolCallId);
             if (shouldStartToolCall) {
@@ -707,6 +730,7 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.function_call_arguments.delta') {
+            yield* closeText();
             const currentToolCall = upsertBufferedToolCall(
                 event.output_index,
                 (bufferedToolCall) => ({
@@ -716,7 +740,9 @@ export async function* transformStream(
                 })
             );
 
-            const shouldStartToolCall = !startedToolCalls.has(currentToolCall.id);
+            const shouldStartToolCall = !startedToolCalls.has(
+                currentToolCall.id
+            );
             if (shouldStartToolCall) {
                 startedToolCalls.add(currentToolCall.id);
                 yield {
@@ -741,8 +767,10 @@ export async function* transformStream(
                         event.item.summary
                     );
                     if (summaryText.length > 0) {
-                        const reasoningStartEvent = getNextReasoningStartEvent();
+                        const reasoningStartEvent =
+                            getNextReasoningStartEvent();
                         if (reasoningStartEvent) {
+                            yield* closeText();
                             yield reasoningStartEvent;
                         }
                         yield {
@@ -761,17 +789,16 @@ export async function* transformStream(
                 if (encryptedContent) {
                     const reasoningStartEvent = getNextReasoningStartEvent();
                     if (reasoningStartEvent) {
+                        yield* closeText();
                         yield reasoningStartEvent;
                     }
                 }
 
-                const reasoningEndEvent = getNextReasoningEndEvent(
-                    {
-                        openai: {
-                            ...(encryptedContent ? { encryptedContent } : {}),
-                        },
-                    }
-                );
+                const reasoningEndEvent = getNextReasoningEndEvent({
+                    openai: {
+                        ...(encryptedContent ? { encryptedContent } : {}),
+                    },
+                });
                 if (reasoningEndEvent) {
                     yield reasoningEndEvent;
                 }
@@ -782,6 +809,7 @@ export async function* transformStream(
                 continue;
             }
 
+            yield* closeText();
             const toolCallId = event.item.call_id;
             const toolCallName = event.item.name;
             const toolCallArguments = event.item.arguments;
@@ -814,6 +842,7 @@ export async function* transformStream(
         if (event.type === 'response.completed') {
             latestResponse = event.response;
 
+            yield* closeText();
             const reasoningEndEvent = getNextReasoningEndEvent({ openai: {} });
             if (reasoningEndEvent) {
                 yield reasoningEndEvent;
@@ -850,6 +879,7 @@ export async function* transformStream(
     const reasoningEndEvent = getNextReasoningEndEvent({
         openai: {},
     });
+    yield* closeText();
     if (reasoningEndEvent) {
         yield reasoningEndEvent;
     }
@@ -878,18 +908,20 @@ function mapReasoningToRequestFields(
     }
 
     const capabilities = getOpenAIModelCapabilities(modelId);
-    const effort = capabilities.reasoning.supportsEffort
-        ? toOpenAIReasoningEffort(
-              clampReasoningEffort(
-                  options.reasoning.effort,
-                  capabilities.reasoning.supportedRange
-              )
-          )
-        : undefined;
+    if (!capabilities.reasoning.supported) {
+        return {};
+    }
+
+    const effort = toOpenAIReasoningEffort(
+        clampReasoningEffort(
+            options.reasoning.effort,
+            capabilities.reasoning.supportedEfforts
+        )
+    );
 
     return {
         reasoning: {
-            ...(effort ? { effort } : {}),
+            effort,
             summary: 'auto' as const,
         },
     };

@@ -1,8 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-    toAsyncIterable,
-    createPushableAsyncIterable,
-} from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 import { StreamAbortedError } from './errors.ts';
 import { createStream } from './base-stream.ts';
 import { createChatStream } from './stream.ts';
@@ -10,22 +7,23 @@ import type { StreamEvent } from './types.ts';
 
 describe('createChatStream', () => {
     it('should iterate over all events', async () => {
+        const finishEvent: StreamEvent = {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: {
+                inputTokens: 10,
+                outputTokens: 5,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {},
+            },
+        };
         const events: StreamEvent[] = [
             { type: 'text-delta', text: 'Hello' },
             { type: 'text-delta', text: ' world' },
-            {
-                type: 'finish',
-                finishReason: 'stop',
-                usage: {
-                    inputTokens: 10,
-                    outputTokens: 5,
-                    inputTokenDetails: {
-                        cacheReadTokens: 0,
-                        cacheWriteTokens: 0,
-                    },
-                    outputTokenDetails: {},
-                },
-            },
+            finishEvent,
         ];
         const chatStream = createChatStream(toAsyncIterable(events));
         const collected: StreamEvent[] = [];
@@ -149,6 +147,7 @@ describe('createChatStream', () => {
             { type: 'reasoning-delta', text: 'thinking' },
             {
                 type: 'reasoning-end',
+                metadata: { policy: 'checked' },
                 providerMetadata: { openai: { encryptedContent: 'enc_abc' } },
             },
             {
@@ -172,9 +171,191 @@ describe('createChatStream', () => {
             {
                 type: 'reasoning',
                 text: 'thinking',
+                metadata: { policy: 'checked' },
                 providerMetadata: { openai: { encryptedContent: 'enc_abc' } },
             },
         ]);
+    });
+
+    it('should aggregate metadata from text-end events', async () => {
+        const finishEvent: StreamEvent = {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: {
+                inputTokens: 2,
+                outputTokens: 3,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {},
+            },
+        };
+        const events: StreamEvent[] = [
+            { type: 'text-delta', text: 'annotated' },
+            { type: 'text-end', metadata: { source: 'middleware' } },
+            finishEvent,
+        ];
+        const chatStream = createChatStream(toAsyncIterable(events));
+        const collected: StreamEvent[] = [];
+
+        for await (const event of chatStream) {
+            collected.push(event);
+        }
+
+        await expect(chatStream.result).resolves.toMatchObject({
+            parts: [
+                {
+                    type: 'text',
+                    text: 'annotated',
+                    metadata: { source: 'middleware' },
+                },
+            ],
+        });
+        expect(collected).toEqual([
+            { type: 'text-delta', text: 'annotated' },
+            { type: 'text-end', metadata: { source: 'middleware' } },
+            finishEvent,
+        ]);
+    });
+
+    it('should preserve distinct metadata for multiple text segments', async () => {
+        const events: StreamEvent[] = [
+            { type: 'text-delta', text: 'First' },
+            { type: 'text-end', metadata: { segment: 1 } },
+            { type: 'reasoning-start' },
+            { type: 'reasoning-delta', text: 'thinking' },
+            { type: 'reasoning-end' },
+            { type: 'text-delta', text: 'Second' },
+            { type: 'text-end', metadata: { segment: 2 } },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'tc1',
+                    name: 'search',
+                    arguments: { query: 'hello' },
+                },
+            },
+            { type: 'text-delta', text: 'Third' },
+            { type: 'text-end', metadata: { segment: 3 } },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 2,
+                    outputTokens: 3,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const chatStream = createChatStream(toAsyncIterable(events));
+
+        await expect(chatStream.result).resolves.toMatchObject({
+            parts: [
+                { type: 'text', text: 'First', metadata: { segment: 1 } },
+                { type: 'reasoning', text: 'thinking' },
+                { type: 'text', text: 'Second', metadata: { segment: 2 } },
+                {
+                    type: 'tool-call',
+                    toolCall: {
+                        id: 'tc1',
+                        name: 'search',
+                        arguments: { query: 'hello' },
+                    },
+                },
+                { type: 'text', text: 'Third', metadata: { segment: 3 } },
+            ],
+        });
+    });
+
+    it('should not apply metadata from empty reasoning segments to later reasoning', async () => {
+        const events: StreamEvent[] = [
+            { type: 'reasoning-end', metadata: { segment: 'empty' } },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'tc1',
+                    name: 'search',
+                    arguments: { query: 'hello' },
+                },
+            },
+            { type: 'reasoning-delta', text: 'Later' },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 2,
+                    outputTokens: 3,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const chatStream = createChatStream(toAsyncIterable(events));
+
+        await expect(chatStream.result).resolves.toMatchObject({
+            parts: [
+                {
+                    type: 'tool-call',
+                    toolCall: {
+                        id: 'tc1',
+                        name: 'search',
+                        arguments: { query: 'hello' },
+                    },
+                },
+                { type: 'reasoning', text: 'Later' },
+            ],
+        });
+    });
+
+    it('should not apply metadata from empty text segments to later text', async () => {
+        const events: StreamEvent[] = [
+            { type: 'text-end', metadata: { segment: 'empty' } },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'tc1',
+                    name: 'search',
+                    arguments: { query: 'hello' },
+                },
+            },
+            { type: 'text-delta', text: 'Later' },
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 2,
+                    outputTokens: 3,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const chatStream = createChatStream(toAsyncIterable(events));
+
+        await expect(chatStream.result).resolves.toMatchObject({
+            parts: [
+                {
+                    type: 'tool-call',
+                    toolCall: {
+                        id: 'tc1',
+                        name: 'search',
+                        arguments: { query: 'hello' },
+                    },
+                },
+                { type: 'text', text: 'Later' },
+            ],
+        });
     });
 
     it('should resolve result without iteration', async () => {
@@ -202,21 +383,22 @@ describe('createChatStream', () => {
     });
 
     it('should replay all events after completion', async () => {
+        const finishEvent: StreamEvent = {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: {
+                inputTokens: 1,
+                outputTokens: 1,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {},
+            },
+        };
         const events: StreamEvent[] = [
             { type: 'text-delta', text: 'Hello' },
-            {
-                type: 'finish',
-                finishReason: 'stop',
-                usage: {
-                    inputTokens: 1,
-                    outputTokens: 1,
-                    inputTokenDetails: {
-                        cacheReadTokens: 0,
-                        cacheWriteTokens: 0,
-                    },
-                    outputTokenDetails: {},
-                },
-            },
+            finishEvent,
         ];
         const chatStream = createChatStream(toAsyncIterable(events));
         const firstPass: StreamEvent[] = [];
@@ -329,21 +511,22 @@ describe('createChatStream', () => {
     });
 
     it('should resolve events with full history on success', async () => {
+        const finishEvent: StreamEvent = {
+            type: 'finish',
+            finishReason: 'stop',
+            usage: {
+                inputTokens: 1,
+                outputTokens: 1,
+                inputTokenDetails: {
+                    cacheReadTokens: 0,
+                    cacheWriteTokens: 0,
+                },
+                outputTokenDetails: {},
+            },
+        };
         const events: StreamEvent[] = [
             { type: 'text-delta', text: 'history' },
-            {
-                type: 'finish',
-                finishReason: 'stop',
-                usage: {
-                    inputTokens: 1,
-                    outputTokens: 1,
-                    inputTokenDetails: {
-                        cacheReadTokens: 0,
-                        cacheWriteTokens: 0,
-                    },
-                    outputTokenDetails: {},
-                },
-            },
+            finishEvent,
         ];
         const chatStream = createChatStream(toAsyncIterable(events));
 
@@ -433,9 +616,11 @@ describe('createChatStream', () => {
                 [Symbol.asyncIterator]() {
                     return {
                         next() {
-                            return new Promise<IteratorResult<string>>((resolve) => {
-                                resolveNext = resolve;
-                            });
+                            return new Promise<IteratorResult<string>>(
+                                (resolve) => {
+                                    resolveNext = resolve;
+                                }
+                            );
                         },
                         return: returnSpy,
                     };
@@ -566,7 +751,10 @@ describe('createChatStream', () => {
         controller.abort();
         const next = vi.fn(async () => ({
             done: false as const,
-            value: { type: 'text-delta', text: 'late event' } satisfies StreamEvent,
+            value: {
+                type: 'text-delta',
+                text: 'late event',
+            } satisfies StreamEvent,
         }));
         const chatStream = createChatStream(
             {

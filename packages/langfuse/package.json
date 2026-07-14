@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/langfuse",
-    "version": "0.11.0",
+    "version": "0.14.0",
     "description": "Langfuse middleware for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -21,7 +21,9 @@
     "exports": {
         ".": {
             "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "import": "./dist/index.js",
+            "require": "./dist/index.js",
+            "default": "./dist/index.js"
         }
     },
     "files": [
@@ -41,7 +43,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.11.0"
+        "@core-ai/core-ai": "^0.14.0"
     },
     "peerDependencies": {
         "@langfuse/otel": "^5.1.0",
@@ -52,7 +54,7 @@
         "@core-ai/typescript-config": "*",
         "@langfuse/otel": "^5.1.0",
         "@langfuse/tracing": "^5.1.0",
-        "@opentelemetry/sdk-node": "^0.214.0",
+        "@opentelemetry/sdk-node": "^0.220.0",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4",
         "zod": "^4.3.6"

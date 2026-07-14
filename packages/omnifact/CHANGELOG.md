@@ -1,5 +1,46 @@
 # @core-ai/omnifact
 
+## 0.14.0
+
+### Patch Changes
+
+- Updated dependencies [8e64097]
+    - @core-ai/core-ai@0.14.0
+    - @core-ai/openai@0.14.0
+
+## 0.13.1
+
+### Patch Changes
+
+- Updated dependencies [c7362c7]
+    - @core-ai/openai@0.13.1
+    - @core-ai/core-ai@0.13.1
+
+## 0.13.0
+
+### Patch Changes
+
+- Updated dependencies [7bf38dd]
+- Updated dependencies [de090e2]
+    - @core-ai/openai@0.13.0
+    - @core-ai/core-ai@0.13.0
+
+## 0.12.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.12.0
+- @core-ai/openai@0.12.0
+
+## 0.11.1
+
+### Patch Changes
+
+- 43d926e: Add `require` and `default` export conditions so packages resolve under CommonJS loaders such as tsx.
+- Updated dependencies [43d926e]
+    - @core-ai/core-ai@0.11.1
+    - @core-ai/openai@0.11.1
+
 ## 0.11.0
 
 ### Minor Changes

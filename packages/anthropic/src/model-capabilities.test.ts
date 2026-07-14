@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
     getAnthropicModelCapabilities,
+    getAnthropicThinkingMode,
     normalizeModelId,
+    requiresAnthropicInterleavedThinkingBeta,
+    restrictsAnthropicSamplingParamsAlways,
+    supportsAnthropicMaxEffort,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
 } from './model-capabilities.js';
@@ -22,26 +26,50 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-8',
         'claude-opus-4-7',
         'claude-opus-4-6',
+        'claude-sonnet-5',
         'claude-sonnet-4-6',
     ])('should resolve adaptive max-effort capabilities for %s', (modelId) => {
         const capabilities = getAnthropicModelCapabilities(modelId);
         expect(capabilities.reasoning).toEqual({
-            thinkingMode: 'adaptive',
-            supportsMaxEffort: true,
+            supported: true,
+            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
+            restrictsSamplingParams: true,
         });
+        expect(getAnthropicThinkingMode(modelId)).toBe('adaptive');
+        expect(supportsAnthropicMaxEffort(modelId)).toBe(true);
     });
 
     it('should resolve manual thinking capabilities', () => {
         const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
         expect(capabilities.reasoning).toEqual({
-            thinkingMode: 'manual',
-            supportsMaxEffort: false,
+            supported: true,
+            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
+            restrictsSamplingParams: true,
         });
+        expect(getAnthropicThinkingMode('claude-opus-4-5')).toBe('manual');
+        expect(supportsAnthropicMaxEffort('claude-opus-4-5')).toBe(false);
+    });
+
+    it('should resolve dated model IDs to the same capabilities', () => {
+        expect(
+            getAnthropicModelCapabilities('claude-opus-4-6-20260215')
+        ).toEqual(getAnthropicModelCapabilities('claude-opus-4-6'));
+        expect(supportsAnthropicMaxEffort('claude-opus-4-6-20260215')).toBe(
+            true
+        );
     });
 
     it('should fallback to defaults for unknown models', () => {
         const capabilities = getAnthropicModelCapabilities('claude-future-5');
-        expect(capabilities.reasoning.thinkingMode).toBe('adaptive');
+        expect(capabilities.reasoning.supported).toBe(true);
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'minimal',
+            'low',
+            'medium',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+        expect(getAnthropicThinkingMode('claude-future-5')).toBe('adaptive');
     });
 });
 
@@ -54,5 +82,31 @@ describe('effort mapping', () => {
     it('should map manual budgets', () => {
         expect(toAnthropicManualBudget('minimal')).toBe(1024);
         expect(toAnthropicManualBudget('max')).toBe(65536);
+        expect(toAnthropicManualBudget('medium', 4096)).toBe(4095);
+    });
+});
+
+describe('interleaved thinking beta', () => {
+    it('should only require the beta for supported manual-thinking models', () => {
+        expect(
+            requiresAnthropicInterleavedThinkingBeta('claude-sonnet-4-5')
+        ).toBe(true);
+        expect(
+            requiresAnthropicInterleavedThinkingBeta('claude-sonnet-5')
+        ).toBe(false);
+        expect(
+            requiresAnthropicInterleavedThinkingBeta('claude-haiku-4-5')
+        ).toBe(false);
+    });
+});
+
+describe('sampling restrictions', () => {
+    it('should identify models that always reject non-default sampling', () => {
+        expect(restrictsAnthropicSamplingParamsAlways('claude-sonnet-5')).toBe(
+            true
+        );
+        expect(
+            restrictsAnthropicSamplingParamsAlways('claude-sonnet-4-6')
+        ).toBe(false);
     });
 });

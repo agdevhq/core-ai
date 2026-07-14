@@ -89,6 +89,9 @@ const imageGen = openai.imageModel('gpt-image-1');
 <AccordionGroup>
   <Accordion title="GPT-5 Series" icon="star">
     <ul>
+      <li><strong>gpt-5.6-sol</strong> - Flagship model with max reasoning effort for complex agentic work</li>
+      <li><strong>gpt-5.6-terra</strong> - Balanced everyday model with GPT-5.5-class performance at lower cost</li>
+      <li><strong>gpt-5.6-luna</strong> - Fast and affordable model for high-volume tasks</li>
       <li><strong>gpt-5.5</strong> - Flagship model for complex reasoning and coding</li>
       <li><strong>gpt-5.5-pro</strong> - Pro model for demanding reasoning tasks</li>
       <li><strong>gpt-5.4</strong> - Frontier model with max reasoning effort</li>
@@ -207,10 +210,43 @@ const openai = createOpenAI({
 
 ## Reasoning support
 
+Inspect model capabilities before enabling reasoning:
+
+```typescript
+import { clampReasoningEffort, generate } from '@core-ai/core-ai';
+import { createOpenAI, getOpenAIModelCapabilities } from '@core-ai/openai';
+
+const openai = createOpenAI();
+const model = openai.chatModel('gpt-5.2');
+
+if (model.capabilities.reasoning.supported) {
+    const effort = clampReasoningEffort(
+        'medium',
+        model.capabilities.reasoning.supportedEfforts
+    );
+    const temperature = model.capabilities.reasoning.restrictsSamplingParams
+        ? undefined
+        : 0.7;
+
+    await generate({
+        model,
+        messages: [{ role: 'user', content: 'Think carefully.' }],
+        reasoning: { effort },
+        temperature,
+    });
+}
+
+// Or look up capabilities without constructing a ChatModel:
+const capabilities = getOpenAIModelCapabilities('gpt-5.2');
+```
+
 Reasoning support depends on the selected model family:
 
 | Models                                                                                                           | Supported effort levels            |
 | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `gpt-5.6-sol`                                                                                                    | `low`, `medium`, `high`, `max`     |
+| `gpt-5.6-terra`                                                                                                  | `low`, `medium`, `high`            |
+| `gpt-5.6-luna`                                                                                                   | `minimal`, `low`, `medium`, `high` |
 | `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.2-pro` | `low`, `medium`, `high`, `max`     |
 | `gpt-5.5-pro`, `gpt-5.4-pro`                                                                                     | `medium`, `high`, `max`            |
 | `gpt-5-pro`                                                                                                      | `high`                             |
@@ -221,8 +257,9 @@ Reasoning support depends on the selected model family:
 | `o1-mini`                                                                                                        | No effort control                  |
 
 <Warning>
-    GPT-5 family models throw a `ProviderError` if you set `temperature` or
-    `topP` while reasoning is enabled.
+    When `capabilities.reasoning.restrictsSamplingParams` is `true` (GPT-5
+    family models), the adapter throws if you set `temperature` or `topP` while
+    reasoning is enabled.
 </Warning>
 
 ### Reasoning metadata

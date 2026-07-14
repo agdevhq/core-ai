@@ -55,6 +55,7 @@
                         "pages": [
                             "observability/overview",
                             "observability/opentelemetry",
+                            "observability/axiom",
                             "observability/langfuse"
                         ]
                     },
@@ -98,6 +99,7 @@
                             "api/providers/openai",
                             "api/providers/azure-openai",
                             "api/providers/anthropic",
+                            "api/providers/anthropic-vertex",
                             "api/providers/google-genai",
                             "api/providers/mistral",
                             "api/providers/omnifact"

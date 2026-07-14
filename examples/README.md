@@ -27,6 +27,7 @@ MISTRAL_API_KEY=your_mistral_api_key
 OMNIFACT_API_KEY=your_omnifact_org_api_key
 AZURE_OPENAI_API_KEY=your_azure_openai_api_key
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
+GOOGLE_VERTEX_PROJECT=your_google_cloud_project_id
 ```
 
 `ANTHROPIC_API_KEY` is only required for the Anthropic example.
@@ -36,6 +37,8 @@ AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 Optional: `OMNIFACT_MODEL` overrides the model id (default in the example: `eu/gpt-5-mini`). Use ids from `GET /v1/gateway/models`.
 `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT` are only required for the Azure OpenAI example.
 Optional: `AZURE_OPENAI_DEPLOYMENT` overrides the deployment name (default in the example: `gpt-5-mini`). Set `AZURE_OPENAI_API=classic` to use the classic Azure API; `AZURE_OPENAI_API_VERSION` overrides the classic API version.
+`GOOGLE_VERTEX_PROJECT` is only required for the Vertex Anthropic example. It uses Application Default Credentials — run `gcloud auth application-default login` first, or set `GOOGLE_APPLICATION_CREDENTIALS` to a service account key file.
+Optional: `GOOGLE_VERTEX_REGION` overrides the region (default in the example: `europe-west1`); `ANTHROPIC_VERTEX_MODEL` overrides the model id (default in the example: `claude-sonnet-4-6`).
 
 ## Run an Example
 
@@ -48,7 +51,7 @@ npx tsx examples/01-chat-completion.ts
 The telemetry example uses a real OpenAI model and requires `OPENAI_API_KEY`:
 
 ```bash
-npx tsx examples/16-telemetry-console-exporter.ts
+npx tsx examples/17-telemetry-console-exporter.ts
 ```
 
 ## Available Examples
@@ -65,7 +68,9 @@ npx tsx examples/16-telemetry-console-exporter.ts
 - `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
 - `11-omnifact-provider.ts`: Using Omnifact API Gateway with the same `generate()` API
 - `12-azure-openai-provider.ts`: Using Azure OpenAI deployments with the same `generate()` API
-- `13-generate-object.ts`: Typed structured output with `generateObject()`
-- `14-stream-object.ts`: Streaming structured output with `streamObject()`
-- `15-stream-abort.ts`: Cancelling a streaming call with `AbortController`
-- `16-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
+- `13-anthropic-vertex-provider.ts`: Using Claude on Vertex AI with the same `generate()` API
+- `14-generate-object.ts`: Typed structured output with `generateObject()`
+- `15-stream-object.ts`: Streaming structured output with `streamObject()`
+- `16-stream-abort.ts`: Cancelling a streaming call with `AbortController`
+- `17-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
+- `18-telemetry-axiom-exporter.ts`: OpenAI-backed telemetry example that exports spans to Axiom

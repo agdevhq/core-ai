@@ -1,5 +1,27 @@
 # @core-ai/core-ai
 
+## 0.14.0
+
+### Minor Changes
+
+- 8e64097: Add application-owned metadata to text-bearing message parts and text boundary stream events.
+
+## 0.13.1
+
+## 0.13.0
+
+### Minor Changes
+
+- de090e2: Expose a shared ModelCapabilities contract on ChatModel and via provider get\*ModelCapabilities helpers so consumers can inspect reasoning support without duplicating provider maps.
+
+## 0.12.0
+
+## 0.11.1
+
+### Patch Changes
+
+- 43d926e: Add `require` and `default` export conditions so packages resolve under CommonJS loaders such as tsx.
+
 ## 0.11.0
 
 ### Patch Changes

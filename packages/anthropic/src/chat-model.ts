@@ -23,32 +23,46 @@ import {
     createStructuredOutputOptions,
     createGenerateRequest,
     createStreamRequest,
+    DEFAULT_PROVIDER_ID,
+    getAnthropicRequestBetas,
     mapGenerateResponse,
     transformStream,
     wrapError,
 } from './chat-adapter.js';
+import { getAnthropicModelCapabilities } from './model-capabilities.js';
 
-type AnthropicMessagesClient = {
-    messages: Anthropic['messages'];
+export type AnthropicChatClient = {
+    messages: {
+        create: Anthropic['messages']['create'];
+    };
 };
 
 export function createAnthropicChatModel(
-    client: AnthropicMessagesClient,
+    client: AnthropicChatClient,
     modelId: string,
-    defaultMaxTokens: number
+    defaultMaxTokens: number,
+    providerId = DEFAULT_PROVIDER_ID
 ): ChatModel {
-    const provider = 'anthropic';
+    const provider = providerId;
 
     async function callAnthropicMessagesApi<T>(
         request: unknown,
+        betas: string[],
         signal?: AbortSignal
     ): Promise<T> {
         try {
             return (await client.messages.create(request as never, {
+                ...(betas.length > 0
+                    ? {
+                          headers: {
+                              'anthropic-beta': betas.join(','),
+                          },
+                      }
+                    : {}),
                 signal,
             })) as T;
         } catch (error) {
-            throw wrapError(error);
+            throw wrapError(error, provider);
         }
     }
 
@@ -58,22 +72,32 @@ export function createAnthropicChatModel(
         const request = createGenerateRequest(
             modelId,
             defaultMaxTokens,
-            options
+            options,
+            provider
         );
         const response = await callAnthropicMessagesApi<
             Parameters<typeof mapGenerateResponse>[0]
-        >(request, options.signal);
+        >(request, getAnthropicRequestBetas(modelId, options), options.signal);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const request = createStreamRequest(modelId, defaultMaxTokens, options);
+        const request = createStreamRequest(
+            modelId,
+            defaultMaxTokens,
+            options,
+            provider
+        );
         return createChatStream(
             async () =>
                 transformStream(
                     await callAnthropicMessagesApi<
                         AsyncIterable<RawMessageStreamEvent>
-                    >(request, options.signal)
+                    >(
+                        request,
+                        getAnthropicRequestBetas(modelId, options),
+                        options.signal
+                    )
                 ),
             { signal: options.signal }
         );
@@ -82,6 +106,7 @@ export function createAnthropicChatModel(
     return {
         provider,
         modelId,
+        capabilities: getAnthropicModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

@@ -21,22 +21,22 @@ Create a Mistral provider instance.
 import { createMistral } from '@core-ai/mistral';
 
 const mistral = createMistral({
-  apiKey: process.env.MISTRAL_API_KEY,
+    apiKey: process.env.MISTRAL_API_KEY,
 });
 ```
 
 ### Options
 
 <ParamField path="apiKey" type="string" optional>
-  Your Mistral API key. Defaults to `MISTRAL_API_KEY` environment variable.
+    Your Mistral API key. Defaults to `MISTRAL_API_KEY` environment variable.
 </ParamField>
 
 <ParamField path="baseURL" type="string" optional>
-  Custom base URL for API requests.
+    Custom base URL for API requests.
 </ParamField>
 
 <ParamField path="client" type="Mistral" optional>
-  Provide your own configured Mistral client instance.
+    Provide your own configured Mistral client instance.
 </ParamField>
 
 ### Returns
@@ -52,18 +52,17 @@ const mistral = createMistral({
     - **mistral-large-2512** - Latest flagship model (Mistral Large 3)
     - **mistral-large-2407** - Previous generation flagship
   </Accordion>
-  
-  <Accordion title="Medium Models" icon="bolt">
-    - **mistral-medium-2508** - Strong performance at lower cost (Mistral Medium 3.1)
-    - **magistral-medium-latest** - Reasoning-capable Magistral model
-  </Accordion>
-  
-  <Accordion title="Small Models" icon="zap">
-    - **mistral-small-2506** - Balanced small model
-    - **mistral-small** - Quick responses
-    - **mistral-tiny** - Ultra-fast, lightweight
-  </Accordion>
-  
+
+<Accordion title="Medium Models" icon="bolt">
+    - **mistral-medium-2508** - Strong performance at lower cost (Mistral Medium
+    3.1) - **magistral-medium-latest** - Reasoning-capable Magistral model
+</Accordion>
+
+<Accordion title="Small Models" icon="zap">
+    - **mistral-small-2506** - Balanced small model - **mistral-small** - Quick
+    responses - **mistral-tiny** - Ultra-fast, lightweight
+</Accordion>
+
   <Accordion title="Specialized Models" icon="sparkles">
     - **codestral** - Optimized for code generation
     - **mixtral-8x7b** - Mixture of experts architecture
@@ -77,18 +76,22 @@ const mistral = createMistral({
 
 ## Capabilities
 
-| Feature | Support |
-|---------|--------|
-| Chat Completion | Yes |
-| Streaming | Yes |
-| Function Calling | Yes |
-| Vision | Yes |
-| Reasoning | Output only |
-| Embeddings | Yes |
-| Image Generation | No |
+| Feature          | Support     |
+| ---------------- | ----------- |
+| Chat Completion  | Yes         |
+| Streaming        | Yes         |
+| Function Calling | Yes         |
+| Vision           | Yes         |
+| Reasoning        | Output only |
+| Embeddings       | Yes         |
+| Image Generation | No          |
 
 <Note>
-  Mistral can return reasoning content from thinking-capable models, but it does not map `reasoning.effort` into the request. The `reasoning` option is accepted as a no-op.
+    Mistral can return reasoning content from thinking-capable models, but it
+    does not map `reasoning.effort` into the request. The `reasoning` option is
+    accepted as a no-op. `ChatModel.capabilities.reasoning.supported` and
+    `getMistralModelCapabilities(modelId)` both report `supported: false` with
+    an empty effort list.
 </Note>
 
 ## Examples
@@ -102,10 +105,8 @@ import { generate } from '@core-ai/core-ai';
 const mistral = createMistral();
 
 const result = await generate({
-  model: mistral.chatModel('mistral-large-2512'),
-  messages: [
-    { role: 'user', content: 'Explain the concept of recursion' },
-  ],
+    model: mistral.chatModel('mistral-large-2512'),
+    messages: [{ role: 'user', content: 'Explain the concept of recursion' }],
 });
 
 console.log(result.content);
@@ -117,16 +118,19 @@ console.log(result.content);
 import { stream } from '@core-ai/core-ai';
 
 const chatStream = await stream({
-  model: mistral.chatModel('mistral-medium-2508'),
-  messages: [
-    { role: 'user', content: 'Write a short story about artificial intelligence' },
-  ],
+    model: mistral.chatModel('mistral-medium-2508'),
+    messages: [
+        {
+            role: 'user',
+            content: 'Write a short story about artificial intelligence',
+        },
+    ],
 });
 
 for await (const event of chatStream) {
-  if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 ```
 
@@ -134,20 +138,25 @@ for await (const event of chatStream) {
 
 ```typescript
 const result = await generate({
-  model: mistral.chatModel('magistral-medium-latest'),
-  messages: [
-    { role: 'user', content: 'Solve this step by step: if 3x + 7 = 22, what is x?' },
-  ],
-  reasoning: {
-    effort: 'high',
-  },
+    model: mistral.chatModel('magistral-medium-latest'),
+    messages: [
+        {
+            role: 'user',
+            content: 'Solve this step by step: if 3x + 7 = 22, what is x?',
+        },
+    ],
+    reasoning: {
+        effort: 'high',
+    },
 });
 
 console.log(result.reasoning);
 ```
 
 <Note>
-  `reasoning.effort` is not sent to the Mistral API. Thinking-capable models decide their own reasoning behavior and the adapter extracts the resulting reasoning parts.
+    `reasoning.effort` is not sent to the Mistral API. Thinking-capable models
+    decide their own reasoning behavior and the adapter extracts the resulting
+    reasoning parts.
 </Note>
 
 ### Tool calling
@@ -157,21 +166,19 @@ import { generate, defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const result = await generate({
-  model: mistral.chatModel('mistral-large-2512'),
-  messages: [
-    { role: 'user', content: 'What is 25 multiplied by 4?' },
-  ],
-  tools: {
-    calculator: defineTool({
-      name: 'calculator',
-      description: 'Perform mathematical calculations',
-      parameters: z.object({
-        operation: z.enum(['add', 'subtract', 'multiply', 'divide']),
-        a: z.number(),
-        b: z.number(),
-      }),
-    }),
-  },
+    model: mistral.chatModel('mistral-large-2512'),
+    messages: [{ role: 'user', content: 'What is 25 multiplied by 4?' }],
+    tools: {
+        calculator: defineTool({
+            name: 'calculator',
+            description: 'Perform mathematical calculations',
+            parameters: z.object({
+                operation: z.enum(['add', 'subtract', 'multiply', 'divide']),
+                a: z.number(),
+                b: z.number(),
+            }),
+        }),
+    },
 });
 ```
 
@@ -181,8 +188,8 @@ const result = await generate({
 import { embed } from '@core-ai/core-ai';
 
 const result = await embed({
-  model: mistral.embeddingModel('mistral-embed'),
-  input: 'Search query for semantic similarity',
+    model: mistral.embeddingModel('mistral-embed'),
+    input: 'Search query for semantic similarity',
 });
 
 console.log(result.embeddings[0]);
@@ -191,19 +198,15 @@ console.log(result.embeddings[0]);
 ### Batch embeddings
 
 ```typescript
-const documents = [
-  'First document',
-  'Second document',
-  'Third document',
-];
+const documents = ['First document', 'Second document', 'Third document'];
 
 const result = await embed({
-  model: mistral.embeddingModel('mistral-embed'),
-  input: documents,
+    model: mistral.embeddingModel('mistral-embed'),
+    input: documents,
 });
 
 for (const [i, embedding] of result.embeddings.entries()) {
-  console.log(`Document ${i}: ${embedding.length} dimensions`);
+    console.log(`Document ${i}: ${embedding.length} dimensions`);
 }
 ```
 
@@ -211,13 +214,14 @@ for (const [i, embedding] of result.embeddings.entries()) {
 
 ```typescript
 const result = await generate({
-  model: mistral.chatModel('codestral'),
-  messages: [
-    {
-      role: 'user',
-      content: 'Write a Python function to calculate the Fibonacci sequence using dynamic programming.',
-    },
-  ],
+    model: mistral.chatModel('codestral'),
+    messages: [
+        {
+            role: 'user',
+            content:
+                'Write a Python function to calculate the Fibonacci sequence using dynamic programming.',
+        },
+    ],
 });
 
 console.log(result.content);
@@ -231,38 +235,39 @@ Options are namespaced under `mistral` in `providerOptions`:
 
 ```typescript
 const result = await generate({
-  model: mistral.chatModel('mistral-large-2512'),
-  messages: [{ role: 'user', content: 'Hello' }],
-  providerOptions: {
-    mistral: {
-      stopSequences: ['\n\n'],
-      frequencyPenalty: 0.5,
-      presencePenalty: 0.3,
-      randomSeed: 42,
-      parallelToolCalls: true,
-      safePrompt: true,
+    model: mistral.chatModel('mistral-large-2512'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    providerOptions: {
+        mistral: {
+            stopSequences: ['\n\n'],
+            frequencyPenalty: 0.5,
+            presencePenalty: 0.3,
+            randomSeed: 42,
+            parallelToolCalls: true,
+            safePrompt: true,
+        },
     },
-  },
 });
 ```
 
 Available fields: `stopSequences`, `frequencyPenalty`, `presencePenalty`, `randomSeed`, `parallelToolCalls`, `promptMode`, `safePrompt`.
 
 <Tip>
-  Use `parallelToolCalls` to enable or disable parallel tool execution when using multiple tools.
+    Use `parallelToolCalls` to enable or disable parallel tool execution when
+    using multiple tools.
 </Tip>
 
 ### Embed options
 
 ```typescript
 const result = await embed({
-  model: mistral.embeddingModel('mistral-embed'),
-  input: 'text',
-  providerOptions: {
-    mistral: {
-      encodingFormat: 'float',
+    model: mistral.embeddingModel('mistral-embed'),
+    input: 'text',
+    providerOptions: {
+        mistral: {
+            encodingFormat: 'float',
+        },
     },
-  },
 });
 ```
 
@@ -274,28 +279,36 @@ Available fields: `outputDtype` (`'float'` | `'int8'` | `'uint8'` | `'binary'` |
 import { ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await generate({
-    model: mistral.chatModel('mistral-large-2512'),
-    messages: [{ role: 'user', content: 'Hello!' }],
-  });
+    const result = await generate({
+        model: mistral.chatModel('mistral-large-2512'),
+        messages: [{ role: 'user', content: 'Hello!' }],
+    });
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('Mistral API error:', error.message);
-    console.error('Status:', error.statusCode);
-  }
+    if (error instanceof ProviderError) {
+        console.error('Mistral API error:', error.message);
+        console.error('Status:', error.statusCode);
+    }
 }
 ```
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card title="OpenAI Provider" icon="robot" href="/api/providers/openai">
-    GPT models with reasoning effort control
-  </Card>
-  <Card title="Anthropic Provider" icon="message" href="/api/providers/anthropic">
-    Claude models with extended thinking
-  </Card>
-  <Card title="Embeddings Guide" icon="vector-square" href="/guides/embeddings">
-    Learn how to use embeddings
-  </Card>
+    <Card title="OpenAI Provider" icon="robot" href="/api/providers/openai">
+        GPT models with reasoning effort control
+    </Card>
+    <Card
+        title="Anthropic Provider"
+        icon="message"
+        href="/api/providers/anthropic"
+    >
+        Claude models with extended thinking
+    </Card>
+    <Card
+        title="Embeddings Guide"
+        icon="vector-square"
+        href="/guides/embeddings"
+    >
+        Learn how to use embeddings
+    </Card>
 </CardGroup>

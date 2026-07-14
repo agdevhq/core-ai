@@ -26,6 +26,7 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { wrapGoogleError } from './google-error.js';
+import { getGoogleModelCapabilities } from './model-capabilities.js';
 
 type GoogleGenAIChatClient = {
     models: GoogleGenAI['models'];
@@ -77,6 +78,7 @@ export function createGoogleGenAIChatModel(
     return {
         provider,
         modelId,
+        capabilities: getGoogleModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

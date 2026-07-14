@@ -1,12 +1,12 @@
 ---
 title: 'Utilities'
-description: 'Helper functions for schemas, messages, streams, middleware wrapping, and provider metadata'
+description: 'Helper functions for schemas, messages, streams, middleware wrapping, reasoning effort, and provider metadata'
 icon: 'toolbox'
 ---
 
 ## Overview
 
-core-ai exports helpers for schema conversion, assistant message construction, stream creation, model middleware wrapping, and provider-specific metadata access.
+core-ai exports helpers for schema conversion, assistant message construction, stream creation, model middleware wrapping, reasoning effort clamping, and provider-specific metadata access.
 
 ## zodSchemaToJsonSchema()
 
@@ -17,8 +17,8 @@ import { z } from 'zod';
 import { zodSchemaToJsonSchema } from '@core-ai/core-ai';
 
 const weatherSchema = z.object({
-  city: z.string(),
-  temperatureC: z.number(),
+    city: z.string(),
+    temperatureC: z.number(),
 });
 
 const jsonSchema = zodSchemaToJsonSchema(weatherSchema);
@@ -26,6 +26,21 @@ console.log(jsonSchema);
 ```
 
 Use this helper when you need a JSON Schema outside the built-in model and tool helpers.
+
+## clampReasoningEffort()
+
+Clamp a requested reasoning effort to the nearest value in a model's supported effort list.
+
+```typescript
+import { clampReasoningEffort } from '@core-ai/core-ai';
+
+const effort = clampReasoningEffort(
+    'medium',
+    model.capabilities.reasoning.supportedEfforts
+);
+```
+
+Returns the original effort when the supported list is empty or already includes it. Use this with `ChatModel.capabilities` or a provider `get*ModelCapabilities` helper before calling `generate` / `stream`.
 
 ## resultToMessage()
 
@@ -35,9 +50,9 @@ Convert a `GenerateResult` into an `AssistantMessage` so you can continue a conv
 import { generate, resultToMessage } from '@core-ai/core-ai';
 
 const result = await generate({
-  model,
-  messages: [{ role: 'user', content: 'Solve this step by step.' }],
-  reasoning: { effort: 'high' },
+    model,
+    messages: [{ role: 'user', content: 'Solve this step by step.' }],
+    reasoning: { effort: 'high' },
 });
 
 const assistantTurn = resultToMessage(result);
@@ -47,7 +62,7 @@ const assistantTurn = resultToMessage(result);
 
 ```typescript
 type ResultToMessageOptions = {
-  includeReasoning?: boolean;
+    includeReasoning?: boolean;
 };
 ```
 
@@ -74,20 +89,20 @@ import { generate, getProviderMetadata } from '@core-ai/core-ai';
 import type { OpenAIReasoningMetadata } from '@core-ai/openai';
 
 const result = await generate({
-  model,
-  messages: [{ role: 'user', content: 'Think carefully before answering.' }],
-  reasoning: { effort: 'high' },
+    model,
+    messages: [{ role: 'user', content: 'Think carefully before answering.' }],
+    reasoning: { effort: 'high' },
 });
 
 for (const part of result.parts) {
-  if (part.type !== 'reasoning') continue;
+    if (part.type !== 'reasoning') continue;
 
-  const metadata = getProviderMetadata<OpenAIReasoningMetadata>(
-    part.providerMetadata,
-    'openai'
-  );
+    const metadata = getProviderMetadata<OpenAIReasoningMetadata>(
+        part.providerMetadata,
+        'openai'
+    );
 
-  console.log(metadata?.encryptedContent);
+    console.log(metadata?.encryptedContent);
 }
 ```
 
@@ -102,12 +117,21 @@ import { createChatStream } from '@core-ai/core-ai';
 import type { StreamEvent } from '@core-ai/core-ai';
 
 const events: StreamEvent[] = [
-  { type: 'text-delta', text: 'Hello' },
-  { type: 'finish', finishReason: 'stop', usage: { inputTokens: 5, outputTokens: 1, inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 }, outputTokenDetails: {} } },
+    { type: 'text-delta', text: 'Hello' },
+    {
+        type: 'finish',
+        finishReason: 'stop',
+        usage: {
+            inputTokens: 5,
+            outputTokens: 1,
+            inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
+            outputTokenDetails: {},
+        },
+    },
 ];
 
 async function* generate() {
-  for (const event of events) yield event;
+    for (const event of events) yield event;
 }
 
 const chatStream = createChatStream(generate());
@@ -136,8 +160,8 @@ import { wrapChatModel } from '@core-ai/core-ai';
 import type { ChatModelMiddleware } from '@core-ai/core-ai';
 
 const wrappedModel = wrapChatModel({
-  model,
-  middleware: myMiddleware, // single middleware or array
+    model,
+    middleware: myMiddleware, // single middleware or array
 });
 ```
 
@@ -151,8 +175,8 @@ Wrap an `EmbeddingModel` with middleware.
 import { wrapEmbeddingModel } from '@core-ai/core-ai';
 
 const wrappedModel = wrapEmbeddingModel({
-  model: embeddingModel,
-  middleware: myMiddleware,
+    model: embeddingModel,
+    middleware: myMiddleware,
 });
 ```
 
@@ -164,8 +188,8 @@ Wrap an `ImageModel` with middleware.
 import { wrapImageModel } from '@core-ai/core-ai';
 
 const wrappedModel = wrapImageModel({
-  model: imageModel,
-  middleware: myMiddleware,
+    model: imageModel,
+    middleware: myMiddleware,
 });
 ```
 
@@ -177,7 +201,7 @@ Remove a trailing `-YYYYMMDD` date suffix from a model ID. This is used internal
 import { stripModelDateSuffix } from '@core-ai/core-ai';
 
 stripModelDateSuffix('gpt-5-mini-20250101'); // 'gpt-5-mini'
-stripModelDateSuffix('gpt-5-mini');          // 'gpt-5-mini'
+stripModelDateSuffix('gpt-5-mini'); // 'gpt-5-mini'
 ```
 
 ## asObject()

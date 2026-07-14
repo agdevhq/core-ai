@@ -17,12 +17,37 @@ describe('normalizeModelId', () => {
 describe('getGoogleModelCapabilities', () => {
     it('should resolve known model capabilities', () => {
         const capabilities = getGoogleModelCapabilities('gemini-3-pro');
+        expect(capabilities.reasoning.supported).toBe(true);
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'minimal',
+            'low',
+            'medium',
+            'high',
+            'max',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
+        expect(capabilities.reasoning.canDisableThinking).toBe(false);
+    });
+
+    it('should resolve required thinking-budget capabilities for gemini-2.5-pro', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-2.5-pro');
+        expect(capabilities.reasoning.thinkingParam).toBe('thinkingBudget');
+        expect(capabilities.reasoning.canDisableThinking).toBe(false);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
+    });
+
+    it('should resolve dated model IDs to the same capabilities', () => {
+        expect(getGoogleModelCapabilities('gemini-3-pro-20260215')).toEqual(
+            getGoogleModelCapabilities('gemini-3-pro')
+        );
     });
 
     it('should return defaults for unknown models', () => {
         const capabilities = getGoogleModelCapabilities('gemini-custom');
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingBudget');
+        expect(capabilities.reasoning.canDisableThinking).toBe(true);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
     });
 });
 
