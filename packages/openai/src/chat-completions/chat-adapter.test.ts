@@ -254,7 +254,7 @@ describe('structured output helpers', () => {
                 },
             },
             temperature: 0,
-            max_tokens: 128,
+            max_completion_tokens: 128,
         });
         expect(request).not.toHaveProperty('tools');
         expect(request).not.toHaveProperty('tool_choice');

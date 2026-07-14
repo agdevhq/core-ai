@@ -192,7 +192,7 @@ function createRequest(
 function createRequestBase(
     modelId: string,
     options: GenerateOptions,
-    openaiOptions: OpenAICompatGenerateProviderOptions | undefined
+    openaiOptions: OpenAIChatGenerateProviderOptions | undefined
 ) {
     validateOpenAIReasoningConfig(modelId, options);
 
@@ -216,7 +216,7 @@ function mapSamplingToRequestFields(
     modelId: string,
     options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>,
     openaiOptions: Pick<
-        OpenAICompatGenerateProviderOptions,
+        OpenAIChatGenerateProviderOptions,
         'maxTokensParam'
     > | undefined
 ) {
