@@ -14,6 +14,7 @@ export type AnthropicChatProviderOptions = {
     baseURL?: string;
     client?: AnthropicChatClient;
     defaultMaxTokens?: number;
+    strictToolSchemas?: boolean;
 };
 
 export type AnthropicChatProvider = {
@@ -50,7 +51,8 @@ export function createAnthropicChatProvider(
                 client,
                 modelId,
                 defaultMaxTokens,
-                providerId
+                providerId,
+                options.strictToolSchemas
             ),
     };
 }

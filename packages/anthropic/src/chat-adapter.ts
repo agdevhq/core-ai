@@ -260,7 +260,7 @@ function convertUserContentPart(part: UserContentPart): ContentBlockParam {
     };
 }
 
-export function convertTools(tools: ToolSet): Tool[] {
+export function convertTools(tools: ToolSet, strictToolSchemas = true): Tool[] {
     return Object.values(tools).map((tool) => {
         const schema = toAnthropicJsonSchema(tool.parameters);
 
@@ -268,7 +268,7 @@ export function convertTools(tools: ToolSet): Tool[] {
             name: tool.name,
             description: tool.description,
             input_schema: schema as Tool['input_schema'],
-            strict: true,
+            ...(strictToolSchemas ? { strict: true } : {}),
         };
     });
 }
@@ -374,7 +374,8 @@ export function createGenerateRequest(
     modelId: string,
     defaultMaxTokens: number,
     options: GenerateOptions,
-    provider = DEFAULT_PROVIDER_ID
+    provider = DEFAULT_PROVIDER_ID,
+    strictToolSchemas = true
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
@@ -384,7 +385,8 @@ export function createGenerateRequest(
         defaultMaxTokens,
         options,
         anthropicOptions,
-        provider
+        provider,
+        strictToolSchemas
     );
     return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
 }
@@ -393,7 +395,8 @@ export function createStreamRequest(
     modelId: string,
     defaultMaxTokens: number,
     options: GenerateOptions,
-    provider = DEFAULT_PROVIDER_ID
+    provider = DEFAULT_PROVIDER_ID,
+    strictToolSchemas = true
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
@@ -404,7 +407,8 @@ export function createStreamRequest(
             defaultMaxTokens,
             options,
             anthropicOptions,
-            provider
+            provider,
+            strictToolSchemas
         ),
         stream: true as const,
     };
@@ -416,7 +420,8 @@ function createRequestBase(
     defaultMaxTokens: number,
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
-    provider: string
+    provider: string,
+    strictToolSchemas: boolean
 ) {
     const maxTokens = options.maxTokens ?? defaultMaxTokens;
     validateAnthropicReasoningConfig(
@@ -439,7 +444,7 @@ function createRequestBase(
         max_tokens: maxTokens,
         ...(converted.system ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
+            ? { tools: convertTools(options.tools, strictToolSchemas) }
             : {}),
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }

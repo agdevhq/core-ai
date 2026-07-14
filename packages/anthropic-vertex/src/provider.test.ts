@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProviderError } from '@core-ai/core-ai';
+import { z } from 'zod';
+import { defineTool, ProviderError } from '@core-ai/core-ai';
 import type { AnthropicChatClient } from '@core-ai/anthropic';
 
 import { createAnthropicVertex } from './provider.js';
@@ -20,6 +21,23 @@ vi.mock('@anthropic-ai/vertex-sdk', () => ({
         }
     },
 }));
+
+function createMessageResponse() {
+    return {
+        id: 'msg_1',
+        type: 'message',
+        role: 'assistant',
+        model: 'claude-sonnet-4-6',
+        stop_reason: 'end_turn',
+        stop_sequence: null,
+        content: [{ type: 'text', text: 'ok', citations: null }],
+        container: null,
+        usage: {
+            input_tokens: 1,
+            output_tokens: 1,
+        },
+    };
+}
 
 describe('createAnthropicVertex', () => {
     beforeEach(() => {
@@ -94,20 +112,7 @@ describe('createAnthropicVertex', () => {
     });
 
     it('should use default max tokens in generated requests', async () => {
-        messagesCreate.mockResolvedValue({
-            id: 'msg_1',
-            type: 'message',
-            role: 'assistant',
-            model: 'claude-sonnet-4-6',
-            stop_reason: 'end_turn',
-            stop_sequence: null,
-            content: [{ type: 'text', text: 'ok', citations: null }],
-            container: null,
-            usage: {
-                input_tokens: 1,
-                output_tokens: 1,
-            },
-        });
+        messagesCreate.mockResolvedValue(createMessageResponse());
 
         const provider = createAnthropicVertex({
             projectId: 'my-project',
@@ -121,6 +126,63 @@ describe('createAnthropicVertex', () => {
 
         expect(messagesCreate).toHaveBeenCalledWith(
             expect.objectContaining({ max_tokens: 2048 }),
+            expect.objectContaining({ signal: undefined })
+        );
+    });
+
+    it('should omit strict mode when strict tool schemas are disabled', async () => {
+        messagesCreate.mockResolvedValue(createMessageResponse());
+        const provider = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+            strictToolSchemas: false,
+        });
+
+        await provider.chatModel('claude-sonnet-4-6').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: {
+                search: defineTool({
+                    name: 'search',
+                    description: 'Search the web',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(messagesCreate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tools: [
+                    expect.not.objectContaining({
+                        strict: expect.anything(),
+                    }),
+                ],
+            }),
+            expect.objectContaining({ signal: undefined })
+        );
+    });
+
+    it('should enable strict tool schemas by default', async () => {
+        messagesCreate.mockResolvedValue(createMessageResponse());
+        const provider = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        });
+
+        await provider.chatModel('claude-sonnet-4-6').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: {
+                search: defineTool({
+                    name: 'search',
+                    description: 'Search the web',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(messagesCreate).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tools: [expect.objectContaining({ strict: true })],
+            }),
             expect.objectContaining({ signal: undefined })
         );
     });

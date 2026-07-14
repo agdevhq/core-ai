@@ -15,6 +15,9 @@ describe('normalizeModelId', () => {
         expect(normalizeModelId('claude-opus-4-6-20260215')).toBe(
             'claude-opus-4-6'
         );
+        expect(normalizeModelId('claude-haiku-4-5@20251001')).toBe(
+            'claude-haiku-4-5'
+        );
     });
 });
 
@@ -57,6 +60,9 @@ describe('getAnthropicModelCapabilities', () => {
         expect(supportsAnthropicMaxEffort('claude-opus-4-6-20260215')).toBe(
             true
         );
+        expect(
+            getAnthropicThinkingMode('claude-haiku-4-5@20251001')
+        ).toBe('manual');
     });
 
     it('should fallback to defaults for unknown models', () => {
