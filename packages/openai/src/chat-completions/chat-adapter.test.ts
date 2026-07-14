@@ -6,7 +6,6 @@ import {
     convertMessages,
     convertToolChoice,
     convertTools,
-    getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
@@ -18,7 +17,10 @@ import {
     type ToolSet,
 } from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.js';
-import { createStructuredOutputRequestOptions } from '../shared/tools.js';
+import {
+    createStructuredOutputRequestOptions,
+    getStructuredOutputName,
+} from '../shared/structured-output.js';
 import type {
     ChatCompletion,
     ChatCompletionChunk,
@@ -258,13 +260,50 @@ describe('structured output helpers', () => {
         expect(request).not.toHaveProperty('tool_choice');
     });
 
-    it('should derive default structured output tool name', () => {
+    it('should create a forced tool request for compatible endpoints', () => {
+        const request = createGenerateRequest(
+            'qwen3-235b',
+            createStructuredOutputRequestOptions(
+                {
+                    messages: [
+                        { role: 'user', content: 'Return weather as JSON' },
+                    ],
+                    schema: z.object({
+                        city: z.string(),
+                        temperatureC: z.number(),
+                    }),
+                    schemaName: 'weather_schema',
+                },
+                'tool'
+            )
+        );
+
+        expect(request).toMatchObject({
+            tools: [
+                {
+                    type: 'function',
+                    function: {
+                        name: 'weather_schema',
+                    },
+                },
+            ],
+            tool_choice: {
+                type: 'function',
+                function: {
+                    name: 'weather_schema',
+                },
+            },
+        });
+        expect(request).not.toHaveProperty('response_format');
+    });
+
+    it('should derive the default structured output name', () => {
         const schema = z.object({
             ok: z.boolean(),
         });
 
         expect(
-            getStructuredOutputToolName({
+            getStructuredOutputName({
                 messages: [{ role: 'user', content: 'json' }],
                 schema,
             })

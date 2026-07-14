@@ -26,10 +26,17 @@ export type OpenAIChatProvider = {
     chatModel(modelId: string): ChatModel;
 };
 
+export type OpenAICompatibilityOptions = {
+    reasoning?: boolean;
+    structuredOutputMode?: OpenAIChatCompletionsModelOptions['structuredOutputMode'];
+};
+
+export type OpenAICompatibility = boolean | OpenAICompatibilityOptions;
+
 export type OpenAIProviderFactoryOptions = {
     providerId?: string;
     defaultApi?: 'responses' | 'chat-completions';
-    chat?: Pick<OpenAIChatCompletionsModelOptions, 'compatibility'>;
+    compatibility?: OpenAICompatibility;
 };
 
 export function createOpenAIProvider(
@@ -43,12 +50,23 @@ export function createOpenAIProvider(
             baseURL: options.baseURL,
         });
     const providerId = factoryOptions.providerId ?? 'openai';
+    const compatibilityEnabled =
+        factoryOptions.compatibility === true ||
+        typeof factoryOptions.compatibility === 'object';
+    const compatibilityOptions =
+        typeof factoryOptions.compatibility === 'object'
+            ? factoryOptions.compatibility
+            : undefined;
     const createResponsesModel = (modelId: string) =>
         createOpenAIChatModel(client, modelId, providerId);
     const createChatCompletionsModel = (modelId: string) =>
         createOpenAIChatCompletionsModel(client, modelId, {
             providerId,
-            compatibility: factoryOptions.chat?.compatibility,
+            compatibility: compatibilityEnabled,
+            nonStandardReasoning:
+                compatibilityEnabled &&
+                (compatibilityOptions?.reasoning ?? true),
+            structuredOutputMode: compatibilityOptions?.structuredOutputMode,
         });
     const chat = {
         chatModel: createChatCompletionsModel,

@@ -35,10 +35,12 @@ export function createOpenAICompatAdapter(): ProviderE2EAdapter {
         createChatModel: () =>
             createOpenAICompat({
                 apiKey: getEnvValue(OPENAI_API_KEY_ENV),
+                structuredOutputMode: 'native',
             }).chatModel(chatModelId),
         createReasoningChatModel: () =>
             createOpenAICompat({
                 apiKey: getEnvValue(OPENAI_API_KEY_ENV),
+                structuredOutputMode: 'native',
             }).chatModel(reasoningModelId),
     };
 }

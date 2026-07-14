@@ -26,12 +26,8 @@ import {
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
-import {
-    convertToolChoice,
-    convertTools,
-    getStructuredOutputToolName,
-    type OpenAIRequestOptions,
-} from './shared/tools.js';
+import { convertToolChoice, convertTools } from './shared/tools.js';
+import type { OpenAIRequestOptions } from './shared/structured-output.js';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
@@ -41,7 +37,6 @@ import {
     type OpenAIResponsesGenerateProviderOptions,
 } from './provider-options.js';
 
-export { getStructuredOutputToolName };
 export { validateOpenAIReasoningConfig };
 
 export type OpenAIReasoningMetadata = {

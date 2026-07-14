@@ -20,12 +20,8 @@ import {
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.js';
-import {
-    convertToolChoice,
-    convertTools,
-    getStructuredOutputToolName,
-    type OpenAIRequestOptions,
-} from '../shared/tools.js';
+import { convertToolChoice, convertTools } from '../shared/tools.js';
+import type { OpenAIRequestOptions } from '../shared/structured-output.js';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
@@ -40,12 +36,7 @@ export type OpenAIChatCompletionsAdapterOptions = {
     compatibility?: boolean;
 };
 
-export {
-    convertToolChoice,
-    convertTools,
-    getStructuredOutputToolName,
-    validateOpenAIReasoningConfig,
-};
+export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
 
 export function convertMessages(
     messages: Message[]

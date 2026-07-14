@@ -29,4 +29,17 @@ console.log(result.content);
 
 This provider only exposes Chat Completions models. It accepts known
 nonstandard response fields used by OpenAI-compatible gateways, including
-`reasoning_content` and `reasoning`.
+`reasoning_content` and `reasoning`. Set `reasoning: false` when those fields
+should not be interpreted as reasoning output.
+
+Structured output uses a forced function tool by default for broad endpoint
+compatibility. If the endpoint supports strict JSON Schema response formats,
+opt in with `structuredOutputMode: 'native'`:
+
+```ts
+const provider = createOpenAICompat({
+    apiKey: process.env.API_KEY,
+    baseURL: 'https://gateway.example.com/v1',
+    structuredOutputMode: 'native',
+});
+```

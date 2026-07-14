@@ -10,7 +10,6 @@ import type {
     ChatModel,
     GenerateObjectOptions,
     GenerateObjectResult,
-    GenerateOptions,
     GenerateResult,
     StreamObjectOptions,
     ObjectStream,
@@ -20,17 +19,18 @@ import { createObjectStream, createChatStream } from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
-    getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
 import { getOpenAIModelCapabilities } from './model-capabilities.js';
 import { wrapOpenAIError } from './openai-error.js';
 import {
+    createStructuredOutputRequestOptions,
     extractStructuredObject,
+    getStructuredOutputName,
     transformStructuredOutputStream,
+    type OpenAIRequestOptions,
 } from './shared/structured-output.js';
-import { createStructuredOutputRequestOptions } from './shared/tools.js';
 
 type OpenAIChatClient = {
     responses: OpenAI['responses'];
@@ -59,7 +59,7 @@ export function createOpenAIChatModel(
     }
 
     async function generateChat(
-        options: GenerateOptions
+        options: OpenAIRequestOptions
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options);
         const response = await callOpenAIResponsesApi<Response>(
@@ -69,7 +69,9 @@ export function createOpenAIChatModel(
         return mapGenerateResponse(response);
     }
 
-    async function streamChat(options: GenerateOptions): Promise<ChatStream> {
+    async function streamChat(
+        options: OpenAIRequestOptions
+    ): Promise<ChatStream> {
         const request = createStreamRequest(modelId, options);
         return createChatStream(
             async () =>
@@ -94,12 +96,12 @@ export function createOpenAIChatModel(
             const structuredOptions =
                 createStructuredOutputRequestOptions(options);
             const result = await generateChat(structuredOptions);
-            const toolName = getStructuredOutputToolName(options);
+            const structuredOutputName = getStructuredOutputName(options);
             const object = extractStructuredObject(
                 result,
                 options.schema,
                 provider,
-                toolName
+                structuredOutputName
             );
 
             return {
@@ -114,14 +116,14 @@ export function createOpenAIChatModel(
             const structuredOptions =
                 createStructuredOutputRequestOptions(options);
             const stream = await streamChat(structuredOptions);
-            const toolName = getStructuredOutputToolName(options);
+            const structuredOutputName = getStructuredOutputName(options);
 
             return createObjectStream(
                 transformStructuredOutputStream(
                     stream,
                     options.schema,
                     provider,
-                    toolName
+                    structuredOutputName
                 ),
                 {
                     signal: options.signal,

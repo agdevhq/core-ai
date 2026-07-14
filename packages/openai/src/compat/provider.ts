@@ -19,7 +19,7 @@ export function createOpenAICompat(
 ): OpenAICompatProvider {
     return createOpenAIProvider(options, {
         defaultApi: 'chat-completions',
-        chat: { compatibility: true },
+        compatibility: true,
     });
 }
 

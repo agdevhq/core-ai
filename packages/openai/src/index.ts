@@ -3,6 +3,8 @@ export type { OpenAIProvider, OpenAIProviderOptions } from './provider.js';
 export { createOpenAIProvider } from './shared/provider-factory.js';
 export type {
     OpenAIChatProvider,
+    OpenAICompatibility,
+    OpenAICompatibilityOptions,
     OpenAIProviderBaseOptions,
     OpenAIProviderFactoryOptions,
 } from './shared/provider-factory.js';
@@ -10,6 +12,7 @@ export type {
     OpenAIChatClient,
     OpenAIChatCompletionsModelOptions,
 } from './chat-completions/chat-model.js';
+export type { OpenAIStructuredOutputMode } from './shared/structured-output.js';
 export { createOpenAIChatCompletionsModel } from './chat-completions/chat-model.js';
 export type { OpenAIReasoningMetadata } from './chat-adapter.js';
 export type { OpenAIModelCapabilities } from './model-capabilities.js';

@@ -26,7 +26,7 @@ export function createOmnifact(
         {
             providerId: 'omnifact',
             defaultApi: 'chat-completions',
-            chat: { compatibility: true },
+            compatibility: true,
         }
     );
 

@@ -43,11 +43,6 @@ const openai = createOpenAI({
     Provide your own configured OpenAI client instance.
 </ParamField>
 
-<ParamField path="chat.compatibility" type="boolean" optional>
-    Accept known nonstandard Chat Completions response fields. Defaults to
-    `false`. For third-party gateways, prefer `@core-ai/openai-compat`.
-</ParamField>
-
 ### Returns
 
 `OpenAIProvider` with `chatModel()`, `chat.chatModel()`, `embeddingModel()`, and
