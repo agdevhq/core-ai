@@ -1,5 +1,5 @@
 import type { ChatModel } from '@core-ai/core-ai';
-import { createOpenAICompatChatProvider } from '@core-ai/openai/compat';
+import { createOpenAIProvider } from '@core-ai/openai';
 import { DEFAULT_BASE_URL } from './constants.js';
 
 export type OmnifactProviderOptions = {
@@ -18,11 +18,19 @@ export function createOmnifact(
         throw new Error('createOmnifact: apiKey is required.');
     }
 
-    return createOpenAICompatChatProvider(
+    const provider = createOpenAIProvider(
         {
             apiKey: options.apiKey,
             baseURL: options.baseURL ?? DEFAULT_BASE_URL,
         },
-        'omnifact'
+        {
+            providerId: 'omnifact',
+            defaultApi: 'chat-completions',
+            chat: { compatibility: true },
+        }
     );
+
+    return {
+        chatModel: provider.chatModel,
+    };
 }

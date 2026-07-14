@@ -108,7 +108,7 @@ type GenerateProviderOptions = {
 
 Each provider defines and validates its own set of options. See the provider pages for the full schema:
 
-- [OpenAI](/api/providers/openai) -- Responses API (`createOpenAI`): `store`, `serviceTier`, `include`, `parallelToolCalls`, `user`. Chat Completions API (`createOpenAICompat`): `store`, `serviceTier`, `parallelToolCalls`, `user`, `stopSequences`, `frequencyPenalty`, `presencePenalty`, `seed`
+- [OpenAI](/api/providers/openai) -- Responses API (`openai.chatModel()`): `store`, `serviceTier`, `include`, `parallelToolCalls`, `user`. Chat Completions API (`openai.chat.chatModel()`): `store`, `serviceTier`, `parallelToolCalls`, `user`, `stopSequences`, `frequencyPenalty`, `presencePenalty`, `seed`
 - [Anthropic](/api/providers/anthropic) -- `topK`, `stopSequences`, `betas`, `outputConfig`, `cacheControl`
 - [Google GenAI](/api/providers/google-genai) -- `stopSequences`, `frequencyPenalty`, `presencePenalty`, `seed`, `topK`
 - [Mistral](/api/providers/mistral) -- `stopSequences`, `frequencyPenalty`, `presencePenalty`, `randomSeed`, `parallelToolCalls`, `promptMode`, `safePrompt`
@@ -131,7 +131,7 @@ console.log(result.content);
 ```
 
 <Warning>
-  `stopSequences` support varies by provider. For OpenAI, it's only available with `createOpenAICompat` (Chat Completions API). The default `createOpenAI` (Responses API) does not support it.
+  `stopSequences` support varies by provider. For OpenAI, it is available with `openai.chat.chatModel()` and `@core-ai/openai-compat`. Responses models do not support it.
 </Warning>
 
 ### frequencyPenalty
@@ -178,10 +178,10 @@ const result = await generate({
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createOpenAICompat } from '@core-ai/openai/compat';
+import { createOpenAI } from '@core-ai/openai';
 
-const openai = createOpenAICompat();
-const model = openai.chatModel('gpt-5-mini');
+const openai = createOpenAI();
+const model = openai.chat.chatModel('gpt-5-mini');
 
 const result = await generate({
   model,

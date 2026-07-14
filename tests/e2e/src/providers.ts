@@ -1,5 +1,8 @@
 import { createAnthropicAdapter } from './adapters/anthropic.adapter.ts';
-import { createAzureOpenAIAdapter } from './adapters/azure-openai.adapter.ts';
+import {
+    createAzureOpenAIAdapter,
+    createAzureOpenAIChatAdapter,
+} from './adapters/azure-openai.adapter.ts';
 import { createGoogleGenAIAdapter } from './adapters/google-genai.adapter.ts';
 import { createMistralAdapter } from './adapters/mistral.adapter.ts';
 import { createOmnifactAdapter } from './adapters/omnifact.adapter.ts';
@@ -14,6 +17,7 @@ export function getRegisteredProviders(): ProviderE2EAdapter[] {
         createOpenAIAdapter(),
         createOpenAICompatAdapter(),
         createAzureOpenAIAdapter(),
+        createAzureOpenAIChatAdapter(),
         createAnthropicAdapter(),
         createAnthropicVertexAdapter(),
         createGoogleGenAIAdapter(),

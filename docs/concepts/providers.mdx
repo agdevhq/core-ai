@@ -54,18 +54,22 @@ type OpenAIProviderOptions = {
 
 ```typescript
 const gpt5 = openai.chatModel('gpt-5-mini');
+const gpt5Chat = openai.chat.chatModel('gpt-5-mini');
 const embeddings = openai.embeddingModel('text-embedding-3-small');
 const imageModel = openai.imageModel('gpt-image-1');
 ```
 
 <Note>
-    `createOpenAI` uses the **Responses API** by default. For the Chat
-    Completions API, use `createOpenAICompat` from `@core-ai/openai/compat`.
+    `createOpenAI().chatModel()` uses the Responses API.
+    `openai.chat.chatModel()` uses strict Chat Completions. Use
+    `@core-ai/openai-compat` for third-party compatible endpoints.
 </Note>
 
 ## Azure OpenAI
 
-Azure OpenAI provides chat models deployed in your Azure resource. The provider uses the v1 Chat Completions API by default and can opt into Azure's classic API.
+Azure OpenAI provides chat models deployed in your Azure resource. Azure v1
+uses Responses by default and exposes Chat Completions through
+`azure.chat.chatModel()`. Classic mode supports Chat Completions only.
 
 ### Creating a Provider
 
@@ -283,7 +287,10 @@ type OmnifactProviderOptions = {
 const model = omnifact.chatModel('eu/gpt-5-mini');
 ```
 
-Use model IDs enabled for your organization in Omnifact. Pass `providerOptions.openai` for supported Chat Completions options (same API surface as `@core-ai/openai/compat`).
+Use model IDs enabled for your organization in Omnifact. Pass
+`providerOptions.openai` for supported Chat Completions options. Omnifact also
+accepts the nonstandard reasoning fields documented by
+[`@core-ai/openai-compat`](/api/providers/openai-compat).
 
 ## Using Custom Clients
 

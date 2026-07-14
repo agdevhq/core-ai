@@ -97,6 +97,7 @@
                         "group": "Providers",
                         "pages": [
                             "api/providers/openai",
+                            "api/providers/openai-compat",
                             "api/providers/azure-openai",
                             "api/providers/anthropic",
                             "api/providers/anthropic-vertex",

@@ -21,7 +21,44 @@ export function createAzureOpenAIAdapter(): ProviderE2EAdapter {
     );
     return {
         id: 'azure-openai',
-        displayName: 'Azure OpenAI',
+        displayName: 'Azure OpenAI (Responses)',
+        apiKeyEnvVar: AZURE_OPENAI_API_KEY_ENV,
+        models: {
+            chat: chatModelId,
+            reasoning: reasoningModelId,
+        },
+        capabilities: {
+            chat: true,
+            stream: true,
+            object: true,
+            reasoning: true,
+            embedding: false,
+            image: false,
+        },
+        isConfigured: () =>
+            getEnvValue(AZURE_OPENAI_API_ENV) !== 'classic' &&
+            hasApiKey(AZURE_OPENAI_API_KEY_ENV) &&
+            getEnvValue(AZURE_OPENAI_ENDPOINT_ENV) !== undefined,
+        createChatModel: () =>
+            createAzureOpenAIProvider().chatModel(chatModelId),
+        createReasoningChatModel: () =>
+            createAzureOpenAIProvider().chatModel(reasoningModelId),
+    };
+}
+
+export function createAzureOpenAIChatAdapter(): ProviderE2EAdapter {
+    const chatModelId = getEnvOrDefault(
+        AZURE_OPENAI_CHAT_DEPLOYMENT_ENV,
+        'gpt-5-mini'
+    );
+    const reasoningModelId = getEnvOrDefault(
+        AZURE_OPENAI_REASONING_DEPLOYMENT_ENV,
+        chatModelId
+    );
+
+    return {
+        id: 'azure-openai-chat',
+        displayName: 'Azure OpenAI (Chat Completions)',
         apiKeyEnvVar: AZURE_OPENAI_API_KEY_ENV,
         models: {
             chat: chatModelId,
@@ -39,9 +76,9 @@ export function createAzureOpenAIAdapter(): ProviderE2EAdapter {
             hasApiKey(AZURE_OPENAI_API_KEY_ENV) &&
             getEnvValue(AZURE_OPENAI_ENDPOINT_ENV) !== undefined,
         createChatModel: () =>
-            createAzureOpenAIProvider().chatModel(chatModelId),
+            createAzureOpenAIProvider().chat.chatModel(chatModelId),
         createReasoningChatModel: () =>
-            createAzureOpenAIProvider().chatModel(reasoningModelId),
+            createAzureOpenAIProvider().chat.chatModel(reasoningModelId),
     };
 }
 

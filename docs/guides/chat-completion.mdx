@@ -114,10 +114,10 @@ Customize model behavior with configuration parameters:
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createOpenAICompat } from '@core-ai/openai/compat';
+import { createOpenAI } from '@core-ai/openai';
 
-const openai = createOpenAICompat({ apiKey: process.env.OPENAI_API_KEY });
-const model = openai.chatModel('gpt-5-mini');
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const model = openai.chat.chatModel('gpt-5-mini');
 
 const result = await generate({
   model,
@@ -136,7 +136,7 @@ const result = await generate({
 ```
 
 <Note>
-  `temperature`, `maxTokens`, and `topP` are top-level options. `stopSequences`, `frequencyPenalty`, and `presencePenalty` are provider-specific and passed via `providerOptions`. Options like `stopSequences` and `frequencyPenalty` are available with `createOpenAICompat` (Chat Completions API). The default `createOpenAI` (Responses API) supports a different set of options — see [Configuration](/concepts/configuration) for details.
+  `temperature`, `maxTokens`, and `topP` are top-level options. `stopSequences`, `frequencyPenalty`, and `presencePenalty` are provider-specific and passed via `providerOptions`. OpenAI supports them through `openai.chat.chatModel()` and `@core-ai/openai-compat`, not through Responses models. See [Configuration](/concepts/configuration) for details.
 </Note>
 
 ## Response Structure

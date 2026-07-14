@@ -14,13 +14,13 @@ import {
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createOpenAICompatChatModel } from './chat-model.js';
+import { createOpenAIChatCompletionsModel } from './chat-model.js';
 import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
-describe('createOpenAICompatChatModel', () => {
+describe('createOpenAIChatCompletionsModel', () => {
     it('should create model metadata', () => {
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(),
             'gpt-5-mini'
         );
@@ -56,7 +56,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -104,7 +104,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -155,7 +155,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -209,7 +209,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -261,7 +261,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -322,7 +322,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -380,7 +380,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -415,7 +415,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -453,7 +453,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -488,7 +488,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -510,7 +510,7 @@ describe('generate', () => {
         const create = vi.fn(async () => {
             throw new Error('network failed');
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -527,7 +527,7 @@ describe('generate', () => {
         const create = vi.fn(async () => {
             throw abortError;
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -564,7 +564,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -615,7 +615,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -685,7 +685,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -715,7 +715,7 @@ describe('stream', () => {
     it('should reject iteration and result on abort while preserving partial events', async () => {
         const source = createPushableAsyncIterable<ChatCompletionChunk>();
         const create = vi.fn(async () => source.iterable);
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -813,7 +813,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -847,7 +847,7 @@ describe('stream', () => {
     it('should reject object stream iteration and result on abort while preserving partial events', async () => {
         const source = createPushableAsyncIterable<ChatCompletionChunk>();
         const create = vi.fn(async () => source.iterable);
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -934,7 +934,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -996,7 +996,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -1050,7 +1050,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -1101,7 +1101,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -1155,7 +1155,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );

@@ -29,16 +29,16 @@ const result = await generate({
 console.log(result.content);
 ```
 
-## Chat Completions (Compat)
+## Chat Completions
 
-For the legacy Chat Completions API — useful for Azure OpenAI, proxies, or third-party OpenAI-compatible endpoints — import from `@core-ai/openai/compat`:
+The same provider exposes OpenAI's strict Chat Completions API under `chat`:
 
 ```ts
 import { generate } from '@core-ai/core-ai';
-import { createOpenAICompat } from '@core-ai/openai/compat';
+import { createOpenAI } from '@core-ai/openai';
 
-const openai = createOpenAICompat({ apiKey: process.env.OPENAI_API_KEY });
-const model = openai.chatModel('gpt-5-mini');
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const model = openai.chat.chatModel('gpt-5-mini');
 
 const result = await generate({
     model,
@@ -47,3 +47,6 @@ const result = await generate({
 
 console.log(result.content);
 ```
+
+Use `@core-ai/openai-compat` for third-party Chat Completions endpoints that
+return nonstandard compatible fields.

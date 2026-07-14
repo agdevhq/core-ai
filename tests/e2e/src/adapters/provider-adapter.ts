@@ -8,6 +8,7 @@ export type ProviderId =
     | 'openai'
     | 'openai-compat'
     | 'azure-openai'
+    | 'azure-openai-chat'
     | 'anthropic'
     | 'anthropic-vertex'
     | 'google'

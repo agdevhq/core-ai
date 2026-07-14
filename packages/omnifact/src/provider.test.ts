@@ -56,6 +56,7 @@ describe('createOmnifact', () => {
                         role: 'assistant',
                         content: 'ok',
                         refusal: null,
+                        reasoning_content: 'thinking',
                     },
                 },
             ],
@@ -68,11 +69,12 @@ describe('createOmnifact', () => {
 
         const provider = createOmnifact({ apiKey: 'test-key' });
 
-        await provider
+        const result = await provider
             .chatModel('gpt-5-mini')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
         expect(chatCreate).toHaveBeenCalledTimes(1);
+        expect(result.reasoning).toBe('thinking');
     });
 
     it('should tag errors with provider "omnifact"', async () => {

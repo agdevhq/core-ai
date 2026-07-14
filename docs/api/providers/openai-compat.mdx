@@ -1,0 +1,106 @@
+---
+title: 'OpenAI-compatible Provider'
+description: 'Connect to third-party OpenAI-compatible Chat Completions endpoints'
+---
+
+## Overview
+
+The OpenAI-compatible provider connects core-ai to third-party endpoints that
+implement the Chat Completions API. It accepts known nonstandard response fields
+used by gateways and inference servers.
+
+It provides models through the Chat Completions API with compatibility
+extensions enabled. Use [`@core-ai/openai`](/api/providers/openai) for OpenAI's
+Responses API, strict Chat Completions, embeddings, and image generation.
+
+## Installation
+
+```bash
+npm install @core-ai/openai-compat
+```
+
+## createOpenAICompat()
+
+```typescript
+import { createOpenAICompat } from '@core-ai/openai-compat';
+
+const provider = createOpenAICompat({
+    apiKey: process.env.GATEWAY_API_KEY,
+    baseURL: 'https://gateway.example.com/v1',
+});
+```
+
+### Options
+
+<ParamField path="apiKey" type="string" optional>
+    API key sent to the compatible endpoint.
+</ParamField>
+
+<ParamField path="baseURL" type="string" optional>
+    Base URL for the compatible Chat Completions endpoint.
+</ParamField>
+
+<ParamField path="client" type="OpenAI" optional>
+    A configured OpenAI SDK client.
+</ParamField>
+
+### Returns
+
+`OpenAICompatProvider` with a single `chatModel()` method.
+
+## Generate text
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createOpenAICompat } from '@core-ai/openai-compat';
+
+const provider = createOpenAICompat({
+    apiKey: process.env.GATEWAY_API_KEY,
+    baseURL: 'https://gateway.example.com/v1',
+});
+
+const result = await generate({
+    model: provider.chatModel('qwen3-235b'),
+    messages: [{ role: 'user', content: 'Explain the result.' }],
+});
+
+console.log(result.content);
+console.log(result.reasoning);
+```
+
+## Compatibility behavior
+
+The provider follows the standard Chat Completions request and response shapes,
+then recognizes these additional reasoning output fields:
+
+- `reasoning_content`, used by DeepSeek, Qwen, GLM, vLLM, and SGLang
+- `reasoning`, used by OpenRouter
+
+Non-streaming values become reasoning parts and populate `result.reasoning`.
+Streaming values emit `reasoning-start`, `reasoning-delta`, and
+`reasoning-end` events.
+
+Strict OpenAI Chat Completions does not expose reasoning text. Use
+`createOpenAI().chat.chatModel()` when you do not want compatibility extensions.
+
+## Provider-specific options
+
+Pass Chat Completions options through `providerOptions.openai`:
+
+```typescript
+const result = await generate({
+    model: provider.chatModel('qwen3-235b'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    providerOptions: {
+        openai: {
+            stopSequences: ['\n\n'],
+            frequencyPenalty: 0.5,
+            presencePenalty: 0.3,
+            seed: 42,
+        },
+    },
+});
+```
+
+Supported fields are `store`, `serviceTier`, `parallelToolCalls`, `user`,
+`stopSequences`, `frequencyPenalty`, `presencePenalty`, and `seed`.

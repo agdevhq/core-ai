@@ -9,6 +9,7 @@
             "@core-ai/axiom",
             "@core-ai/langfuse",
             "@core-ai/openai",
+            "@core-ai/openai-compat",
             "@core-ai/anthropic",
             "@core-ai/google-genai",
             "@core-ai/mistral",

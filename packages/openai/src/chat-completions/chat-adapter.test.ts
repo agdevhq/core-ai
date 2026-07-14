@@ -9,6 +9,7 @@ import {
     convertTools,
     getStructuredOutputToolName,
     mapGenerateResponse,
+    transformStream,
 } from './chat-adapter.js';
 import {
     ValidationError,
@@ -18,7 +19,10 @@ import {
     type ToolSet,
 } from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.js';
-import type { ChatCompletion } from 'openai/resources/chat/completions/completions';
+import type {
+    ChatCompletion,
+    ChatCompletionChunk,
+} from 'openai/resources/chat/completions/completions';
 
 describe('convertMessages', () => {
     it('should convert a system message', () => {
@@ -456,6 +460,182 @@ describe('reasoning support', () => {
         expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
     });
 
+    it('should only extract nonstandard reasoning fields in compatibility mode', () => {
+        const message = {
+            role: 'assistant' as const,
+            content: 'final answer',
+            refusal: null,
+            reasoning_content: 'preferred reasoning',
+            reasoning: 'fallback reasoning',
+        };
+        const response = asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message,
+                },
+            ],
+        });
+
+        expect(mapGenerateResponse(response).reasoning).toBeNull();
+        expect(
+            mapGenerateResponse(response, { compatibility: true })
+        ).toMatchObject({
+            reasoning: 'preferred reasoning',
+            parts: [
+                { type: 'reasoning', text: 'preferred reasoning' },
+                { type: 'text', text: 'final answer' },
+            ],
+        });
+    });
+
+    it('should emit compatible reasoning before text while streaming', async () => {
+        const reasoningDelta = {
+            content: null,
+            reasoning_content: 'thinking',
+        };
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: reasoningDelta,
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: { content: 'answer' },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ]),
+                { compatibility: true }
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'text-start',
+            'text-delta',
+            'text-end',
+            'finish',
+        ]);
+    });
+
+    it('should emit a compatible reasoning-only stream using the fallback field', async () => {
+        const reasoningDelta = {
+            content: null,
+            reasoning: 'deep in thought',
+        };
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: reasoningDelta,
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'length',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ]),
+                { compatibility: true }
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'finish',
+        ]);
+        expect(events.at(-1)).toMatchObject({
+            type: 'finish',
+            finishReason: 'length',
+        });
+    });
+
+    it('should keep text and compatible reasoning segments from overlapping', async () => {
+        const reasoningDelta = {
+            content: null,
+            reasoning_content: 'reconsidering',
+        };
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: { content: 'initial answer' },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: reasoningDelta,
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ]),
+                { compatibility: true }
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'text-start',
+            'text-delta',
+            'text-end',
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'finish',
+        ]);
+    });
+
     it('should not add reasoning_effort when reasoning is not configured', () => {
         const request = createGenerateRequest('gpt-5.1', {
             messages: [{ role: 'user', content: 'Hi' }],
@@ -474,4 +654,27 @@ function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
         choices: [],
         ...value,
     };
+}
+
+function asChunk(value: Partial<ChatCompletionChunk>): ChatCompletionChunk {
+    return {
+        id: 'chunk-1',
+        object: 'chat.completion.chunk',
+        created: Date.now(),
+        model: 'gpt-5-mini',
+        choices: [],
+        ...value,
+    };
+}
+
+async function* toAsyncIterable<T>(values: T[]): AsyncIterable<T> {
+    yield* values;
+}
+
+async function collectEvents<T>(stream: AsyncIterable<T>): Promise<T[]> {
+    const events: T[] = [];
+    for await (const event of stream) {
+        events.push(event);
+    }
+    return events;
 }
