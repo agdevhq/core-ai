@@ -1,23 +1,19 @@
 {
-    "name": "@core-ai/google-genai-vertex",
+    "name": "@core-ai/google",
     "version": "0.14.0",
-    "description": "Vertex AI Google GenAI provider package for @core-ai/core-ai",
+    "description": "Google provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/agdevhq/core-ai.git",
-        "directory": "packages/google-genai-vertex"
+        "directory": "packages/google"
     },
     "keywords": [
         "llm",
         "ai",
         "google",
-        "gemini",
-        "imagen",
-        "vertex",
-        "vertex-ai",
-        "google-cloud",
+        "genai",
         "provider",
         "sdk"
     ],
@@ -50,7 +46,6 @@
     },
     "dependencies": {
         "@core-ai/core-ai": "^0.14.0",
-        "@core-ai/google-genai": "^0.14.0",
         "@google/genai": "^1.42.0"
     },
     "peerDependencies": {
@@ -58,6 +53,7 @@
     },
     "devDependencies": {
         "@core-ai/eslint-config": "*",
+        "@core-ai/testing": "*",
         "@core-ai/typescript-config": "*",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4"

@@ -15,7 +15,7 @@
         "sdk",
         "openai",
         "anthropic",
-        "google-genai"
+        "google"
     ],
     "type": "module",
     "main": "./dist/index.js",

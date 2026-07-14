@@ -27,10 +27,10 @@ import {
 } from './chat-adapter.js';
 import { wrapGoogleError } from './google-error.js';
 import { getGoogleModelCapabilities } from './model-capabilities.js';
-import type { GoogleGenAIClient } from './provider.js';
+import type { GoogleClient } from './provider.js';
 
-export function createGoogleGenAIChatModel(
-    client: GoogleGenAIClient,
+export function createGoogleChatModel(
+    client: GoogleClient,
     modelId: string,
     provider = 'google'
 ): ChatModel {

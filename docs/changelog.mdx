@@ -126,7 +126,7 @@ description: Release history for all core-ai packages.
   - Add model capability support for `gpt-5.4` and `gpt-5.4-pro`.
   - Refactor chat adapter internals to reduce duplicated stream and part-aggregation logic, and consistently report `finishReason: 'tool-calls'` when a function call is emitted from the stream.
 
-  ### @core-ai/google-genai
+  ### @core-ai/google
 
   - Add model capability support for `gemini-3.1-pro` and `gemini-3.1-flash-lite-preview`.
   - Refactor adapter internals to reduce duplication and simplify stream/request helper logic without changing runtime behavior.
@@ -157,7 +157,7 @@ description: Release history for all core-ai packages.
   - Restructure reasoning `providerMetadata` to use provider-namespaced keys.
   - Update streaming adapters to expose replayable stream handles using `ChatStream` and `ObjectStream`.
 
-  ### @core-ai/google-genai
+  ### @core-ai/google
 
   - Namespace provider options under `google` key with strict Zod validation. Generate options: `stopSequences`, `frequencyPenalty`, `presencePenalty`, `seed`, `topK`. Embed options: `taskType`, `title`, `mimeType`, `autoTruncate`. Image options: `aspectRatio`, `personGeneration`, `safetyFilterLevel`, `negativePrompt`, `guidanceScale`, `seed`.
   - Restructure reasoning `providerMetadata` to use provider-namespaced keys.
@@ -204,9 +204,9 @@ description: Release history for all core-ai packages.
 
   - Add reasoning support for Anthropic models with adaptive and manual thinking modes. Maps unified `reasoning.effort` to adaptive effort levels or manual `budget_tokens` based on model capabilities. Extracts thinking and redacted thinking blocks with signature preservation for multi-turn fidelity.
 
-  ### @core-ai/google-genai
+  ### @core-ai/google
 
-  - Add reasoning support for Google GenAI models. Maps unified `reasoning.effort` to `thinkingLevel` for Gemini 3 or `thinkingBudget` for Gemini 2.5 based on model capabilities. Extracts thought content with thought signature preservation for multi-turn fidelity.
+  - Add reasoning support for Google models. Maps unified `reasoning.effort` to `thinkingLevel` for Gemini 3 or `thinkingBudget` for Gemini 2.5 based on model capabilities. Extracts thought content with thought signature preservation for multi-turn fidelity.
 
   ### @core-ai/mistral
 
@@ -234,7 +234,7 @@ description: Release history for all core-ai packages.
 
   - Update usage mapping to the new nested `ChatUsage` structure. Reports total `inputTokens` including cache tokens, maps `cache_read_input_tokens` and `cache_creation_input_tokens` to `inputTokenDetails`.
 
-  ### @core-ai/google-genai
+  ### @core-ai/google
 
   - Update usage mapping to the new nested `ChatUsage` structure. Maps `cachedContentTokenCount` to `inputTokenDetails.cacheReadTokens` and `thoughtsTokenCount` to `outputTokenDetails.reasoningTokens`.
 
@@ -257,7 +257,7 @@ description: Release history for all core-ai packages.
 
   - Add structured output support with `generateObject()` and `streamObject()`.
 
-  ### @core-ai/google-genai
+  ### @core-ai/google
 
   - Add structured output support with `generateObject()` and `streamObject()`.
   - Update embedding behavior to only include usage when token statistics are present, and add provider E2E contract coverage.

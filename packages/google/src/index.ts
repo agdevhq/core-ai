@@ -1,8 +1,8 @@
-export { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
+export { createGoogle, createGoogleProvider } from './provider.js';
 export type {
-    GoogleGenAIClient,
-    GoogleGenAIProvider,
-    GoogleGenAIProviderOptions,
+    GoogleClient,
+    GoogleProvider,
+    GoogleProviderOptions,
 } from './provider.js';
 export type { GoogleReasoningMetadata } from './chat-adapter.js';
 export type { GoogleModelCapabilities } from './model-capabilities.js';

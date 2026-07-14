@@ -1,8 +1,8 @@
 import 'dotenv/config';
 import { generate } from '@core-ai/core-ai';
-import { createGoogleGenAIVertex } from '@core-ai/google-genai-vertex';
+import { createGoogle } from '@core-ai/google';
 
-function getRequiredEnv(name: 'GOOGLE_VERTEX_PROJECT'): string {
+function getRequiredEnv(name: 'GOOGLE_API_KEY'): string {
     const value = process.env[name];
     if (!value) {
         throw new Error(`Missing required environment variable: ${name}`);
@@ -11,13 +11,10 @@ function getRequiredEnv(name: 'GOOGLE_VERTEX_PROJECT'): string {
 }
 
 async function main(): Promise<void> {
-    const googleVertex = createGoogleGenAIVertex({
-        projectId: getRequiredEnv('GOOGLE_VERTEX_PROJECT'),
-        region: process.env['GOOGLE_VERTEX_REGION'] ?? 'europe-west1',
+    const google = createGoogle({
+        apiKey: getRequiredEnv('GOOGLE_API_KEY'),
     });
-    const model = googleVertex.chatModel(
-        process.env['GOOGLE_VERTEX_MODEL'] ?? 'gemini-2.5-flash'
-    );
+    const model = google.chatModel('gemini-3-flash-preview');
 
     const result = await generate({
         model,
@@ -25,7 +22,7 @@ async function main(): Promise<void> {
             {
                 role: 'user',
                 content:
-                    'Explain why strong typing helps library users in one paragraph.',
+                    'Explain why stable abstractions are useful for provider portability in one paragraph.',
             },
         ],
         maxTokens: 256,

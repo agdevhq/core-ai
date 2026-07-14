@@ -1,4 +1,4 @@
-import { createGoogleGenAIVertex } from '../../../../packages/google-genai-vertex/src/index.ts';
+import { createGoogleVertex } from '../../../../packages/google-vertex/src/index.ts';
 import { getEnvOrDefault, getEnvValue, hasApiKey } from '../env.ts';
 import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
@@ -11,7 +11,7 @@ const GOOGLE_VERTEX_REASONING_MODEL_ENV = 'GOOGLE_VERTEX_E2E_REASONING_MODEL';
 const GOOGLE_VERTEX_EMBED_MODEL_ENV = 'GOOGLE_VERTEX_E2E_EMBED_MODEL';
 const GOOGLE_VERTEX_IMAGE_MODEL_ENV = 'GOOGLE_VERTEX_E2E_IMAGE_MODEL';
 
-export function createGoogleGenAIVertexAdapter(): ProviderE2EAdapter {
+export function createGoogleVertexAdapter(): ProviderE2EAdapter {
     const chatModelId = getEnvOrDefault(
         GOOGLE_VERTEX_CHAT_MODEL_ENV,
         'gemini-2.5-flash'
@@ -31,7 +31,7 @@ export function createGoogleGenAIVertexAdapter(): ProviderE2EAdapter {
 
     return {
         id: 'google-vertex',
-        displayName: 'Vertex AI Google GenAI',
+        displayName: 'Vertex AI Google',
         apiKeyEnvVar: GOOGLE_VERTEX_PROJECT_ENV,
         models: {
             chat: chatModelId,
@@ -49,24 +49,24 @@ export function createGoogleGenAIVertexAdapter(): ProviderE2EAdapter {
         },
         isConfigured: () => hasApiKey(GOOGLE_VERTEX_PROJECT_ENV),
         createChatModel: () =>
-            createGoogleGenAIVertexProvider().chatModel(chatModelId),
+            createGoogleVertexProvider().chatModel(chatModelId),
         createReasoningChatModel: () =>
-            createGoogleGenAIVertexProvider().chatModel(reasoningModelId),
+            createGoogleVertexProvider().chatModel(reasoningModelId),
         createEmbeddingModel: () =>
-            createGoogleGenAIVertexProvider().embeddingModel(embeddingModelId),
+            createGoogleVertexProvider().embeddingModel(embeddingModelId),
         createImageModel: () =>
-            createGoogleGenAIVertexProvider().imageModel(imageModelId),
+            createGoogleVertexProvider().imageModel(imageModelId),
     };
 }
 
-function createGoogleGenAIVertexProvider() {
+function createGoogleVertexProvider() {
     const projectId = getEnvValue(GOOGLE_VERTEX_PROJECT_ENV);
     const region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1');
     const credentialsJson = getEnvValue(
         GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
     );
 
-    return createGoogleGenAIVertex({
+    return createGoogleVertex({
         projectId,
         region,
         ...(credentialsJson

@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
 import { ProviderError } from '@core-ai/core-ai';
-import { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
+import { createGoogle, createGoogleProvider } from './provider.js';
 
-describe('createGoogleGenAI', () => {
+describe('createGoogle', () => {
     it('should expose all model factories', () => {
-        const provider = createGoogleGenAI({
+        const provider = createGoogle({
             client: createMockClient(),
         });
 
@@ -45,7 +45,7 @@ describe('createGoogleGenAI', () => {
             generatedImages: [{ image: { imageBytes: 'abc' } }],
         }));
 
-        const provider = createGoogleGenAI({
+        const provider = createGoogle({
             client: createMockClient({
                 generateContent,
                 embedContent,
@@ -70,7 +70,7 @@ describe('createGoogleGenAI', () => {
 
     it('should attribute all model types and errors to a custom provider id', async () => {
         const upstreamError = new Error('upstream failure');
-        const provider = createGoogleGenAIProvider(
+        const provider = createGoogleProvider(
             {
                 client: createMockClient({
                     generateContent: async () => {

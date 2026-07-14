@@ -34,8 +34,8 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | OpenAI-compatible         | `@core-ai/openai-compat`       | Yes  | Yes       | —          | —                |
 | Azure OpenAI              | `@core-ai/azure-openai`        | Yes  | Yes       | —          | —                |
 | Anthropic                 | `@core-ai/anthropic`           | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini)     | `@core-ai/google-genai`        | Yes  | Yes       | Yes        | Yes              |
-| Google GenAI on Vertex AI | `@core-ai/google-genai-vertex` | Yes  | Yes       | Yes        | Yes              |
+| Google (Gemini)     | `@core-ai/google`        | Yes  | Yes       | Yes        | Yes              |
+| Google on Vertex AI | `@core-ai/google-vertex` | Yes  | Yes       | Yes        | Yes              |
 | Mistral                   | `@core-ai/mistral`             | Yes  | Yes       | Yes        | —                |
 | Omnifact                  | `@core-ai/omnifact`            | Yes  | Yes       | —          | —                |
 | Vertex AI Anthropic       | `@core-ai/anthropic-vertex`    | Yes  | Yes       | —          | —                |
@@ -320,13 +320,13 @@ const result = await generate({
 console.log(result.content);
 ```
 
-### Using Google GenAI (Gemini)
+### Using Google (Gemini)
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createGoogleGenAI } from '@core-ai/google-genai';
+import { createGoogle } from '@core-ai/google';
 
-const google = createGoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+const google = createGoogle({ apiKey: process.env.GOOGLE_API_KEY });
 const model = google.chatModel('gemini-3-flash');
 
 const result = await generate({
@@ -338,15 +338,15 @@ const result = await generate({
 console.log(result.content);
 ```
 
-### Using Google GenAI on Vertex AI
+### Using Google on Vertex AI
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createGoogleGenAIVertex } from '@core-ai/google-genai-vertex';
+import { createGoogleVertex } from '@core-ai/google-vertex';
 
 // Uses Google Application Default Credentials (ADC) by default.
 // Pass `credentials` for an explicit service account key instead.
-const googleVertex = createGoogleGenAIVertex({
+const googleVertex = createGoogleVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
@@ -478,8 +478,8 @@ packages/
   openai/        — OpenAI provider (Responses API + Chat Completions compat)
   azure-openai/  — Azure OpenAI provider implementation
   anthropic/     — Anthropic provider implementation
-  google-genai/  — Google GenAI (Gemini) provider implementation
-  google-genai-vertex/ — Google GenAI on Vertex AI provider implementation
+  google/  — Google (Gemini) provider implementation
+  google-vertex/ — Google on Vertex AI provider implementation
   mistral/       — Mistral provider implementation
   omnifact/      — Omnifact API Gateway provider implementation
   anthropic-vertex/ — Vertex AI Anthropic (Claude) provider implementation

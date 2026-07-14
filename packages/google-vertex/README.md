@@ -1,22 +1,22 @@
-# @core-ai/google-genai-vertex
+# @core-ai/google-vertex
 
-[![npm](https://img.shields.io/npm/v/@core-ai/google-genai-vertex.svg)](https://www.npmjs.com/package/@core-ai/google-genai-vertex)
+[![npm](https://img.shields.io/npm/v/@core-ai/google-vertex.svg)](https://www.npmjs.com/package/@core-ai/google-vertex)
 
-Google GenAI on Vertex AI provider package for `@core-ai/core-ai`. It uses the [`@google/genai`](https://www.npmjs.com/package/@google/genai) client in Vertex AI mode and shares chat, embedding, image generation, structured-output, and reasoning behavior with `@core-ai/google-genai`.
+Google on Vertex AI provider package for `@core-ai/core-ai`. It uses the [`@google/genai`](https://www.npmjs.com/package/@google/genai) client in Vertex AI mode and shares chat, embedding, image generation, structured-output, and reasoning behavior with `@core-ai/google`.
 
 ## Installation
 
 ```bash
-npm install @core-ai/core-ai @core-ai/google-genai-vertex zod
+npm install @core-ai/core-ai @core-ai/google-vertex zod
 ```
 
 ## Usage
 
 ```ts
 import { generate } from '@core-ai/core-ai';
-import { createGoogleGenAIVertex } from '@core-ai/google-genai-vertex';
+import { createGoogleVertex } from '@core-ai/google-vertex';
 
-const googleVertex = createGoogleGenAIVertex({
+const googleVertex = createGoogleVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
@@ -35,7 +35,7 @@ console.log(result.content);
 By default, the provider uses [Google Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials):
 
 ```ts
-const googleVertex = createGoogleGenAIVertex({
+const googleVertex = createGoogleVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
 });
@@ -44,7 +44,7 @@ const googleVertex = createGoogleGenAIVertex({
 To authenticate with an explicit service account, parse its JSON key and pass it as `credentials`:
 
 ```ts
-const googleVertex = createGoogleGenAIVertex({
+const googleVertex = createGoogleVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
     credentials: JSON.parse(
@@ -58,7 +58,7 @@ You can also inject a preconfigured `GoogleGenAI` client:
 ```ts
 import { GoogleGenAI } from '@google/genai';
 
-const googleVertex = createGoogleGenAIVertex({
+const googleVertex = createGoogleVertex({
     client: new GoogleGenAI({
         vertexai: true,
         project: 'my-project',
@@ -81,4 +81,4 @@ Model availability varies by region. A provider instance targets one region, so 
 
 ## Provider options and capabilities
 
-This provider shares its model behavior with `@core-ai/google-genai`. Provider options remain namespaced under `google`, and the capability helpers and reasoning metadata types exported by `@core-ai/google-genai` apply to Vertex-hosted models.
+This provider shares its model behavior with `@core-ai/google`. Provider options remain namespaced under `google`, and the capability helpers and reasoning metadata types exported by `@core-ai/google` apply to Vertex-hosted models.

@@ -1,26 +1,26 @@
 ---
-title: 'Google GenAI Provider'
-description: 'Create and configure the Google GenAI provider for Gemini models with multimodal capabilities'
+title: 'Google Provider'
+description: 'Create and configure the Google provider for Gemini models with multimodal capabilities'
 ---
 
 ## Overview
 
-The Google GenAI provider gives you access to Gemini models with advanced multimodal capabilities, embeddings, and image generation through Imagen.
+The Google provider gives you access to Gemini models with advanced multimodal capabilities, embeddings, and image generation through Imagen.
 
 ## Installation
 
 ```bash
-npm install @core-ai/google-genai
+npm install @core-ai/google
 ```
 
-## createGoogleGenAI()
+## createGoogle()
 
-Create a Google GenAI provider instance.
+Create a Google provider instance.
 
 ```typescript
-import { createGoogleGenAI } from '@core-ai/google-genai';
+import { createGoogle } from '@core-ai/google';
 
-const google = createGoogleGenAI({
+const google = createGoogle({
     apiKey: process.env.GOOGLE_API_KEY,
 });
 ```
@@ -40,13 +40,13 @@ const google = createGoogleGenAI({
     Custom base URL for API requests.
 </ParamField>
 
-<ParamField path="client" type="GoogleGenAIClient" optional>
-    Provide your own configured Google GenAI client instance.
+<ParamField path="client" type="GoogleClient" optional>
+    Provide your own configured Google client instance.
 </ParamField>
 
 ### Returns
 
-`GoogleGenAIProvider` with methods `chatModel()`, `embeddingModel()`, and `imageModel()`.
+`GoogleProvider` with methods `chatModel()`, `embeddingModel()`, and `imageModel()`.
 
 ## Supported models
 
@@ -79,10 +79,10 @@ const google = createGoogleGenAI({
 ### Basic chat
 
 ```typescript
-import { createGoogleGenAI } from '@core-ai/google-genai';
+import { createGoogle } from '@core-ai/google';
 import { generate } from '@core-ai/core-ai';
 
-const google = createGoogleGenAI();
+const google = createGoogle();
 
 const result = await generate({
     model: google.chatModel('gemini-3.1-pro'),
@@ -204,11 +204,11 @@ Inspect model capabilities before enabling reasoning:
 ```typescript
 import { clampReasoningEffort, generate } from '@core-ai/core-ai';
 import {
-    createGoogleGenAI,
+    createGoogle,
     getGoogleModelCapabilities,
-} from '@core-ai/google-genai';
+} from '@core-ai/google';
 
-const google = createGoogleGenAI();
+const google = createGoogle();
 const model = google.chatModel('gemini-3.1-pro');
 
 if (model.capabilities.reasoning.supported) {
@@ -248,11 +248,11 @@ Token budgets: `minimal` -> 1,024, `low` -> 4,096, `medium` -> 16,384, `high`/`m
 
 ### Reasoning metadata
 
-When reasoning is enabled, Google GenAI reasoning parts include a thought signature for multi-turn fidelity. Use `getProviderMetadata` to access it in a type-safe way.
+When reasoning is enabled, Google reasoning parts include a thought signature for multi-turn fidelity. Use `getProviderMetadata` to access it in a type-safe way.
 
 ```typescript
 import { generate, getProviderMetadata } from '@core-ai/core-ai';
-import type { GoogleReasoningMetadata } from '@core-ai/google-genai';
+import type { GoogleReasoningMetadata } from '@core-ai/google';
 
 const result = await generate({
     model: google.chatModel('gemini-3.1-pro'),

@@ -101,8 +101,8 @@
                             "api/providers/azure-openai",
                             "api/providers/anthropic",
                             "api/providers/anthropic-vertex",
-                            "api/providers/google-genai",
-                            "api/providers/google-genai-vertex",
+                            "api/providers/google",
+                            "api/providers/google-vertex",
                             "api/providers/mistral",
                             "api/providers/omnifact"
                         ]

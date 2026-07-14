@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
-import type { GoogleGenAIClient } from '@core-ai/google-genai';
+import type { GoogleClient } from '@core-ai/google';
 
-import { createGoogleGenAIVertex } from './provider.js';
+import { createGoogleVertex } from './provider.js';
 
 const {
     googleGenAIConstructor,
@@ -36,7 +36,7 @@ vi.mock('@google/genai', () => ({
     },
 }));
 
-describe('createGoogleGenAIVertex', () => {
+describe('createGoogleVertex', () => {
     beforeEach(() => {
         googleGenAIConstructor.mockReset();
         generateContent.mockReset();
@@ -47,19 +47,19 @@ describe('createGoogleGenAIVertex', () => {
 
     it('should throw when projectId is missing and no client is provided', () => {
         expect(() =>
-            createGoogleGenAIVertex({ region: 'europe-west1' })
+            createGoogleVertex({ region: 'europe-west1' })
         ).toThrowError(/projectId is required/);
         expect(googleGenAIConstructor).not.toHaveBeenCalled();
     });
 
     it('should throw when region is missing and no client is provided', () => {
         expect(() =>
-            createGoogleGenAIVertex({ projectId: 'my-project' })
+            createGoogleVertex({ projectId: 'my-project' })
         ).toThrowError(/region is required/);
     });
 
     it('should construct a Vertex AI client using Application Default Credentials by default', () => {
-        createGoogleGenAIVertex({
+        createGoogleVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
@@ -77,7 +77,7 @@ describe('createGoogleGenAIVertex', () => {
             private_key: 'test-key',
         };
 
-        createGoogleGenAIVertex({
+        createGoogleVertex({
             projectId: 'my-project',
             region: 'europe-west1',
             credentials,
@@ -91,14 +91,14 @@ describe('createGoogleGenAIVertex', () => {
         });
     });
 
-    it('should not construct a GoogleGenAI client when one is injected', () => {
-        createGoogleGenAIVertex({ client: createMockClient() });
+    it('should not construct a Google SDK client when one is injected', () => {
+        createGoogleVertex({ client: createMockClient() });
 
         expect(googleGenAIConstructor).not.toHaveBeenCalled();
     });
 
     it('should expose all model types with the google-vertex provider id', () => {
-        const provider = createGoogleGenAIVertex({
+        const provider = createGoogleVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
@@ -116,7 +116,7 @@ describe('createGoogleGenAIVertex', () => {
 
     it('should tag errors with provider "google-vertex"', async () => {
         generateContent.mockRejectedValue(new Error('upstream failure'));
-        const provider = createGoogleGenAIVertex({
+        const provider = createGoogleVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
@@ -131,7 +131,7 @@ describe('createGoogleGenAIVertex', () => {
     });
 });
 
-function createMockClient(): GoogleGenAIClient {
+function createMockClient(): GoogleClient {
     return {
         models: {
             generateContent,
@@ -139,5 +139,5 @@ function createMockClient(): GoogleGenAIClient {
             embedContent,
             generateImages,
         },
-    } as unknown as GoogleGenAIClient;
+    } as unknown as GoogleClient;
 }

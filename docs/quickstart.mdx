@@ -176,11 +176,11 @@ const result = await generate({
 });
 ```
 
-```typescript Google GenAI
+```typescript Google
 import { generate } from '@core-ai/core-ai';
-import { createGoogleGenAI } from '@core-ai/google-genai';
+import { createGoogle } from '@core-ai/google';
 
-const google = createGoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
+const google = createGoogle({ apiKey: process.env.GOOGLE_API_KEY });
 const model = google.chatModel('gemini-3.1-pro');
 
 const result = await generate({
