@@ -95,6 +95,11 @@ Optional model and endpoint overrides:
 - `OMNIFACT_E2E_REASONING_MODEL` (default: `eu/gpt-5-mini`)
 - `OMNIFACT_BASE_URL` — optional; overrides the gateway endpoint (e.g. `http://localhost:3001/v1/gateway` for local dev). When unset, targets production (`https://connect.omnifact.ai/v1/gateway`).
 
+Google image model IDs select the upstream API: `gemini-*` uses Gemini native
+image generation, while `imagen-*` uses Imagen. The direct Google default
+covers Imagen and the Vertex default covers Gemini; override the corresponding
+image model environment variable to test another available model.
+
 Reasoning overrides select the model used by reasoning-specific contract cases
 (`createReasoningChatModel`); reasoning behavior itself is still enabled via the
 `reasoning` option at call time. Chat and reasoning defaults may differ when a

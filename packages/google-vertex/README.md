@@ -77,10 +77,28 @@ Pass Vertex AI model IDs to the corresponding model factory:
 ```ts
 const chat = googleVertex.chatModel('gemini-2.5-flash');
 const embeddings = googleVertex.embeddingModel('gemini-embedding-001');
-const image = googleVertex.imageModel('imagen-4.0-generate-001');
+const image = googleVertex.imageModel('gemini-2.5-flash-image');
 ```
 
 Model availability varies by region. A provider instance targets one region, so create separate providers when models are hosted in different locations.
+
+## Image generation
+
+```ts
+import { generateImage } from '@core-ai/core-ai';
+
+const result = await generateImage({
+    model: googleVertex.imageModel('gemini-2.5-flash-image'),
+    prompt: 'A watercolor robot in a mountain cabin at sunrise',
+    size: '1024x1024',
+});
+
+console.log(result.images[0]?.base64);
+```
+
+Gemini image models use native multimodal generation. Imagen models such as
+`imagen-4.0-generate-001` remain available through the same `imageModel()`
+factory when the selected Vertex AI region and project support them.
 
 ## Provider options and capabilities
 

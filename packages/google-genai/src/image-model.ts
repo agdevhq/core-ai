@@ -1,4 +1,8 @@
-import type { GenerateImagesParameters } from '@google/genai';
+import type {
+    GenerateContentParameters,
+    GenerateContentResponse,
+    GenerateImagesParameters,
+} from '@google/genai';
 import type {
     ImageGenerateOptions,
     ImageGenerateResult,
@@ -23,40 +27,22 @@ export function createGoogleGenAIImageModel(
             options: ImageGenerateOptions
         ): Promise<ImageGenerateResult> {
             try {
-                const baseRequest: GenerateImagesParameters = {
-                    model: modelId,
-                    prompt: options.prompt,
-                    config: {
-                        ...(options.n !== undefined
-                            ? { numberOfImages: options.n }
-                            : {}),
-                        ...mapSizeToImageConfig(options.size),
-                    },
-                };
                 const googleOptions = parseGoogleImageProviderOptions(
                     options.providerOptions
                 );
-                const providerConfig =
-                    mapGoogleImageProviderOptionsToConfig(googleOptions);
-                const request: GenerateImagesParameters =
-                    Object.keys(providerConfig).length > 0
-                        ? {
-                              ...baseRequest,
-                              config: {
-                                  ...baseRequest.config,
-                                  ...providerConfig,
-                              },
-                          }
-                        : baseRequest;
-                const response = await client.models.generateImages(request);
-
-                return {
-                    images: (response.generatedImages ?? []).map((image) => ({
-                        base64: image.image?.imageBytes ?? undefined,
-                        url: image.image?.gcsUri ?? undefined,
-                        revisedPrompt: image.enhancedPrompt ?? undefined,
-                    })),
-                };
+                return isGeminiImageModel(modelId)
+                    ? await generateGeminiImages(
+                          client,
+                          modelId,
+                          options,
+                          googleOptions
+                      )
+                    : await generateImagenImages(
+                          client,
+                          modelId,
+                          options,
+                          googleOptions
+                      );
             } catch (error) {
                 throw wrapGoogleError(error, provider);
             }
@@ -64,7 +50,113 @@ export function createGoogleGenAIImageModel(
     };
 }
 
-function mapGoogleImageProviderOptionsToConfig(
+function isGeminiImageModel(modelId: string): boolean {
+    return modelId.startsWith('gemini-');
+}
+
+async function generateGeminiImages(
+    client: GoogleGenAIClient,
+    modelId: string,
+    options: ImageGenerateOptions,
+    googleOptions: GoogleImageProviderOptions | undefined
+): Promise<ImageGenerateResult> {
+    if (options.n !== undefined && options.n > 1) {
+        throw new Error(
+            'Gemini image generation does not support n greater than 1.'
+        );
+    }
+
+    const sizeConfig = mapSizeToImageConfig(options.size);
+    const aspectRatio = googleOptions?.aspectRatio ?? sizeConfig['aspectRatio'];
+    const imageSize = supportsGeminiImageSize(modelId)
+        ? (googleOptions?.imageSize ?? sizeConfig['imageSize'])
+        : undefined;
+    const imageConfig = {
+        ...(aspectRatio ? { aspectRatio } : {}),
+        ...(imageSize ? { imageSize } : {}),
+    };
+    const request: GenerateContentParameters = {
+        model: modelId,
+        contents: [
+            {
+                role: 'user',
+                parts: [{ text: options.prompt }],
+            },
+        ],
+        config: {
+            responseModalities: ['IMAGE'],
+            ...(Object.keys(imageConfig).length > 0 ? { imageConfig } : {}),
+            ...(googleOptions?.seed !== undefined
+                ? { seed: googleOptions.seed }
+                : {}),
+        },
+    };
+    const response = await client.models.generateContent(request);
+
+    return mapGeminiImageResponse(response);
+}
+
+function supportsGeminiImageSize(modelId: string): boolean {
+    return !modelId.startsWith('gemini-2.5-flash-image');
+}
+
+function mapGeminiImageResponse(
+    response: GenerateContentResponse
+): ImageGenerateResult {
+    const parts = response.candidates?.[0]?.content?.parts ?? [];
+
+    return {
+        images: parts.flatMap((part) => {
+            const inlineData = part.inlineData;
+            if (
+                !inlineData?.data ||
+                !inlineData.mimeType?.startsWith('image/')
+            ) {
+                return [];
+            }
+
+            return [{ base64: inlineData.data }];
+        }),
+    };
+}
+
+async function generateImagenImages(
+    client: GoogleGenAIClient,
+    modelId: string,
+    options: ImageGenerateOptions,
+    googleOptions: GoogleImageProviderOptions | undefined
+): Promise<ImageGenerateResult> {
+    const baseRequest: GenerateImagesParameters = {
+        model: modelId,
+        prompt: options.prompt,
+        config: {
+            ...(options.n !== undefined ? { numberOfImages: options.n } : {}),
+            ...mapSizeToImageConfig(options.size),
+        },
+    };
+    const providerConfig = mapImagenImageProviderOptionsToConfig(googleOptions);
+    const request: GenerateImagesParameters =
+        Object.keys(providerConfig).length > 0
+            ? {
+                  ...baseRequest,
+                  config: {
+                      ...baseRequest.config,
+                      ...providerConfig,
+                  },
+              }
+            : baseRequest;
+    const response = await client.models.generateImages(request);
+
+    return {
+        images: (response.generatedImages ?? []).map((image) => ({
+            base64: image.image?.imageBytes ?? undefined,
+            url: image.image?.gcsUri ?? undefined,
+            revisedPrompt: image.enhancedPrompt ?? undefined,
+        })),
+    };
+}
+
+function mapImagenImageProviderOptionsToConfig(
     options: GoogleImageProviderOptions | undefined
 ): Record<string, unknown> {
     return {

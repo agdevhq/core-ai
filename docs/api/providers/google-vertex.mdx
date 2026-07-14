@@ -1,11 +1,14 @@
 ---
 title: 'Google on Vertex AI'
-description: 'Create and configure the Google provider for Gemini, embedding, and Imagen models hosted on Vertex AI'
+description: 'Create and configure the Google provider for Gemini, embedding, and image models hosted on Vertex AI'
 ---
 
 ## Overview
 
-The Google on Vertex AI provider gives you access to Gemini chat and embedding models and Imagen image generation through Google Cloud. It uses the same model behavior as `@core-ai/google-genai`, while configuring the Google SDK for Vertex AI authentication and regional endpoints.
+The Google on Vertex AI provider gives you access to Gemini chat, embedding,
+and native image models as well as Imagen through Google Cloud. It uses the
+same model behavior as `@core-ai/google-genai`, while configuring the Google
+SDK for Vertex AI authentication and regional endpoints.
 
 ## Installation
 
@@ -120,10 +123,13 @@ Use model IDs available to your project in the selected Vertex AI region:
 ```typescript
 const chat = googleVertex.chatModel('gemini-2.5-flash');
 const embeddings = googleVertex.embeddingModel('gemini-embedding-001');
-const image = googleVertex.imageModel('imagen-4.0-generate-001');
+const image = googleVertex.imageModel('gemini-2.5-flash-image');
 ```
 
-Model availability varies by region. Since a provider instance targets one region, create separate providers for models hosted in different locations.
+Model availability varies by region. Since a provider instance targets one
+region, create separate providers for models hosted in different locations.
+Imagen models such as `imagen-4.0-generate-001` are also supported when they
+are available to the selected project and region.
 
 ## Examples
 
@@ -162,10 +168,15 @@ const result = await embed({
 import { generateImage } from '@core-ai/core-ai';
 
 const result = await generateImage({
-    model: googleVertex.imageModel('imagen-4.0-generate-001'),
+    model: googleVertex.imageModel('gemini-2.5-flash-image'),
     prompt: 'A serene mountain landscape at dawn',
+    size: '1024x1024',
 });
 ```
+
+Gemini image models return base64 image data and do not support requesting
+multiple outputs with `n`. Imagen model IDs use the dedicated Imagen API and
+support `n`.
 
 ## Provider-specific options
 

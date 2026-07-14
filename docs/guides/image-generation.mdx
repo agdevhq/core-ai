@@ -17,26 +17,75 @@ const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const model = openai.imageModel('gpt-image-1');
 
 const result = await generateImage({
-  model,
-  prompt: 'A watercolor painting of a robot coding in a quiet mountain cabin at sunrise',
-  n: 1,
-  size: '1024x1024',
+    model,
+    prompt: 'A watercolor painting of a robot coding in a quiet mountain cabin at sunrise',
+    n: 1,
+    size: '1024x1024',
 });
 
 for (const [index, image] of result.images.entries()) {
-  console.log(`Image ${index + 1}:`);
-  if (image.url) {
-    console.log('URL:', image.url);
-  } else if (image.base64) {
-    console.log('Base64 preview:', image.base64.slice(0, 80), '...');
-  } else {
-    console.log('No image payload found.');
-  }
-  if (image.revisedPrompt) {
-    console.log('Revised prompt:', image.revisedPrompt);
-  }
+    console.log(`Image ${index + 1}:`);
+    if (image.url) {
+        console.log('URL:', image.url);
+    } else if (image.base64) {
+        console.log('Base64 preview:', image.base64.slice(0, 80), '...');
+    } else {
+        console.log('No image payload found.');
+    }
+    if (image.revisedPrompt) {
+        console.log('Revised prompt:', image.revisedPrompt);
+    }
 }
 ```
+
+## Google image models
+
+Google providers expose Gemini native image models and dedicated Imagen models
+through the same API:
+
+<Tabs>
+  <Tab title="Google GenAI">
+    ```typescript
+    import { generateImage } from '@core-ai/core-ai';
+    import { createGoogleGenAI } from '@core-ai/google-genai';
+
+    const google = createGoogleGenAI({
+      apiKey: process.env.GOOGLE_API_KEY,
+    });
+
+    const result = await generateImage({
+      model: google.imageModel('gemini-2.5-flash-image'),
+      prompt: 'A tiny blue square icon on a white background',
+      size: '1024x1024',
+    });
+    ```
+
+  </Tab>
+  <Tab title="Google on Vertex AI">
+    ```typescript
+    import { generateImage } from '@core-ai/core-ai';
+    import { createGoogleVertex } from '@core-ai/google-vertex';
+
+    const googleVertex = createGoogleVertex({
+      projectId: process.env.GOOGLE_VERTEX_PROJECT,
+      region: 'europe-west1',
+    });
+
+    const result = await generateImage({
+      model: googleVertex.imageModel('gemini-2.5-flash-image'),
+      prompt: 'A tiny blue square icon on a white background',
+      size: '1024x1024',
+    });
+    ```
+
+  </Tab>
+</Tabs>
+
+Gemini image model IDs use native multimodal generation and return base64
+image data. They do not support requesting multiple outputs with `n`. Imagen
+IDs such as `imagen-4.0-generate-001` use the dedicated Imagen API and support
+multiple images with `n`. Model availability on Vertex AI depends on the
+selected project and region.
 
 ## Configuration Options
 
@@ -44,20 +93,17 @@ Customize image generation:
 
 ```typescript
 const result = await generateImage({
-  model,
-  prompt: 'A futuristic cityscape at sunset',
-  n: 3,                    // Generate 3 images
-  size: '1024x1024',       // Image dimensions
+    model,
+    prompt: 'A futuristic cityscape at sunset',
+    n: 3, // Generate 3 images
+    size: '1024x1024', // Image dimensions
 });
 ```
 
 <Note>
-  Available sizes depend on the provider and model. Common sizes include:
-  - `256x256`
-  - `512x512`
-  - `1024x1024`
-  - `1792x1024` (landscape)
-  - `1024x1792` (portrait)
+    Available sizes depend on the provider and model. Common sizes include: -
+    `256x256` - `512x512` - `1024x1024` - `1792x1024` (landscape) - `1024x1792`
+    (portrait)
 </Note>
 
 ## Image Response Format
@@ -66,13 +112,13 @@ The `generateImage()` function returns:
 
 ```typescript
 type ImageGenerateResult = {
-  images: GeneratedImage[];
+    images: GeneratedImage[];
 };
 
 type GeneratedImage = {
-  base64?: string;        // Base64-encoded image data
-  url?: string;           // URL to the generated image
-  revisedPrompt?: string; // AI-revised prompt (if modified)
+    base64?: string; // Base64-encoded image data
+    url?: string; // URL to the generated image
+    revisedPrompt?: string; // AI-revised prompt (if modified)
 };
 ```
 
@@ -82,19 +128,19 @@ Generate multiple variations:
 
 ```typescript
 const result = await generateImage({
-  model,
-  prompt: 'A minimalist logo for a tech startup',
-  n: 4, // Generate 4 variations
-  size: '512x512',
+    model,
+    prompt: 'A minimalist logo for a tech startup',
+    n: 4, // Generate 4 variations
+    size: '512x512',
 });
 
 console.log(`Generated ${result.images.length} images`);
 
 result.images.forEach((image, index) => {
-  console.log(`\nImage ${index + 1}:`);
-  if (image.url) {
-    console.log('URL:', image.url);
-  }
+    console.log(`\nImage ${index + 1}:`);
+    if (image.url) {
+        console.log('URL:', image.url);
+    }
 });
 ```
 
@@ -126,6 +172,7 @@ result.images.forEach((image, index) => {
       console.log('Downloaded and saved image');
     }
     ```
+
   </Tab>
   <Tab title="Display in Browser">
     ```typescript
@@ -141,16 +188,17 @@ result.images.forEach((image, index) => {
 
       if (image.url) {
         // Display URL directly
-        document.getElementById('output').innerHTML = 
+        document.getElementById('output').innerHTML =
           `<img src="${image.url}" alt="Generated image" />`;
       } else if (image.base64) {
         // Display base64 as data URL
         const dataUrl = `data:image/png;base64,${image.base64}`;
-        document.getElementById('output').innerHTML = 
+        document.getElementById('output').innerHTML =
           `<img src="${dataUrl}" alt="Generated image" />`;
       }
     }
     ```
+
   </Tab>
   <Tab title="Upload to Storage">
     ```typescript
@@ -187,6 +235,7 @@ result.images.forEach((image, index) => {
 
     console.log('Uploaded to S3');
     ```
+
   </Tab>
 </Tabs>
 
@@ -196,16 +245,16 @@ Some providers modify your prompt for better results:
 
 ```typescript
 const result = await generateImage({
-  model,
-  prompt: 'a robot',
+    model,
+    prompt: 'a robot',
 });
 
 const image = result.images[0];
 
 if (image.revisedPrompt) {
-  console.log('Original prompt:', 'a robot');
-  console.log('Revised prompt:', image.revisedPrompt);
-  // Revised prompt: "A humanoid robot with sleek metallic surfaces..."
+    console.log('Original prompt:', 'a robot');
+    console.log('Revised prompt:', image.revisedPrompt);
+    // Revised prompt: "A humanoid robot with sleek metallic surfaces..."
 }
 ```
 
@@ -263,6 +312,7 @@ Write effective prompts for better results:
               'photorealistic, 8k, natural lighting',
     });
     ```
+
   </Accordion>
 
   <Accordion title="Include style and quality keywords">
@@ -311,29 +361,29 @@ Handle image generation errors:
 import { CoreAIError, ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await generateImage({
-    model,
-    prompt: 'A beautiful landscape',
-  });
+    const result = await generateImage({
+        model,
+        prompt: 'A beautiful landscape',
+    });
 
-  if (result.images.length === 0) {
-    console.error('No images generated');
-  }
-
-  result.images.forEach((image, i) => {
-    if (!image.url && !image.base64) {
-      console.error(`Image ${i} has no data`);
+    if (result.images.length === 0) {
+        console.error('No images generated');
     }
-  });
+
+    result.images.forEach((image, i) => {
+        if (!image.url && !image.base64) {
+            console.error(`Image ${i} has no data`);
+        }
+    });
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('Provider error:', error.message);
-    console.error('Status code:', error.statusCode);
-  } else if (error instanceof CoreAIError) {
-    console.error('CoreAIError:', error.message);
-  } else {
-    console.error('Unknown error:', error);
-  }
+    if (error instanceof ProviderError) {
+        console.error('Provider error:', error.message);
+        console.error('Status code:', error.statusCode);
+    } else if (error instanceof CoreAIError) {
+        console.error('CoreAIError:', error.message);
+    } else {
+        console.error('Unknown error:', error);
+    }
 }
 ```
 
@@ -343,21 +393,23 @@ Use provider-specific features:
 
 ```typescript
 const result = await generateImage({
-  model,
-  prompt: 'A futuristic vehicle',
-  n: 2,
-  size: '1024x1024',
-  providerOptions: {
-    openai: {
-      quality: 'hd',
-      style: 'vivid',
+    model,
+    prompt: 'A futuristic vehicle',
+    n: 2,
+    size: '1024x1024',
+    providerOptions: {
+        openai: {
+            quality: 'hd',
+            style: 'vivid',
+        },
     },
-  },
 });
 ```
 
 <Note>
-  Provider options are namespaced by provider name and validated by each provider adapter. Check the [provider docs](/api/providers/openai) for available options.
+    Provider options are namespaced by provider name and validated by each
+    provider adapter. Check the [provider docs](/api/providers/openai) for
+    available options.
 </Note>
 
 ## Practical Examples
@@ -382,6 +434,7 @@ const result = await generateImage({
     const logos = await generateLogo('TechFlow', 'software development');
     console.log(`Generated ${logos.length} logo options`);
     ```
+
   </Tab>
   <Tab title="Product Mockup">
     ```typescript
@@ -405,6 +458,7 @@ const result = await generateImage({
       'premium and elegant'
     );
     ```
+
   </Tab>
   <Tab title="Illustration Generator">
     ```typescript
@@ -429,6 +483,7 @@ const result = await generateImage({
       'concept art'
     );
     ```
+
   </Tab>
 </Tabs>
 
@@ -450,6 +505,7 @@ const result = await generateImage({
       throw new Error('No image data available');
     }
     ```
+
   </Accordion>
 
   <Accordion title="Store generated images permanently">
@@ -463,6 +519,7 @@ const result = await generateImage({
       await saveToStorage(buffer);
     }
     ```
+
   </Accordion>
 
   <Accordion title="Use appropriate sizes for your use case">
@@ -483,22 +540,23 @@ const result = await generateImage({
       size: '1024x1024',
     });
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
-    Use images in chat conversations
-  </Card>
-  <Card title="Chat Completion" icon="message" href="/guides/chat-completion">
-    Generate text responses
-  </Card>
-  <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
-    Combine image generation with tools
-  </Card>
-  <Card title="Embeddings" icon="vector-square" href="/guides/embeddings">
-    Generate vector embeddings
-  </Card>
+    <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
+        Use images in chat conversations
+    </Card>
+    <Card title="Chat Completion" icon="message" href="/guides/chat-completion">
+        Generate text responses
+    </Card>
+    <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
+        Combine image generation with tools
+    </Card>
+    <Card title="Embeddings" icon="vector-square" href="/guides/embeddings">
+        Generate vector embeddings
+    </Card>
 </CardGroup>
