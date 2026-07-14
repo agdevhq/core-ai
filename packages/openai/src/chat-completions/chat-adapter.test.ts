@@ -3,12 +3,11 @@ import { z } from 'zod';
 import {
     createGenerateRequest,
     createStreamRequest,
-    createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
-    getStructuredOutputToolName,
     mapGenerateResponse,
+    transformStream,
 } from './chat-adapter.js';
 import {
     ValidationError,
@@ -18,7 +17,14 @@ import {
     type ToolSet,
 } from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.js';
-import type { ChatCompletion } from 'openai/resources/chat/completions/completions';
+import {
+    createStructuredOutputRequestOptions,
+    getStructuredOutputName,
+} from '../shared/structured-output.js';
+import type {
+    ChatCompletion,
+    ChatCompletionChunk,
+} from 'openai/resources/chat/completions/completions';
 
 describe('convertMessages', () => {
     it('should convert a system message', () => {
@@ -215,45 +221,89 @@ describe('convertToolChoice', () => {
 });
 
 describe('structured output helpers', () => {
-    it('should create tool-based generate options for structured output', () => {
+    it('should create a native JSON Schema response format', () => {
         const schema = z.object({
             city: z.string(),
             temperatureC: z.number(),
         });
 
-        const result = createStructuredOutputOptions({
-            messages: [{ role: 'user', content: 'Return weather as JSON' }],
-            schema,
-            schemaName: 'weather_schema',
-            schemaDescription: 'Structured weather output',
-            temperature: 0,
-            maxTokens: 128,
-        });
+        const request = createGenerateRequest(
+            'gpt-5.6-luna',
+            createStructuredOutputRequestOptions({
+                messages: [{ role: 'user', content: 'Return weather as JSON' }],
+                schema,
+                schemaName: 'weather_schema',
+                schemaDescription: 'Structured weather output',
+                temperature: 0,
+                maxTokens: 128,
+            })
+        );
 
-        expect(result.messages).toEqual([
-            { role: 'user', content: 'Return weather as JSON' },
-        ]);
-        expect(result.toolChoice).toEqual({
-            type: 'tool',
-            toolName: 'weather_schema',
-        });
-        expect(result.tools).toMatchObject({
-            structured_output: {
-                name: 'weather_schema',
-                description: 'Structured weather output',
+        expect(request).toMatchObject({
+            model: 'gpt-5.6-luna',
+            response_format: {
+                type: 'json_schema',
+                json_schema: {
+                    name: 'weather_schema',
+                    description: 'Structured weather output',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        required: ['city', 'temperatureC'],
+                    },
+                },
             },
+            temperature: 0,
+            max_tokens: 128,
         });
-        expect(result.temperature).toBe(0);
-        expect(result.maxTokens).toBe(128);
+        expect(request).not.toHaveProperty('tools');
+        expect(request).not.toHaveProperty('tool_choice');
     });
 
-    it('should derive default structured output tool name', () => {
+    it('should create a forced tool request for compatible endpoints', () => {
+        const request = createGenerateRequest(
+            'qwen3-235b',
+            createStructuredOutputRequestOptions(
+                {
+                    messages: [
+                        { role: 'user', content: 'Return weather as JSON' },
+                    ],
+                    schema: z.object({
+                        city: z.string(),
+                        temperatureC: z.number(),
+                    }),
+                    schemaName: 'weather_schema',
+                },
+                'tool'
+            )
+        );
+
+        expect(request).toMatchObject({
+            tools: [
+                {
+                    type: 'function',
+                    function: {
+                        name: 'weather_schema',
+                    },
+                },
+            ],
+            tool_choice: {
+                type: 'function',
+                function: {
+                    name: 'weather_schema',
+                },
+            },
+        });
+        expect(request).not.toHaveProperty('response_format');
+    });
+
+    it('should derive the default structured output name', () => {
         const schema = z.object({
             ok: z.boolean(),
         });
 
         expect(
-            getStructuredOutputToolName({
+            getStructuredOutputName({
                 messages: [{ role: 'user', content: 'json' }],
                 schema,
             })
@@ -456,6 +506,182 @@ describe('reasoning support', () => {
         expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
     });
 
+    it('should only extract nonstandard reasoning fields in compatibility mode', () => {
+        const message = {
+            role: 'assistant' as const,
+            content: 'final answer',
+            refusal: null,
+            reasoning_content: 'preferred reasoning',
+            reasoning: 'fallback reasoning',
+        };
+        const response = asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message,
+                },
+            ],
+        });
+
+        expect(mapGenerateResponse(response).reasoning).toBeNull();
+        expect(
+            mapGenerateResponse(response, { compatibility: true })
+        ).toMatchObject({
+            reasoning: 'preferred reasoning',
+            parts: [
+                { type: 'reasoning', text: 'preferred reasoning' },
+                { type: 'text', text: 'final answer' },
+            ],
+        });
+    });
+
+    it('should emit compatible reasoning before text while streaming', async () => {
+        const reasoningDelta = {
+            content: null,
+            reasoning_content: 'thinking',
+        };
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: reasoningDelta,
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: { content: 'answer' },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ]),
+                { compatibility: true }
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'text-start',
+            'text-delta',
+            'text-end',
+            'finish',
+        ]);
+    });
+
+    it('should emit a compatible reasoning-only stream using the fallback field', async () => {
+        const reasoningDelta = {
+            content: null,
+            reasoning: 'deep in thought',
+        };
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: reasoningDelta,
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'length',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ]),
+                { compatibility: true }
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'finish',
+        ]);
+        expect(events.at(-1)).toMatchObject({
+            type: 'finish',
+            finishReason: 'length',
+        });
+    });
+
+    it('should keep text and compatible reasoning segments from overlapping', async () => {
+        const reasoningDelta = {
+            content: null,
+            reasoning_content: 'reconsidering',
+        };
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: { content: 'initial answer' },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: reasoningDelta,
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ]),
+                { compatibility: true }
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'text-start',
+            'text-delta',
+            'text-end',
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'finish',
+        ]);
+    });
+
     it('should not add reasoning_effort when reasoning is not configured', () => {
         const request = createGenerateRequest('gpt-5.1', {
             messages: [{ role: 'user', content: 'Hi' }],
@@ -474,4 +700,27 @@ function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
         choices: [],
         ...value,
     };
+}
+
+function asChunk(value: Partial<ChatCompletionChunk>): ChatCompletionChunk {
+    return {
+        id: 'chunk-1',
+        object: 'chat.completion.chunk',
+        created: Date.now(),
+        model: 'gpt-5-mini',
+        choices: [],
+        ...value,
+    };
+}
+
+async function* toAsyncIterable<T>(values: T[]): AsyncIterable<T> {
+    yield* values;
+}
+
+async function collectEvents<T>(stream: AsyncIterable<T>): Promise<T[]> {
+    const events: T[] = [];
+    for await (const event of stream) {
+        events.push(event);
+    }
+    return events;
 }

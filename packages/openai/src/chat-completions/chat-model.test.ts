@@ -14,13 +14,13 @@ import {
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createOpenAICompatChatModel } from './chat-model.js';
+import { createOpenAIChatCompletionsModel } from './chat-model.js';
 import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
-describe('createOpenAICompatChatModel', () => {
+describe('createOpenAIChatCompletionsModel', () => {
     it('should create model metadata', () => {
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(),
             'gpt-5-mini'
         );
@@ -56,7 +56,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -104,7 +104,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -155,7 +155,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -209,7 +209,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -234,23 +234,12 @@ describe('generate', () => {
                 choices: [
                     {
                         index: 0,
-                        finish_reason: 'tool_calls',
+                        finish_reason: 'stop',
                         logprobs: null,
                         message: {
                             role: 'assistant',
-                            content: null,
+                            content: '{"city":"Berlin","temperatureC":21}',
                             refusal: null,
-                            tool_calls: [
-                                {
-                                    id: 'tc_1',
-                                    type: 'function',
-                                    function: {
-                                        name: 'weather_schema',
-                                        arguments:
-                                            '{"city":"Berlin","temperatureC":21}',
-                                    },
-                                },
-                            ],
                         },
                     },
                 ],
@@ -261,7 +250,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -280,14 +269,15 @@ describe('generate', () => {
             city: 'Berlin',
             temperatureC: 21,
         });
-        expect(result.finishReason).toBe('tool-calls');
+        expect(result.finishReason).toBe('stop');
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
-                tool_choice: {
-                    type: 'function',
-                    function: {
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: expect.objectContaining({
                         name: 'weather_schema',
-                    },
+                        strict: true,
+                    }),
                 },
             }),
             expect.anything()
@@ -322,7 +312,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -380,7 +370,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -415,7 +405,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -453,7 +443,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -488,7 +478,7 @@ describe('generate', () => {
                 ],
             })
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -510,7 +500,7 @@ describe('generate', () => {
         const create = vi.fn(async () => {
             throw new Error('network failed');
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -527,7 +517,7 @@ describe('generate', () => {
         const create = vi.fn(async () => {
             throw abortError;
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -564,7 +554,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -615,7 +605,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -685,7 +675,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -715,7 +705,7 @@ describe('stream', () => {
     it('should reject iteration and result on abort while preserving partial events', async () => {
         const source = createPushableAsyncIterable<ChatCompletionChunk>();
         const create = vi.fn(async () => source.iterable);
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -771,17 +761,7 @@ describe('stream', () => {
                             index: 0,
                             finish_reason: null,
                             delta: {
-                                tool_calls: [
-                                    {
-                                        index: 0,
-                                        id: 'tc_1',
-                                        type: 'function',
-                                        function: {
-                                            name: 'weather_schema',
-                                            arguments: '{"city":"Berlin",',
-                                        },
-                                    },
-                                ],
+                                content: '{"city":"Berlin",',
                             },
                         },
                     ],
@@ -791,17 +771,9 @@ describe('stream', () => {
                     choices: [
                         {
                             index: 0,
-                            finish_reason: 'tool_calls',
+                            finish_reason: 'stop',
                             delta: {
-                                tool_calls: [
-                                    {
-                                        index: 0,
-                                        type: 'function',
-                                        function: {
-                                            arguments: '"temperatureC":21}',
-                                        },
-                                    },
-                                ],
+                                content: '"temperatureC":21}',
                             },
                         },
                     ],
@@ -813,7 +785,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -841,13 +813,26 @@ describe('stream', () => {
             city: 'Berlin',
             temperatureC: 21,
         });
-        expect(response.finishReason).toBe('tool-calls');
+        expect(response.finishReason).toBe('stop');
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                stream: true,
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: expect.objectContaining({
+                        name: 'weather_schema',
+                        strict: true,
+                    }),
+                },
+            }),
+            expect.anything()
+        );
     });
 
     it('should reject object stream iteration and result on abort while preserving partial events', async () => {
         const source = createPushableAsyncIterable<ChatCompletionChunk>();
         const create = vi.fn(async () => source.iterable);
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -934,7 +919,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -996,7 +981,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -1050,7 +1035,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -1101,7 +1086,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );
@@ -1155,7 +1140,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createOpenAICompatChatModel(
+        const model = createOpenAIChatCompletionsModel(
             createMockClient(create),
             'gpt-5-mini'
         );

@@ -6,8 +6,11 @@ import type {
 
 export type ProviderId =
     | 'openai'
+    | 'openai-chat'
     | 'openai-compat'
     | 'azure-openai'
+    | 'azure-openai-chat'
+    | 'azure-openai-classic'
     | 'anthropic'
     | 'anthropic-vertex'
     | 'google'

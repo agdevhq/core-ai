@@ -26,12 +26,8 @@ import {
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
-import {
-    convertToolChoice,
-    convertTools,
-    createStructuredOutputOptions,
-    getStructuredOutputToolName,
-} from './shared/tools.js';
+import { convertToolChoice, convertTools } from './shared/tools.js';
+import type { OpenAIRequestOptions } from './shared/structured-output.js';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
@@ -41,7 +37,6 @@ import {
     type OpenAIResponsesGenerateProviderOptions,
 } from './provider-options.js';
 
-export { createStructuredOutputOptions, getStructuredOutputToolName };
 export { validateOpenAIReasoningConfig };
 
 export type OpenAIReasoningMetadata = {
@@ -222,7 +217,7 @@ export function createStreamRequest(
 
 function createRequest(
     modelId: string,
-    options: GenerateOptions,
+    options: OpenAIRequestOptions,
     stream: boolean
 ) {
     const openaiOptions = parseOpenAIResponsesGenerateProviderOptions(
@@ -231,6 +226,9 @@ function createRequest(
     const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options),
         ...(stream ? { stream: true as const } : {}),
+        ...(options.structuredOutputFormat
+            ? { text: { format: options.structuredOutputFormat } }
+            : {}),
         ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 

@@ -1,13 +1,15 @@
 ---
 title: 'Azure OpenAI Provider'
-description: 'Create and configure the Azure OpenAI provider for chat completions'
+description: 'Use Azure OpenAI Responses and Chat Completions APIs'
 ---
 
 ## Overview
 
-The Azure OpenAI provider connects core-ai to Azure OpenAI chat deployments. It uses the Azure OpenAI v1 Chat Completions API by default through the official OpenAI SDK.
+The Azure OpenAI provider connects core-ai to Azure OpenAI deployments through
+the official OpenAI SDK. Azure v1 uses the Responses API for `chatModel()` and
+exposes strict Chat Completions through `azure.chat.chatModel()`.
 
-Pass Azure OpenAI deployment names to `chatModel()`. The provider sends the deployment name as the Chat Completions `model` field.
+Pass Azure OpenAI deployment names as model IDs.
 
 ## Installation
 
@@ -59,13 +61,32 @@ const azure = createAzureOpenAI({
     Classic mode only. Token provider for Microsoft Entra ID authentication.
 </ParamField>
 
-<ParamField path="client" type="OpenAIChatClient" optional>
-    Provide your own configured Azure OpenAI chat client.
+<ParamField path="client" type="OpenAI | OpenAIChatClient" optional>
+    Provide your own configured client. Azure v1 clients must expose Responses
+    and Chat Completions. Classic clients only need Chat Completions.
 </ParamField>
 
 ### Returns
 
-`AzureOpenAIProvider` with method `chatModel()`.
+`AzureOpenAIProvider` with `chatModel()` and `chat.chatModel()`.
+
+## API selection
+
+With Azure v1, the root provider uses Responses:
+
+```typescript
+const responsesModel = azure.chatModel('gpt-5-mini-deployment');
+```
+
+Use the nested provider for strict Chat Completions:
+
+```typescript
+const chatCompletionsModel = azure.chat.chatModel('gpt-5-mini-deployment');
+```
+
+Classic Azure supports Chat Completions only. In classic mode, both
+`azure.chatModel()` and `azure.chat.chatModel()` create Chat Completions
+models.
 
 ## Authentication
 
@@ -166,11 +187,26 @@ for await (const chunk of result.textStream) {
 
 ## Provider-specific options
 
-The provider follows the OpenAI Chat Completions API. Pass options via `providerOptions.openai`:
+Root Azure v1 models use the OpenAI Responses options:
 
 ```typescript
 await generate({
     model: azure.chatModel('gpt-5-mini-deployment'),
+    messages: [{ role: 'user', content: 'Hello!' }],
+    providerOptions: {
+        openai: {
+            store: false,
+            serviceTier: 'auto',
+        },
+    },
+});
+```
+
+Nested and classic models use Chat Completions options:
+
+```typescript
+await generate({
+    model: azure.chat.chatModel('gpt-5-mini-deployment'),
     messages: [{ role: 'user', content: 'Hello!' }],
     providerOptions: {
         openai: {
@@ -180,9 +216,11 @@ await generate({
 });
 ```
 
-See the [OpenAI compat provider](/api/providers/openai#createopenaicompat) docs for available Chat Completions options.
+See the [OpenAI provider](/api/providers/openai#provider-specific-options) for
+the fields supported by each API.
 
 <Note>
-    The Azure OpenAI provider supports chat models. Use `@core-ai/openai` for
-    OpenAI Responses API, embeddings, and image generation.
+    Azure Responses availability depends on the model and Azure region. Use
+    `azure.chat.chatModel()` when your deployment only supports Chat
+    Completions.
 </Note>

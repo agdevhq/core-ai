@@ -55,6 +55,7 @@ Rules:
 - Package names are **quoted** with single quotes and include the scope
 - Bump type is one of: `patch`, `minor`, `major`
 - Body below the frontmatter is the changelog entry
+- **Default to one package per file.** Listing multiple packages in one file's frontmatter copies the **same body text** to every listed package's changelog — it does not produce package-specific entries.
 
 ### Pre-1.0 versioning
 
@@ -72,13 +73,24 @@ All publishable packages share a single version number:
 - `@core-ai/omnifact`
 - `@core-ai/anthropic-vertex`
 
-Selecting any one package in a changeset bumps every package in the fixed group to the same version. However, **list every package that has meaningful changes** so each gets its own changelog entry.
+Selecting any one package in a changeset bumps every package in the fixed group to the same version. Create a changeset for **every package with meaningful changes** — use separate files when the changelog text differs per package.
 
 ### Changeset scope and granularity
 
+Use this decision table:
+
+| Situation                                                                                             | Files                    | Frontmatter          | Body                                                                |
+| ----------------------------------------------------------------------------------------------------- | ------------------------ | -------------------- | ------------------------------------------------------------------- |
+| Independent provider changes (new package, provider-specific API, new models, internal updates)       | **One file per package** | One package each     | Scoped to that package only — never mention other provider packages |
+| Uniform cross-package change (shared interface, method signature, config tweak in `@core-ai/core-ai`) | One file                 | Multiple packages OK | Same text applies to all listed packages                            |
+| Multi-package PR with different changes per provider                                                  | **Multiple files**       | One package per file | Each file has its own scoped body                                   |
+
+Additional rules:
+
 - One changeset per **logical change**. If core types and provider adapters change for different reasons, use separate changesets.
-- **Provider changes**: Use one changeset file per provider when changes are **independent** — e.g. new models, internal updates, new provider options. Each provider's changelog must only describe that provider's changes; never mention other provider packages.
-- **Cross-provider changes**: Use a single changeset when the change **applies uniformly** across multiple providers — e.g. a changed interface, method signature, or shared config tweak.
+- **Provider changes**: Use one changeset file per provider when changes are **independent**. A coordinated refactor across providers (e.g. new `openai.chat` API, new `@core-ai/openai-compat` package, Azure v1 Responses default, Omnifact wiring) still counts as independent — split the changesets.
+- **Cross-provider changes**: Use a single changeset with multiple packages in the frontmatter only when the **identical** changelog text is correct for every listed package.
+- Do **not** combine independent provider changes into one file — the body is duplicated verbatim into every listed package's changelog.
 
 ### Empty changesets
 

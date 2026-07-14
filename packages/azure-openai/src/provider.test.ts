@@ -1,19 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
-import type { OpenAIChatClient } from '@core-ai/openai/compat';
+import type OpenAI from 'openai';
 import { createAzureOpenAI } from './provider.js';
 
-const { azureConstructor, chatCreate, openAIConstructor } = vi.hoisted(() => ({
-    azureConstructor: vi.fn(),
-    chatCreate: vi.fn(),
-    openAIConstructor: vi.fn(),
-}));
+const { azureConstructor, chatCreate, openAIConstructor, responsesCreate } =
+    vi.hoisted(() => ({
+        azureConstructor: vi.fn(),
+        chatCreate: vi.fn(),
+        openAIConstructor: vi.fn(),
+        responsesCreate: vi.fn(),
+    }));
 
 vi.mock('openai', async (importActual) => {
     const actual = await importActual<typeof import('openai')>();
     return {
         ...actual,
         default: class {
+            responses = {
+                create: responsesCreate,
+            };
             chat = {
                 completions: {
                     create: chatCreate,
@@ -25,6 +30,9 @@ vi.mock('openai', async (importActual) => {
             }
         },
         AzureOpenAI: class {
+            responses = {
+                create: responsesCreate,
+            };
             chat = {
                 completions: {
                     create: chatCreate,
@@ -43,6 +51,7 @@ describe('createAzureOpenAI', () => {
         azureConstructor.mockReset();
         chatCreate.mockReset();
         openAIConstructor.mockReset();
+        responsesCreate.mockReset();
     });
 
     it('should create an OpenAI v1 client by default', () => {
@@ -101,7 +110,75 @@ describe('createAzureOpenAI', () => {
         expect(chatModel.modelId).toBe('chat-deployment');
     });
 
-    it('should call the underlying Azure OpenAI client', async () => {
+    it('should keep classic root chat models on Chat Completions', async () => {
+        chatCreate.mockResolvedValue({
+            id: 'chatcmpl-1',
+            object: 'chat.completion',
+            created: Date.now(),
+            model: 'chat-deployment',
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'ok',
+                        refusal: null,
+                    },
+                },
+            ],
+            usage: {
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+            },
+        });
+        const provider = createAzureOpenAI({
+            api: 'classic',
+            apiVersion: '2025-04-01-preview',
+        });
+
+        await provider
+            .chatModel('chat-deployment')
+            .generate({ messages: [{ role: 'user', content: 'hello' }] });
+
+        expect(chatCreate).toHaveBeenCalledTimes(1);
+        expect(responsesCreate).not.toHaveBeenCalled();
+    });
+
+    it('should use Responses API for v1 root chat models', async () => {
+        responsesCreate.mockResolvedValue({
+            output: [
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'ok' }],
+                },
+            ],
+            status: 'completed',
+            usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 0 },
+                total_tokens: 2,
+            },
+        });
+
+        const provider = createAzureOpenAI({ apiKey: 'test-key' });
+
+        await provider
+            .chatModel('chat-deployment')
+            .generate({ messages: [{ role: 'user', content: 'hello' }] });
+
+        expect(responsesCreate).toHaveBeenCalledTimes(1);
+        expect(chatCreate).not.toHaveBeenCalled();
+        const [request] = responsesCreate.mock.calls[0] ?? [];
+        expect(request).toMatchObject({ model: 'chat-deployment' });
+    });
+
+    it('should expose strict Chat Completions under chat', async () => {
         chatCreate.mockResolvedValue({
             id: 'chatcmpl-1',
             object: 'chat.completion',
@@ -128,47 +205,38 @@ describe('createAzureOpenAI', () => {
 
         const provider = createAzureOpenAI({ apiKey: 'test-key' });
 
-        await provider
+        await provider.chat
             .chatModel('chat-deployment')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
         expect(chatCreate).toHaveBeenCalledTimes(1);
-        const [request] = chatCreate.mock.calls[0] ?? [];
-        expect(request).toMatchObject({ model: 'chat-deployment' });
+        expect(responsesCreate).not.toHaveBeenCalled();
     });
 
     it('should use a provided client', async () => {
-        chatCreate.mockResolvedValue({
-            id: 'chatcmpl-1',
-            object: 'chat.completion',
-            created: Date.now(),
-            model: 'chat-deployment',
-            choices: [
+        responsesCreate.mockResolvedValue({
+            output: [
                 {
-                    index: 0,
-                    finish_reason: 'stop',
-                    logprobs: null,
-                    message: {
-                        role: 'assistant',
-                        content: 'ok',
-                        refusal: null,
-                    },
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'ok' }],
                 },
             ],
+            status: 'completed',
             usage: {
-                prompt_tokens: 1,
-                completion_tokens: 1,
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 0 },
                 total_tokens: 2,
             },
         });
 
         const client = {
-            chat: {
-                completions: {
-                    create: chatCreate,
-                },
+            responses: {
+                create: responsesCreate,
             },
-        } as unknown as OpenAIChatClient;
+        } as unknown as OpenAI;
 
         await createAzureOpenAI({ client })
             .chatModel('chat-deployment')
@@ -176,11 +244,11 @@ describe('createAzureOpenAI', () => {
 
         expect(azureConstructor).not.toHaveBeenCalled();
         expect(openAIConstructor).not.toHaveBeenCalled();
-        expect(chatCreate).toHaveBeenCalledTimes(1);
+        expect(responsesCreate).toHaveBeenCalledTimes(1);
     });
 
     it('should tag errors with provider "azure-openai"', async () => {
-        chatCreate.mockRejectedValue(new Error('upstream failure'));
+        responsesCreate.mockRejectedValue(new Error('upstream failure'));
 
         const provider = createAzureOpenAI({ apiKey: 'test-key' });
 

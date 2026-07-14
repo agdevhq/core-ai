@@ -21,7 +21,7 @@ export type OpenAIResponsesGenerateProviderOptions = z.infer<
     typeof openaiResponsesGenerateProviderOptionsSchema
 >;
 
-export const openaiCompatGenerateProviderOptionsSchema =
+export const openaiChatGenerateProviderOptionsSchema =
     openaiResponsesGenerateProviderOptionsSchema
         .omit({
             include: true,
@@ -34,8 +34,8 @@ export const openaiCompatGenerateProviderOptionsSchema =
         })
         .strict();
 
-export type OpenAICompatGenerateProviderOptions = z.infer<
-    typeof openaiCompatGenerateProviderOptionsSchema
+export type OpenAIChatGenerateProviderOptions = z.infer<
+    typeof openaiChatGenerateProviderOptionsSchema
 >;
 
 export const openaiEmbedProviderOptionsSchema = z
@@ -89,12 +89,12 @@ export function parseOpenAIResponsesGenerateProviderOptions(
     );
 }
 
-export function parseOpenAICompatGenerateProviderOptions(
+export function parseOpenAIChatGenerateProviderOptions(
     providerOptions: GenerateProviderOptions | undefined
-): OpenAICompatGenerateProviderOptions | undefined {
+): OpenAIChatGenerateProviderOptions | undefined {
     return parseOpenAIProviderOptions(
         providerOptions,
-        openaiCompatGenerateProviderOptionsSchema
+        openaiChatGenerateProviderOptionsSchema
     );
 }
 
@@ -120,7 +120,7 @@ declare module '@core-ai/core-ai' {
     interface GenerateProviderOptions {
         openai?:
             | OpenAIResponsesGenerateProviderOptions
-            | OpenAICompatGenerateProviderOptions;
+            | OpenAIChatGenerateProviderOptions;
     }
 
     interface EmbedProviderOptions {
@@ -139,10 +139,16 @@ export type OpenAIResponsesProviderOptions =
     OpenAIResponsesGenerateProviderOptions;
 
 export const openaiCompatProviderOptionsSchema =
-    openaiCompatGenerateProviderOptionsSchema;
-export type OpenAICompatRequestOptions = OpenAICompatGenerateProviderOptions;
+    openaiChatGenerateProviderOptionsSchema;
+export const openaiCompatGenerateProviderOptionsSchema =
+    openaiChatGenerateProviderOptionsSchema;
+export type OpenAICompatGenerateProviderOptions =
+    OpenAIChatGenerateProviderOptions;
+export type OpenAICompatRequestOptions = OpenAIChatGenerateProviderOptions;
 
 export const parseOpenAIResponsesProviderOptions =
     parseOpenAIResponsesGenerateProviderOptions;
 export const parseOpenAICompatProviderOptions =
-    parseOpenAICompatGenerateProviderOptions;
+    parseOpenAIChatGenerateProviderOptions;
+export const parseOpenAICompatGenerateProviderOptions =
+    parseOpenAIChatGenerateProviderOptions;

@@ -7,7 +7,8 @@ description: 'Create and configure the OpenAI provider for chat, embeddings, and
 
 The OpenAI provider gives you access to GPT-5 models, o-series reasoning models, embeddings, and image generation.
 
-By default, `createOpenAI` uses the **Responses API**. For the Chat Completions API, use `createOpenAICompat` from `@core-ai/openai/compat`.
+`createOpenAI().chatModel()` uses the **Responses API**. The same provider
+exposes the strict Chat Completions API through `openai.chat.chatModel()`.
 
 ## Installation
 
@@ -34,8 +35,8 @@ const openai = createOpenAI({
 </ParamField>
 
 <ParamField path="baseURL" type="string" optional>
-    Custom base URL for API requests. Useful for proxies or OpenAI-compatible
-    APIs.
+    Custom base URL for API requests. The endpoint must support the API used by
+    the selected model factory.
 </ParamField>
 
 <ParamField path="client" type="OpenAI" optional>
@@ -44,23 +45,23 @@ const openai = createOpenAI({
 
 ### Returns
 
-`OpenAIProvider` with methods `chatModel()`, `embeddingModel()`, and `imageModel()`.
+`OpenAIProvider` with `chatModel()`, `chat.chatModel()`, `embeddingModel()`, and
+`imageModel()`.
 
-## createOpenAICompat()
+## Chat Completions
 
-Create an OpenAI provider instance using the Chat Completions API.
+Use the nested `chat` provider for OpenAI's strict Chat Completions API:
 
 ```typescript
-import { createOpenAICompat } from '@core-ai/openai/compat';
-
-const openai = createOpenAICompat({
+const openai = createOpenAI({
     apiKey: process.env.OPENAI_API_KEY,
 });
+
+const model = openai.chat.chatModel('gpt-5-mini');
 ```
 
-Same options as `createOpenAI`. Returns `OpenAICompatProvider` with the same model factory methods.
-
-Use `createOpenAICompat` when you need Chat Completions API compatibility, for example with third-party OpenAI-compatible endpoints.
+For third-party OpenAI-compatible endpoints, use the dedicated
+[OpenAI-compatible provider](/api/providers/openai-compat).
 
 ## Provider methods
 
@@ -68,6 +69,12 @@ Use `createOpenAICompat` when you need Chat Completions API compatibility, for e
 
 ```typescript
 const model = openai.chatModel('gpt-5-mini');
+```
+
+This method uses the Responses API. For Chat Completions:
+
+```typescript
+const model = openai.chat.chatModel('gpt-5-mini');
 ```
 
 ### embeddingModel()
@@ -208,6 +215,9 @@ const openai = createOpenAI({
 });
 ```
 
+Use `openai.chat.chatModel()` if the proxy implements strict Chat Completions.
+Use `@core-ai/openai-compat` if it returns nonstandard compatible fields.
+
 ## Reasoning support
 
 Inspect model capabilities before enabling reasoning:
@@ -321,16 +331,13 @@ Available fields: `store`, `serviceTier` (`'auto'` | `'default'` | `'flex'` | `'
 
 ### Generate options (Chat Completions API)
 
-When using `createOpenAICompat`, the available options differ:
+When using `openai.chat.chatModel()`, the available options differ:
 
 ```typescript
-import { createOpenAICompat } from '@core-ai/openai/compat';
 import { generate } from '@core-ai/core-ai';
 
-const openai = createOpenAICompat();
-
 const result = await generate({
-    model: openai.chatModel('gpt-5-mini'),
+    model: openai.chat.chatModel('gpt-5-mini'),
     messages: [{ role: 'user', content: 'Hello' }],
     providerOptions: {
         openai: {
@@ -349,7 +356,7 @@ const result = await generate({
 
 <Note>
     Chat Completions uses `reasoning_effort` instead of the Responses API
-    reasoning payload shape. The compat options do not support the `include`
+    reasoning payload shape. Chat Completions options do not support `include`
     field.
 </Note>
 

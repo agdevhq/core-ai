@@ -20,6 +20,7 @@ describe('createOpenAI', () => {
         });
 
         const chatModel = provider.chatModel('gpt-5-mini');
+        const chatCompletionsModel = provider.chat.chatModel('gpt-5-mini');
         const embeddingModel = provider.embeddingModel(
             'text-embedding-3-small'
         );
@@ -27,6 +28,8 @@ describe('createOpenAI', () => {
 
         expect(chatModel.provider).toBe('openai');
         expect(chatModel.modelId).toBe('gpt-5-mini');
+        expect(chatCompletionsModel.provider).toBe('openai');
+        expect(chatCompletionsModel.modelId).toBe('gpt-5-mini');
 
         expect(embeddingModel.provider).toBe('openai');
         expect(embeddingModel.modelId).toBe('text-embedding-3-small');
@@ -53,6 +56,29 @@ describe('createOpenAI', () => {
                 total_tokens: 2,
             },
         }));
+        const chatCreate = vi.fn(async () => ({
+            id: 'chatcmpl-1',
+            object: 'chat.completion',
+            created: Date.now(),
+            model: 'gpt-5-mini',
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'ok',
+                        refusal: null,
+                    },
+                },
+            ],
+            usage: {
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+            },
+        }));
         const embeddingCreate = vi.fn(async () => ({
             data: [{ embedding: [0.1], index: 0 }],
             usage: { prompt_tokens: 1, total_tokens: 1 },
@@ -64,6 +90,7 @@ describe('createOpenAI', () => {
         const provider = createOpenAI({
             client: createMockClient({
                 responsesCreate,
+                chatCreate,
                 embeddingCreate,
                 imageGenerate,
             }),
@@ -72,12 +99,16 @@ describe('createOpenAI', () => {
         await provider
             .chatModel('gpt-5-mini')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
+        await provider.chat
+            .chatModel('gpt-5-mini')
+            .generate({ messages: [{ role: 'user', content: 'hello' }] });
         await provider
             .embeddingModel('text-embedding-3-small')
             .embed({ input: 'hello' });
         await provider.imageModel('gpt-image-1').generate({ prompt: 'cat' });
 
         expect(responsesCreate).toHaveBeenCalledTimes(1);
+        expect(chatCreate).toHaveBeenCalledTimes(1);
         expect(embeddingCreate).toHaveBeenCalledTimes(1);
         expect(imageGenerate).toHaveBeenCalledTimes(1);
     });
@@ -85,6 +116,7 @@ describe('createOpenAI', () => {
 
 function createMockClient(overrides?: {
     responsesCreate?: (options: unknown) => Promise<unknown>;
+    chatCreate?: (options: unknown) => Promise<unknown>;
     embeddingCreate?: (options: unknown) => Promise<unknown>;
     imageGenerate?: (options: unknown) => Promise<unknown>;
 }): OpenAI {
@@ -92,6 +124,11 @@ function createMockClient(overrides?: {
         overrides?.responsesCreate ??
         (async () => {
             throw new Error('responses create not implemented');
+        });
+    const chatCreate =
+        overrides?.chatCreate ??
+        (async () => {
+            throw new Error('chat create not implemented');
         });
     const embeddingCreate =
         overrides?.embeddingCreate ??
@@ -107,6 +144,11 @@ function createMockClient(overrides?: {
     return {
         responses: {
             create: responsesCreate,
+        },
+        chat: {
+            completions: {
+                create: chatCreate,
+            },
         },
         embeddings: {
             create: embeddingCreate,

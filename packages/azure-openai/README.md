@@ -2,7 +2,8 @@
 
 [![npm](https://img.shields.io/npm/v/@core-ai/azure-openai.svg)](https://www.npmjs.com/package/@core-ai/azure-openai)
 
-Azure OpenAI provider package for `@core-ai/core-ai`. It uses the Azure OpenAI v1 Chat Completions API by default and can opt into the classic API.
+Azure OpenAI provider package for `@core-ai/core-ai`. Azure v1 uses the
+Responses API by default and also exposes strict Chat Completions.
 
 ## Installation
 
@@ -32,6 +33,12 @@ const result = await generate({
 console.log(result.content);
 ```
 
+Use Chat Completions explicitly when needed:
+
+```ts
+const model = azure.chat.chatModel('gpt-5-mini-deployment');
+```
+
 ## Authentication
 
 Use an Azure OpenAI API key with the v1 API:
@@ -58,10 +65,12 @@ Classic mode also accepts an Entra ID token provider via `azureADTokenProvider`.
 
 ## Model IDs
 
-Pass your Azure OpenAI deployment name to `chatModel()`. The provider sends it as the Chat Completions `model` field.
+Pass your Azure OpenAI deployment name to either model factory.
 
 ```ts
 const model = azure.chatModel('customer-support-gpt-5-mini');
 ```
 
-This package supports chat models only. Use `@core-ai/openai` for OpenAI Responses API, embeddings, and image generation.
+Classic mode supports Chat Completions only, so its root `chatModel()` and
+`chat.chatModel()` methods are equivalent. This package does not expose
+embeddings or image generation.

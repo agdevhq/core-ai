@@ -1,6 +1,9 @@
 import OpenAI from 'openai';
 import type { ChatModel } from '@core-ai/core-ai';
-import { createOpenAICompatChatModel, type OpenAIChatClient } from './chat-model.js';
+import {
+    createOpenAIChatCompletionsModel,
+    type OpenAIChatClient,
+} from '../chat-completions/chat-model.js';
 import {
     createOpenAIProvider,
     type OpenAIProvider,
@@ -10,10 +13,14 @@ import {
 export type OpenAICompatProviderOptions = OpenAIProviderBaseOptions;
 export type OpenAICompatProvider = OpenAIProvider;
 
+/** @deprecated Use `createOpenAI().chat` or `@core-ai/openai-compat`. */
 export function createOpenAICompat(
     options: OpenAICompatProviderOptions = {}
 ): OpenAICompatProvider {
-    return createOpenAIProvider(options, createOpenAICompatChatModel);
+    return createOpenAIProvider(options, {
+        defaultApi: 'chat-completions',
+        compatibility: true,
+    });
 }
 
 export type OpenAICompatChatProviderOptions = {
@@ -29,6 +36,8 @@ export type OpenAICompatChatProvider = {
 /**
  * Creates a chat-only OpenAI-compatible provider. Handles client construction
  * internally so consumers do not need a direct dependency on the `openai` package.
+ *
+ * @deprecated Use the provider composition exports from `@core-ai/openai`.
  */
 export function createOpenAICompatChatProvider(
     options: OpenAICompatChatProviderOptions = {},
@@ -43,6 +52,9 @@ export function createOpenAICompatChatProvider(
 
     return {
         chatModel: (modelId) =>
-            createOpenAICompatChatModel(client, modelId, providerId),
+            createOpenAIChatCompletionsModel(client, modelId, {
+                providerId,
+                compatibility: true,
+            }),
     };
 }

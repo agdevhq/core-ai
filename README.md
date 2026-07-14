@@ -30,8 +30,8 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 | Provider              | Package                     | Chat | Streaming | Embeddings | Image Generation |
 | --------------------- | --------------------------- | ---- | --------- | ---------- | ---------------- |
-| OpenAI (Responses)    | `@core-ai/openai`           | Yes  | Yes       | Yes        | Yes              |
-| OpenAI (Completions)  | `@core-ai/openai/compat`    | Yes  | Yes       | Yes        | Yes              |
+| OpenAI                | `@core-ai/openai`           | Yes  | Yes       | Yes        | Yes              |
+| OpenAI-compatible     | `@core-ai/openai-compat`    | Yes  | Yes       | —          | —                |
 | Azure OpenAI          | `@core-ai/azure-openai`     | Yes  | Yes       | —          | —                |
 | Anthropic             | `@core-ai/anthropic`        | Yes  | Yes       | —          | —                |
 | Google GenAI (Gemini) | `@core-ai/google-genai`     | Yes  | Yes       | Yes        | Yes              |
@@ -39,7 +39,9 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | Omnifact              | `@core-ai/omnifact`         | Yes  | Yes       | —          | —                |
 | Vertex AI Anthropic   | `@core-ai/anthropic-vertex` | Yes  | Yes       | —          | —                |
 
-> **Note:** `@core-ai/openai` uses the OpenAI **Responses API** by default. If you need the Chat Completions API for third-party OpenAI-compatible endpoints, import from `@core-ai/openai/compat` instead.
+> **Note:** `@core-ai/openai` uses the Responses API by default and exposes
+> strict Chat Completions through `openai.chat.chatModel()`. Use
+> `@core-ai/openai-compat` for third-party compatible endpoints.
 
 ## Quick Start
 

@@ -1,6 +1,9 @@
 import type { z } from 'zod';
+import { zodTextFormat } from 'openai/helpers/zod';
 import type {
     ChatStream,
+    GenerateObjectOptions,
+    GenerateOptions,
     GenerateResult,
     ObjectStreamEvent,
 } from '@core-ai/core-ai';
@@ -10,14 +13,102 @@ import {
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 
+const DEFAULT_STRUCTURED_OUTPUT_NAME = 'core_ai_generate_object';
+const DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION =
+    'Return a JSON object that matches the requested schema.';
+
+export type OpenAIStructuredOutputMode = 'native' | 'tool';
+
+type OpenAIStructuredOutputFormat = {
+    type: 'json_schema';
+    name: string;
+    description?: string;
+    strict: true;
+    schema: Record<string, unknown>;
+};
+
+/** Internal request options; structured output is not part of public generate/stream APIs. */
+export type OpenAIRequestOptions = GenerateOptions & {
+    structuredOutputFormat?: OpenAIStructuredOutputFormat;
+};
+
+export function getStructuredOutputName<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): string {
+    return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_NAME;
+}
+
+export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>,
+    mode: OpenAIStructuredOutputMode = 'native'
+): OpenAIRequestOptions {
+    const baseOptions: GenerateOptions = {
+        messages: options.messages,
+        reasoning: options.reasoning,
+        temperature: options.temperature,
+        maxTokens: options.maxTokens,
+        topP: options.topP,
+        providerOptions: options.providerOptions,
+        signal: options.signal,
+    };
+
+    if (mode === 'tool') {
+        const name = getStructuredOutputName(options);
+        return {
+            ...baseOptions,
+            tools: {
+                structured_output: {
+                    name,
+                    description:
+                        options.schemaDescription ??
+                        DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION,
+                    parameters: options.schema,
+                },
+            },
+            toolChoice: {
+                type: 'tool',
+                toolName: name,
+            },
+        };
+    }
+
+    return {
+        ...baseOptions,
+        structuredOutputFormat: createOpenAIStructuredOutputFormat(options),
+    };
+}
+
+function createOpenAIStructuredOutputFormat<TSchema extends z.ZodType>(
+    options: GenerateObjectOptions<TSchema>
+): OpenAIStructuredOutputFormat {
+    const name = getStructuredOutputName(options);
+    const format = zodTextFormat(
+        options.schema,
+        name,
+        options.schemaDescription
+            ? { description: options.schemaDescription }
+            : undefined
+    );
+
+    return {
+        type: 'json_schema',
+        name,
+        ...(options.schemaDescription
+            ? { description: options.schemaDescription }
+            : {}),
+        strict: true,
+        schema: format.schema,
+    };
+}
+
 export function extractStructuredObject<TSchema extends z.ZodType>(
     result: GenerateResult,
     schema: TSchema,
     provider: string,
-    toolName: string
+    structuredOutputName: string
 ): z.infer<TSchema> {
     const structuredToolCall = result.toolCalls.find(
-        (toolCall) => toolCall.name === toolName
+        (toolCall) => toolCall.name === structuredOutputName
     );
     if (structuredToolCall) {
         return validateStructuredToolArguments(
@@ -38,11 +129,13 @@ export function extractStructuredObject<TSchema extends z.ZodType>(
     );
 }
 
-export async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
+export async function* transformStructuredOutputStream<
+    TSchema extends z.ZodType,
+>(
     stream: ChatStream,
     schema: TSchema,
     provider: string,
-    toolName: string
+    structuredOutputName: string
 ): AsyncIterable<ObjectStreamEvent<TSchema>> {
     let validatedObject: z.infer<TSchema> | undefined;
     let contentBuffer = '';
@@ -74,7 +167,7 @@ export async function* transformStructuredOutputStream<TSchema extends z.ZodType
 
         if (
             event.type === 'tool-call-end' &&
-            event.toolCall.name === toolName
+            event.toolCall.name === structuredOutputName
         ) {
             validatedObject = validateStructuredToolArguments(
                 schema,

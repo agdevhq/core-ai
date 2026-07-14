@@ -20,28 +20,23 @@ import {
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.js';
-import {
-    convertToolChoice,
-    convertTools,
-    createStructuredOutputOptions,
-    getStructuredOutputToolName,
-} from '../shared/tools.js';
+import { convertToolChoice, convertTools } from '../shared/tools.js';
+import type { OpenAIRequestOptions } from '../shared/structured-output.js';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
 } from '../shared/utils.js';
 import {
-    parseOpenAICompatGenerateProviderOptions,
-    type OpenAICompatGenerateProviderOptions,
+    parseOpenAIChatGenerateProviderOptions,
+    type OpenAIChatGenerateProviderOptions,
 } from '../provider-options.js';
+import { extractCompatibleReasoningText } from './compatibility.js';
 
-export {
-    convertToolChoice,
-    convertTools,
-    createStructuredOutputOptions,
-    getStructuredOutputToolName,
-    validateOpenAIReasoningConfig,
+export type OpenAIChatCompletionsAdapterOptions = {
+    compatibility?: boolean;
 };
+
+export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
 
 export function convertMessages(
     messages: Message[]
@@ -154,12 +149,13 @@ export function createStreamRequest(modelId: string, options: GenerateOptions) {
 
 function createRequest(
     modelId: string,
-    options: GenerateOptions,
+    options: OpenAIRequestOptions,
     stream: boolean
 ) {
-    const openaiOptions = parseOpenAICompatGenerateProviderOptions(
+    const openaiOptions = parseOpenAIChatGenerateProviderOptions(
         options.providerOptions
     );
+    const structuredOutputFormat = options.structuredOutputFormat;
     return {
         ...createRequestBase(modelId, options),
         ...(stream
@@ -167,6 +163,24 @@ function createRequest(
                   stream: true as const,
                   stream_options: {
                       include_usage: true,
+                  },
+              }
+            : {}),
+        ...(structuredOutputFormat
+            ? {
+                  response_format: {
+                      type: 'json_schema' as const,
+                      json_schema: {
+                          name: structuredOutputFormat.name,
+                          ...(structuredOutputFormat.description
+                              ? {
+                                    description:
+                                        structuredOutputFormat.description,
+                                }
+                              : {}),
+                          strict: structuredOutputFormat.strict,
+                          schema: structuredOutputFormat.schema,
+                      },
                   },
               }
             : {}),
@@ -208,7 +222,7 @@ function mapSamplingToRequestFields(
 }
 
 function mapOpenAIProviderOptionsToRequestFields(
-    options: OpenAICompatGenerateProviderOptions | undefined
+    options: OpenAIChatGenerateProviderOptions | undefined
 ) {
     return {
         ...(options?.store !== undefined ? { store: options.store } : {}),
@@ -230,7 +244,10 @@ function mapOpenAIProviderOptionsToRequestFields(
     };
 }
 
-export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
+export function mapGenerateResponse(
+    response: ChatCompletion,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
+): GenerateResult {
     const firstChoice = response.choices[0];
 
     if (!firstChoice) {
@@ -255,13 +272,16 @@ export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
     const reasoningTokens =
         response.usage?.completion_tokens_details?.reasoning_tokens;
     const content = extractTextContent(firstChoice.message.content);
+    const reasoning = adapterOptions.compatibility
+        ? (extractCompatibleReasoningText(firstChoice.message) ?? null)
+        : null;
     const toolCalls = parseToolCalls(firstChoice.message.tool_calls);
-    const parts = createAssistantParts(content, toolCalls);
+    const parts = createAssistantParts(reasoning, content, toolCalls);
 
     return {
         parts,
         content,
-        reasoning: null,
+        reasoning,
         toolCalls,
         finishReason: mapFinishReason(firstChoice.finish_reason),
         usage: {
@@ -324,7 +344,8 @@ function mapFinishReason(reason: string | null): FinishReason {
 }
 
 export async function* transformStream(
-    stream: AsyncIterable<ChatCompletionChunk>
+    stream: AsyncIterable<ChatCompletionChunk>,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ): AsyncIterable<StreamEvent> {
     const bufferedToolCalls = new Map<
         number,
@@ -338,6 +359,7 @@ export async function* transformStream(
 
     let finishReason: FinishReason = 'unknown';
     let textOpen = false;
+    let reasoningOpen = false;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -362,6 +384,22 @@ export async function* transformStream(
 
         textOpen = false;
         yield { type: 'text-end' };
+    };
+    const startReasoning = function* (): Iterable<StreamEvent> {
+        if (reasoningOpen) {
+            return;
+        }
+
+        reasoningOpen = true;
+        yield { type: 'reasoning-start' };
+    };
+    const closeReasoning = function* (): Iterable<StreamEvent> {
+        if (!reasoningOpen) {
+            return;
+        }
+
+        reasoningOpen = false;
+        yield { type: 'reasoning-end' };
     };
 
     for await (const chunk of stream) {
@@ -389,7 +427,20 @@ export async function* transformStream(
             continue;
         }
 
+        const reasoningDelta = adapterOptions.compatibility
+            ? extractCompatibleReasoningText(choice.delta)
+            : undefined;
+        if (reasoningDelta !== undefined) {
+            yield* closeText();
+            yield* startReasoning();
+            yield {
+                type: 'reasoning-delta',
+                text: reasoningDelta,
+            };
+        }
+
         if (choice.delta.content) {
+            yield* closeReasoning();
             yield* startText();
             yield {
                 type: 'text-delta',
@@ -398,6 +449,7 @@ export async function* transformStream(
         }
 
         if (choice.delta.tool_calls) {
+            yield* closeReasoning();
             yield* closeText();
             for (const partialToolCall of choice.delta.tool_calls) {
                 const current = bufferedToolCalls.get(
@@ -442,6 +494,7 @@ export async function* transformStream(
         }
 
         if (finishReason === 'tool-calls') {
+            yield* closeReasoning();
             yield* closeText();
             for (const toolCall of bufferedToolCalls.values()) {
                 if (emittedToolCalls.has(toolCall.id)) {
@@ -461,6 +514,7 @@ export async function* transformStream(
         }
     }
 
+    yield* closeReasoning();
     yield* closeText();
 
     yield {
@@ -494,11 +548,18 @@ function mapReasoningToRequestFields(
 }
 
 function createAssistantParts(
+    reasoning: string | null,
     content: string | null,
     toolCalls: ToolCall[]
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
 
+    if (reasoning) {
+        parts.push({
+            type: 'reasoning',
+            text: reasoning,
+        });
+    }
     if (content) {
         parts.push({
             type: 'text',

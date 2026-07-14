@@ -1,4 +1,3 @@
-import { createOpenAIChatModel } from './chat-model.js';
 import {
     createOpenAIProvider,
     type OpenAIProvider as SharedOpenAIProvider,
@@ -11,5 +10,5 @@ export type OpenAIProvider = SharedOpenAIProvider;
 export function createOpenAI(
     options: OpenAIProviderOptions = {}
 ): OpenAIProvider {
-    return createOpenAIProvider(options, createOpenAIChatModel);
+    return createOpenAIProvider(options);
 }
