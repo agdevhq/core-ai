@@ -102,7 +102,7 @@ For one-off publishes or the initial release:
 npm publish -w @core-ai/core-ai --access public
 npm publish -w @core-ai/openai --access public
 npm publish -w @core-ai/anthropic --access public
-npm publish -w @core-ai/google --access public
+npm publish -w @core-ai/google-genai --access public
 npm publish -w @core-ai/google-vertex --access public
 npm publish -w @core-ai/mistral --access public
 npm publish -w @core-ai/azure-openai --access public

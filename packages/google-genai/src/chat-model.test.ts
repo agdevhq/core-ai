@@ -9,13 +9,13 @@ import {
     ProviderError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createGoogleChatModel } from './chat-model.js';
+import { createGoogleGenAIChatModel } from './chat-model.js';
 import { getGoogleModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
-describe('createGoogleChatModel', () => {
+describe('createGoogleGenAIChatModel', () => {
     it('should create model metadata', () => {
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient(),
             'gemini-2.5-flash'
         );
@@ -45,7 +45,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -93,7 +93,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -122,7 +122,7 @@ describe('generate', () => {
                 candidates: [{ finishReason: GoogleFinishReason.STOP }],
             })
         );
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -167,7 +167,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -211,7 +211,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -249,7 +249,7 @@ describe('generate', () => {
                 candidates: [{ finishReason: GoogleFinishReason.STOP }],
             })
         );
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -305,7 +305,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -327,7 +327,7 @@ describe('generate', () => {
         const generateContent = vi.fn(async () => {
             throw new Error('network failed');
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-2.5-flash'
         );
@@ -369,7 +369,7 @@ describe('generate', () => {
                 },
             });
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
             'gemini-3-pro'
         );
@@ -413,7 +413,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
         );
@@ -471,7 +471,7 @@ describe('stream', () => {
                 },
             } as AsyncIterable<GenerateContentResponse>;
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
         );
@@ -523,7 +523,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
         );
@@ -565,7 +565,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
         );
@@ -619,7 +619,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-flash'
         );
@@ -675,7 +675,7 @@ describe('stream', () => {
                 }),
             ]);
         });
-        const model = createGoogleChatModel(
+        const model = createGoogleGenAIChatModel(
             createMockClient({ generateContentStream }),
             'gemini-2.5-pro'
         );

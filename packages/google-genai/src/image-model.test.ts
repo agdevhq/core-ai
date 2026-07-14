@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
-import { createGoogleImageModel } from './image-model.js';
+import { createGoogleGenAIImageModel } from './image-model.js';
 
-describe('createGoogleImageModel', () => {
+describe('createGoogleGenAIImageModel', () => {
     it('should map generated images', async () => {
         const generateImages = vi.fn(async () => ({
             generatedImages: [
@@ -20,7 +20,7 @@ describe('createGoogleImageModel', () => {
             ],
         }));
 
-        const model = createGoogleImageModel(
+        const model = createGoogleGenAIImageModel(
             {
                 models: { generateImages },
             } as unknown as Pick<GoogleGenAI, 'models'>,
@@ -50,7 +50,7 @@ describe('createGoogleImageModel', () => {
             generatedImages: [],
         }));
 
-        const model = createGoogleImageModel(
+        const model = createGoogleGenAIImageModel(
             {
                 models: { generateImages },
             } as unknown as Pick<GoogleGenAI, 'models'>,
@@ -86,7 +86,7 @@ describe('createGoogleImageModel', () => {
         const generateImages = vi.fn(async () => ({
             generatedImages: [],
         }));
-        const model = createGoogleImageModel(
+        const model = createGoogleGenAIImageModel(
             {
                 models: { generateImages },
             } as unknown as Pick<GoogleGenAI, 'models'>,

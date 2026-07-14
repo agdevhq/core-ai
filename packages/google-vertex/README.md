@@ -2,7 +2,7 @@
 
 [![npm](https://img.shields.io/npm/v/@core-ai/google-vertex.svg)](https://www.npmjs.com/package/@core-ai/google-vertex)
 
-Google on Vertex AI provider package for `@core-ai/core-ai`. It uses the [`@google/genai`](https://www.npmjs.com/package/@google/genai) client in Vertex AI mode and shares chat, embedding, image generation, structured-output, and reasoning behavior with `@core-ai/google`.
+Google on Vertex AI provider package for `@core-ai/core-ai`. It uses the [`@google/genai`](https://www.npmjs.com/package/@google/genai) client in Vertex AI mode and shares chat, embedding, image generation, structured-output, and reasoning behavior with `@core-ai/google-genai`.
 
 ## Installation
 
@@ -81,4 +81,4 @@ Model availability varies by region. A provider instance targets one region, so 
 
 ## Provider options and capabilities
 
-This provider shares its model behavior with `@core-ai/google`. Provider options remain namespaced under `google`, and the capability helpers and reasoning metadata types exported by `@core-ai/google` apply to Vertex-hosted models.
+This provider shares its model behavior with `@core-ai/google-genai`. Provider options remain namespaced under `google`, and the capability helpers and reasoning metadata types exported by `@core-ai/google-genai` apply to Vertex-hosted models.

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { generate } from '@core-ai/core-ai';
-import { createGoogle } from '@core-ai/google';
+import { createGoogleGenAI } from '@core-ai/google-genai';
 
 function getRequiredEnv(name: 'GOOGLE_API_KEY'): string {
     const value = process.env[name];
@@ -11,7 +11,7 @@ function getRequiredEnv(name: 'GOOGLE_API_KEY'): string {
 }
 
 async function main(): Promise<void> {
-    const google = createGoogle({
+    const google = createGoogleGenAI({
         apiKey: getRequiredEnv('GOOGLE_API_KEY'),
     });
     const model = google.chatModel('gemini-3-flash-preview');

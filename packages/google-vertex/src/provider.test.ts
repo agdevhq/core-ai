@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
-import type { GoogleClient } from '@core-ai/google';
+import type { GoogleGenAIClient } from '@core-ai/google-genai';
 
 import { createGoogleVertex } from './provider.js';
 
@@ -131,7 +131,7 @@ describe('createGoogleVertex', () => {
     });
 });
 
-function createMockClient(): GoogleClient {
+function createMockClient(): GoogleGenAIClient {
     return {
         models: {
             generateContent,
@@ -139,5 +139,5 @@ function createMockClient(): GoogleClient {
             embedContent,
             generateImages,
         },
-    } as unknown as GoogleClient;
+    } as unknown as GoogleGenAIClient;
 }

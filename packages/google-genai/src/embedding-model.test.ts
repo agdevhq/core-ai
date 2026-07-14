@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
-import { createGoogleEmbeddingModel } from './embedding-model.js';
+import { createGoogleGenAIEmbeddingModel } from './embedding-model.js';
 
-describe('createGoogleEmbeddingModel', () => {
+describe('createGoogleGenAIEmbeddingModel', () => {
     it('should embed a single string', async () => {
         const embedContent = vi.fn(async () => ({
             embeddings: [
@@ -13,7 +13,7 @@ describe('createGoogleEmbeddingModel', () => {
             ],
         }));
 
-        const model = createGoogleEmbeddingModel(
+        const model = createGoogleGenAIEmbeddingModel(
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
@@ -40,7 +40,7 @@ describe('createGoogleEmbeddingModel', () => {
             ],
         }));
 
-        const model = createGoogleEmbeddingModel(
+        const model = createGoogleGenAIEmbeddingModel(
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
@@ -61,7 +61,7 @@ describe('createGoogleEmbeddingModel', () => {
             embeddings: [{ values: [0.1, 0.2, 0.3] }],
         }));
 
-        const model = createGoogleEmbeddingModel(
+        const model = createGoogleGenAIEmbeddingModel(
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
@@ -79,7 +79,7 @@ describe('createGoogleEmbeddingModel', () => {
             embeddings: [{ values: [0.1] }],
         }));
 
-        const model = createGoogleEmbeddingModel(
+        const model = createGoogleGenAIEmbeddingModel(
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
@@ -110,7 +110,7 @@ describe('createGoogleEmbeddingModel', () => {
         const embedContent = vi.fn(async () => ({
             embeddings: [{ values: [0.1] }],
         }));
-        const model = createGoogleEmbeddingModel(
+        const model = createGoogleGenAIEmbeddingModel(
             {
                 models: { embedContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,

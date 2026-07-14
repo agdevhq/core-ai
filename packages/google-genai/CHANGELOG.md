@@ -1,4 +1,4 @@
-# @core-ai/google
+# @core-ai/google-genai
 
 ## 0.14.0
 
@@ -140,7 +140,7 @@
 
 ### Minor Changes
 
-- b407153: Add reasoning support for Google models. Maps unified `reasoning.effort` to `thinkingLevel` for Gemini 3 or `thinkingBudget` for Gemini 2.5 based on model capabilities. Extracts thought content with thought signature preservation for multi-turn fidelity. Automatically enables `includeThoughts` when reasoning is configured.
+- b407153: Add reasoning support for Google GenAI models. Maps unified `reasoning.effort` to `thinkingLevel` for Gemini 3 or `thinkingBudget` for Gemini 2.5 based on model capabilities. Extracts thought content with thought signature preservation for multi-turn fidelity. Automatically enables `includeThoughts` when reasoning is configured.
 
 ### Patch Changes
 
@@ -151,9 +151,9 @@
 
 ### Minor Changes
 
-- 9664af0: Update Google usage mapping to the new nested `ChatUsage` structure.
+- 9664af0: Update Google GenAI usage mapping to the new nested `ChatUsage` structure.
 
-    Google responses now map:
+    Google GenAI responses now map:
     - `usage.inputTokenDetails.cacheReadTokens` from `usageMetadata.cachedContentTokenCount`
     - `usage.outputTokenDetails.reasoningTokens` from `usageMetadata.thoughtsTokenCount`
 
@@ -179,7 +179,7 @@
   core API contract, so providers can return `usage: undefined` when token counts
   are not exposed by the underlying API.
 
-    Update Google embedding behavior to only include usage when token
+    Update Google GenAI embedding behavior to only include usage when token
     statistics are present, and add provider E2E contract coverage for cross-
     provider live validation.
 

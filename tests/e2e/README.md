@@ -14,7 +14,7 @@ The harness runs one shared behavioral contract against provider adapters:
 - Azure OpenAI Classic
 - Anthropic
 - Vertex AI Anthropic
-- Google
+- Google GenAI
 - Vertex AI Google
 - Mistral
 - Omnifact

@@ -34,8 +34,8 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 | OpenAI-compatible         | `@core-ai/openai-compat`       | Yes  | Yes       | —          | —                |
 | Azure OpenAI              | `@core-ai/azure-openai`        | Yes  | Yes       | —          | —                |
 | Anthropic                 | `@core-ai/anthropic`           | Yes  | Yes       | —          | —                |
-| Google (Gemini)     | `@core-ai/google`        | Yes  | Yes       | Yes        | Yes              |
-| Google on Vertex AI | `@core-ai/google-vertex` | Yes  | Yes       | Yes        | Yes              |
+| Google GenAI (Gemini)     | `@core-ai/google-genai`        | Yes  | Yes       | Yes        | Yes              |
+| Google on Vertex AI       | `@core-ai/google-vertex`       | Yes  | Yes       | Yes        | Yes              |
 | Mistral                   | `@core-ai/mistral`             | Yes  | Yes       | Yes        | —                |
 | Omnifact                  | `@core-ai/omnifact`            | Yes  | Yes       | —          | —                |
 | Vertex AI Anthropic       | `@core-ai/anthropic-vertex`    | Yes  | Yes       | —          | —                |
@@ -320,13 +320,13 @@ const result = await generate({
 console.log(result.content);
 ```
 
-### Using Google (Gemini)
+### Using Google GenAI (Gemini)
 
 ```typescript
 import { generate } from '@core-ai/core-ai';
-import { createGoogle } from '@core-ai/google';
+import { createGoogleGenAI } from '@core-ai/google-genai';
 
-const google = createGoogle({ apiKey: process.env.GOOGLE_API_KEY });
+const google = createGoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
 const model = google.chatModel('gemini-3-flash');
 
 const result = await generate({
@@ -478,7 +478,7 @@ packages/
   openai/        — OpenAI provider (Responses API + Chat Completions compat)
   azure-openai/  — Azure OpenAI provider implementation
   anthropic/     — Anthropic provider implementation
-  google/  — Google (Gemini) provider implementation
+  google-genai/  — Google GenAI (Gemini) provider implementation
   google-vertex/ — Google on Vertex AI provider implementation
   mistral/       — Mistral provider implementation
   omnifact/      — Omnifact API Gateway provider implementation

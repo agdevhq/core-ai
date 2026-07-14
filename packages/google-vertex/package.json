@@ -50,7 +50,7 @@
     },
     "dependencies": {
         "@core-ai/core-ai": "^0.14.0",
-        "@core-ai/google": "^0.14.0",
+        "@core-ai/google-genai": "^0.14.0",
         "@google/genai": "^1.42.0"
     },
     "peerDependencies": {

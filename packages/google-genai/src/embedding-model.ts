@@ -9,10 +9,10 @@ import {
     parseGoogleEmbedProviderOptions,
     type GoogleEmbedProviderOptions,
 } from './provider-options.js';
-import type { GoogleClient } from './provider.js';
+import type { GoogleGenAIClient } from './provider.js';
 
-export function createGoogleEmbeddingModel(
-    client: GoogleClient,
+export function createGoogleGenAIEmbeddingModel(
+    client: GoogleGenAIClient,
     modelId: string,
     provider = 'google'
 ): EmbeddingModel {

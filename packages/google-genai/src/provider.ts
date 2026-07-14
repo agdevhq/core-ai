@@ -1,32 +1,32 @@
 import { GoogleGenAI } from '@google/genai';
 import type { ChatModel, EmbeddingModel, ImageModel } from '@core-ai/core-ai';
-import { createGoogleChatModel } from './chat-model.js';
-import { createGoogleEmbeddingModel } from './embedding-model.js';
-import { createGoogleImageModel } from './image-model.js';
+import { createGoogleGenAIChatModel } from './chat-model.js';
+import { createGoogleGenAIEmbeddingModel } from './embedding-model.js';
+import { createGoogleGenAIImageModel } from './image-model.js';
 
 export const DEFAULT_PROVIDER_ID = 'google';
 
-export type GoogleClient = {
+export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];
 };
 
-export type GoogleProviderOptions = {
+export type GoogleGenAIProviderOptions = {
     apiKey?: string;
     apiVersion?: string;
     baseUrl?: string;
-    client?: GoogleClient;
+    client?: GoogleGenAIClient;
 };
 
-export type GoogleProvider = {
+export type GoogleGenAIProvider = {
     chatModel(modelId: string): ChatModel;
     embeddingModel(modelId: string): EmbeddingModel;
     imageModel(modelId: string): ImageModel;
 };
 
-export function createGoogleProvider(
-    options: GoogleProviderOptions = {},
+export function createGoogleGenAIProvider(
+    options: GoogleGenAIProviderOptions = {},
     providerId = DEFAULT_PROVIDER_ID
-): GoogleProvider {
+): GoogleGenAIProvider {
     const client =
         options.client ??
         new GoogleGenAI({
@@ -43,16 +43,16 @@ export function createGoogleProvider(
 
     return {
         chatModel: (modelId) =>
-            createGoogleChatModel(client, modelId, providerId),
+            createGoogleGenAIChatModel(client, modelId, providerId),
         embeddingModel: (modelId) =>
-            createGoogleEmbeddingModel(client, modelId, providerId),
+            createGoogleGenAIEmbeddingModel(client, modelId, providerId),
         imageModel: (modelId) =>
-            createGoogleImageModel(client, modelId, providerId),
+            createGoogleGenAIImageModel(client, modelId, providerId),
     };
 }
 
-export function createGoogle(
-    options: GoogleProviderOptions = {}
-): GoogleProvider {
-    return createGoogleProvider(options, DEFAULT_PROVIDER_ID);
+export function createGoogleGenAI(
+    options: GoogleGenAIProviderOptions = {}
+): GoogleGenAIProvider {
+    return createGoogleGenAIProvider(options, DEFAULT_PROVIDER_ID);
 }

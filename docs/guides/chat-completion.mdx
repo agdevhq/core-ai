@@ -75,9 +75,9 @@ core-ai supports multiple providers with the same API:
   <Tab title="Google">
     ```typescript
     import { generate } from '@core-ai/core-ai';
-    import { createGoogle } from '@core-ai/google';
+    import { createGoogleGenAI } from '@core-ai/google-genai';
 
-    const google = createGoogle({
+    const google = createGoogleGenAI({
       apiKey: process.env.GOOGLE_API_KEY
     });
     const model = google.chatModel('gemini-3.1-pro');

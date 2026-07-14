@@ -1,13 +1,13 @@
 {
-    "name": "@core-ai/google",
+    "name": "@core-ai/google-genai",
     "version": "0.14.0",
-    "description": "Google provider package for @core-ai/core-ai",
+    "description": "Google GenAI provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
     "repository": {
         "type": "git",
         "url": "git+https://github.com/agdevhq/core-ai.git",
-        "directory": "packages/google"
+        "directory": "packages/google-genai"
     },
     "keywords": [
         "llm",

@@ -1,9 +1,9 @@
 import { GoogleGenAI, type GoogleGenAIOptions } from '@google/genai';
 import {
-    createGoogleProvider,
-    type GoogleClient,
-    type GoogleProvider,
-} from '@core-ai/google';
+    createGoogleGenAIProvider,
+    type GoogleGenAIClient,
+    type GoogleGenAIProvider,
+} from '@core-ai/google-genai';
 
 const PROVIDER_ID = 'google-vertex';
 
@@ -16,22 +16,22 @@ export type GoogleVertexProviderOptions = {
     projectId?: string;
     region?: string;
     credentials?: GoogleVertexServiceAccountCredentials;
-    client?: GoogleClient;
+    client?: GoogleGenAIClient;
 };
 
-export type GoogleVertexProvider = GoogleProvider;
+export type GoogleVertexProvider = GoogleGenAIProvider;
 
 export function createGoogleVertex(
     options: GoogleVertexProviderOptions = {}
 ): GoogleVertexProvider {
     const client = options.client ?? createGoogleVertexClient(options);
 
-    return createGoogleProvider({ client }, PROVIDER_ID);
+    return createGoogleGenAIProvider({ client }, PROVIDER_ID);
 }
 
 function createGoogleVertexClient(
     options: GoogleVertexProviderOptions
-): GoogleClient {
+): GoogleGenAIClient {
     if (!options.projectId) {
         throw new Error('createGoogleVertex: projectId is required.');
     }

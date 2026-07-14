@@ -9,10 +9,10 @@ import {
     parseGoogleImageProviderOptions,
     type GoogleImageProviderOptions,
 } from './provider-options.js';
-import type { GoogleClient } from './provider.js';
+import type { GoogleGenAIClient } from './provider.js';
 
-export function createGoogleImageModel(
-    client: GoogleClient,
+export function createGoogleGenAIImageModel(
+    client: GoogleGenAIClient,
     modelId: string,
     provider = 'google'
 ): ImageModel {

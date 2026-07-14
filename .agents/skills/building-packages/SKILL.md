@@ -14,7 +14,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/core-ai` — core types, utilities, error classes
 - `@core-ai/openai` — OpenAI provider
 - `@core-ai/anthropic` — Anthropic provider
-- `@core-ai/google` — Google provider
+- `@core-ai/google-genai` — Google GenAI provider
 - `@core-ai/google-vertex` — Vertex AI Google provider
 - `@core-ai/mistral` — Mistral provider
 - `@core-ai/omnifact` — Omnifact provider
@@ -90,7 +90,7 @@ Providers depend on `core-ai` (acyclic — no reverse dependency):
 ```
 @core-ai/openai      ──┐
 @core-ai/anthropic    ──┤
-@core-ai/google ──┼──▶ @core-ai/core-ai
+@core-ai/google-genai ──┼──▶ @core-ai/core-ai
 @core-ai/google-vertex ──┤
 @core-ai/mistral     ──┤
 @core-ai/omnifact    ──┘

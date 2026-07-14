@@ -9,7 +9,7 @@ This repository uses Turborepo for build/test tasks and Changesets for versionin
 - `@core-ai/langfuse`
 - `@core-ai/openai`
 - `@core-ai/anthropic`
-- `@core-ai/google`
+- `@core-ai/google-genai`
 - `@core-ai/google-vertex`
 - `@core-ai/mistral`
 - `@core-ai/azure-openai`

@@ -31,7 +31,7 @@ GOOGLE_VERTEX_PROJECT=your_google_cloud_project_id
 ```
 
 `ANTHROPIC_API_KEY` is only required for the Anthropic example.
-`GOOGLE_API_KEY` is only required for the Google example.
+`GOOGLE_API_KEY` is only required for the Google GenAI example.
 `MISTRAL_API_KEY` is only required for the Mistral example.
 `OMNIFACT_API_KEY` is only required for the Omnifact example.
 Optional: `OMNIFACT_MODEL` overrides the model id (default in the example: `eu/gpt-5-mini`). Use ids from `GET /v1/gateway/models`.
@@ -64,7 +64,7 @@ npx tsx examples/18-telemetry-console-exporter.ts
 - `06-image-generation.ts`: Image generation with `generateImage()`
 - `07-error-handling.ts`: Handling `CoreAIError` and `ProviderError`
 - `08-anthropic-provider.ts`: Using Anthropic with the same `generate()` API
-- `09-google-provider.ts`: Using Google (Gemini) with the same `generate()` API
+- `09-google-genai-provider.ts`: Using Google GenAI (Gemini) with the same `generate()` API
 - `10-mistral-provider.ts`: Using Mistral with the same `generate()` API
 - `11-omnifact-provider.ts`: Using Omnifact API Gateway with the same `generate()` API
 - `12-azure-openai-provider.ts`: Using Azure OpenAI deployments with the same `generate()` API

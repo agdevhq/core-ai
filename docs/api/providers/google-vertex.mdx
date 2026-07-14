@@ -5,7 +5,7 @@ description: 'Create and configure the Google provider for Gemini, embedding, an
 
 ## Overview
 
-The Google on Vertex AI provider gives you access to Gemini chat and embedding models and Imagen image generation through Google Cloud. It uses the same model behavior as `@core-ai/google`, while configuring the Google SDK for Vertex AI authentication and regional endpoints.
+The Google on Vertex AI provider gives you access to Gemini chat and embedding models and Imagen image generation through Google Cloud. It uses the same model behavior as `@core-ai/google-genai`, while configuring the Google SDK for Vertex AI authentication and regional endpoints.
 
 ## Installation
 
@@ -42,7 +42,7 @@ const googleVertex = createGoogleVertex({
     Application Default Credentials.
 </ParamField>
 
-<ParamField path="client" type="GoogleClient" optional>
+<ParamField path="client" type="GoogleGenAIClient" optional>
     A preconfigured Google client. When supplied, `projectId`, `region`,
     and `credentials` are not used.
 </ParamField>
@@ -157,7 +157,7 @@ const result = await generateImage({
 
 ## Provider-specific options
 
-Provider options remain namespaced under `google`, matching `@core-ai/google`:
+Provider options remain namespaced under `google`, matching `@core-ai/google-genai`:
 
 ```typescript
 const result = await generate({
@@ -172,7 +172,7 @@ const result = await generate({
 });
 ```
 
-The Google provider-option schemas, `GoogleReasoningMetadata`, and `getGoogleModelCapabilities()` are exported by `@core-ai/google` and apply to Vertex-hosted models.
+The Google provider-option schemas, `GoogleReasoningMetadata`, and `getGoogleModelCapabilities()` are exported by `@core-ai/google-genai` and apply to Vertex-hosted models.
 
 ## Error handling
 
@@ -198,9 +198,9 @@ try {
 
 <CardGroup cols={2}>
     <Card
-        title="Google Provider"
+        title="Google GenAI Provider"
         icon="google"
-        href="/api/providers/google"
+        href="/api/providers/google-genai"
     >
         Use Gemini through the Google AI API
     </Card>
