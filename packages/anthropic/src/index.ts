@@ -2,6 +2,7 @@ export { createAnthropic, createAnthropicChatProvider } from './provider.js';
 export type {
     AnthropicChatClient,
     AnthropicChatProvider,
+    AnthropicChatProviderFactoryOptions,
     AnthropicChatProviderOptions,
     AnthropicProvider,
     AnthropicProviderOptions,

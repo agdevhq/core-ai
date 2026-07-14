@@ -1,6 +1,7 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it, vi } from 'vitest';
-import { ProviderError } from '@core-ai/core-ai';
+import { z } from 'zod';
+import { defineTool, ProviderError } from '@core-ai/core-ai';
 
 import { createAnthropic, createAnthropicChatProvider } from './provider.js';
 import type { AnthropicChatClient } from './chat-model.js';
@@ -43,6 +44,31 @@ describe('createAnthropic', () => {
 
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({ max_tokens: 2048 }),
+            expect.objectContaining({ signal: undefined })
+        );
+    });
+
+    it('should use strict tool schemas', async () => {
+        const create = vi.fn(async () => createMockResponse());
+        const provider = createAnthropic({
+            client: createMockClient(create),
+        });
+
+        await provider.chatModel('claude-haiku-4-5').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: {
+                search: defineTool({
+                    name: 'search',
+                    description: 'Search the web',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                tools: [expect.objectContaining({ strict: true })],
+            }),
             expect.objectContaining({ signal: undefined })
         );
     });
@@ -102,7 +128,7 @@ describe('createAnthropicChatProvider', () => {
 
         const provider = createAnthropicChatProvider(
             { client: createMockChatClient(create) },
-            'anthropic-vertex'
+            { providerId: 'anthropic-vertex' }
         );
         const chatModel = provider.chatModel('claude-sonnet-4-6');
 

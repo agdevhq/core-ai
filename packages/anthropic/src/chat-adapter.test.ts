@@ -239,6 +239,20 @@ describe('convertTools', () => {
             },
         });
     });
+
+    it('should omit strict mode when strict tool schemas are disabled', () => {
+        const tools: ToolSet = {
+            search: defineTool({
+                name: 'search',
+                description: 'Search the web',
+                parameters: z.object({ query: z.string() }),
+            }),
+        };
+
+        const result = convertTools(tools, false);
+
+        expect(result[0]?.strict).toBeUndefined();
+    });
 });
 
 describe('convertToolChoice', () => {

@@ -21,7 +21,9 @@ describe('createAnthropicChatModel', () => {
         const model = createAnthropicChatModel(
             createMockClient(),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         expect(model.provider).toBe('anthropic');
@@ -38,8 +40,10 @@ describe('createAnthropicChatModel', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096,
-            'anthropic-vertex'
+            {
+                defaultMaxTokens: 4096,
+                providerId: 'anthropic-vertex',
+            }
         );
 
         expect(model.provider).toBe('anthropic-vertex');
@@ -66,7 +70,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const result = await model.generate({
@@ -103,7 +109,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const result = await model.generate({
@@ -135,7 +143,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const controller = new AbortController();
 
@@ -174,7 +184,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const result = await model.generate({
@@ -211,7 +223,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const schema = z.object({
             city: z.string(),
@@ -251,7 +265,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const schema = z.object({
             city: z.string(),
@@ -294,7 +310,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const schema = z.object({
             city: z.string(),
@@ -330,7 +348,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const schema = z.object({
             city: z.string(),
@@ -352,7 +372,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         await expect(
@@ -369,7 +391,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const request = model.generate({
             messages: [{ role: 'user', content: 'hello' }],
@@ -400,7 +424,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-opus-4-6',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const result = await model.generate({
@@ -435,7 +461,9 @@ describe('generate', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4-5',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         await model.generate({
@@ -525,7 +553,9 @@ describe('stream', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const chatStream = await model.stream({
@@ -586,7 +616,9 @@ describe('stream', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const controller = new AbortController();
 
@@ -675,7 +707,9 @@ describe('stream', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const chatStream = await model.stream({
@@ -766,7 +800,9 @@ describe('stream', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-sonnet-4',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
         const schema = z.object({
             city: z.string(),
@@ -854,7 +890,9 @@ describe('stream', () => {
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-opus-4-6',
-            4096
+            {
+                defaultMaxTokens: 4096,
+            }
         );
 
         const chatStream = await model.stream({
