@@ -84,7 +84,9 @@ describe('createGoogleGenAI', () => {
                     },
                 }),
             },
-            'google-vertex'
+            {
+                providerId: 'google-vertex',
+            }
         );
         const chatModel = provider.chatModel('gemini-2.5-flash');
         const embeddingModel = provider.embeddingModel('gemini-embedding-001');

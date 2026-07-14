@@ -44,12 +44,15 @@ const googleVertex = createGoogleVertex({
 To authenticate with an explicit service account, parse its JSON key and pass it as `credentials`:
 
 ```ts
+const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const credentialsJson = rawCredentials?.trim().startsWith('{')
+    ? rawCredentials
+    : Buffer.from(rawCredentials ?? '', 'base64').toString('utf8');
+
 const googleVertex = createGoogleVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
-    credentials: JSON.parse(
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? ''
-    ),
+    credentials: JSON.parse(credentialsJson),
 });
 ```
 
@@ -81,4 +84,4 @@ Model availability varies by region. A provider instance targets one region, so 
 
 ## Provider options and capabilities
 
-This provider shares its model behavior with `@core-ai/google-genai`. Provider options remain namespaced under `google`, and the capability helpers and reasoning metadata types exported by `@core-ai/google-genai` apply to Vertex-hosted models.
+This provider shares its model behavior with `@core-ai/google-genai`. Provider options remain namespaced under `google`. `@core-ai/google-vertex` re-exports the applicable provider-option schemas, capability helpers, and reasoning metadata types.

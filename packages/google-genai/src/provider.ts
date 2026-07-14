@@ -10,12 +10,18 @@ export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];
 };
 
-export type GoogleGenAIProviderOptions = {
+export type GoogleGenAIProviderBaseOptions = {
     apiKey?: string;
     apiVersion?: string;
     baseUrl?: string;
     client?: GoogleGenAIClient;
 };
+
+export type GoogleGenAIProviderFactoryOptions = {
+    providerId?: string;
+};
+
+export type GoogleGenAIProviderOptions = GoogleGenAIProviderBaseOptions;
 
 export type GoogleGenAIProvider = {
     chatModel(modelId: string): ChatModel;
@@ -24,8 +30,8 @@ export type GoogleGenAIProvider = {
 };
 
 export function createGoogleGenAIProvider(
-    options: GoogleGenAIProviderOptions = {},
-    providerId = DEFAULT_PROVIDER_ID
+    options: GoogleGenAIProviderBaseOptions = {},
+    factoryOptions: GoogleGenAIProviderFactoryOptions = {}
 ): GoogleGenAIProvider {
     const client =
         options.client ??
@@ -40,6 +46,7 @@ export function createGoogleGenAIProvider(
                   }
                 : {}),
         });
+    const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
 
     return {
         chatModel: (modelId) =>
@@ -54,5 +61,5 @@ export function createGoogleGenAIProvider(
 export function createGoogleGenAI(
     options: GoogleGenAIProviderOptions = {}
 ): GoogleGenAIProvider {
-    return createGoogleGenAIProvider(options, DEFAULT_PROVIDER_ID);
+    return createGoogleGenAIProvider(options);
 }

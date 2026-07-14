@@ -7,9 +7,8 @@ import {
 
 const PROVIDER_ID = 'google-vertex';
 
-export type GoogleVertexServiceAccountCredentials = Record<
-    string,
-    unknown
+export type GoogleVertexServiceAccountCredentials = NonNullable<
+    NonNullable<GoogleGenAIOptions['googleAuthOptions']>['credentials']
 >;
 
 export type GoogleVertexProviderOptions = {
@@ -26,7 +25,12 @@ export function createGoogleVertex(
 ): GoogleVertexProvider {
     const client = options.client ?? createGoogleVertexClient(options);
 
-    return createGoogleGenAIProvider({ client }, PROVIDER_ID);
+    return createGoogleGenAIProvider(
+        { client },
+        {
+            providerId: PROVIDER_ID,
+        }
+    );
 }
 
 function createGoogleVertexClient(

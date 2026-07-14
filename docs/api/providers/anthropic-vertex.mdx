@@ -72,14 +72,22 @@ const anthropicVertex = createAnthropicVertex({
 To authenticate with an explicit service account instead, parse the service account JSON and pass the resulting object as `credentials`:
 
 ```typescript
+const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const credentialsJson = rawCredentials?.trim().startsWith('{')
+    ? rawCredentials
+    : Buffer.from(rawCredentials ?? '', 'base64').toString('utf8');
+
 const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
-    credentials: JSON.parse(
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? ''
-    ),
+    credentials: JSON.parse(credentialsJson),
 });
 ```
+
+<Note>
+    `GOOGLE_APPLICATION_CREDENTIALS` accepts either plain JSON or base64-encoded
+    JSON. This env var holds inline credentials, not a file path.
+</Note>
 
 You can also inject a preconfigured client:
 

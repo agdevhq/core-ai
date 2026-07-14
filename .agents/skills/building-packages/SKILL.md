@@ -85,16 +85,20 @@ Source code uses `.ts` import extensions with `allowImportingTsExtensions: true`
 
 ## Dependency Graph
 
-Providers depend on `core-ai` (acyclic — no reverse dependency):
+Published package dependencies must remain acyclic. Current runtime dependency
+layers are:
 
-```
-@core-ai/openai      ──┐
-@core-ai/anthropic    ──┤
-@core-ai/google-genai ──┼──▶ @core-ai/core-ai
-@core-ai/google-vertex ──┤
-@core-ai/mistral     ──┤
-@core-ai/omnifact    ──┘
-```
+- Base providers (`anthropic`, `google-genai`, `mistral`, `openai`) depend on
+  `core-ai`.
+- Composed providers depend on `core-ai` and their base provider:
+    - `anthropic-vertex` → `anthropic`
+    - `azure-openai`, `openai-compat`, `omnifact` → `openai`
+    - `google-vertex` → `google-genai`
+- Integrations:
+    - `langfuse`, `opentelemetry` → `core-ai`
+    - `axiom` → `opentelemetry`
+
+Do not add reverse dependencies from a base package to a composed provider.
 
 ## Troubleshooting
 

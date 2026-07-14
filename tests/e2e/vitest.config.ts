@@ -4,7 +4,7 @@ import { resolve } from 'node:path';
 export default defineConfig({
     test: {
         environment: 'node',
-        include: ['tests/e2e/src/**/*.e2e.test.ts'],
+        include: ['tests/e2e/src/**/*.test.ts'],
         testTimeout: 120_000,
         hookTimeout: 120_000,
     },

@@ -1,11 +1,11 @@
 import { createAnthropicVertex } from '../../../../packages/anthropic-vertex/src/index.ts';
+import { parseGoogleApplicationCredentialsJson } from '../google-credentials.ts';
 import { getEnvOrDefault, getEnvValue, hasApiKey } from '../env.ts';
 import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const GOOGLE_VERTEX_PROJECT_ENV = 'GOOGLE_VERTEX_PROJECT';
 const GOOGLE_VERTEX_REGION_ENV = 'GOOGLE_VERTEX_REGION';
-const GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV =
-    'GOOGLE_APPLICATION_CREDENTIALS_JSON';
+const GOOGLE_APPLICATION_CREDENTIALS_ENV = 'GOOGLE_APPLICATION_CREDENTIALS';
 const ANTHROPIC_VERTEX_CHAT_MODEL_ENV = 'ANTHROPIC_VERTEX_E2E_CHAT_MODEL';
 const ANTHROPIC_VERTEX_REASONING_MODEL_ENV =
     'ANTHROPIC_VERTEX_E2E_REASONING_MODEL';
@@ -47,34 +47,18 @@ export function createAnthropicVertexAdapter(): ProviderE2EAdapter {
 function createAnthropicVertexProvider() {
     const projectId = getEnvValue(GOOGLE_VERTEX_PROJECT_ENV);
     const region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1');
-    const credentialsJson = getEnvValue(
-        GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
-    );
+    const credentialsJson = getEnvValue(GOOGLE_APPLICATION_CREDENTIALS_ENV);
 
     return createAnthropicVertex({
         projectId,
         region,
         ...(credentialsJson
             ? {
-                  credentials: parseCredentialsJson(credentialsJson),
+                  credentials: parseGoogleApplicationCredentialsJson(
+                      credentialsJson,
+                      GOOGLE_APPLICATION_CREDENTIALS_ENV
+                  ),
               }
             : {}),
     });
-}
-
-function parseCredentialsJson(
-    credentialsJson: string
-): Record<string, unknown> {
-    const credentials: unknown = JSON.parse(credentialsJson);
-    if (
-        typeof credentials !== 'object' ||
-        credentials === null ||
-        Array.isArray(credentials)
-    ) {
-        throw new Error(
-            `${GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV} must contain a JSON object`
-        );
-    }
-
-    return credentials as Record<string, unknown>;
 }

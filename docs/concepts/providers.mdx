@@ -240,7 +240,7 @@ const googleVertex = createGoogleVertex({
 type GoogleVertexProviderOptions = {
     projectId?: string; // Required unless client is provided
     region?: string; // Required unless client is provided
-    credentials?: Record<string, unknown>; // Optional: service account JSON; falls back to ADC
+    credentials?: GoogleVertexServiceAccountCredentials; // Optional: service account JSON; falls back to ADC
     client?: GoogleGenAIClient; // Optional: bring your own client
 };
 ```
@@ -353,16 +353,16 @@ const openai = createOpenAI({ client: customClient });
 
 ## Provider Comparison
 
-| Provider                  | Chat | Embeddings | Images | Special Features                        |
-| ------------------------- | ---- | ---------- | ------ | --------------------------------------- |
-| OpenAI                    | ✓    | ✓          | ✓      | Most comprehensive model selection      |
-| Azure OpenAI              | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth     |
-| Anthropic                 | ✓    | ✗          | ✗      | Extended thinking, prompt caching       |
-| Anthropic on Vertex AI    | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth        |
-| Google GenAI              | ✓    | ✓          | ✓      | Gemini models with multimodal support   |
-| Google on Vertex AI       | ✓    | ✓          | ✓      | Gemini and Imagen on Google Cloud       |
-| Mistral                   | ✓    | ✓          | ✗      | Efficient open-source options           |
-| Omnifact                  | ✓    | ✗          | ✗      | Organization gateway for enabled models |
+| Provider               | Chat | Embeddings | Images | Special Features                        |
+| ---------------------- | ---- | ---------- | ------ | --------------------------------------- |
+| OpenAI                 | ✓    | ✓          | ✓      | Most comprehensive model selection      |
+| Azure OpenAI           | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth     |
+| Anthropic              | ✓    | ✗          | ✗      | Extended thinking, prompt caching       |
+| Anthropic on Vertex AI | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth        |
+| Google GenAI           | ✓    | ✓          | ✓      | Gemini models with multimodal support   |
+| Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini and Imagen on Google Cloud       |
+| Mistral                | ✓    | ✓          | ✗      | Efficient open-source options           |
+| Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models |
 
 ## Next Steps
 

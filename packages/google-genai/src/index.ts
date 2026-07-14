@@ -2,6 +2,8 @@ export { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
 export type {
     GoogleGenAIClient,
     GoogleGenAIProvider,
+    GoogleGenAIProviderBaseOptions,
+    GoogleGenAIProviderFactoryOptions,
     GoogleGenAIProviderOptions,
 } from './provider.js';
 export type { GoogleReasoningMetadata } from './chat-adapter.js';

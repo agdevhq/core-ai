@@ -37,14 +37,18 @@ const googleVertex = createGoogleVertex({
     a preconfigured client is supplied.
 </ParamField>
 
-<ParamField path="credentials" type="Record<string, unknown>" optional>
-    Parsed service-account JSON. When omitted, the Google SDK uses
-    Application Default Credentials.
+<ParamField
+    path="credentials"
+    type="GoogleVertexServiceAccountCredentials"
+    optional
+>
+    Parsed service-account JSON. When omitted, the Google SDK uses Application
+    Default Credentials.
 </ParamField>
 
 <ParamField path="client" type="GoogleGenAIClient" optional>
-    A preconfigured Google client. When supplied, `projectId`, `region`,
-    and `credentials` are not used.
+    A preconfigured Google client. When supplied, `projectId`, `region`, and
+    `credentials` are not used.
 </ParamField>
 
 ### Returns
@@ -75,14 +79,22 @@ gcloud auth application-default login
 Parse a service-account JSON key and pass the resulting object:
 
 ```typescript
+const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const credentialsJson = rawCredentials?.trim().startsWith('{')
+    ? rawCredentials
+    : Buffer.from(rawCredentials ?? '', 'base64').toString('utf8');
+
 const googleVertex = createGoogleVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
-    credentials: JSON.parse(
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? ''
-    ),
+    credentials: JSON.parse(credentialsJson),
 });
 ```
+
+<Note>
+    `GOOGLE_APPLICATION_CREDENTIALS` accepts either plain JSON or base64-encoded
+    JSON. This env var holds inline credentials, not a file path.
+</Note>
 
 ### Custom client
 
@@ -172,7 +184,7 @@ const result = await generate({
 });
 ```
 
-The Google provider-option schemas, `GoogleReasoningMetadata`, and `getGoogleModelCapabilities()` are exported by `@core-ai/google-genai` and apply to Vertex-hosted models.
+The Google provider-option schemas, `GoogleReasoningMetadata`, and `getGoogleModelCapabilities()` are exported by `@core-ai/google-vertex`.
 
 ## Error handling
 

@@ -28,17 +28,17 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider                  | Package                        | Chat | Streaming | Embeddings | Image Generation |
-| ------------------------- | ------------------------------ | ---- | --------- | ---------- | ---------------- |
-| OpenAI                    | `@core-ai/openai`              | Yes  | Yes       | Yes        | Yes              |
-| OpenAI-compatible         | `@core-ai/openai-compat`       | Yes  | Yes       | —          | —                |
-| Azure OpenAI              | `@core-ai/azure-openai`        | Yes  | Yes       | —          | —                |
-| Anthropic                 | `@core-ai/anthropic`           | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini)     | `@core-ai/google-genai`        | Yes  | Yes       | Yes        | Yes              |
-| Google on Vertex AI       | `@core-ai/google-vertex`       | Yes  | Yes       | Yes        | Yes              |
-| Mistral                   | `@core-ai/mistral`             | Yes  | Yes       | Yes        | —                |
-| Omnifact                  | `@core-ai/omnifact`            | Yes  | Yes       | —          | —                |
-| Vertex AI Anthropic       | `@core-ai/anthropic-vertex`    | Yes  | Yes       | —          | —                |
+| Provider              | Package                     | Chat | Streaming | Embeddings | Image Generation |
+| --------------------- | --------------------------- | ---- | --------- | ---------- | ---------------- |
+| OpenAI                | `@core-ai/openai`           | Yes  | Yes       | Yes        | Yes              |
+| OpenAI-compatible     | `@core-ai/openai-compat`    | Yes  | Yes       | —          | —                |
+| Azure OpenAI          | `@core-ai/azure-openai`     | Yes  | Yes       | —          | —                |
+| Anthropic             | `@core-ai/anthropic`        | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini) | `@core-ai/google-genai`     | Yes  | Yes       | Yes        | Yes              |
+| Google on Vertex AI   | `@core-ai/google-vertex`    | Yes  | Yes       | Yes        | Yes              |
+| Mistral               | `@core-ai/mistral`          | Yes  | Yes       | Yes        | —                |
+| Omnifact              | `@core-ai/omnifact`         | Yes  | Yes       | —          | —                |
+| Vertex AI Anthropic   | `@core-ai/anthropic-vertex` | Yes  | Yes       | —          | —                |
 
 > **Note:** `@core-ai/openai` uses the Responses API by default and exposes
 > strict Chat Completions through `openai.chat.chatModel()`. Use
@@ -525,7 +525,7 @@ Provider keys:
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_JSON`)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS`, plain JSON or base64)
 
 ## Contributing
 

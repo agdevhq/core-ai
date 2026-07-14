@@ -57,7 +57,7 @@ Provider keys:
 - `OPENAI_API_KEY`
 - `AZURE_OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_JSON` is set)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS` is set)
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
@@ -77,7 +77,7 @@ Optional model and endpoint overrides:
 - `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
-- `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; service account JSON string. When unset, uses Application Default Credentials)
+- `GOOGLE_APPLICATION_CREDENTIALS` (optional; inline service account JSON or base64-encoded JSON — not a file path. When unset, uses Application Default Credentials)
 - `ANTHROPIC_VERTEX_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_VERTEX_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
@@ -87,7 +87,7 @@ Optional model and endpoint overrides:
 - `GOOGLE_VERTEX_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_VERTEX_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_VERTEX_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
-- `GOOGLE_VERTEX_E2E_IMAGE_MODEL` (default: `imagen-4.0-generate-001`)
+- `GOOGLE_VERTEX_E2E_IMAGE_MODEL` (default: `gemini-2.5-flash-image`)
 - `MISTRAL_E2E_CHAT_MODEL` (default: `mistral-large-latest`)
 - `MISTRAL_E2E_REASONING_MODEL` (default: `magistral-medium-latest`)
 - `MISTRAL_E2E_EMBED_MODEL` (default: `mistral-embed`)

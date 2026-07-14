@@ -1,11 +1,14 @@
-import { createGoogleVertex } from '../../../../packages/google-vertex/src/index.ts';
+import {
+    createGoogleVertex,
+    type GoogleVertexServiceAccountCredentials,
+} from '../../../../packages/google-vertex/src/index.ts';
+import { parseGoogleApplicationCredentialsJson } from '../google-credentials.ts';
 import { getEnvOrDefault, getEnvValue, hasApiKey } from '../env.ts';
 import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const GOOGLE_VERTEX_PROJECT_ENV = 'GOOGLE_VERTEX_PROJECT';
 const GOOGLE_VERTEX_REGION_ENV = 'GOOGLE_VERTEX_REGION';
-const GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV =
-    'GOOGLE_APPLICATION_CREDENTIALS_JSON';
+const GOOGLE_APPLICATION_CREDENTIALS_ENV = 'GOOGLE_APPLICATION_CREDENTIALS';
 const GOOGLE_VERTEX_CHAT_MODEL_ENV = 'GOOGLE_VERTEX_E2E_CHAT_MODEL';
 const GOOGLE_VERTEX_REASONING_MODEL_ENV = 'GOOGLE_VERTEX_E2E_REASONING_MODEL';
 const GOOGLE_VERTEX_EMBED_MODEL_ENV = 'GOOGLE_VERTEX_E2E_EMBED_MODEL';
@@ -26,7 +29,7 @@ export function createGoogleVertexAdapter(): ProviderE2EAdapter {
     );
     const imageModelId = getEnvOrDefault(
         GOOGLE_VERTEX_IMAGE_MODEL_ENV,
-        'imagen-4.0-generate-001'
+        'gemini-2.5-flash-image'
     );
 
     return {
@@ -62,32 +65,18 @@ export function createGoogleVertexAdapter(): ProviderE2EAdapter {
 function createGoogleVertexProvider() {
     const projectId = getEnvValue(GOOGLE_VERTEX_PROJECT_ENV);
     const region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1');
-    const credentialsJson = getEnvValue(
-        GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
-    );
+    const credentialsJson = getEnvValue(GOOGLE_APPLICATION_CREDENTIALS_ENV);
 
     return createGoogleVertex({
         projectId,
         region,
         ...(credentialsJson
-            ? { credentials: parseCredentialsJson(credentialsJson) }
+            ? {
+                  credentials: parseGoogleApplicationCredentialsJson(
+                      credentialsJson,
+                      GOOGLE_APPLICATION_CREDENTIALS_ENV
+                  ) as GoogleVertexServiceAccountCredentials,
+              }
             : {}),
     });
-}
-
-function parseCredentialsJson(
-    credentialsJson: string
-): Record<string, unknown> {
-    const credentials: unknown = JSON.parse(credentialsJson);
-    if (
-        typeof credentials !== 'object' ||
-        credentials === null ||
-        Array.isArray(credentials)
-    ) {
-        throw new Error(
-            `${GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV} must contain a JSON object`
-        );
-    }
-
-    return credentials as Record<string, unknown>;
 }
