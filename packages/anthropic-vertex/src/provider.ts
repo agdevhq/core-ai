@@ -18,7 +18,7 @@ export type AnthropicVertexProviderOptions = {
     credentials?: AnthropicVertexServiceAccountCredentials;
     client?: AnthropicChatClient;
     defaultMaxTokens?: number;
-    strictToolSchemas?: boolean;
+    useStrictToolSchemas?: boolean;
 };
 
 export type AnthropicVertexProvider = {
@@ -34,9 +34,9 @@ export function createAnthropicVertex(
         {
             client,
             defaultMaxTokens: options.defaultMaxTokens,
-            strictToolSchemas: options.strictToolSchemas ?? true,
         },
-        PROVIDER_ID
+        PROVIDER_ID,
+        options.useStrictToolSchemas
     );
 }
 

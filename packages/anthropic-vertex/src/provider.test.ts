@@ -135,7 +135,7 @@ describe('createAnthropicVertex', () => {
         const provider = createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
-            strictToolSchemas: false,
+            useStrictToolSchemas: false,
         });
 
         await provider.chatModel('claude-sonnet-4-6').generate({

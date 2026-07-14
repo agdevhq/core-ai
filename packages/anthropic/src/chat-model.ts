@@ -42,7 +42,7 @@ export function createAnthropicChatModel(
     modelId: string,
     defaultMaxTokens: number,
     providerId = DEFAULT_PROVIDER_ID,
-    strictToolSchemas = true
+    useStrictToolSchemas = true
 ): ChatModel {
     const provider = providerId;
 
@@ -75,7 +75,7 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options,
             provider,
-            strictToolSchemas
+            useStrictToolSchemas
         );
         const response = await callAnthropicMessagesApi<
             Parameters<typeof mapGenerateResponse>[0]
@@ -89,7 +89,7 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options,
             provider,
-            strictToolSchemas
+            useStrictToolSchemas
         );
         return createChatStream(
             async () =>
