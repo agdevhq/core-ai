@@ -15,6 +15,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/openai` — OpenAI provider
 - `@core-ai/anthropic` — Anthropic provider
 - `@core-ai/google-genai` — Google GenAI provider
+- `@core-ai/google-vertex` — Vertex AI Google provider
 - `@core-ai/mistral` — Mistral provider
 - `@core-ai/omnifact` — Omnifact provider
 - `@core-ai/anthropic-vertex` — Vertex AI Anthropic (Claude) provider
@@ -84,15 +85,20 @@ Source code uses `.ts` import extensions with `allowImportingTsExtensions: true`
 
 ## Dependency Graph
 
-Providers depend on `core-ai` (acyclic — no reverse dependency):
+Published package dependencies must remain acyclic. Current runtime dependency
+layers are:
 
-```
-@core-ai/openai      ──┐
-@core-ai/anthropic    ──┤
-@core-ai/google-genai ──┼──▶ @core-ai/core-ai
-@core-ai/mistral     ──┤
-@core-ai/omnifact    ──┘
-```
+- Base providers (`anthropic`, `google-genai`, `mistral`, `openai`) depend on
+  `core-ai`.
+- Composed providers depend on `core-ai` and their base provider:
+    - `anthropic-vertex` → `anthropic`
+    - `azure-openai`, `openai-compat`, `omnifact` → `openai`
+    - `google-vertex` → `google-genai`
+- Integrations:
+    - `langfuse`, `opentelemetry` → `core-ai`
+    - `axiom` → `opentelemetry`
+
+Do not add reverse dependencies from a base package to a composed provider.
 
 ## Troubleshooting
 

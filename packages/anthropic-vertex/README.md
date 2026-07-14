@@ -44,12 +44,15 @@ const anthropicVertex = createAnthropicVertex({
 To authenticate with an explicit service account instead, parse its JSON key and pass it as `credentials`:
 
 ```ts
+const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const credentialsJson = rawCredentials?.trim().startsWith('{')
+    ? rawCredentials
+    : Buffer.from(rawCredentials ?? '', 'base64').toString('utf8');
+
 const anthropicVertex = createAnthropicVertex({
     projectId: process.env.GOOGLE_VERTEX_PROJECT,
     region: 'europe-west1',
-    credentials: JSON.parse(
-        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? ''
-    ),
+    credentials: JSON.parse(credentialsJson),
 });
 ```
 

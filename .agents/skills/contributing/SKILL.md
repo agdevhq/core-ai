@@ -69,6 +69,7 @@ All publishable packages share a single version number:
 - `@core-ai/openai`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
+- `@core-ai/google-vertex`
 - `@core-ai/mistral`
 - `@core-ai/omnifact`
 - `@core-ai/anthropic-vertex`

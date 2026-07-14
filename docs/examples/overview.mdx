@@ -116,7 +116,7 @@ npx tsx examples/01-chat-completion.ts
 <Card
     title="Structured Outputs"
     icon="brackets-curly"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/14-generate-object.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/15-generate-object.ts"
 >
     Typed structured output with `generateObject()`. Shows how to generate
     strongly-typed JSON objects validated with Zod schemas.
@@ -125,7 +125,7 @@ npx tsx examples/01-chat-completion.ts
 <Card
     title="Streaming Objects"
     icon="code"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/15-stream-object.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/16-stream-object.ts"
 >
     Streaming structured output with `streamObject()`. Demonstrates real-time
     streaming of structured JSON with incremental validation.
@@ -134,7 +134,7 @@ npx tsx examples/01-chat-completion.ts
   <Card
     title="Stream Abort"
     icon="circle-stop"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/16-stream-abort.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/17-stream-abort.ts"
   >
     Abort an in-progress stream with `AbortSignal` and handle `StreamAbortedError`.
   </Card>
@@ -189,12 +189,21 @@ core-ai supports multiple AI providers with the same unified API.
     deployment name as the model id.
 </Card>
 
-  <Card
+<Card
     title="Vertex AI Anthropic Provider"
     icon="cloud"
     href="https://github.com/agdevhq/core-ai/blob/main/examples/13-anthropic-vertex-provider.ts"
+>
+    Using Claude on Vertex AI with the same `generate()` API. Authenticates via
+    Application Default Credentials.
+</Card>
+
+  <Card
+    title="Google on Vertex AI"
+    icon="cloud"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/14-google-vertex-provider.ts"
   >
-    Using Claude on Vertex AI with the same `generate()` API. Authenticates via Application Default Credentials.
+    Using Gemini on Vertex AI with the same `generate()` API. Authenticates via Application Default Credentials.
   </Card>
 </CardGroup>
 
@@ -221,14 +230,14 @@ Explore powerful features:
 
 Work with typed, validated outputs:
 
-- **14-generate-object.ts** - Generate structured JSON
-- **15-stream-object.ts** - Stream structured data
+- **15-generate-object.ts** - Generate structured JSON
+- **16-stream-object.ts** - Stream structured data
 
 ### 4. Stream control
 
 Manage in-flight streams:
 
-- **16-stream-abort.ts** - Abort a stream with `AbortSignal`
+- **17-stream-abort.ts** - Abort a stream with `AbortSignal`
 
 ### 5. Multi-Provider
 
@@ -240,6 +249,7 @@ Experience true provider portability:
 - **11-omnifact-provider.ts** - Omnifact API Gateway models
 - **12-azure-openai-provider.ts** - Azure OpenAI deployments
 - **13-anthropic-vertex-provider.ts** - Claude on Vertex AI
+- **14-google-vertex-provider.ts** - Gemini on Vertex AI
 
 ## Next Steps
 

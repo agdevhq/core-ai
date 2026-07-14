@@ -15,6 +15,7 @@ The harness runs one shared behavioral contract against provider adapters:
 - Anthropic
 - Vertex AI Anthropic
 - Google GenAI
+- Vertex AI Google
 - Mistral
 - Omnifact
 
@@ -46,8 +47,8 @@ E2E_PROVIDER=omnifact npm run test:e2e
 Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:chat`,
 `test:e2e:openai:compat`, `test:e2e:azure-openai`,
 `test:e2e:azure-openai:chat`, `test:e2e:azure-openai:classic`,
-`test:e2e:anthropic`, `test:e2e:google`, `test:e2e:mistral`,
-`test:e2e:anthropic-vertex`.
+`test:e2e:anthropic`, `test:e2e:google`, `test:e2e:google-vertex`,
+`test:e2e:mistral`, `test:e2e:anthropic-vertex`.
 
 ## Required Environment Variables
 
@@ -56,7 +57,7 @@ Provider keys:
 - `OPENAI_API_KEY`
 - `AZURE_OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex AI Anthropic; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_JSON` is set)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS` is set)
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
@@ -76,19 +77,28 @@ Optional model and endpoint overrides:
 - `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
-- `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; service account JSON string. When unset, uses Application Default Credentials)
+- `GOOGLE_APPLICATION_CREDENTIALS` (optional; inline service account JSON or base64-encoded JSON — not a file path. When unset, uses Application Default Credentials)
 - `ANTHROPIC_VERTEX_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
 - `ANTHROPIC_VERTEX_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
 - `GOOGLE_E2E_IMAGE_MODEL` (default: `imagen-4.0-generate-001`)
+- `GOOGLE_VERTEX_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
+- `GOOGLE_VERTEX_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
+- `GOOGLE_VERTEX_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
+- `GOOGLE_VERTEX_E2E_IMAGE_MODEL` (default: `gemini-2.5-flash-image`)
 - `MISTRAL_E2E_CHAT_MODEL` (default: `mistral-large-latest`)
 - `MISTRAL_E2E_REASONING_MODEL` (default: `magistral-medium-latest`)
 - `MISTRAL_E2E_EMBED_MODEL` (default: `mistral-embed`)
 - `OMNIFACT_E2E_CHAT_MODEL` (default: `eu/gpt-5-mini`)
 - `OMNIFACT_E2E_REASONING_MODEL` (default: `eu/gpt-5-mini`)
 - `OMNIFACT_BASE_URL` — optional; overrides the gateway endpoint (e.g. `http://localhost:3001/v1/gateway` for local dev). When unset, targets production (`https://connect.omnifact.ai/v1/gateway`).
+
+Google image model IDs select the upstream API: `gemini-*` uses Gemini native
+image generation, while `imagen-*` uses Imagen. The direct Google default
+covers Imagen and the Vertex default covers Gemini; override the corresponding
+image model environment variable to test another available model.
 
 Reasoning overrides select the model used by reasoning-specific contract cases
 (`createReasoningChatModel`); reasoning behavior itself is still enabled via the

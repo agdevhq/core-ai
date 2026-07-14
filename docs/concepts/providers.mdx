@@ -1,11 +1,11 @@
 ---
 title: Providers
-description: Learn how providers work in core-ai and how to use OpenAI, Azure OpenAI, Anthropic, Anthropic on Vertex AI, Google GenAI, and Mistral
+description: Learn how providers work in core-ai and how to use OpenAI, Azure OpenAI, Anthropic, Google GenAI, Vertex AI, and Mistral
 ---
 
 ## Overview
 
-Providers are the bridge between core-ai and LLM services like OpenAI, Azure OpenAI, Anthropic, Anthropic on Vertex AI, Google GenAI, and Mistral. Each provider implements a unified interface that abstracts away provider-specific details, allowing you to switch between providers with minimal code changes.
+Providers are the bridge between core-ai and LLM services like OpenAI, Azure OpenAI, Anthropic, Google GenAI, Vertex AI, and Mistral. Each provider implements a unified interface that abstracts away provider-specific details, allowing you to switch between providers with minimal code changes.
 
 ## Provider Interface
 
@@ -186,7 +186,8 @@ const claude = anthropicVertex.chatModel('claude-sonnet-4-6');
 
 ## Google GenAI
 
-Google GenAI provides access to Gemini models for chat, embeddings, and image generation.
+Google GenAI provides access to Gemini models for chat, embeddings, and native
+image generation, plus dedicated Imagen models.
 
 ### Creating a Provider
 
@@ -207,7 +208,7 @@ type GoogleGenAIProviderOptions = {
     apiKey?: string;
     apiVersion?: string;
     baseUrl?: string;
-    client?: GoogleGenAI; // Optional: bring your own GoogleGenAI client
+    client?: GoogleGenAIClient; // Optional: bring your own GoogleGenAI client
 };
 ```
 
@@ -216,8 +217,52 @@ type GoogleGenAIProviderOptions = {
 ```typescript
 const gemini = google.chatModel('gemini-3.1-pro');
 const embeddings = google.embeddingModel('text-embedding-004');
-const imagen = google.imageModel('imagen-3.0');
+const image = google.imageModel('gemini-2.5-flash-image');
+const imagen = google.imageModel('imagen-4.0-generate-001');
 ```
+
+## Google on Vertex AI
+
+Google on Vertex AI provides Gemini chat, embedding, and native image models
+plus Imagen through regional Google Cloud endpoints.
+
+### Creating a Provider
+
+```typescript
+import { createGoogleVertex } from '@core-ai/google-vertex';
+
+const googleVertex = createGoogleVertex({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+```
+
+### Provider Options
+
+```typescript
+type GoogleVertexProviderOptions = {
+    projectId?: string; // Required unless client is provided
+    region?: string; // Required unless client is provided
+    credentials?: GoogleVertexServiceAccountCredentials; // Optional: service account JSON; falls back to ADC
+    client?: GoogleGenAIClient; // Optional: bring your own client
+};
+```
+
+### Getting Models
+
+```typescript
+const gemini = googleVertex.chatModel('gemini-2.5-flash');
+const embeddings = googleVertex.embeddingModel('gemini-embedding-001');
+const image = googleVertex.imageModel('gemini-2.5-flash-image');
+const imagen = googleVertex.imageModel('imagen-4.0-generate-001');
+```
+
+<Note>
+    Without explicit `credentials`, the provider uses [Application Default
+    Credentials
+    (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials).
+    A provider instance targets a single region.
+</Note>
 
 ## Mistral
 
@@ -312,15 +357,16 @@ const openai = createOpenAI({ client: customClient });
 
 ## Provider Comparison
 
-| Provider               | Chat | Embeddings | Images | Special Features                        |
-| ---------------------- | ---- | ---------- | ------ | --------------------------------------- |
-| OpenAI                 | ✓    | ✓          | ✓      | Most comprehensive model selection      |
-| Azure OpenAI           | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth     |
-| Anthropic              | ✓    | ✗          | ✗      | Extended thinking, prompt caching       |
-| Anthropic on Vertex AI | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth        |
-| Google GenAI           | ✓    | ✓          | ✓      | Gemini models with multimodal support   |
-| Mistral                | ✓    | ✓          | ✗      | Efficient open-source options           |
-| Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models |
+| Provider               | Chat | Embeddings | Images | Special Features                          |
+| ---------------------- | ---- | ---------- | ------ | ----------------------------------------- |
+| OpenAI                 | ✓    | ✓          | ✓      | Most comprehensive model selection        |
+| Azure OpenAI           | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth       |
+| Anthropic              | ✓    | ✗          | ✗      | Extended thinking, prompt caching         |
+| Anthropic on Vertex AI | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth          |
+| Google GenAI           | ✓    | ✓          | ✓      | Gemini native images and Imagen           |
+| Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini native images and Imagen on Vertex |
+| Mistral                | ✓    | ✓          | ✗      | Efficient open-source options             |
+| Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models   |
 
 ## Next Steps
 

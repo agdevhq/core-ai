@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
-import { createGoogleGenAI } from './provider.js';
+import { ProviderError } from '@core-ai/core-ai';
+import { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
 
 describe('createGoogleGenAI', () => {
     it('should expose all model factories', () => {
@@ -65,6 +66,52 @@ describe('createGoogleGenAI', () => {
         expect(generateContent).toHaveBeenCalledTimes(1);
         expect(embedContent).toHaveBeenCalledTimes(1);
         expect(generateImages).toHaveBeenCalledTimes(1);
+    });
+
+    it('should attribute all model types and errors to a custom provider id', async () => {
+        const upstreamError = new Error('upstream failure');
+        const provider = createGoogleGenAIProvider(
+            {
+                client: createMockClient({
+                    generateContent: async () => {
+                        throw upstreamError;
+                    },
+                    embedContent: async () => {
+                        throw upstreamError;
+                    },
+                    generateImages: async () => {
+                        throw upstreamError;
+                    },
+                }),
+            },
+            {
+                providerId: 'google-vertex',
+            }
+        );
+        const chatModel = provider.chatModel('gemini-2.5-flash');
+        const embeddingModel = provider.embeddingModel('gemini-embedding-001');
+        const imageModel = provider.imageModel('imagen-4.0-generate-001');
+
+        expect(chatModel.provider).toBe('google-vertex');
+        expect(embeddingModel.provider).toBe('google-vertex');
+        expect(imageModel.provider).toBe('google-vertex');
+
+        const errors = await Promise.all([
+            chatModel
+                .generate({ messages: [{ role: 'user', content: 'hello' }] })
+                .catch((error: unknown) => error),
+            embeddingModel
+                .embed({ input: 'hello' })
+                .catch((error: unknown) => error),
+            imageModel
+                .generate({ prompt: 'cat' })
+                .catch((error: unknown) => error),
+        ]);
+
+        for (const error of errors) {
+            expect(error).toBeInstanceOf(ProviderError);
+            expect((error as ProviderError).provider).toBe('google-vertex');
+        }
     });
 });
 

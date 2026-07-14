@@ -1,4 +1,4 @@
-import type { EmbedContentParameters, GoogleGenAI } from '@google/genai';
+import type { EmbedContentParameters } from '@google/genai';
 import type {
     EmbedOptions,
     EmbedResult,
@@ -9,17 +9,15 @@ import {
     parseGoogleEmbedProviderOptions,
     type GoogleEmbedProviderOptions,
 } from './provider-options.js';
-
-type GoogleGenAIEmbeddingClient = {
-    models: GoogleGenAI['models'];
-};
+import type { GoogleGenAIClient } from './provider.js';
 
 export function createGoogleGenAIEmbeddingModel(
-    client: GoogleGenAIEmbeddingClient,
-    modelId: string
+    client: GoogleGenAIClient,
+    modelId: string,
+    provider = 'google'
 ): EmbeddingModel {
     return {
-        provider: 'google',
+        provider,
         modelId,
         async embed(options: EmbedOptions): Promise<EmbedResult> {
             try {
@@ -75,7 +73,7 @@ export function createGoogleGenAIEmbeddingModel(
                     usage,
                 };
             } catch (error) {
-                throw wrapGoogleError(error);
+                throw wrapGoogleError(error, provider);
             }
         },
     };

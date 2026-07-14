@@ -102,6 +102,7 @@
                             "api/providers/anthropic",
                             "api/providers/anthropic-vertex",
                             "api/providers/google-genai",
+                            "api/providers/google-vertex",
                             "api/providers/mistral",
                             "api/providers/omnifact"
                         ]

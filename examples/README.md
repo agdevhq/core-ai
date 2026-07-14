@@ -37,8 +37,8 @@ GOOGLE_VERTEX_PROJECT=your_google_cloud_project_id
 Optional: `OMNIFACT_MODEL` overrides the model id (default in the example: `eu/gpt-5-mini`). Use ids from `GET /v1/gateway/models`.
 `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT` are only required for the Azure OpenAI example.
 Optional: `AZURE_OPENAI_DEPLOYMENT` overrides the deployment name (default in the example: `gpt-5-mini`). Set `AZURE_OPENAI_API=classic` to use the classic Azure API; `AZURE_OPENAI_API_VERSION` overrides the classic API version.
-`GOOGLE_VERTEX_PROJECT` is only required for the Vertex Anthropic example. It uses Application Default Credentials — run `gcloud auth application-default login` first, or set `GOOGLE_APPLICATION_CREDENTIALS` to a service account key file.
-Optional: `GOOGLE_VERTEX_REGION` overrides the region (default in the example: `europe-west1`); `ANTHROPIC_VERTEX_MODEL` overrides the model id (default in the example: `claude-sonnet-4-6`).
+`GOOGLE_VERTEX_PROJECT` is required for the Vertex AI examples. They use Application Default Credentials — run `gcloud auth application-default login` first, or set `GOOGLE_APPLICATION_CREDENTIALS` to inline service account JSON or base64-encoded JSON.
+Optional: `GOOGLE_VERTEX_REGION` overrides the region (default: `europe-west1`); `ANTHROPIC_VERTEX_MODEL` and `GOOGLE_VERTEX_MODEL` override the respective model ids.
 
 ## Run an Example
 
@@ -51,7 +51,7 @@ npx tsx examples/01-chat-completion.ts
 The telemetry example uses a real OpenAI model and requires `OPENAI_API_KEY`:
 
 ```bash
-npx tsx examples/17-telemetry-console-exporter.ts
+npx tsx examples/18-telemetry-console-exporter.ts
 ```
 
 ## Available Examples
@@ -69,8 +69,9 @@ npx tsx examples/17-telemetry-console-exporter.ts
 - `11-omnifact-provider.ts`: Using Omnifact API Gateway with the same `generate()` API
 - `12-azure-openai-provider.ts`: Using Azure OpenAI deployments with the same `generate()` API
 - `13-anthropic-vertex-provider.ts`: Using Claude on Vertex AI with the same `generate()` API
-- `14-generate-object.ts`: Typed structured output with `generateObject()`
-- `15-stream-object.ts`: Streaming structured output with `streamObject()`
-- `16-stream-abort.ts`: Cancelling a streaming call with `AbortController`
-- `17-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
-- `18-telemetry-axiom-exporter.ts`: OpenAI-backed telemetry example that exports spans to Axiom
+- `14-google-vertex-provider.ts`: Using Gemini on Vertex AI with the same `generate()` API
+- `15-generate-object.ts`: Typed structured output with `generateObject()`
+- `16-stream-object.ts`: Streaming structured output with `streamObject()`
+- `17-stream-abort.ts`: Cancelling a streaming call with `AbortController`
+- `18-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
+- `19-telemetry-axiom-exporter.ts`: OpenAI-backed telemetry example that exports spans to Axiom
