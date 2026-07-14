@@ -255,13 +255,14 @@ export function mapGenerateResponse(response: ChatCompletion): GenerateResult {
     const reasoningTokens =
         response.usage?.completion_tokens_details?.reasoning_tokens;
     const content = extractTextContent(firstChoice.message.content);
+    const reasoning = extractReasoningText(firstChoice.message) ?? null;
     const toolCalls = parseToolCalls(firstChoice.message.tool_calls);
-    const parts = createAssistantParts(content, toolCalls);
+    const parts = createAssistantParts(reasoning, content, toolCalls);
 
     return {
         parts,
         content,
-        reasoning: null,
+        reasoning,
         toolCalls,
         finishReason: mapFinishReason(firstChoice.finish_reason),
         usage: {
@@ -338,6 +339,7 @@ export async function* transformStream(
 
     let finishReason: FinishReason = 'unknown';
     let textOpen = false;
+    let reasoningOpen = false;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -362,6 +364,22 @@ export async function* transformStream(
 
         textOpen = false;
         yield { type: 'text-end' };
+    };
+    const startReasoning = function* (): Iterable<StreamEvent> {
+        if (reasoningOpen) {
+            return;
+        }
+
+        reasoningOpen = true;
+        yield { type: 'reasoning-start' };
+    };
+    const closeReasoning = function* (): Iterable<StreamEvent> {
+        if (!reasoningOpen) {
+            return;
+        }
+
+        reasoningOpen = false;
+        yield { type: 'reasoning-end' };
     };
 
     for await (const chunk of stream) {
@@ -389,7 +407,17 @@ export async function* transformStream(
             continue;
         }
 
+        const reasoningDelta = extractReasoningText(choice.delta);
+        if (reasoningDelta !== undefined) {
+            yield* startReasoning();
+            yield {
+                type: 'reasoning-delta',
+                text: reasoningDelta,
+            };
+        }
+
         if (choice.delta.content) {
+            yield* closeReasoning();
             yield* startText();
             yield {
                 type: 'text-delta',
@@ -398,6 +426,7 @@ export async function* transformStream(
         }
 
         if (choice.delta.tool_calls) {
+            yield* closeReasoning();
             yield* closeText();
             for (const partialToolCall of choice.delta.tool_calls) {
                 const current = bufferedToolCalls.get(
@@ -442,6 +471,7 @@ export async function* transformStream(
         }
 
         if (finishReason === 'tool-calls') {
+            yield* closeReasoning();
             yield* closeText();
             for (const toolCall of bufferedToolCalls.values()) {
                 if (emittedToolCalls.has(toolCall.id)) {
@@ -461,6 +491,7 @@ export async function* transformStream(
         }
     }
 
+    yield* closeReasoning();
     yield* closeText();
 
     yield {
@@ -494,11 +525,18 @@ function mapReasoningToRequestFields(
 }
 
 function createAssistantParts(
+    reasoning: string | null,
     content: string | null,
     toolCalls: ToolCall[]
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
 
+    if (reasoning) {
+        parts.push({
+            type: 'reasoning',
+            text: reasoning,
+        });
+    }
     if (content) {
         parts.push({
             type: 'text',
@@ -513,6 +551,27 @@ function createAssistantParts(
     }
 
     return parts;
+}
+
+/**
+ * Extracts nonstandard reasoning text from a response message or stream delta.
+ * The upstream Chat Completions API defines no reasoning field, but most
+ * OpenAI-compatible endpoints expose thinking tokens as `reasoning_content`
+ * (DeepSeek, Qwen, GLM, vLLM, SGLang) or `reasoning` (OpenRouter).
+ */
+function extractReasoningText(source: object): string | undefined {
+    const { reasoning_content, reasoning } = source as {
+        reasoning_content?: unknown;
+        reasoning?: unknown;
+    };
+
+    if (typeof reasoning_content === 'string' && reasoning_content.length > 0) {
+        return reasoning_content;
+    }
+    if (typeof reasoning === 'string' && reasoning.length > 0) {
+        return reasoning;
+    }
+    return undefined;
 }
 
 function extractTextContent(content: unknown): string | null {

@@ -18,6 +18,17 @@ import { createOpenAICompatChatModel } from './chat-model.js';
 import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
+// Nonstandard reasoning fields used by OpenAI-compatible endpoints
+// (DeepSeek/Qwen/GLM/vLLM: `reasoning_content`; OpenRouter: `reasoning`).
+type MessageWithReasoning = ChatCompletion['choices'][number]['message'] & {
+    reasoning_content?: string;
+    reasoning?: string;
+};
+type DeltaWithReasoning = ChatCompletionChunk['choices'][number]['delta'] & {
+    reasoning_content?: string;
+    reasoning?: string;
+};
+
 describe('createOpenAICompatChatModel', () => {
     it('should create model metadata', () => {
         const model = createOpenAICompatChatModel(
@@ -583,6 +594,47 @@ describe('generate', () => {
             expect.anything()
         );
     });
+
+    it('should extract nonstandard reasoning_content from compatible endpoints', async () => {
+        const message: MessageWithReasoning = {
+            role: 'assistant',
+            content: 'Final answer',
+            refusal: null,
+            reasoning_content: 'Step 1: think hard.',
+        };
+        const create = vi.fn(async () => {
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message,
+                    },
+                ],
+                usage: {
+                    prompt_tokens: 12,
+                    completion_tokens: 7,
+                    total_tokens: 19,
+                },
+            });
+        });
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'qwen3-235b'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Solve this' }],
+        });
+
+        expect(result.reasoning).toBe('Step 1: think hard.');
+        expect(result.content).toBe('Final answer');
+        expect(result.parts).toEqual([
+            { type: 'reasoning', text: 'Step 1: think hard.' },
+            { type: 'text', text: 'Final answer' },
+        ]);
+    });
 });
 
 describe('stream', () => {
@@ -644,6 +696,134 @@ describe('stream', () => {
             },
             outputTokenDetails: {},
         });
+    });
+
+    it('should emit reasoning events for nonstandard reasoning_content deltas', async () => {
+        const reasoningDelta: DeltaWithReasoning = {
+            reasoning_content: 'Thinking it through',
+        };
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: null,
+                            delta: reasoningDelta,
+                        },
+                    ],
+                    usage: null,
+                }),
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: null,
+                            delta: { content: 'Answer' },
+                        },
+                    ],
+                    usage: null,
+                }),
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'stop',
+                            delta: {},
+                        },
+                    ],
+                    usage: {
+                        prompt_tokens: 5,
+                        completion_tokens: 10,
+                        total_tokens: 15,
+                    },
+                }),
+            ]);
+        });
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'qwen3-235b'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'Solve this' }],
+        });
+
+        const eventTypes: string[] = [];
+        for await (const event of chatStream) {
+            eventTypes.push(event.type);
+        }
+
+        expect(eventTypes).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'text-start',
+            'text-delta',
+            'text-end',
+            'finish',
+        ]);
+        const response = await chatStream.result;
+        expect(response.reasoning).toBe('Thinking it through');
+        expect(response.content).toBe('Answer');
+    });
+
+    it('should emit reasoning events for a reasoning-only stream (OpenRouter reasoning field)', async () => {
+        const reasoningDelta: DeltaWithReasoning = {
+            reasoning: 'Deep in thought',
+        };
+        const create = vi.fn(async () => {
+            return toAsyncIterable<ChatCompletionChunk>([
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: null,
+                            delta: reasoningDelta,
+                        },
+                    ],
+                    usage: null,
+                }),
+                asChunk({
+                    choices: [
+                        {
+                            index: 0,
+                            finish_reason: 'length',
+                            delta: {},
+                        },
+                    ],
+                    usage: {
+                        prompt_tokens: 5,
+                        completion_tokens: 256,
+                        total_tokens: 261,
+                    },
+                }),
+            ]);
+        });
+        const model = createOpenAICompatChatModel(
+            createMockClient(create),
+            'qwen3-235b'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'Solve this' }],
+        });
+
+        const eventTypes: string[] = [];
+        for await (const event of chatStream) {
+            eventTypes.push(event.type);
+        }
+
+        expect(eventTypes).toEqual([
+            'reasoning-start',
+            'reasoning-delta',
+            'reasoning-end',
+            'finish',
+        ]);
+        const response = await chatStream.result;
+        expect(response.reasoning).toBe('Deep in thought');
+        expect(response.content).toBeNull();
+        expect(response.finishReason).toBe('length');
     });
 
     it('should map cached usage in streaming responses', async () => {
