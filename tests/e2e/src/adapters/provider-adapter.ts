@@ -14,6 +14,7 @@ export type ProviderId =
     | 'anthropic'
     | 'anthropic-vertex'
     | 'google'
+    | 'google-vertex'
     | 'mistral'
     | 'omnifact';
 

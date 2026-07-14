@@ -15,6 +15,7 @@ The harness runs one shared behavioral contract against provider adapters:
 - Anthropic
 - Vertex AI Anthropic
 - Google GenAI
+- Vertex AI Google GenAI
 - Mistral
 - Omnifact
 
@@ -46,8 +47,8 @@ E2E_PROVIDER=omnifact npm run test:e2e
 Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:chat`,
 `test:e2e:openai:compat`, `test:e2e:azure-openai`,
 `test:e2e:azure-openai:chat`, `test:e2e:azure-openai:classic`,
-`test:e2e:anthropic`, `test:e2e:google`, `test:e2e:mistral`,
-`test:e2e:anthropic-vertex`.
+`test:e2e:anthropic`, `test:e2e:google`, `test:e2e:google-vertex`,
+`test:e2e:mistral`, `test:e2e:anthropic-vertex`.
 
 ## Required Environment Variables
 
@@ -56,7 +57,7 @@ Provider keys:
 - `OPENAI_API_KEY`
 - `AZURE_OPENAI_API_KEY`
 - `ANTHROPIC_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex AI Anthropic; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_JSON` is set)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials unless `GOOGLE_APPLICATION_CREDENTIALS_JSON` is set)
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
@@ -83,6 +84,10 @@ Optional model and endpoint overrides:
 - `GOOGLE_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
 - `GOOGLE_E2E_IMAGE_MODEL` (default: `imagen-4.0-generate-001`)
+- `GOOGLE_VERTEX_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
+- `GOOGLE_VERTEX_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
+- `GOOGLE_VERTEX_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
+- `GOOGLE_VERTEX_E2E_IMAGE_MODEL` (default: `imagen-4.0-generate-001`)
 - `MISTRAL_E2E_CHAT_MODEL` (default: `mistral-large-latest`)
 - `MISTRAL_E2E_REASONING_MODEL` (default: `magistral-medium-latest`)
 - `MISTRAL_E2E_EMBED_MODEL` (default: `mistral-embed`)

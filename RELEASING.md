@@ -10,6 +10,7 @@ This repository uses Turborepo for build/test tasks and Changesets for versionin
 - `@core-ai/openai`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
+- `@core-ai/google-genai-vertex`
 - `@core-ai/mistral`
 - `@core-ai/azure-openai`
 - `@core-ai/omnifact`

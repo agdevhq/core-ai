@@ -14,6 +14,7 @@
         "test:e2e:azure-openai:classic": "E2E_PROVIDER=azure-openai-classic npm run test:e2e",
         "test:e2e:anthropic": "E2E_PROVIDER=anthropic npm run test:e2e",
         "test:e2e:google": "E2E_PROVIDER=google npm run test:e2e",
+        "test:e2e:google-vertex": "E2E_PROVIDER=google-vertex npm run test:e2e",
         "test:e2e:mistral": "E2E_PROVIDER=mistral npm run test:e2e",
         "test:e2e:omnifact": "E2E_PROVIDER=omnifact npm run test:e2e",
         "test:e2e:anthropic-vertex": "E2E_PROVIDER=anthropic-vertex npm run test:e2e",
