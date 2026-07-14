@@ -128,7 +128,7 @@ describe('createAnthropicChatProvider', () => {
 
         const provider = createAnthropicChatProvider(
             { client: createMockChatClient(create) },
-            'anthropic-vertex'
+            { providerId: 'anthropic-vertex' }
         );
         const chatModel = provider.chatModel('claude-sonnet-4-6');
 

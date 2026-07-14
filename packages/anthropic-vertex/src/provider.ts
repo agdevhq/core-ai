@@ -35,8 +35,10 @@ export function createAnthropicVertex(
             client,
             defaultMaxTokens: options.defaultMaxTokens,
         },
-        PROVIDER_ID,
-        options.useStrictToolSchemas
+        {
+            providerId: PROVIDER_ID,
+            useStrictToolSchemas: options.useStrictToolSchemas,
+        }
     );
 }
 

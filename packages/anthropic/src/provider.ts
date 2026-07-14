@@ -16,6 +16,16 @@ export type AnthropicChatProviderOptions = {
     defaultMaxTokens?: number;
 };
 
+/**
+ * Factory options for sibling packages that compose Anthropic chat.
+ * Not part of {@link createAnthropic} / {@link AnthropicProviderOptions} —
+ * first-party Anthropic always uses strict tool schemas.
+ */
+export type AnthropicChatProviderFactoryOptions = {
+    providerId?: string;
+    useStrictToolSchemas?: boolean;
+};
+
 export type AnthropicChatProvider = {
     chatModel(modelId: string): ChatModel;
 };
@@ -30,12 +40,11 @@ export type AnthropicProvider = AnthropicChatProvider;
  * error handling to the given provider id.
  *
  * Sibling packages (e.g. `@core-ai/anthropic-vertex`) pass a custom client
- * and provider id; end users should prefer {@link createAnthropic}.
+ * and factory options; end users should prefer {@link createAnthropic}.
  */
 export function createAnthropicChatProvider(
     options: AnthropicChatProviderOptions = {},
-    providerId = DEFAULT_PROVIDER_ID,
-    useStrictToolSchemas = true
+    factoryOptions: AnthropicChatProviderFactoryOptions = {}
 ): AnthropicChatProvider {
     const client =
         options.client ??
@@ -44,21 +53,21 @@ export function createAnthropicChatProvider(
             baseURL: options.baseURL,
         });
     const defaultMaxTokens = options.defaultMaxTokens ?? 4096;
+    const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
+    const useStrictToolSchemas = factoryOptions.useStrictToolSchemas ?? true;
 
     return {
         chatModel: (modelId) =>
-            createAnthropicChatModel(
-                client,
-                modelId,
+            createAnthropicChatModel(client, modelId, {
                 defaultMaxTokens,
                 providerId,
-                useStrictToolSchemas
-            ),
+                useStrictToolSchemas,
+            }),
     };
 }
 
 export function createAnthropic(
     options: AnthropicProviderOptions = {}
 ): AnthropicProvider {
-    return createAnthropicChatProvider(options, DEFAULT_PROVIDER_ID);
+    return createAnthropicChatProvider(options);
 }
