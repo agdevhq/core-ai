@@ -9,11 +9,11 @@ const OPENAI_COMPAT_REASONING_MODEL_ENV = 'OPENAI_COMPAT_E2E_REASONING_MODEL';
 export function createOpenAICompatAdapter(): ProviderE2EAdapter {
     const chatModelId = getEnvOrDefault(
         OPENAI_COMPAT_CHAT_MODEL_ENV,
-        'gpt-5-mini'
+        'gpt-5.6-luna'
     );
     const reasoningModelId = getEnvOrDefault(
         OPENAI_COMPAT_REASONING_MODEL_ENV,
-        'gpt-5-mini'
+        'gpt-5.6-luna'
     );
     return {
         id: 'openai-compat',
