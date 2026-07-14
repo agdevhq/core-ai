@@ -28,16 +28,17 @@ A type-safe abstraction layer over LLM provider SDKs for TypeScript. Write provi
 
 ## Providers
 
-| Provider              | Package                     | Chat | Streaming | Embeddings | Image Generation |
-| --------------------- | --------------------------- | ---- | --------- | ---------- | ---------------- |
-| OpenAI                | `@core-ai/openai`           | Yes  | Yes       | Yes        | Yes              |
-| OpenAI-compatible     | `@core-ai/openai-compat`    | Yes  | Yes       | —          | —                |
-| Azure OpenAI          | `@core-ai/azure-openai`     | Yes  | Yes       | —          | —                |
-| Anthropic             | `@core-ai/anthropic`        | Yes  | Yes       | —          | —                |
-| Google GenAI (Gemini) | `@core-ai/google-genai`     | Yes  | Yes       | Yes        | Yes              |
-| Mistral               | `@core-ai/mistral`          | Yes  | Yes       | Yes        | —                |
-| Omnifact              | `@core-ai/omnifact`         | Yes  | Yes       | —          | —                |
-| Vertex AI Anthropic   | `@core-ai/anthropic-vertex` | Yes  | Yes       | —          | —                |
+| Provider                  | Package                        | Chat | Streaming | Embeddings | Image Generation |
+| ------------------------- | ------------------------------ | ---- | --------- | ---------- | ---------------- |
+| OpenAI                    | `@core-ai/openai`              | Yes  | Yes       | Yes        | Yes              |
+| OpenAI-compatible         | `@core-ai/openai-compat`       | Yes  | Yes       | —          | —                |
+| Azure OpenAI              | `@core-ai/azure-openai`        | Yes  | Yes       | —          | —                |
+| Anthropic                 | `@core-ai/anthropic`           | Yes  | Yes       | —          | —                |
+| Google GenAI (Gemini)     | `@core-ai/google-genai`        | Yes  | Yes       | Yes        | Yes              |
+| Google GenAI on Vertex AI | `@core-ai/google-genai-vertex` | Yes  | Yes       | Yes        | Yes              |
+| Mistral                   | `@core-ai/mistral`             | Yes  | Yes       | Yes        | —                |
+| Omnifact                  | `@core-ai/omnifact`            | Yes  | Yes       | —          | —                |
+| Vertex AI Anthropic       | `@core-ai/anthropic-vertex`    | Yes  | Yes       | —          | —                |
 
 > **Note:** `@core-ai/openai` uses the Responses API by default and exposes
 > strict Chat Completions through `openai.chat.chatModel()`. Use
@@ -337,6 +338,29 @@ const result = await generate({
 console.log(result.content);
 ```
 
+### Using Google GenAI on Vertex AI
+
+```typescript
+import { generate } from '@core-ai/core-ai';
+import { createGoogleGenAIVertex } from '@core-ai/google-genai-vertex';
+
+// Uses Google Application Default Credentials (ADC) by default.
+// Pass `credentials` for an explicit service account key instead.
+const googleVertex = createGoogleGenAIVertex({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+const model = googleVertex.chatModel('gemini-2.5-flash');
+
+const result = await generate({
+    model,
+    messages: [{ role: 'user', content: 'Hello!' }],
+    maxTokens: 1024,
+});
+
+console.log(result.content);
+```
+
 ### Using Mistral
 
 ```typescript
@@ -455,6 +479,7 @@ packages/
   azure-openai/  — Azure OpenAI provider implementation
   anthropic/     — Anthropic provider implementation
   google-genai/  — Google GenAI (Gemini) provider implementation
+  google-genai-vertex/ — Google GenAI on Vertex AI provider implementation
   mistral/       — Mistral provider implementation
   omnifact/      — Omnifact API Gateway provider implementation
   anthropic-vertex/ — Vertex AI Anthropic (Claude) provider implementation
@@ -500,7 +525,7 @@ Provider keys:
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
-- `GOOGLE_VERTEX_PROJECT` (Vertex Anthropic; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_JSON`)
+- `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_JSON`)
 
 ## Contributing
 

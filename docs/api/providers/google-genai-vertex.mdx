@@ -1,0 +1,214 @@
+---
+title: 'Google GenAI on Vertex AI'
+description: 'Create and configure the Google GenAI provider for Gemini, embedding, and Imagen models hosted on Vertex AI'
+---
+
+## Overview
+
+The Google GenAI on Vertex AI provider gives you access to Gemini chat and embedding models and Imagen image generation through Google Cloud. It uses the same model behavior as `@core-ai/google-genai`, while configuring the Google GenAI SDK for Vertex AI authentication and regional endpoints.
+
+## Installation
+
+```bash
+npm install @core-ai/google-genai-vertex
+```
+
+## createGoogleGenAIVertex()
+
+Create a Google GenAI provider targeting one Google Cloud project and region.
+
+```typescript
+import { createGoogleGenAIVertex } from '@core-ai/google-genai-vertex';
+
+const googleVertex = createGoogleGenAIVertex({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+```
+
+### Options
+
+<ParamField path="projectId" type="string" optional>
+    Google Cloud project ID. Required unless a preconfigured client is supplied.
+</ParamField>
+
+<ParamField path="region" type="string" optional>
+    Vertex AI location, such as `europe-west1` or `us-central1`. Required unless
+    a preconfigured client is supplied.
+</ParamField>
+
+<ParamField path="credentials" type="Record<string, unknown>" optional>
+    Parsed service-account JSON. When omitted, the Google GenAI SDK uses
+    Application Default Credentials.
+</ParamField>
+
+<ParamField path="client" type="GoogleGenAIClient" optional>
+    A preconfigured Google GenAI client. When supplied, `projectId`, `region`,
+    and `credentials` are not used.
+</ParamField>
+
+### Returns
+
+`GoogleGenAIVertexProvider` with `chatModel()`, `embeddingModel()`, and `imageModel()` methods.
+
+## Authentication
+
+### Application Default Credentials
+
+Without explicit credentials, the provider uses [Application Default Credentials (ADC)](https://cloud.google.com/docs/authentication/application-default-credentials):
+
+```typescript
+const googleVertex = createGoogleGenAIVertex({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+});
+```
+
+ADC is recommended for workloads running on Google Cloud. For local development, configure ADC with the Google Cloud CLI:
+
+```bash
+gcloud auth application-default login
+```
+
+### Service-account credentials
+
+Parse a service-account JSON key and pass the resulting object:
+
+```typescript
+const googleVertex = createGoogleGenAIVertex({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'europe-west1',
+    credentials: JSON.parse(
+        process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON ?? ''
+    ),
+});
+```
+
+### Custom client
+
+You can inject a preconfigured Google GenAI client:
+
+```typescript
+import { GoogleGenAI } from '@google/genai';
+import { createGoogleGenAIVertex } from '@core-ai/google-genai-vertex';
+
+const googleVertex = createGoogleGenAIVertex({
+    client: new GoogleGenAI({
+        vertexai: true,
+        project: 'my-project',
+        location: 'europe-west1',
+    }),
+});
+```
+
+## Models and regions
+
+Use model IDs available to your project in the selected Vertex AI region:
+
+```typescript
+const chat = googleVertex.chatModel('gemini-2.5-flash');
+const embeddings = googleVertex.embeddingModel('gemini-embedding-001');
+const image = googleVertex.imageModel('imagen-4.0-generate-001');
+```
+
+Model availability varies by region. Since a provider instance targets one region, create separate providers for models hosted in different locations.
+
+## Examples
+
+### Chat and streaming
+
+```typescript
+import { generate, stream } from '@core-ai/core-ai';
+
+const model = googleVertex.chatModel('gemini-2.5-flash');
+
+const result = await generate({
+    model,
+    messages: [{ role: 'user', content: 'Explain vector databases.' }],
+});
+
+const chatStream = await stream({
+    model,
+    messages: [{ role: 'user', content: 'Write a short story.' }],
+});
+```
+
+### Embeddings
+
+```typescript
+import { embed } from '@core-ai/core-ai';
+
+const result = await embed({
+    model: googleVertex.embeddingModel('gemini-embedding-001'),
+    input: 'Text to embed',
+});
+```
+
+### Image generation
+
+```typescript
+import { generateImage } from '@core-ai/core-ai';
+
+const result = await generateImage({
+    model: googleVertex.imageModel('imagen-4.0-generate-001'),
+    prompt: 'A serene mountain landscape at dawn',
+});
+```
+
+## Provider-specific options
+
+Provider options remain namespaced under `google`, matching `@core-ai/google-genai`:
+
+```typescript
+const result = await generate({
+    model: googleVertex.chatModel('gemini-2.5-flash'),
+    messages: [{ role: 'user', content: 'Hello' }],
+    providerOptions: {
+        google: {
+            topK: 40,
+            seed: 42,
+        },
+    },
+});
+```
+
+The Google provider-option schemas, `GoogleReasoningMetadata`, and `getGoogleModelCapabilities()` are exported by `@core-ai/google-genai` and apply to Vertex-hosted models.
+
+## Error handling
+
+Errors are wrapped as `ProviderError` with provider ID `google-vertex`:
+
+```typescript
+import { ProviderError } from '@core-ai/core-ai';
+
+try {
+    await generate({
+        model: googleVertex.chatModel('gemini-2.5-flash'),
+        messages: [{ role: 'user', content: 'Hello!' }],
+    });
+} catch (error) {
+    if (error instanceof ProviderError) {
+        console.error(error.provider);
+        console.error(error.message);
+    }
+}
+```
+
+## Related
+
+<CardGroup cols={2}>
+    <Card
+        title="Google GenAI Provider"
+        icon="google"
+        href="/api/providers/google-genai"
+    >
+        Use Gemini through the Google AI API
+    </Card>
+    <Card
+        title="Anthropic on Vertex AI"
+        icon="cloud"
+        href="/api/providers/anthropic-vertex"
+    >
+        Use Claude through Vertex AI
+    </Card>
+</CardGroup>
