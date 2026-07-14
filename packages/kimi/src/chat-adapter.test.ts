@@ -319,7 +319,9 @@ describe('transformStream', () => {
             'reasoning-delta',
             'reasoning-delta',
             'reasoning-end',
+            'text-start',
             'text-delta',
+            'text-end',
             'finish',
         ]);
     });

@@ -1,6 +1,6 @@
 import OpenAI from 'openai';
 import type { ChatModel } from '@core-ai/core-ai';
-import { createKimiChatModel } from './chat-model.js';
+import { createKimiChatModel } from './chat-model.ts';
 import { DEFAULT_BASE_URL } from './constants.ts';
 
 export type KimiProviderOptions = {

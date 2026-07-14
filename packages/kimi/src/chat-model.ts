@@ -28,6 +28,7 @@ import {
     transformStream,
 } from './chat-adapter.ts';
 import { wrapKimiError } from './kimi-error.ts';
+import { getKimiModelCapabilities } from './model-capabilities.ts';
 
 export type KimiChatClient = {
     chat: OpenAI['chat'];
@@ -78,6 +79,7 @@ export function createKimiChatModel(
     return {
         provider,
         modelId,
+        capabilities: getKimiModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

@@ -25,6 +25,9 @@ describe('getKimiModelCapabilities', () => {
         'should return always-on reasoning for %s',
         (modelId) => {
             const capabilities = getKimiModelCapabilities(modelId);
+            expect(capabilities.reasoning.supported).toBe(true);
+            expect(capabilities.reasoning.supportedEfforts).toEqual([]);
+            expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
             expect(capabilities.reasoning.alwaysOn).toBe(true);
             expect(capabilities.reasoning.supportsEffortControl).toBe(false);
             expect(capabilities.sampling.fixedTemperature).toBe(1.0);

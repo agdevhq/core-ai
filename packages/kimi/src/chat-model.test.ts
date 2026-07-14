@@ -9,6 +9,7 @@ import {
     resultToMessage,
 } from '@core-ai/core-ai';
 import { createKimiChatModel } from './chat-model.ts';
+import { getKimiModelCapabilities } from './model-capabilities.ts';
 import { toAsyncIterable } from '@core-ai/testing';
 
 type KimiMessage = ChatCompletion['choices'][number]['message'] & {
@@ -25,6 +26,9 @@ describe('createKimiChatModel', () => {
 
         expect(model.provider).toBe('kimi');
         expect(model.modelId).toBe('kimi-k2.7-code');
+        expect(model.capabilities).toEqual(
+            getKimiModelCapabilities('kimi-k2.7-code')
+        );
     });
 });
 

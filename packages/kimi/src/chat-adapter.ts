@@ -527,6 +527,7 @@ export async function* transformStream(
 
     let finishReason: FinishReason = 'unknown';
     let reasoningOpen = false;
+    let textOpen = false;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -547,6 +548,22 @@ export async function* transformStream(
             type: 'reasoning-end',
             providerMetadata: { kimi: {} },
         };
+    };
+    const startText = function* (): Iterable<StreamEvent> {
+        if (textOpen) {
+            return;
+        }
+
+        textOpen = true;
+        yield { type: 'text-start' };
+    };
+    const closeText = function* (): Iterable<StreamEvent> {
+        if (!textOpen) {
+            return;
+        }
+
+        textOpen = false;
+        yield { type: 'text-end' };
     };
 
     for await (const chunk of stream) {
@@ -576,6 +593,7 @@ export async function* transformStream(
 
         const reasoningDelta = getDeltaReasoningContent(choice.delta);
         if (reasoningDelta) {
+            yield* closeText();
             if (!reasoningOpen) {
                 reasoningOpen = true;
                 yield { type: 'reasoning-start' };
@@ -591,6 +609,7 @@ export async function* transformStream(
             if (reasoningEnd) {
                 yield reasoningEnd;
             }
+            yield* startText();
             yield {
                 type: 'text-delta',
                 text: choice.delta.content,
@@ -602,6 +621,7 @@ export async function* transformStream(
             if (reasoningEnd) {
                 yield reasoningEnd;
             }
+            yield* closeText();
 
             for (const partialToolCall of choice.delta.tool_calls) {
                 const current = bufferedToolCalls.get(
@@ -668,6 +688,7 @@ export async function* transformStream(
     if (reasoningEnd) {
         yield reasoningEnd;
     }
+    yield* closeText();
 
     yield {
         type: 'finish',

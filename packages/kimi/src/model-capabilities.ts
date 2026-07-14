@@ -1,7 +1,10 @@
-import { stripModelDateSuffix } from '@core-ai/core-ai';
+import {
+    stripModelDateSuffix,
+    type ModelCapabilities,
+} from '@core-ai/core-ai';
 
-export type KimiModelCapabilities = {
-    reasoning: {
+export type KimiModelCapabilities = ModelCapabilities & {
+    reasoning: ModelCapabilities['reasoning'] & {
         alwaysOn: boolean;
         supportsEffortControl: boolean;
     };
@@ -16,6 +19,9 @@ export type KimiModelCapabilities = {
 
 const K2_7_CODE_CAPABILITIES: KimiModelCapabilities = {
     reasoning: {
+        supported: true,
+        supportedEfforts: [],
+        restrictsSamplingParams: true,
         alwaysOn: true,
         supportsEffortControl: false,
     },
