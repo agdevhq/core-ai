@@ -5,7 +5,8 @@ import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const GOOGLE_VERTEX_PROJECT_ENV = 'GOOGLE_VERTEX_PROJECT';
 const GOOGLE_VERTEX_REGION_ENV = 'GOOGLE_VERTEX_REGION';
-const GOOGLE_APPLICATION_CREDENTIALS_ENV = 'GOOGLE_APPLICATION_CREDENTIALS';
+const GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV =
+    'GOOGLE_APPLICATION_CREDENTIALS_JSON';
 const ANTHROPIC_VERTEX_CHAT_MODEL_ENV = 'ANTHROPIC_VERTEX_E2E_CHAT_MODEL';
 const ANTHROPIC_VERTEX_REASONING_MODEL_ENV =
     'ANTHROPIC_VERTEX_E2E_REASONING_MODEL';
@@ -47,7 +48,9 @@ export function createAnthropicVertexAdapter(): ProviderE2EAdapter {
 function createAnthropicVertexProvider() {
     const projectId = getEnvValue(GOOGLE_VERTEX_PROJECT_ENV);
     const region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1');
-    const credentialsJson = getEnvValue(GOOGLE_APPLICATION_CREDENTIALS_ENV);
+    const credentialsJson = getEnvValue(
+        GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
+    );
 
     return createAnthropicVertex({
         projectId,
@@ -56,7 +59,7 @@ function createAnthropicVertexProvider() {
             ? {
                   credentials: parseGoogleApplicationCredentialsJson(
                       credentialsJson,
-                      GOOGLE_APPLICATION_CREDENTIALS_ENV
+                      GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
                   ),
               }
             : {}),

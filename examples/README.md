@@ -37,7 +37,7 @@ GOOGLE_VERTEX_PROJECT=your_google_cloud_project_id
 Optional: `OMNIFACT_MODEL` overrides the model id (default in the example: `eu/gpt-5-mini`). Use ids from `GET /v1/gateway/models`.
 `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT` are only required for the Azure OpenAI example.
 Optional: `AZURE_OPENAI_DEPLOYMENT` overrides the deployment name (default in the example: `gpt-5-mini`). Set `AZURE_OPENAI_API=classic` to use the classic Azure API; `AZURE_OPENAI_API_VERSION` overrides the classic API version.
-`GOOGLE_VERTEX_PROJECT` is required for the Vertex AI examples. They use Application Default Credentials — run `gcloud auth application-default login` first, or set `GOOGLE_APPLICATION_CREDENTIALS` to inline service account JSON or base64-encoded JSON.
+`GOOGLE_VERTEX_PROJECT` is required for the Vertex AI examples. They use Application Default Credentials — run `gcloud auth application-default login` first, or set `GOOGLE_APPLICATION_CREDENTIALS_JSON` to inline service account JSON or base64-encoded JSON.
 Optional: `GOOGLE_VERTEX_REGION` overrides the region (default: `europe-west1`); `ANTHROPIC_VERTEX_MODEL` and `GOOGLE_VERTEX_MODEL` override the respective model ids.
 
 ## Run an Example

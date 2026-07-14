@@ -44,7 +44,7 @@ const googleVertex = createGoogleVertex({
 To authenticate with an explicit service account, parse its JSON key and pass it as `credentials`:
 
 ```ts
-const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const rawCredentials = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
 const credentialsJson = rawCredentials?.trim().startsWith('{')
     ? rawCredentials
     : Buffer.from(rawCredentials ?? '', 'base64').toString('utf8');
