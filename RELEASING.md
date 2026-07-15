@@ -6,8 +6,10 @@ This repository uses Turborepo for build/test tasks and Changesets for versionin
 
 - `@core-ai/core-ai`
 - `@core-ai/opentelemetry`
+- `@core-ai/axiom`
 - `@core-ai/langfuse`
 - `@core-ai/openai`
+- `@core-ai/openai-compat`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
 - `@core-ai/google-vertex`
