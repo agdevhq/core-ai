@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/kimi",
-    "version": "0.14.0",
+    "version": "0.16.0",
     "description": "Kimi (Moonshot AI) provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -45,7 +45,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.14.0",
+        "@core-ai/core-ai": "^0.16.0",
         "openai": "^6.46.0"
     },
     "peerDependencies": {
