@@ -15,7 +15,7 @@ npm install -w <workspace-name> some-package
 
 ## TypeScript & ESM
 
-All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. All relative imports must use `.ts` extensions.
+All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. Relative imports must include an explicit `.js` or `.ts` extension. Follow the existing convention in the package being modified.
 
 TypeScript configurations:
 
@@ -170,7 +170,7 @@ export const DEFAULT_CONFIG = {
 
 ### Import Organization
 
-- Local file imports: always include `.ts` extensions
+- Local file imports: include an explicit `.js` or `.ts` extension, following the package's existing convention
 - Workspace package imports and npm packages: no extensions needed
 - Check the target package's `package.json` exports before importing from workspace packages
 
@@ -184,6 +184,6 @@ Group imports in this order:
 import { z } from 'zod';
 import { getLogger } from '@workspace/logging';
 
-import { createConnection } from '../database.ts';
-import { UserRole } from '../models/user.ts';
+import { createConnection } from '../database.js';
+import { UserRole } from '../models/user.js';
 ```
