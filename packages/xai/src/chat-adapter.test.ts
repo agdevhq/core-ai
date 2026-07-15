@@ -198,12 +198,43 @@ describe('createGenerateRequest', () => {
 });
 
 describe('createStructuredOutputOptions', () => {
-    it('should use xAI JSON mode instead of forced tool choice', () => {
-        const result = createStructuredOutputOptions({
+    it('should use native JSON Schema for supported models', () => {
+        const result = createStructuredOutputOptions('grok-4.3', {
             messages: [{ role: 'user', content: 'Return weather JSON' }],
             schema: z.object({
                 city: z.string(),
                 temperatureC: z.number(),
+            }),
+            schemaName: 'weather_schema',
+            schemaDescription: 'Structured weather output',
+        });
+
+        expect(result).toMatchObject({
+            providerOptions: {
+                xai: {
+                    responseFormat: {
+                        type: 'json_schema',
+                        json_schema: {
+                            name: 'weather_schema',
+                            description: 'Structured weather output',
+                            strict: true,
+                        },
+                    },
+                },
+            },
+        });
+        expect(result.tools).toBeUndefined();
+        expect(result.toolChoice).toBeUndefined();
+        expect(result.messages).toEqual([
+            { role: 'user', content: 'Return weather JSON' },
+        ]);
+    });
+
+    it('should fall back to JSON mode for unknown models', () => {
+        const result = createStructuredOutputOptions('custom-xai-model', {
+            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            schema: z.object({
+                city: z.string(),
             }),
             schemaName: 'weather_schema',
         });
@@ -215,8 +246,6 @@ describe('createStructuredOutputOptions', () => {
                 },
             },
         });
-        expect(result.tools).toBeUndefined();
-        expect(result.toolChoice).toBeUndefined();
         expect(result.messages[0]).toMatchObject({
             role: 'system',
             content: expect.stringContaining('weather_schema'),

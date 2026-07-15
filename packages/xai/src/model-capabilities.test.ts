@@ -3,6 +3,7 @@ import {
     getXAIModelCapabilities,
     isReasoningModel,
     normalizeModelId,
+    supportsNativeStructuredOutput,
     supportsReasoningEffort,
     toXAIReasoningEffort,
 } from './model-capabilities.ts';
@@ -88,6 +89,20 @@ describe('supportsReasoningEffort', () => {
     it('should return false for reasoning models without effort control', () => {
         expect(supportsReasoningEffort('grok-4.20-0309-reasoning')).toBe(false);
         expect(supportsReasoningEffort('grok-4.5')).toBe(false);
+    });
+});
+
+describe('supportsNativeStructuredOutput', () => {
+    it('should return true for documented model families and aliases', () => {
+        expect(supportsNativeStructuredOutput('grok-4.3-latest')).toBe(true);
+        expect(supportsNativeStructuredOutput('grok-4.20')).toBe(true);
+        expect(
+            supportsNativeStructuredOutput('grok-4.20-non-reasoning-latest')
+        ).toBe(true);
+    });
+
+    it('should return false for unknown models', () => {
+        expect(supportsNativeStructuredOutput('custom-xai-model')).toBe(false);
     });
 });
 

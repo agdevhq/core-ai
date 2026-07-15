@@ -85,6 +85,12 @@ const NON_REASONING_MODEL_IDS = new Set([
     'grok-4.20-non-reasoning-latest',
 ]);
 
+const NATIVE_STRUCTURED_OUTPUT_MODEL_IDS = new Set([
+    ...CONFIGURABLE_REASONING_MODEL_IDS,
+    ...REASONING_MODEL_IDS,
+    ...NON_REASONING_MODEL_IDS,
+]);
+
 export function normalizeModelId(modelId: string): string {
     return stripModelDateSuffix(modelId.trim().toLowerCase());
 }
@@ -95,6 +101,10 @@ export function supportsReasoningEffort(modelId: string): boolean {
 
 export function isReasoningModel(modelId: string): boolean {
     return getXAIModelCapabilities(modelId).reasoning.supported;
+}
+
+export function supportsNativeStructuredOutput(modelId: string): boolean {
+    return NATIVE_STRUCTURED_OUTPUT_MODEL_IDS.has(normalizeModelId(modelId));
 }
 
 export function getXAIModelCapabilities(

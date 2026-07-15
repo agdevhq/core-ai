@@ -5,4 +5,7 @@ export type { XAIReasoningMetadata } from './provider-options.ts';
 export type { XAIGenerateProviderOptions } from './provider-options.ts';
 export { xaiGenerateProviderOptionsSchema } from './provider-options.ts';
 export type { XAIModelCapabilities } from './model-capabilities.ts';
-export { getXAIModelCapabilities } from './model-capabilities.ts';
+export {
+    getXAIModelCapabilities,
+    supportsNativeStructuredOutput,
+} from './model-capabilities.ts';

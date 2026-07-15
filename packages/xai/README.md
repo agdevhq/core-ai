@@ -45,7 +45,10 @@ For `grok-4.3`, pass `reasoning: { effort: 'low' | 'medium' | 'high' }` to contr
 
 ## Structured output
 
-`generateObject()` and `streamObject()` use xAI JSON Mode (`response_format: { type: 'json_object' }`) and validate the returned JSON with your Zod schema.
+`generateObject()` and `streamObject()` use native xAI JSON Schema response
+formats for documented models and validate the returned JSON with your Zod
+schema. Unknown or incompatible model IDs fall back to JSON Mode with the
+schema included in the prompt.
 
 ## Provider options
 

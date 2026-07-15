@@ -85,7 +85,10 @@ export function createXAIChatModel(
         async generateObject<TSchema extends z.ZodType>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                modelId,
+                options
+            );
             const result = await generateChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
             const object = extractStructuredObject(
@@ -104,7 +107,10 @@ export function createXAIChatModel(
         async streamObject<TSchema extends z.ZodType>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                modelId,
+                options
+            );
             const stream = await streamChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
 

@@ -27,6 +27,7 @@ import {
 } from '@core-ai/core-ai';
 import {
     isReasoningModel,
+    supportsNativeStructuredOutput,
     supportsReasoningEffort,
     toXAIReasoningEffort,
 } from './model-capabilities.ts';
@@ -210,13 +211,16 @@ export function getStructuredOutputToolName<TSchema extends z.ZodType>(
 }
 
 export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+    modelId: string,
     options: GenerateObjectOptions<TSchema>
 ): GenerateOptions {
+    const nativeStructuredOutput =
+        supportsNativeStructuredOutput(modelId);
+
     return {
-        messages: [
-            createStructuredOutputInstruction(options),
-            ...options.messages,
-        ],
+        messages: nativeStructuredOutput
+            ? options.messages
+            : [createStructuredOutputInstruction(options), ...options.messages],
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
@@ -225,7 +229,22 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
             ...options.providerOptions,
             xai: {
                 ...options.providerOptions?.xai,
-                responseFormat: { type: 'json_object' },
+                responseFormat: nativeStructuredOutput
+                    ? {
+                          type: 'json_schema',
+                          json_schema: {
+                              name: getStructuredOutputToolName(options),
+                              ...(options.schemaDescription
+                                  ? {
+                                        description:
+                                            options.schemaDescription,
+                                    }
+                                  : {}),
+                              strict: true,
+                              schema: zodSchemaToJsonSchema(options.schema),
+                          },
+                      }
+                    : { type: 'json_object' },
             },
         },
         signal: options.signal,

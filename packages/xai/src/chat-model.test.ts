@@ -126,10 +126,16 @@ describe('generate', () => {
         ).rejects.toBeInstanceOf(AbortedError);
     });
 
-    it('should generate a validated structured object through JSON mode', async () => {
+    it('should generate a validated structured object through native JSON Schema', async () => {
         const create = vi.fn(async (request: unknown) => {
             expect(request).toMatchObject({
-                response_format: { type: 'json_object' },
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'weather_schema',
+                        strict: true,
+                    },
+                },
             });
 
             return asChatCompletion({
@@ -165,10 +171,16 @@ describe('generate', () => {
         });
     });
 
-    it('should stream a validated structured object through JSON mode', async () => {
+    it('should stream a validated structured object through native JSON Schema', async () => {
         const create = vi.fn(async (request: unknown) => {
             expect(request).toMatchObject({
-                response_format: { type: 'json_object' },
+                response_format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'weather_schema',
+                        strict: true,
+                    },
+                },
                 stream: true,
             });
 
