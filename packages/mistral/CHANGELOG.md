@@ -1,5 +1,15 @@
 # @core-ai/mistral
 
+## 0.16.0
+
+### Minor Changes
+
+- 5e57ec7: Upgrade `@mistralai/mistralai` to v2 and use its package exports for error and component imports.
+
+### Patch Changes
+
+- @core-ai/core-ai@0.16.0
+
 ## 0.15.0
 
 ### Patch Changes
