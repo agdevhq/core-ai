@@ -57,7 +57,7 @@ npx tsx examples/01-chat-completion.ts
 The telemetry example uses a real OpenAI model and requires `OPENAI_API_KEY`:
 
 ```bash
-npx tsx examples/19-telemetry-console-exporter.ts
+npx tsx examples/20-telemetry-console-exporter.ts
 ```
 
 ## Available Examples
@@ -77,9 +77,9 @@ npx tsx examples/19-telemetry-console-exporter.ts
 - `13-anthropic-vertex-provider.ts`: Using Claude on Vertex AI with the same `generate()` API
 - `14-google-vertex-provider.ts`: Using Gemini on Vertex AI with the same `generate()` API
 - `15-kimi-provider.ts`: Using Kimi with reasoning output and the same `generate()` API
-- `16-generate-object.ts`: Typed structured output with `generateObject()`
-- `17-stream-object.ts`: Streaming structured output with `streamObject()`
-- `18-stream-abort.ts`: Cancelling a streaming call with `AbortController`
-- `19-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
-- `20-telemetry-axiom-exporter.ts`: OpenAI-backed telemetry example that exports spans to Axiom
-- `21-xai-provider.ts`: Using xAI (Grok) with reasoning output and the same `generate()` API
+- `16-xai-provider.ts`: Using xAI (Grok) with reasoning output and the same `generate()` API
+- `17-generate-object.ts`: Typed structured output with `generateObject()`
+- `18-stream-object.ts`: Streaming structured output with `streamObject()`
+- `19-stream-abort.ts`: Cancelling a streaming call with `AbortController`
+- `20-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
+- `21-telemetry-axiom-exporter.ts`: OpenAI-backed telemetry example that exports spans to Axiom
