@@ -226,7 +226,7 @@ describe('structured output helpers', () => {
 });
 
 describe('reasoning support', () => {
-    it('should preserve reasoning parts as thinking chunks', () => {
+    it('should replay native mistral reasoning as a thinking chunk', () => {
         const messages: Message[] = [
             {
                 role: 'assistant',
@@ -234,7 +234,7 @@ describe('reasoning support', () => {
                     {
                         type: 'reasoning',
                         text: 'thoughts',
-                        metadata: { internal: true },
+                        providerMetadata: { mistral: {} },
                     },
                     {
                         type: 'text',
@@ -259,7 +259,7 @@ describe('reasoning support', () => {
         ]);
     });
 
-    it('should preserve cross-provider reasoning as a thinking chunk', () => {
+    it('should preserve cross-provider reasoning as <thinking> text', () => {
         const messages: Message[] = [
             {
                 role: 'assistant',
@@ -280,13 +280,116 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
+                    { type: 'text', text: '<thinking>thoughts</thinking>' },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ]);
+    });
+
+    it('should preserve reasoning without provider metadata as <thinking> text', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
                     {
-                        type: 'thinking',
-                        thinking: [{ type: 'text', text: 'thoughts' }],
+                        type: 'reasoning',
+                        text: 'thoughts',
+                        metadata: { internal: true },
                     },
                     { type: 'text', text: 'answer' },
                 ],
             },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'text', text: '<thinking>thoughts</thinking>' },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ]);
+    });
+
+    it('should preserve foreign reasoning as <thinking> text for non-reasoning models', () => {
+        const request = createGenerateRequest('codestral-latest', {
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thoughts',
+                            providerMetadata: {
+                                anthropic: { signature: 'sig123' },
+                            },
+                        },
+                        { type: 'text', text: 'answer' },
+                    ],
+                },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thoughts only',
+                            providerMetadata: {
+                                anthropic: { signature: 'sig456' },
+                            },
+                        },
+                    ],
+                },
+                { role: 'user', content: 'Continue' },
+            ],
+        });
+
+        expect(request.messages).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'text', text: '<thinking>thoughts</thinking>' },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'text', text: '<thinking>thoughts only</thinking>' },
+                ],
+            },
+            { role: 'user', content: 'Continue' },
+        ]);
+    });
+
+    it('should preserve native mistral reasoning as <thinking> text for non-reasoning models', () => {
+        const request = createGenerateRequest('codestral-latest', {
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thoughts',
+                            providerMetadata: { mistral: {} },
+                        },
+                        { type: 'text', text: 'answer' },
+                    ],
+                },
+                { role: 'user', content: 'Continue' },
+            ],
+        });
+
+        expect(request.messages).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'text', text: '<thinking>thoughts</thinking>' },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+            { role: 'user', content: 'Continue' },
         ]);
     });
 
