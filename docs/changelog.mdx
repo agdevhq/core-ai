@@ -3,6 +3,62 @@ title: Releases
 description: Release history for all core-ai packages.
 ---
 
+<Update label="0.15.0" description="Vertex providers, OpenAI Responses default, and openai-compat" tags={["improvement"]}>
+  ### @core-ai/anthropic-vertex
+
+  - Add a first-party Anthropic Vertex AI provider for Claude models. Authenticates with Application Default Credentials or an explicit service account key.
+  - Allow disabling strict tool schemas with the `useStrictToolSchemas` provider option.
+
+  ### @core-ai/google-vertex
+
+  - Add a first-party Google Vertex AI provider for Gemini, embedding, and Imagen models with Application Default Credentials or explicit service-account authentication.
+
+  ### @core-ai/openai-compat
+
+  - Add a standalone Chat Completions provider for OpenAI-compatible gateways. Configure nonstandard reasoning extraction and structured output transport independently with `reasoning` and `structuredOutputMode`.
+  - Select the Chat Completions token-limit parameter automatically for known OpenAI models while keeping `max_tokens` as the compatibility default for unknown models.
+
+  ### @core-ai/openai
+
+  - Root `createOpenAI()` uses the Responses API by default. Strict Chat Completions are available at `openai.chat.chatModel()`. Object generation prefers native strict JSON Schema output.
+  - Map `maxTokens` to `max_completion_tokens` for known GPT-5 and o-series models when using strict Chat Completions.
+
+  ### @core-ai/azure-openai
+
+  - Azure OpenAI v1 uses the Responses API by default. Strict Chat Completions are available at `azure.chat.chatModel()`. Classic API access is unchanged.
+  - Select `max_completion_tokens` automatically for known OpenAI model IDs used with Azure Chat Completions while keeping `max_tokens` for unknown deployment names.
+
+  ### @core-ai/google-genai
+
+  - Support Gemini native image models through `imageModel()` while preserving the existing Imagen generation path.
+  - Expose a reusable provider factory with configurable provider attribution for Google GenAI clients.
+
+  ### @core-ai/omnifact
+
+  - Use the shared OpenAI compatibility layer for nonstandard reasoning response fields.
+  - Always map `maxTokens` to `max_completion_tokens` for Omnifact Chat Completions requests.
+
+  ### @core-ai/core-ai
+
+  - Normalize dated Vertex model IDs for capability detection.
+</Update>
+
+<Update label="0.14.0" description="Application part metadata and text boundary events" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add optional application-owned metadata on text-bearing message parts and `text-start` / `text-end` stream events. Stream aggregation preserves metadata through results and `resultToMessage()`.
+</Update>
+
+<Update label="0.13.1" description="Anthropic reasoning fixes and OpenAI SDK bump" tags={["fix"]}>
+  ### @core-ai/anthropic
+
+  - Fix Anthropic adaptive and manual reasoning requests, including tool-use beta headers, token budgets, thinking block preservation, summarized output, and reasoning token usage.
+
+  ### @core-ai/openai
+
+  - Bump the OpenAI SDK to 6.46.0 for GPT-5.6 API types and Responses API fixes.
+</Update>
+
 <Update label="0.13.0" description="Model capabilities and new models" tags={["improvement"]}>
   ### @core-ai/core-ai
 
