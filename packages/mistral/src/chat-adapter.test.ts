@@ -290,6 +290,39 @@ describe('reasoning support', () => {
         ]);
     });
 
+    it('should omit reasoning for models without reasoning support', () => {
+        const request = createGenerateRequest('codestral-latest', {
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thoughts',
+                            providerMetadata: {
+                                anthropic: { signature: 'sig123' },
+                            },
+                        },
+                        { type: 'text', text: 'answer' },
+                    ],
+                },
+                {
+                    role: 'assistant',
+                    parts: [{ type: 'reasoning', text: 'thoughts only' }],
+                },
+                { role: 'user', content: 'Continue' },
+            ],
+        });
+
+        expect(request.messages).toEqual([
+            {
+                role: 'assistant',
+                content: [{ type: 'text', text: 'answer' }],
+            },
+            { role: 'user', content: 'Continue' },
+        ]);
+    });
+
     it('should accept reasoning config as a no-op in requests', () => {
         const request = createGenerateRequest('magistral-medium-latest', {
             messages: [{ role: 'user', content: 'Hi' }],

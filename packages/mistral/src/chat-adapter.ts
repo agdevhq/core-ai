@@ -33,18 +33,33 @@ import {
     parseMistralGenerateProviderOptions,
     type MistralGenerateProviderOptions,
 } from './provider-options.js';
+import { getMistralModelCapabilities } from './model-capabilities.js';
 
 type MistralFunctionTool = Tool & { type: 'function' };
+type ConvertMessagesOptions = {
+    includeReasoning?: boolean;
+};
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
     'Return a JSON object that matches the requested schema.';
 
-export function convertMessages(messages: Message[]): MistralMessage[] {
-    return messages.map(convertMessage);
+export function convertMessages(
+    messages: Message[],
+    options: ConvertMessagesOptions = {}
+): MistralMessage[] {
+    const includeReasoning = options.includeReasoning ?? true;
+
+    return messages.flatMap((message) => {
+        const convertedMessage = convertMessage(message, includeReasoning);
+        return convertedMessage ? [convertedMessage] : [];
+    });
 }
 
-function convertMessage(message: Message): MistralMessage {
+function convertMessage(
+    message: Message,
+    includeReasoning: boolean
+): MistralMessage | undefined {
     if (message.role === 'system') {
         return {
             role: 'system',
@@ -71,12 +86,20 @@ function convertMessage(message: Message): MistralMessage {
         for (const part of message.parts) {
             if (part.type === 'text') {
                 contentChunks.push({ type: 'text', text: part.text });
-            } else if (part.type === 'reasoning' && part.text.length > 0) {
+            } else if (
+                includeReasoning &&
+                part.type === 'reasoning' &&
+                part.text.length > 0
+            ) {
                 contentChunks.push({
                     type: 'thinking',
                     thinking: [{ type: 'text', text: part.text }],
                 });
             }
+        }
+
+        if (contentChunks.length === 0 && toolCalls.length === 0) {
+            return undefined;
         }
 
         return {
@@ -226,9 +249,13 @@ export function createStreamRequest(
 }
 
 function createRequestBase(modelId: string, options: GenerateOptions) {
+    const capabilities = getMistralModelCapabilities(modelId);
+
     return {
         model: modelId,
-        messages: convertMessages(options.messages),
+        messages: convertMessages(options.messages, {
+            includeReasoning: capabilities.reasoning.supported,
+        }),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
