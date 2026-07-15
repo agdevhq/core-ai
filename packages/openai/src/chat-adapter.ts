@@ -43,14 +43,27 @@ export type OpenAIReasoningMetadata = {
     encryptedContent?: string;
 };
 
+type ConvertMessagesOptions = {
+    includeReasoning?: boolean;
+};
+
 const ENCRYPTED_REASONING_INCLUDE = 'reasoning.encrypted_content';
 const REASONING_SUMMARY_SEPARATOR = '\n\n';
 
-export function convertMessages(messages: Message[]): ResponseInputItem[] {
-    return messages.flatMap(convertMessage);
+export function convertMessages(
+    messages: Message[],
+    options: ConvertMessagesOptions = {}
+): ResponseInputItem[] {
+    const includeReasoning = options.includeReasoning ?? true;
+    return messages.flatMap((message) =>
+        convertMessage(message, includeReasoning)
+    );
 }
 
-function convertMessage(message: Message): ResponseInputItem[] {
+function convertMessage(
+    message: Message,
+    includeReasoning: boolean
+): ResponseInputItem[] {
     if (message.role === 'system') {
         return [
             {
@@ -73,7 +86,7 @@ function convertMessage(message: Message): ResponseInputItem[] {
     }
 
     if (message.role === 'assistant') {
-        return convertAssistantMessage(message.parts);
+        return convertAssistantMessage(message.parts, includeReasoning);
     }
 
     return [
@@ -86,7 +99,8 @@ function convertMessage(message: Message): ResponseInputItem[] {
 }
 
 function convertAssistantMessage(
-    parts: AssistantContentPart[]
+    parts: AssistantContentPart[],
+    includeReasoning: boolean
 ): ResponseInputItem[] {
     const items: ResponseInputItem[] = [];
     const textParts: string[] = [];
@@ -111,6 +125,7 @@ function convertAssistantMessage(
 
         if (part.type === 'reasoning') {
             if (
+                !includeReasoning ||
                 getProviderMetadata<OpenAIReasoningMetadata>(
                     part.providerMetadata,
                     'openai'
@@ -246,11 +261,14 @@ function createRequest(
 
 function createRequestBase(modelId: string, options: GenerateOptions) {
     validateOpenAIReasoningConfig(modelId, options);
+    const capabilities = getOpenAIModelCapabilities(modelId);
 
     return {
         model: modelId,
         store: false as const,
-        input: convertMessages(options.messages),
+        input: convertMessages(options.messages, {
+            includeReasoning: capabilities.reasoning.supported,
+        }),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertResponseTools(options.tools) }
             : {}),

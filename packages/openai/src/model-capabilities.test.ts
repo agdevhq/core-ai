@@ -112,6 +112,24 @@ describe('getOpenAIModelCapabilities', () => {
         expect(capabilities.reasoning.supportedEfforts).toEqual([]);
     });
 
+    it.each([
+        'gpt-4.1',
+        'gpt-4.1-mini',
+        'gpt-4.1-nano',
+        'gpt-4o',
+        'gpt-4o-mini',
+        'gpt-4-turbo',
+        'gpt-3.5-turbo',
+    ])('should return non-reasoning capabilities for %s', (modelId) => {
+        const capabilities = getOpenAIModelCapabilities(modelId);
+
+        expect(capabilities.reasoning.supported).toBe(false);
+        expect(capabilities.reasoning.supportedEfforts).toEqual([]);
+        expect(capabilities.chatCompletions.maxTokensParameter).toBe(
+            'max_tokens'
+        );
+    });
+
     it('should resolve dated model IDs to the same capabilities', () => {
         expect(getOpenAIModelCapabilities('gpt-5.2-20260215')).toEqual(
             getOpenAIModelCapabilities('gpt-5.2')
