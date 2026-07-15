@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.15.0
+
+### Patch Changes
+
+- 381fd9d: Normalize dated Vertex model IDs for capability detection.
+
 ## 0.14.0
 
 ### Minor Changes

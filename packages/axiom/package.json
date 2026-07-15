@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/axiom",
-    "version": "0.14.0",
+    "version": "0.15.0",
     "description": "Axiom GenAI telemetry middleware for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -44,7 +44,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/opentelemetry": "^0.14.0"
+        "@core-ai/opentelemetry": "^0.15.0"
     },
     "peerDependencies": {
         "@opentelemetry/api": "^1.9.1"

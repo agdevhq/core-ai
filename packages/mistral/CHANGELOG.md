@@ -1,5 +1,12 @@
 # @core-ai/mistral
 
+## 0.15.0
+
+### Patch Changes
+
+- Updated dependencies [381fd9d]
+    - @core-ai/core-ai@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes

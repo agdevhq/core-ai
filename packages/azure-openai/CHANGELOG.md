@@ -1,5 +1,20 @@
 # @core-ai/azure-openai
 
+## 0.15.0
+
+### Minor Changes
+
+- caebeb3: Azure OpenAI v1 uses the Responses API by default. Strict Chat Completions are available at `azure.chat.chatModel()`. Classic API access is unchanged.
+
+### Patch Changes
+
+- 6d4e4d8: Select `max_completion_tokens` automatically for known OpenAI model IDs used with Azure Chat Completions while keeping `max_tokens` for unknown deployment names.
+- Updated dependencies [381fd9d]
+- Updated dependencies [6d4e4d8]
+- Updated dependencies [caebeb3]
+    - @core-ai/core-ai@0.15.0
+    - @core-ai/openai@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes
