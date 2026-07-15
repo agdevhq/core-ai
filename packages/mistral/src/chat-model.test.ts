@@ -5,7 +5,7 @@ import type {
     ChatCompletionResponse,
     CompletionEvent,
 } from '@mistralai/mistralai/models/components';
-import { RequestAbortedError } from '@mistralai/mistralai/models/errors/httpclienterrors';
+import { RequestAbortedError } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
     ProviderError,

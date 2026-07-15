@@ -1,5 +1,7 @@
-import { RequestAbortedError } from '@mistralai/mistralai/models/errors/httpclienterrors';
-import { MistralError } from '@mistralai/mistralai/models/errors';
+import {
+    RequestAbortedError,
+    MistralError,
+} from '@mistralai/mistralai/models/errors';
 import { AbortedError, ProviderError } from '@core-ai/core-ai';
 
 export function wrapMistralError(error: unknown): AbortedError | ProviderError {

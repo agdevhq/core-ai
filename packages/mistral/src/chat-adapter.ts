@@ -1,12 +1,12 @@
 import type {
     ChatCompletionRequest,
+    ChatCompletionRequestMessage as MistralMessage,
     ChatCompletionRequestToolChoice,
     ChatCompletionResponse,
     ChatCompletionStreamRequest,
     CompletionEvent,
     ContentChunk,
-    Messages as MistralMessage,
-    Tool as MistralTool,
+    Tool,
     ToolCall as MistralToolCall,
     UsageInfo,
 } from '@mistralai/mistralai/models/components';
@@ -33,6 +33,8 @@ import {
     parseMistralGenerateProviderOptions,
     type MistralGenerateProviderOptions,
 } from './provider-options.js';
+
+type MistralFunctionTool = Tool & { type: 'function' };
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
@@ -131,15 +133,17 @@ function convertUserContentPart(part: UserContentPart): ContentChunk {
     };
 }
 
-export function convertTools(tools: ToolSet): MistralTool[] {
-    return Object.values(tools).map((tool) => ({
-        type: 'function',
-        function: {
-            name: tool.name,
-            description: tool.description,
-            parameters: zodSchemaToJsonSchema(tool.parameters),
-        },
-    }));
+export function convertTools(tools: ToolSet): MistralFunctionTool[] {
+    return Object.values(tools).map(
+        (tool): MistralFunctionTool => ({
+            type: 'function',
+            function: {
+                name: tool.name,
+                description: tool.description,
+                parameters: zodSchemaToJsonSchema(tool.parameters),
+            },
+        })
+    );
 }
 
 export function convertToolChoice(
@@ -294,6 +298,17 @@ export function mapGenerateResponse(
             reasoning: null,
             toolCalls: [],
             finishReason: 'unknown',
+            usage: mapUsage(response.usage),
+        };
+    }
+
+    if (!firstChoice.message) {
+        return {
+            parts: [],
+            content: null,
+            reasoning: null,
+            toolCalls: [],
+            finishReason: mapFinishReason(firstChoice.finishReason),
             usage: mapUsage(response.usage),
         };
     }
