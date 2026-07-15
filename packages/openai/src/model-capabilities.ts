@@ -71,16 +71,26 @@ const GPT_5_MINIMAL_REASONING_CAPABILITIES = createCapabilities(
 const GPT_5_PRO_REASONING_CAPABILITIES = createCapabilities(PRO_EFFORTS, true);
 const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities(HIGH_EFFORT, true);
 
-const NO_REASONING_EFFORT_CAPABILITIES: OpenAIModelCapabilities = {
-    reasoning: {
-        supported: false,
-        supportedEfforts: [],
-        restrictsSamplingParams: false,
-    },
-    chatCompletions: {
-        maxTokensParameter: 'max_completion_tokens',
-    },
-};
+function createNoReasoningCapabilities(
+    maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter']
+): OpenAIModelCapabilities {
+    return {
+        reasoning: {
+            supported: false,
+            supportedEfforts: [],
+            restrictsSamplingParams: false,
+        },
+        chatCompletions: {
+            maxTokensParameter,
+        },
+    };
+}
+
+const NO_REASONING_CAPABILITIES =
+    createNoReasoningCapabilities('max_tokens');
+const NO_REASONING_EFFORT_CAPABILITIES = createNoReasoningCapabilities(
+    'max_completion_tokens'
+);
 
 const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities(
     MAX_EFFORTS,
@@ -116,6 +126,13 @@ const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'o4-mini': DEFAULT_CAPABILITIES,
     o1: DEFAULT_CAPABILITIES,
     'o1-mini': NO_REASONING_EFFORT_CAPABILITIES,
+    'gpt-4.1': NO_REASONING_CAPABILITIES,
+    'gpt-4.1-mini': NO_REASONING_CAPABILITIES,
+    'gpt-4.1-nano': NO_REASONING_CAPABILITIES,
+    'gpt-4o': NO_REASONING_CAPABILITIES,
+    'gpt-4o-mini': NO_REASONING_CAPABILITIES,
+    'gpt-4-turbo': NO_REASONING_CAPABILITIES,
+    'gpt-3.5-turbo': NO_REASONING_CAPABILITIES,
 };
 
 const OPENAI_REASONING_EFFORT_MAP: Record<

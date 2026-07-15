@@ -319,6 +319,33 @@ describe('createGenerateRequest', () => {
         expect(request.include).toBeUndefined();
     });
 
+    it('should convert encrypted reasoning to text for models without reasoning support', () => {
+        const request = createGenerateRequest('gpt-4o', {
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thinking...',
+                            providerMetadata: {
+                                openai: { encryptedContent: 'enc_123' },
+                            },
+                        },
+                        { type: 'text', text: 'answer' },
+                    ],
+                },
+            ],
+        });
+
+        expect(request.input).toEqual([
+            {
+                role: 'assistant',
+                content: '<thinking>thinking...</thinking>\n\nanswer',
+            },
+        ]);
+    });
+
     it('should map and clamp reasoning effort for supported models', () => {
         const maxRequest = createGenerateRequest('gpt-5.2', {
             messages: [{ role: 'user', content: 'Hi' }],
