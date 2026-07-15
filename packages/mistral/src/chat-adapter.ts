@@ -34,8 +34,12 @@ import {
     parseMistralGenerateProviderOptions,
     type MistralGenerateProviderOptions,
 } from './provider-options.js';
+import { getMistralModelCapabilities } from './model-capabilities.js';
 
 type MistralFunctionTool = Tool & { type: 'function' };
+type ConvertMessagesOptions = {
+    includeReasoning?: boolean;
+};
 
 // The 'mistral' namespace key identifies reasoning that Mistral itself
 // produced (see mapGenerateResponse). Reasoning without it is foreign (e.g.
@@ -47,14 +51,22 @@ export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
     'Return a JSON object that matches the requested schema.';
 
-export function convertMessages(messages: Message[]): MistralMessage[] {
+export function convertMessages(
+    messages: Message[],
+    options: ConvertMessagesOptions = {}
+): MistralMessage[] {
+    const includeReasoning = options.includeReasoning ?? true;
+
     return messages.flatMap((message) => {
-        const convertedMessage = convertMessage(message);
+        const convertedMessage = convertMessage(message, includeReasoning);
         return convertedMessage ? [convertedMessage] : [];
     });
 }
 
-function convertMessage(message: Message): MistralMessage | undefined {
+function convertMessage(
+    message: Message,
+    includeReasoning: boolean
+): MistralMessage | undefined {
     if (message.role === 'system') {
         return {
             role: 'system',
@@ -88,7 +100,12 @@ function convertMessage(message: Message): MistralMessage | undefined {
                         MISTRAL_REASONING_METADATA_NAMESPACE
                     ) != null;
 
-                if (isNativeMistralReasoning) {
+                // Only replay reasoning natively when the target model
+                // supports reasoning input and the reasoning originated from
+                // Mistral. Otherwise preserve it as <thinking> text so the
+                // context survives without tripping models that reject
+                // thinking chunks (e.g. codestral).
+                if (includeReasoning && isNativeMistralReasoning) {
                     contentChunks.push({
                         type: 'thinking',
                         thinking: [{ type: 'text', text: part.text }],
@@ -253,9 +270,13 @@ export function createStreamRequest(
 }
 
 function createRequestBase(modelId: string, options: GenerateOptions) {
+    const capabilities = getMistralModelCapabilities(modelId);
+
     return {
         model: modelId,
-        messages: convertMessages(options.messages),
+        messages: convertMessages(options.messages, {
+            includeReasoning: capabilities.reasoning.supported,
+        }),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),

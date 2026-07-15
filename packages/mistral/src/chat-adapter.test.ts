@@ -363,6 +363,36 @@ describe('reasoning support', () => {
         ]);
     });
 
+    it('should preserve native mistral reasoning as <thinking> text for non-reasoning models', () => {
+        const request = createGenerateRequest('codestral-latest', {
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thoughts',
+                            providerMetadata: { mistral: {} },
+                        },
+                        { type: 'text', text: 'answer' },
+                    ],
+                },
+                { role: 'user', content: 'Continue' },
+            ],
+        });
+
+        expect(request.messages).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    { type: 'text', text: '<thinking>thoughts</thinking>' },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+            { role: 'user', content: 'Continue' },
+        ]);
+    });
+
     it('should accept reasoning config as a no-op in requests', () => {
         const request = createGenerateRequest('magistral-medium-latest', {
             messages: [{ role: 'user', content: 'Hi' }],
