@@ -1,5 +1,16 @@
 # @core-ai/anthropic
 
+## 0.15.0
+
+### Minor Changes
+
+- f87ff4f: Add `@core-ai/anthropic-vertex` for Claude models on Google Vertex AI. Shares chat behavior with `@core-ai/anthropic` via `createAnthropicChatProvider`. Authenticates with Application Default Credentials or an explicit service account key.
+
+### Patch Changes
+
+- Updated dependencies [381fd9d]
+    - @core-ai/core-ai@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes

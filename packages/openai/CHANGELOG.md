@@ -1,5 +1,17 @@
 # @core-ai/openai
 
+## 0.15.0
+
+### Minor Changes
+
+- caebeb3: Root `createOpenAI()` uses the Responses API by default. Strict Chat Completions are available at `openai.chat.chatModel()`. Object generation prefers native strict JSON Schema output. The shared provider factory now exposes compatibility options for reasoning extraction and structured output transport.
+
+### Patch Changes
+
+- 6d4e4d8: Map `maxTokens` to `max_completion_tokens` for known GPT-5 and o-series models when using strict Chat Completions. Unknown model IDs keep the broadly compatible `max_tokens` parameter.
+- Updated dependencies [381fd9d]
+    - @core-ai/core-ai@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes

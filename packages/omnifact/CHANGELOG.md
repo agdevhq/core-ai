@@ -1,5 +1,17 @@
 # @core-ai/omnifact
 
+## 0.15.0
+
+### Patch Changes
+
+- caebeb3: Omnifact now uses the shared OpenAI compatibility layer for nonstandard reasoning response fields.
+- 6d4e4d8: Always map `maxTokens` to `max_completion_tokens` for Omnifact Chat Completions requests.
+- Updated dependencies [381fd9d]
+- Updated dependencies [6d4e4d8]
+- Updated dependencies [caebeb3]
+    - @core-ai/core-ai@0.15.0
+    - @core-ai/openai@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes

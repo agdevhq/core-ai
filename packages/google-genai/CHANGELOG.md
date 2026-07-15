@@ -1,5 +1,17 @@
 # @core-ai/google-genai
 
+## 0.15.0
+
+### Minor Changes
+
+- f579bcb: Support Gemini native image models through `imageModel()` while preserving the existing Imagen generation path.
+- f579bcb: Expose a reusable provider factory with configurable provider attribution for Google GenAI clients.
+
+### Patch Changes
+
+- Updated dependencies [381fd9d]
+    - @core-ai/core-ai@0.15.0
+
 ## 0.14.0
 
 ### Patch Changes
