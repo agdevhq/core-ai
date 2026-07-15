@@ -105,7 +105,8 @@
                             "api/providers/google-vertex",
                             "api/providers/mistral",
                             "api/providers/omnifact",
-                            "api/providers/kimi"
+                            "api/providers/kimi",
+                            "api/providers/xai"
                         ]
                     }
                 ]

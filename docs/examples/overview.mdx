@@ -29,6 +29,7 @@ GOOGLE_API_KEY=your_google_api_key
 MISTRAL_API_KEY=your_mistral_api_key
 OMNIFACT_API_KEY=your_omnifact_org_api_key
 KIMI_API_KEY=your_kimi_api_key
+XAI_API_KEY=your_xai_api_key
 AZURE_OPENAI_API_KEY=your_azure_openai_api_key
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 GOOGLE_VERTEX_PROJECT=your_google_cloud_project_id
@@ -117,7 +118,7 @@ npx tsx examples/01-chat-completion.ts
 <Card
     title="Structured Outputs"
     icon="brackets-curly"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/16-generate-object.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/17-generate-object.ts"
 >
     Typed structured output with `generateObject()`. Shows how to generate
     strongly-typed JSON objects validated with Zod schemas.
@@ -126,7 +127,7 @@ npx tsx examples/01-chat-completion.ts
 <Card
     title="Streaming Objects"
     icon="code"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/17-stream-object.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/18-stream-object.ts"
 >
     Streaming structured output with `streamObject()`. Demonstrates real-time
     streaming of structured JSON with incremental validation.
@@ -135,7 +136,7 @@ npx tsx examples/01-chat-completion.ts
   <Card
     title="Stream Abort"
     icon="circle-stop"
-    href="https://github.com/agdevhq/core-ai/blob/main/examples/18-stream-abort.ts"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/19-stream-abort.ts"
   >
     Abort an in-progress stream with `AbortSignal` and handle `StreamAbortedError`.
   </Card>
@@ -214,6 +215,14 @@ core-ai supports multiple AI providers with the same unified API.
   >
     Using the Kimi API with reasoning output and the same `generate()` API.
   </Card>
+
+  <Card
+    title="xAI Provider"
+    icon="code"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/16-xai-provider.ts"
+  >
+    Using the xAI API with Grok reasoning output and the same `generate()` API.
+  </Card>
 </CardGroup>
 
 ## Example Categories
@@ -239,14 +248,14 @@ Explore powerful features:
 
 Work with typed, validated outputs:
 
-- **16-generate-object.ts** - Generate structured JSON
-- **17-stream-object.ts** - Stream structured data
+- **17-generate-object.ts** - Generate structured JSON
+- **18-stream-object.ts** - Stream structured data
 
 ### 4. Stream control
 
 Manage in-flight streams:
 
-- **18-stream-abort.ts** - Abort a stream with `AbortSignal`
+- **19-stream-abort.ts** - Abort a stream with `AbortSignal`
 
 ### 5. Multi-Provider
 
@@ -260,6 +269,7 @@ Experience true provider portability:
 - **13-anthropic-vertex-provider.ts** - Claude on Vertex AI
 - **14-google-vertex-provider.ts** - Gemini on Vertex AI
 - **15-kimi-provider.ts** - Kimi models
+- **16-xai-provider.ts** - xAI (Grok) models
 
 ## Next Steps
 

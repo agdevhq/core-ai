@@ -19,6 +19,7 @@
         "test:e2e:omnifact": "E2E_PROVIDER=omnifact npm run test:e2e",
         "test:e2e:anthropic-vertex": "E2E_PROVIDER=anthropic-vertex npm run test:e2e",
         "test:e2e:kimi": "E2E_PROVIDER=kimi npm run test:e2e",
+        "test:e2e:xai": "E2E_PROVIDER=xai npm run test:e2e",
         "package": "changeset version",
         "publish": "changeset publish",
         "deploy": "turbo deploy",

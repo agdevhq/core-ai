@@ -19,6 +19,7 @@ The harness runs one shared behavioral contract against provider adapters:
 - Mistral
 - Omnifact
 - Kimi
+- xAI
 
 The suite is live-only. Running the harness executes real provider API calls
 for providers with configured API keys.
@@ -49,7 +50,8 @@ Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:chat`,
 `test:e2e:openai:compat`, `test:e2e:azure-openai`,
 `test:e2e:azure-openai:chat`, `test:e2e:azure-openai:classic`,
 `test:e2e:anthropic`, `test:e2e:google`, `test:e2e:google-vertex`,
-`test:e2e:mistral`, `test:e2e:anthropic-vertex`, `test:e2e:kimi`.
+`test:e2e:mistral`, `test:e2e:anthropic-vertex`, `test:e2e:kimi`,
+`test:e2e:xai`.
 
 ## Required Environment Variables
 
@@ -63,6 +65,7 @@ Provider keys:
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
 - `KIMI_API_KEY`
+- `XAI_API_KEY`
 
 Optional model and endpoint overrides:
 
@@ -99,6 +102,9 @@ Optional model and endpoint overrides:
 - `KIMI_E2E_CHAT_MODEL` (default: `kimi-k2.7-code`)
 - `KIMI_E2E_REASONING_MODEL` (default: `kimi-k2.7-code`)
 - `KIMI_BASE_URL` — optional; overrides the Kimi API endpoint (default: `https://api.moonshot.ai/v1`)
+- `XAI_E2E_CHAT_MODEL` (default: `grok-4.3`)
+- `XAI_E2E_REASONING_MODEL` (default: `grok-4.3`)
+- `XAI_BASE_URL` — optional; overrides the xAI API endpoint (default: `https://api.x.ai/v1`)
 
 Google image model IDs select the upstream API: `gemini-*` uses Gemini native
 image generation, while `imagen-*` uses Imagen. The direct Google default

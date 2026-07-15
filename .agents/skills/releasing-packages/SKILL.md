@@ -109,6 +109,7 @@ npm publish -w @core-ai/azure-openai --access public
 npm publish -w @core-ai/omnifact --access public
 npm publish -w @core-ai/anthropic-vertex --access public
 npm publish -w @core-ai/kimi --access public
+npm publish -w @core-ai/xai --access public
 ```
 
 Publish `core-ai` first since providers depend on it.

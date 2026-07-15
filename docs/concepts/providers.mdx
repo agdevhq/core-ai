@@ -359,6 +359,39 @@ const model = kimi.chatModel('kimi-k2.7-code');
 
 Pass `providerOptions.kimi` for Kimi-specific Chat Completions options. Kimi K2.7 Code always runs in thinking mode; core-ai preserves `reasoning_content` across turns via `resultToMessage()`.
 
+## xAI
+
+xAI provides access to Grok models through the xAI API — an OpenAI-compatible Chat Completions endpoint with native `reasoning_content` support and configurable reasoning effort for `grok-4.3`.
+
+### Creating a Provider
+
+```typescript
+import { createXAI } from '@core-ai/xai';
+
+const xai = createXAI({
+    apiKey: process.env.XAI_API_KEY,
+    // baseURL defaults to https://api.x.ai/v1
+});
+```
+
+### Provider Options
+
+```typescript
+type XAIProviderOptions = {
+    apiKey?: string;
+    baseURL?: string;
+    client?: XAIChatClient;
+};
+```
+
+### Getting Models
+
+```typescript
+const model = xai.chatModel('grok-4.3');
+```
+
+Pass `providerOptions.xai` for xAI-specific Chat Completions options. For `grok-4.3`, use `reasoning: { effort: 'low' | 'medium' | 'high' }` to control thinking depth; core-ai preserves `reasoning_content` across turns via `resultToMessage()`.
+
 ## Using Custom Clients
 
 All providers support bringing your own client instance, which is useful for advanced configuration:
@@ -390,6 +423,7 @@ const openai = createOpenAI({ client: customClient });
 | Mistral                | ✓    | ✓          | ✗      | Efficient open-source options             |
 | Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models   |
 | Kimi                   | ✓    | ✗          | ✗      | Preserved thinking, coding focus           |
+| xAI                    | ✓    | ✗          | ✗      | Grok models, configurable reasoning        |
 
 ## Next Steps
 

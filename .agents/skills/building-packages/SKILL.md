@@ -20,6 +20,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/omnifact` — Omnifact provider
 - `@core-ai/anthropic-vertex` — Vertex AI Anthropic (Claude) provider
 - `@core-ai/kimi` — Kimi API provider
+- `@core-ai/xai` — xAI (Grok) provider
 
 Internal packages (`eslint-config`, `typescript-config`, `esbuild-config`) are not built or published.
 
@@ -89,7 +90,7 @@ Source code uses `.ts` import extensions with `allowImportingTsExtensions: true`
 Published package dependencies must remain acyclic. Current runtime dependency
 layers are:
 
-- Base providers (`anthropic`, `google-genai`, `kimi`, `mistral`, `openai`)
+- Base providers (`anthropic`, `google-genai`, `kimi`, `mistral`, `openai`, `xai`)
   depend on `core-ai`.
 - Composed providers depend on `core-ai` and their base provider:
     - `anthropic-vertex` → `anthropic`
