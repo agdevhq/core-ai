@@ -122,19 +122,22 @@ export const providerCases: ProviderContractCase[] = [
             });
 
             const iterator = chatStream[Symbol.asyncIterator]();
-            let sawTextDeltaBeforeAbort = false;
+            let sawStreamDeltaBeforeAbort = false;
             for (let i = 0; i < 20; i += 1) {
                 const next = await iterator.next();
                 if (next.done) {
                     break;
                 }
-                if (next.value.type === 'text-delta') {
-                    sawTextDeltaBeforeAbort = true;
+                if (
+                    next.value.type === 'text-delta' ||
+                    next.value.type === 'reasoning-delta'
+                ) {
+                    sawStreamDeltaBeforeAbort = true;
                     break;
                 }
             }
 
-            expect(sawTextDeltaBeforeAbort).toBe(true);
+            expect(sawStreamDeltaBeforeAbort).toBe(true);
 
             abortController.abort();
 
@@ -147,9 +150,13 @@ export const providerCases: ProviderContractCase[] = [
 
             const events = await chatStream.events;
             expect(events.length).toBeGreaterThan(0);
-            expect(events.some((event) => event.type === 'text-delta')).toBe(
-                true
-            );
+            expect(
+                events.some(
+                    (event) =>
+                        event.type === 'text-delta' ||
+                        event.type === 'reasoning-delta'
+                )
+            ).toBe(true);
         },
     },
     {

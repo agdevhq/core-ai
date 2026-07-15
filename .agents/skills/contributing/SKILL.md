@@ -72,6 +72,7 @@ All publishable packages share a single version number:
 - `@core-ai/google-vertex`
 - `@core-ai/mistral`
 - `@core-ai/omnifact`
+- `@core-ai/kimi`
 - `@core-ai/anthropic-vertex`
 
 Selecting any one package in a changeset bumps every package in the fixed group to the same version. Create a changeset for **every package with meaningful changes** — use separate files when the changelog text differs per package.

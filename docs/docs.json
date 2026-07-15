@@ -104,7 +104,8 @@
                             "api/providers/google-genai",
                             "api/providers/google-vertex",
                             "api/providers/mistral",
-                            "api/providers/omnifact"
+                            "api/providers/omnifact",
+                            "api/providers/kimi"
                         ]
                     }
                 ]

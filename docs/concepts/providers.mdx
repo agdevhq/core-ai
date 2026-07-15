@@ -337,6 +337,28 @@ Use model IDs enabled for your organization in Omnifact. Pass
 accepts the nonstandard reasoning fields documented by
 [`@core-ai/openai-compat`](/api/providers/openai-compat).
 
+## Kimi
+
+Kimi provides access to Moonshot AI models through the Kimi API, including native `reasoning_content` support for thinking models.
+
+### Creating a Provider
+
+```typescript
+import { createKimi } from '@core-ai/kimi';
+
+const kimi = createKimi({
+  apiKey: process.env.KIMI_API_KEY,
+});
+```
+
+### Getting Models
+
+```typescript
+const model = kimi.chatModel('kimi-k2.7-code');
+```
+
+Pass `providerOptions.kimi` for Kimi-specific Chat Completions options. Kimi K2.7 Code always runs in thinking mode; core-ai preserves `reasoning_content` across turns via `resultToMessage()`.
+
 ## Using Custom Clients
 
 All providers support bringing your own client instance, which is useful for advanced configuration:
@@ -367,6 +389,7 @@ const openai = createOpenAI({ client: customClient });
 | Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini native images and Imagen on Vertex |
 | Mistral                | ✓    | ✓          | ✗      | Efficient open-source options             |
 | Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models   |
+| Kimi                   | ✓    | ✗          | ✗      | Preserved thinking, coding focus           |
 
 ## Next Steps
 

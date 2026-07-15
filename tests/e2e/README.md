@@ -18,6 +18,7 @@ The harness runs one shared behavioral contract against provider adapters:
 - Vertex AI Google
 - Mistral
 - Omnifact
+- Kimi
 
 The suite is live-only. Running the harness executes real provider API calls
 for providers with configured API keys.
@@ -48,7 +49,7 @@ Other provider shortcuts: `test:e2e:openai`, `test:e2e:openai:chat`,
 `test:e2e:openai:compat`, `test:e2e:azure-openai`,
 `test:e2e:azure-openai:chat`, `test:e2e:azure-openai:classic`,
 `test:e2e:anthropic`, `test:e2e:google`, `test:e2e:google-vertex`,
-`test:e2e:mistral`, `test:e2e:anthropic-vertex`.
+`test:e2e:mistral`, `test:e2e:anthropic-vertex`, `test:e2e:kimi`.
 
 ## Required Environment Variables
 
@@ -61,6 +62,7 @@ Provider keys:
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
+- `KIMI_API_KEY`
 
 Optional model and endpoint overrides:
 
@@ -94,6 +96,9 @@ Optional model and endpoint overrides:
 - `OMNIFACT_E2E_CHAT_MODEL` (default: `eu/gpt-5-mini`)
 - `OMNIFACT_E2E_REASONING_MODEL` (default: `eu/gpt-5-mini`)
 - `OMNIFACT_BASE_URL` — optional; overrides the gateway endpoint (e.g. `http://localhost:3001/v1/gateway` for local dev). When unset, targets production (`https://connect.omnifact.ai/v1/gateway`).
+- `KIMI_E2E_CHAT_MODEL` (default: `kimi-k2.7-code`)
+- `KIMI_E2E_REASONING_MODEL` (default: `kimi-k2.7-code`)
+- `KIMI_BASE_URL` — optional; overrides the Kimi API endpoint (default: `https://api.moonshot.ai/v1`)
 
 Google image model IDs select the upstream API: `gemini-*` uses Gemini native
 image generation, while `imagen-*` uses Imagen. The direct Google default
