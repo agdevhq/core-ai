@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
+import type { XAIChatClient } from './chat-model.ts';
 import { createXAI } from './provider.ts';
 
 const { chatCreate } = vi.hoisted(() => ({ chatCreate: vi.fn() }));
@@ -68,6 +69,48 @@ describe('createXAI', () => {
             .chatModel('grok-4.3')
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
+        expect(chatCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should accept a narrow injected client', async () => {
+        chatCreate.mockResolvedValue({
+            id: 'chatcmpl-injected',
+            object: 'chat.completion',
+            created: Date.now(),
+            model: 'grok-4.3',
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'injected',
+                        refusal: null,
+                    },
+                },
+            ],
+            usage: {
+                prompt_tokens: 1,
+                completion_tokens: 1,
+                total_tokens: 2,
+            },
+        });
+
+        const client: XAIChatClient = {
+            chat: {
+                completions: {
+                    create: chatCreate,
+                },
+            },
+        };
+        const provider = createXAI({ client });
+
+        const result = await provider
+            .chatModel('grok-4.3')
+            .generate({ messages: [{ role: 'user', content: 'hello' }] });
+
+        expect(result.content).toBe('injected');
         expect(chatCreate).toHaveBeenCalledTimes(1);
     });
 

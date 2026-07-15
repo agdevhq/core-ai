@@ -35,8 +35,8 @@ const xai = createXAI({
   Custom API base URL. Defaults to `https://api.x.ai/v1`.
 </ParamField>
 
-<ParamField path="client" type="OpenAI" optional>
-  Provide your own configured OpenAI SDK client instance.
+<ParamField path="client" type="XAIChatClient" optional>
+  Provide a client implementing the xAI chat completions contract.
 </ParamField>
 
 ### Returns

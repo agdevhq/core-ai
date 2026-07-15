@@ -1,12 +1,15 @@
 import OpenAI from 'openai';
 import type { ChatModel } from '@core-ai/core-ai';
-import { createXAIChatModel } from './chat-model.ts';
+import {
+    createXAIChatModel,
+    type XAIChatClient,
+} from './chat-model.ts';
 import { DEFAULT_BASE_URL } from './constants.ts';
 
 export type XAIProviderOptions = {
     apiKey?: string;
     baseURL?: string;
-    client?: OpenAI;
+    client?: XAIChatClient;
 };
 
 export type XAIProvider = {
@@ -18,7 +21,7 @@ export function createXAI(options: XAIProviderOptions = {}): XAIProvider {
         throw new Error('createXAI: apiKey is required.');
     }
 
-    const client =
+    const client: XAIChatClient =
         options.client ??
         new OpenAI({
             apiKey: options.apiKey,

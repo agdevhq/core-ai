@@ -1,4 +1,3 @@
-import OpenAI from 'openai';
 import type { z } from 'zod';
 import type { ChatCompletionChunk } from 'openai/resources/chat/completions/completions';
 import type {
@@ -31,7 +30,14 @@ import { wrapXAIError } from './xai-error.ts';
 import { getXAIModelCapabilities } from './model-capabilities.ts';
 
 export type XAIChatClient = {
-    chat: OpenAI['chat'];
+    chat: {
+        completions: {
+            create(
+                request: unknown,
+                options?: { signal?: AbortSignal }
+            ): Promise<unknown> | AsyncIterable<ChatCompletionChunk>;
+        };
+    };
 };
 
 export function createXAIChatModel(

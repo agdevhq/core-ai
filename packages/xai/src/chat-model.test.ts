@@ -1,14 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { APIUserAbortError } from 'openai';
-import type OpenAI from 'openai';
 import type { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions/completions';
 import {
     AbortedError,
     ProviderError,
     resultToMessage,
 } from '@core-ai/core-ai';
-import { createXAIChatModel } from './chat-model.ts';
+import {
+    createXAIChatModel,
+    type XAIChatClient,
+} from './chat-model.ts';
 import { toAsyncIterable } from '@core-ai/testing';
 
 type XAIMessage = ChatCompletion['choices'][number]['message'] & {
@@ -286,7 +288,7 @@ describe('stream', () => {
 
 function createMockClient(
     create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
-): Pick<OpenAI, 'chat'> {
+): XAIChatClient {
     return {
         chat: {
             completions: {
@@ -297,7 +299,7 @@ function createMockClient(
                     }),
             },
         },
-    } as unknown as Pick<OpenAI, 'chat'>;
+    };
 }
 
 function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {
