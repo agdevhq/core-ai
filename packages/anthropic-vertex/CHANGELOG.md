@@ -1,5 +1,12 @@
 # @core-ai/anthropic-vertex
 
+## 0.16.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.16.0
+- @core-ai/anthropic@0.16.0
+
 ## 0.15.0
 
 ### Minor Changes
