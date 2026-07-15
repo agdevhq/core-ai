@@ -1,6 +1,11 @@
-import { stripModelDateSuffix, type ReasoningEffort } from '@core-ai/core-ai';
+import {
+    stripModelDateSuffix,
+    type ModelCapabilities,
+    type ReasoningEffort,
+} from '@core-ai/core-ai';
 
 export type XAIReasoningEffort = 'none' | 'low' | 'medium' | 'high';
+export type XAIModelCapabilities = ModelCapabilities;
 
 const REASONING_EFFORT_MAP: Record<ReasoningEffort, XAIReasoningEffort> = {
     minimal: 'none',
@@ -42,6 +47,22 @@ export function isReasoningModel(modelId: string): boolean {
     }
 
     return false;
+}
+
+export function getXAIModelCapabilities(
+    modelId: string
+): XAIModelCapabilities {
+    const reasoningSupported = isReasoningModel(modelId);
+
+    return {
+        reasoning: {
+            supported: reasoningSupported,
+            supportedEfforts: supportsReasoningEffort(modelId)
+                ? ['minimal', 'low', 'medium', 'high', 'max']
+                : [],
+            restrictsSamplingParams: false,
+        },
+    };
 }
 
 export function toXAIReasoningEffort(

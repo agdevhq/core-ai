@@ -28,6 +28,7 @@ import {
     transformStream,
 } from './chat-adapter.ts';
 import { wrapXAIError } from './xai-error.ts';
+import { getXAIModelCapabilities } from './model-capabilities.ts';
 
 export type XAIChatClient = {
     chat: OpenAI['chat'];
@@ -78,6 +79,7 @@ export function createXAIChatModel(
     return {
         provider,
         modelId,
+        capabilities: getXAIModelCapabilities(modelId),
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

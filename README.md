@@ -486,6 +486,7 @@ packages/
   omnifact/      — Omnifact API Gateway provider implementation
   anthropic-vertex/ — Vertex AI Anthropic (Claude) provider implementation
   kimi/          — Kimi API provider implementation
+  xai/           — xAI (Grok) provider implementation
   testing/       — Shared test utilities (internal)
 ```
 
@@ -528,6 +529,8 @@ Provider keys:
 - `GOOGLE_API_KEY`
 - `MISTRAL_API_KEY`
 - `OMNIFACT_API_KEY`
+- `KIMI_API_KEY`
+- `XAI_API_KEY`
 - `GOOGLE_VERTEX_PROJECT` (Vertex AI providers; uses Application Default Credentials or `GOOGLE_APPLICATION_CREDENTIALS_JSON`, plain JSON or base64)
 
 ## Contributing

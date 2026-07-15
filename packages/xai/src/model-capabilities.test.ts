@@ -1,10 +1,41 @@
 import { describe, expect, it } from 'vitest';
 import {
+    getXAIModelCapabilities,
     isReasoningModel,
     normalizeModelId,
     supportsReasoningEffort,
     toXAIReasoningEffort,
 } from './model-capabilities.ts';
+
+describe('getXAIModelCapabilities', () => {
+    it('reports effort control for grok-4.3', () => {
+        expect(getXAIModelCapabilities('grok-4.3')).toEqual({
+            reasoning: {
+                supported: true,
+                supportedEfforts: [
+                    'minimal',
+                    'low',
+                    'medium',
+                    'high',
+                    'max',
+                ],
+                restrictsSamplingParams: false,
+            },
+        });
+    });
+
+    it('reports non-reasoning models', () => {
+        expect(
+            getXAIModelCapabilities('grok-4.20-0309-non-reasoning')
+        ).toEqual({
+            reasoning: {
+                supported: false,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        });
+    });
+});
 
 describe('normalizeModelId', () => {
     it('should strip date suffixes', () => {
