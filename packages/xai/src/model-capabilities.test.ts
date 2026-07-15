@@ -8,7 +8,7 @@ import {
 } from './model-capabilities.ts';
 
 describe('getXAIModelCapabilities', () => {
-    it('reports effort control for grok-4.3', () => {
+    it('reports effort control for grok-4.3 aliases', () => {
         expect(getXAIModelCapabilities('grok-4.3')).toEqual({
             reasoning: {
                 supported: true,
@@ -22,12 +22,38 @@ describe('getXAIModelCapabilities', () => {
                 restrictsSamplingParams: false,
             },
         });
+        expect(getXAIModelCapabilities('grok-latest')).toEqual(
+            getXAIModelCapabilities('grok-4.3')
+        );
     });
 
-    it('reports non-reasoning models', () => {
+    it('reports reasoning models without effort control', () => {
+        expect(getXAIModelCapabilities('grok-4.20')).toEqual({
+            reasoning: {
+                supported: true,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        });
         expect(
-            getXAIModelCapabilities('grok-4.20-0309-non-reasoning')
+            getXAIModelCapabilities('grok-4.20-multi-agent-latest')
+        ).toEqual(getXAIModelCapabilities('grok-4.20'));
+    });
+
+    it('reports non-reasoning model aliases', () => {
+        expect(
+            getXAIModelCapabilities('grok-4.20-non-reasoning-latest')
         ).toEqual({
+            reasoning: {
+                supported: false,
+                supportedEfforts: [],
+                restrictsSamplingParams: false,
+            },
+        });
+    });
+
+    it('uses a conservative fallback for unknown models', () => {
+        expect(getXAIModelCapabilities('grok-future')).toEqual({
             reasoning: {
                 supported: false,
                 supportedEfforts: [],
@@ -47,27 +73,30 @@ describe('normalizeModelId', () => {
             'grok-4.20-0309-non-reasoning'
         );
     });
+
+    it('normalizes case and whitespace before matching aliases', () => {
+        expect(normalizeModelId('  GROK-LATEST  ')).toBe('grok-latest');
+    });
 });
 
 describe('supportsReasoningEffort', () => {
-    it('should return true for grok-4.3', () => {
+    it('should return true for configurable reasoning aliases', () => {
         expect(supportsReasoningEffort('grok-4.3')).toBe(true);
+        expect(supportsReasoningEffort('grok-4.3-latest')).toBe(true);
     });
 
-    it('should return false for other models', () => {
-        expect(supportsReasoningEffort('grok-4.20-0309-reasoning')).toBe(
-            false
-        );
+    it('should return false for reasoning models without effort control', () => {
+        expect(supportsReasoningEffort('grok-4.20-0309-reasoning')).toBe(false);
+        expect(supportsReasoningEffort('grok-4.5')).toBe(false);
     });
 });
 
 describe('isReasoningModel', () => {
-    it('should identify grok-4.3 as a reasoning model', () => {
+    it('should identify current reasoning model families', () => {
         expect(isReasoningModel('grok-4.3')).toBe(true);
-    });
-
-    it('should identify reasoning variants', () => {
         expect(isReasoningModel('grok-4.20-0309-reasoning')).toBe(true);
+        expect(isReasoningModel('grok-4.20-multi-agent')).toBe(true);
+        expect(isReasoningModel('grok-build-latest')).toBe(true);
     });
 
     it('should exclude non-reasoning variants', () => {
