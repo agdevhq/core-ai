@@ -71,6 +71,43 @@ describe('createOpenAICompat', () => {
         expect(result.parts).toEqual([{ type: 'text', text: 'answer' }]);
     });
 
+    it('should select the max tokens parameter and allow a provider default', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            createChatCompletion({ content: 'answer' })
+        );
+        const provider = createOpenAICompat({
+            client: createMockClient(create),
+        });
+        const providerWithDefault = createOpenAICompat({
+            client: createMockClient(create),
+            maxTokensParameter: 'max_completion_tokens',
+        });
+        const messages = [{ role: 'user' as const, content: 'hello' }];
+
+        await provider
+            .chatModel('gpt-5-mini')
+            .generate({ messages, maxTokens: 128 });
+        await provider
+            .chatModel('qwen3-235b')
+            .generate({ messages, maxTokens: 128 });
+        await providerWithDefault
+            .chatModel('custom-reasoning-model')
+            .generate({
+                messages,
+                maxTokens: 128,
+            });
+
+        expect(create.mock.calls[0]?.[0]).toMatchObject({
+            max_completion_tokens: 128,
+        });
+        expect(create.mock.calls[1]?.[0]).toMatchObject({
+            max_tokens: 128,
+        });
+        expect(create.mock.calls[2]?.[0]).toMatchObject({
+            max_completion_tokens: 128,
+        });
+    });
+
     it('should use tool-based structured output by default', async () => {
         const create = vi.fn(async (_request: unknown) =>
             createChatCompletion({

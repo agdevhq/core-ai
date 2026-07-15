@@ -122,10 +122,35 @@ describe('getOpenAIModelCapabilities', () => {
     });
 
     it('should apply defaults for unknown models', () => {
-        expect(
-            getOpenAIModelCapabilities('custom-model').reasoning
-                .supportedEfforts
-        ).toEqual(['low', 'medium', 'high']);
+        const capabilities = getOpenAIModelCapabilities('custom-model');
+
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'low',
+            'medium',
+            'high',
+        ]);
+        expect(capabilities.chatCompletions.maxTokensParameter).toBe(
+            'max_tokens'
+        );
+    });
+
+    it.each(['gpt-5-mini', 'o3', 'o1-mini'])(
+        'should require max_completion_tokens for known model %s',
+        (modelId) => {
+            const capabilities = getOpenAIModelCapabilities(modelId);
+
+            expect(capabilities.chatCompletions.maxTokensParameter).toBe(
+                'max_completion_tokens'
+            );
+        }
+    );
+
+    it('should preserve the Chat Completions parameter for dated model IDs', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.5-2026-04-23');
+
+        expect(capabilities.chatCompletions.maxTokensParameter).toBe(
+            'max_completion_tokens'
+        );
     });
 });
 

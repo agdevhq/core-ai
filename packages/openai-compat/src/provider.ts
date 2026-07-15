@@ -1,6 +1,7 @@
 import type { ChatModel } from '@core-ai/core-ai';
 import {
     createOpenAIProvider,
+    type OpenAICompatibilityOptions,
     type OpenAIProviderBaseOptions,
     type OpenAIStructuredOutputMode,
 } from '@core-ai/openai';
@@ -13,6 +14,11 @@ export type OpenAICompatProviderOptions = OpenAIProviderBaseOptions & {
      * Use `native` when the endpoint supports strict JSON Schema response formats.
      */
     structuredOutputMode?: OpenAIStructuredOutputMode;
+    /**
+     * Request parameter used for `maxTokens`. When unset, known OpenAI models
+     * use their registered capability and unknown models use `max_tokens`.
+     */
+    maxTokensParameter?: OpenAICompatibilityOptions['maxTokensParameter'];
 };
 
 export type OpenAICompatProvider = {
@@ -28,6 +34,7 @@ export function createOpenAICompat(
         compatibility: {
             reasoning: options.reasoning,
             structuredOutputMode: options.structuredOutputMode,
+            maxTokensParameter: options.maxTokensParameter,
         },
     });
 

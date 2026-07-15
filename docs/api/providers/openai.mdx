@@ -339,6 +339,7 @@ import { generate } from '@core-ai/core-ai';
 const result = await generate({
     model: openai.chat.chatModel('gpt-5-mini'),
     messages: [{ role: 'user', content: 'Hello' }],
+    maxTokens: 1024,
     providerOptions: {
         openai: {
             store: true,

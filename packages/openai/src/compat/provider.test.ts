@@ -37,7 +37,7 @@ describe('createOpenAICompat', () => {
     });
 
     it('should use a shared client instance across model types', async () => {
-        const chatCreate = vi.fn(async () => ({
+        const chatCreate = vi.fn(async (_request: unknown) => ({
             id: 'chatcmpl-1',
             object: 'chat.completion',
             created: Date.now(),
@@ -76,15 +76,19 @@ describe('createOpenAICompat', () => {
             }),
         });
 
-        await provider
-            .chatModel('gpt-5-mini')
-            .generate({ messages: [{ role: 'user', content: 'hello' }] });
+        await provider.chatModel('gpt-5-mini').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            maxTokens: 128,
+        });
         await provider
             .embeddingModel('text-embedding-3-small')
             .embed({ input: 'hello' });
         await provider.imageModel('gpt-image-1').generate({ prompt: 'cat' });
 
         expect(chatCreate).toHaveBeenCalledTimes(1);
+        expect(chatCreate.mock.calls[0]?.[0]).toMatchObject({
+            max_completion_tokens: 128,
+        });
         expect(embeddingCreate).toHaveBeenCalledTimes(1);
         expect(imageGenerate).toHaveBeenCalledTimes(1);
     });

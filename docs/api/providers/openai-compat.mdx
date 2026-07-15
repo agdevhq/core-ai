@@ -55,6 +55,12 @@ const provider = createOpenAICompat({
     when the endpoint supports strict JSON Schema response formats.
 </ParamField>
 
+<ParamField path="maxTokensParameter" type="'max_tokens' | 'max_completion_tokens'" optional>
+    Request parameter used for `maxTokens` across this provider. When unset,
+    known OpenAI models use their registered capability and unknown models use
+    `max_tokens`.
+</ParamField>
+
 ### Returns
 
 `OpenAICompatProvider` with a single `chatModel()` method.
@@ -114,6 +120,7 @@ Pass Chat Completions options through `providerOptions.openai`:
 const result = await generate({
     model: provider.chatModel('qwen3-235b'),
     messages: [{ role: 'user', content: 'Hello' }],
+    maxTokens: 1024,
     providerOptions: {
         openai: {
             stopSequences: ['\n\n'],
@@ -127,3 +134,8 @@ const result = await generate({
 
 Supported fields are `store`, `serviceTier`, `parallelToolCalls`, `user`,
 `stopSequences`, `frequencyPenalty`, `presencePenalty`, and `seed`.
+
+Known OpenAI models select their required token-limit parameter automatically.
+Unknown model IDs use `max_tokens`, which has the broadest compatibility. Set
+`maxTokensParameter` on `createOpenAICompat()` when every model exposed by the
+endpoint requires a different parameter.

@@ -87,6 +87,42 @@ describe('generate', () => {
         );
     });
 
+    it('should use the model capability for the max tokens parameter', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Hello!',
+                            refusal: null,
+                        },
+                    },
+                ],
+            })
+        );
+        const model = createOpenAIChatCompletionsModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+            maxTokens: 128,
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                max_completion_tokens: 128,
+            }),
+            expect.anything()
+        );
+        expect(create.mock.calls[0]?.[0]).not.toHaveProperty('max_tokens');
+    });
+
     it('should pass the caller abort signal to generate requests', async () => {
         const create = vi.fn(async () =>
             asChatCompletion({
