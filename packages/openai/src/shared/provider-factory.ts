@@ -29,6 +29,7 @@ export type OpenAIChatProvider = {
 export type OpenAICompatibilityOptions = {
     reasoning?: boolean;
     structuredOutputMode?: OpenAIChatCompletionsModelOptions['structuredOutputMode'];
+    maxTokensParameter?: OpenAIChatCompletionsModelOptions['maxTokensParameter'];
 };
 
 export type OpenAICompatibility = boolean | OpenAICompatibilityOptions;
@@ -67,6 +68,7 @@ export function createOpenAIProvider(
                 compatibilityEnabled &&
                 (compatibilityOptions?.reasoning ?? true),
             structuredOutputMode: compatibilityOptions?.structuredOutputMode,
+            maxTokensParameter: compatibilityOptions?.maxTokensParameter,
         });
     const chat = {
         chatModel: createChatCompletionsModel,

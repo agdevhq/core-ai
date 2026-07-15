@@ -344,27 +344,29 @@ describe('max tokens parameter', () => {
         expect(request).not.toHaveProperty('max_completion_tokens');
     });
 
-    it('should honor a maxTokensParam override to max_completion_tokens', () => {
-        const request = createStreamRequest('custom-gateway-model', {
-            messages,
-            maxTokens: 128,
-            providerOptions: {
-                openai: { maxTokensParam: 'max_completion_tokens' },
+    it('should honor a provider default of max_completion_tokens', () => {
+        const request = createStreamRequest(
+            'custom-gateway-model',
+            {
+                messages,
+                maxTokens: 128,
             },
-        });
+            { maxTokensParameter: 'max_completion_tokens' }
+        );
 
         expect(request).toMatchObject({ max_completion_tokens: 128 });
         expect(request).not.toHaveProperty('max_tokens');
     });
 
-    it('should honor a maxTokensParam override to max_tokens', () => {
-        const request = createGenerateRequest('gpt-5.2', {
-            messages,
-            maxTokens: 128,
-            providerOptions: {
-                openai: { maxTokensParam: 'max_tokens' },
+    it('should honor a provider default of max_tokens', () => {
+        const request = createGenerateRequest(
+            'gpt-5.2',
+            {
+                messages,
+                maxTokens: 128,
             },
-        });
+            { maxTokensParameter: 'max_tokens' }
+        );
 
         expect(request).toMatchObject({ max_tokens: 128 });
         expect(request).not.toHaveProperty('max_completion_tokens');

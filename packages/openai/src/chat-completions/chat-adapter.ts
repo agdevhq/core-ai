@@ -18,7 +18,7 @@ import type {
 import { clampReasoningEffort } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
-    requiresMaxCompletionTokens,
+    type OpenAIChatCompletionsCapabilities,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.js';
 import { convertToolChoice, convertTools } from '../shared/tools.js';
@@ -35,6 +35,7 @@ import { extractCompatibleReasoningText } from './compatibility.js';
 
 export type OpenAIChatCompletionsAdapterOptions = {
     compatibility?: boolean;
+    maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
 };
 
 export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
@@ -139,26 +140,32 @@ function convertUserContentPart(
 
 export function createGenerateRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ) {
-    return createRequest(modelId, options, false);
+    return createRequest(modelId, options, false, adapterOptions);
 }
 
-export function createStreamRequest(modelId: string, options: GenerateOptions) {
-    return createRequest(modelId, options, true);
+export function createStreamRequest(
+    modelId: string,
+    options: GenerateOptions,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
+) {
+    return createRequest(modelId, options, true, adapterOptions);
 }
 
 function createRequest(
     modelId: string,
     options: OpenAIRequestOptions,
-    stream: boolean
+    stream: boolean,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions
 ) {
     const openaiOptions = parseOpenAIChatGenerateProviderOptions(
         options.providerOptions
     );
     const structuredOutputFormat = options.structuredOutputFormat;
     return {
-        ...createRequestBase(modelId, options, openaiOptions),
+        ...createRequestBase(modelId, options, adapterOptions),
         ...(stream
             ? {
                   stream: true as const,
@@ -192,7 +199,7 @@ function createRequest(
 function createRequestBase(
     modelId: string,
     options: GenerateOptions,
-    openaiOptions: OpenAIChatGenerateProviderOptions | undefined
+    adapterOptions: OpenAIChatCompletionsAdapterOptions
 ) {
     validateOpenAIReasoningConfig(modelId, options);
 
@@ -208,32 +215,27 @@ function createRequestBase(
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
         ...reasoningFields,
-        ...mapSamplingToRequestFields(modelId, options, openaiOptions),
+        ...mapSamplingToRequestFields(modelId, options, adapterOptions),
     };
 }
 
 function mapSamplingToRequestFields(
     modelId: string,
     options: Pick<GenerateOptions, 'temperature' | 'maxTokens' | 'topP'>,
-    openaiOptions: Pick<
-        OpenAIChatGenerateProviderOptions,
-        'maxTokensParam'
-    > | undefined
+    adapterOptions: OpenAIChatCompletionsAdapterOptions
 ) {
-    const maxTokensParam =
-        openaiOptions?.maxTokensParam ??
-        (requiresMaxCompletionTokens(modelId)
-            ? 'max_completion_tokens'
-            : 'max_tokens');
+    const maxTokensParameter =
+        adapterOptions.maxTokensParameter ??
+        getOpenAIModelCapabilities(modelId).chatCompletions.maxTokensParameter;
 
     return {
         ...(options.temperature !== undefined
             ? { temperature: options.temperature }
             : {}),
         ...(options.maxTokens !== undefined
-            ? maxTokensParam === 'max_completion_tokens'
-              ? { max_completion_tokens: options.maxTokens }
-              : { max_tokens: options.maxTokens }
+            ? maxTokensParameter === 'max_completion_tokens'
+                ? { max_completion_tokens: options.maxTokens }
+                : { max_tokens: options.maxTokens }
             : {}),
         ...(options.topP !== undefined ? { top_p: options.topP } : {}),
     };

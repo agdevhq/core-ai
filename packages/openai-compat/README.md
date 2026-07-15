@@ -27,6 +27,24 @@ const result = await generate({
 console.log(result.content);
 ```
 
+Known OpenAI models map `maxTokens` to the parameter required by Chat
+Completions. Unknown model IDs default to `max_tokens`. Set a provider-wide
+compatibility default when an endpoint requires `max_completion_tokens`:
+
+```ts
+const provider = createOpenAICompat({
+    apiKey: process.env.API_KEY,
+    baseURL: 'https://gateway.example.com/v1',
+    maxTokensParameter: 'max_completion_tokens',
+});
+
+await generate({
+    model: provider.chatModel('custom-reasoning-model'),
+    messages: [{ role: 'user', content: 'Hello!' }],
+    maxTokens: 1024,
+});
+```
+
 This provider only exposes Chat Completions models. It accepts known
 nonstandard response fields used by OpenAI-compatible gateways, including
 `reasoning_content` and `reasoning`. Set `reasoning: false` when those fields

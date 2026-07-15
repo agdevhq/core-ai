@@ -4,7 +4,13 @@ import {
     type ReasoningEffort,
 } from '@core-ai/core-ai';
 
-export type OpenAIModelCapabilities = ModelCapabilities;
+export type OpenAIChatCompletionsCapabilities = {
+    maxTokensParameter: 'max_tokens' | 'max_completion_tokens';
+};
+
+export type OpenAIModelCapabilities = ModelCapabilities & {
+    chatCompletions: OpenAIChatCompletionsCapabilities;
+};
 
 const STANDARD_EFFORTS = [
     'low',
@@ -32,7 +38,8 @@ const HIGH_EFFORT = ['high'] as const satisfies readonly ReasoningEffort[];
 
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
-    restrictsSamplingParams: boolean
+    restrictsSamplingParams: boolean,
+    maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'] = 'max_completion_tokens'
 ): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -40,10 +47,18 @@ function createCapabilities(
             supportedEfforts,
             restrictsSamplingParams,
         },
+        chatCompletions: {
+            maxTokensParameter,
+        },
     };
 }
 
 const DEFAULT_CAPABILITIES = createCapabilities(STANDARD_EFFORTS, false);
+const UNKNOWN_MODEL_CAPABILITIES = createCapabilities(
+    STANDARD_EFFORTS,
+    false,
+    'max_tokens'
+);
 const SAMPLING_RESTRICTED_STANDARD_CAPABILITIES = createCapabilities(
     STANDARD_EFFORTS,
     true
@@ -61,6 +76,9 @@ const NO_REASONING_EFFORT_CAPABILITIES: OpenAIModelCapabilities = {
         supported: false,
         supportedEfforts: [],
         restrictsSamplingParams: false,
+    },
+    chatCompletions: {
+        maxTokensParameter: 'max_completion_tokens',
     },
 };
 
@@ -115,18 +133,7 @@ export function getOpenAIModelCapabilities(
     modelId: string
 ): OpenAIModelCapabilities {
     const normalizedModelId = normalizeModelId(modelId);
-    return MODEL_CAPABILITIES[normalizedModelId] ?? DEFAULT_CAPABILITIES;
-}
-
-/**
- * Whether the model is a known OpenAI reasoning-era model that rejects the
- * deprecated `max_tokens` Chat Completions parameter and requires
- * `max_completion_tokens` instead. Unknown model ids return false: they are
- * typically third-party models behind OpenAI-compatible endpoints, where
- * `max_tokens` remains the universally supported parameter.
- */
-export function requiresMaxCompletionTokens(modelId: string): boolean {
-    return normalizeModelId(modelId) in MODEL_CAPABILITIES;
+    return MODEL_CAPABILITIES[normalizedModelId] ?? UNKNOWN_MODEL_CAPABILITIES;
 }
 
 export function normalizeModelId(modelId: string): string {

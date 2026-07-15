@@ -68,7 +68,7 @@ export function createOpenAIChatCompletionsModel(
     async function generateChat(
         options: OpenAIRequestOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, options);
+        const request = createGenerateRequest(modelId, options, modelOptions);
         const response = await callOpenAIChatCompletionsApi<
             Parameters<typeof mapGenerateResponse>[0]
         >(request, options.signal);
@@ -80,7 +80,7 @@ export function createOpenAIChatCompletionsModel(
     async function streamChat(
         options: OpenAIRequestOptions
     ): Promise<ChatStream> {
-        const request = createStreamRequest(modelId, options);
+        const request = createStreamRequest(modelId, options, modelOptions);
         return createChatStream(
             async () =>
                 transformStream(

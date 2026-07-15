@@ -26,7 +26,9 @@ export function createOmnifact(
         {
             providerId: 'omnifact',
             defaultApi: 'chat-completions',
-            compatibility: true,
+            compatibility: {
+                maxTokensParameter: 'max_completion_tokens',
+            },
         }
     );
 

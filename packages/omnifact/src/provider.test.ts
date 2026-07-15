@@ -69,11 +69,15 @@ describe('createOmnifact', () => {
 
         const provider = createOmnifact({ apiKey: 'test-key' });
 
-        const result = await provider
-            .chatModel('gpt-5-mini')
-            .generate({ messages: [{ role: 'user', content: 'hello' }] });
+        const result = await provider.chatModel('eu/gpt-5-mini').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            maxTokens: 128,
+        });
 
         expect(chatCreate).toHaveBeenCalledTimes(1);
+        expect(chatCreate.mock.calls[0]?.[0]).toMatchObject({
+            max_completion_tokens: 128,
+        });
         expect(result.reasoning).toBe('thinking');
     });
 

@@ -31,16 +31,6 @@ export const openaiChatGenerateProviderOptionsSchema =
             frequencyPenalty: z.number().optional(),
             presencePenalty: z.number().optional(),
             seed: z.number().int().optional(),
-            /**
-             * Which request field carries `maxTokens`. Defaults to
-             * `max_completion_tokens` for known OpenAI reasoning models
-             * (which reject the deprecated `max_tokens`) and `max_tokens`
-             * for everything else. Set explicitly for endpoints where the
-             * model id does not reveal the right choice.
-             */
-            maxTokensParam: z
-                .enum(['max_tokens', 'max_completion_tokens'])
-                .optional(),
         })
         .strict();
 
