@@ -184,6 +184,13 @@ export function getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
         return error.message;
     }
+
+    const record = asRecord(error);
+    const message = getString(record, 'message');
+    if (message) {
+        return message;
+    }
+
     return String(error);
 }
 
@@ -261,4 +268,18 @@ export function parseRetryAfterSeconds(
 
     const parsed = parseInt(retryAfter, 10);
     return Number.isFinite(parsed) ? parsed : undefined;
+}
+
+/** Reads `Retry-After` from common SDK error shapes that expose `headers`. */
+export function getRetryAfterSecondsFromError(
+    error: unknown
+): number | undefined {
+    const record = asRecord(error);
+    if (!record?.headers || typeof record.headers !== 'object') {
+        return undefined;
+    }
+
+    return parseRetryAfterSeconds(
+        record.headers as Headers | Record<string, string>
+    );
 }

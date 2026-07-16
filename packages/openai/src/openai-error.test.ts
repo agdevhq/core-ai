@@ -103,7 +103,7 @@ describe('wrapOpenAIError', () => {
         });
     });
 
-    describe('rate limit and availability', () => {
+    describe('rate limit, overload, and availability', () => {
         it('should map 429 with retry-after to RateLimitError', () => {
             const error = APIError.generate(
                 429,

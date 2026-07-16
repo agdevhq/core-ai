@@ -6,13 +6,12 @@ import {
     classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
+    getRetryAfterSecondsFromError,
     getString,
     indicatesModelOverload,
     isAbortErrorByName,
     isOverloadedStatus,
     isRateLimitStatus,
-    isTransientUnavailableStatus,
-    parseRetryAfterSeconds,
     type ContextLengthSignal,
     type ProviderErrorSignals,
 } from '@core-ai/core-ai';
@@ -20,6 +19,9 @@ import {
 /**
  * Maps Anthropic / Anthropic Vertex SDK errors to classified core-ai provider
  * errors via the shared precedence in `classifyProviderError`.
+ *
+ * Handles the same signal categories as other providers: abort, context length,
+ * overload, rate limit (+ Retry-After), service unavailable, unknown.
  */
 export function wrapAnthropicError(
     error: unknown,
@@ -44,6 +46,7 @@ function getAnthropicErrorSignals(
 ): ProviderErrorSignals {
     const providerMessage = getAnthropicErrorMessage(error);
     const errorType = getAnthropicErrorType(error);
+    const rateLimited = isAnthropicRateLimit(error, statusCode, errorType);
 
     return {
         aborted: isAnthropicAbortError(error),
@@ -54,9 +57,12 @@ function getAnthropicErrorSignals(
             message,
             statusCode
         ),
-        rateLimit: isAnthropicRateLimit(error, statusCode, errorType),
-        retryAfterSeconds: getRetryAfterSeconds(error),
-        serviceUnavailable: isAnthropicUnavailable(error, statusCode),
+        rateLimit: rateLimited,
+        retryAfterSeconds: rateLimited
+            ? getRetryAfterSecondsFromError(error)
+            : undefined,
+        // Generic 5xx use status fallbacks; Vertex UNAVAILABLE is explicit.
+        serviceUnavailable: isUnavailableStatus(error),
     };
 }
 
@@ -89,15 +95,6 @@ function isAnthropicRateLimit(
         isRateLimitStatus(statusCode) ||
         errorType === 'rate_limit_error' ||
         isResourceExhaustedError(error)
-    );
-}
-
-function isAnthropicUnavailable(
-    error: unknown,
-    statusCode: number | undefined
-): boolean {
-    return (
-        isTransientUnavailableStatus(statusCode) || isUnavailableStatus(error)
     );
 }
 
@@ -188,11 +185,4 @@ function getAnthropicErrorType(error: unknown): string | undefined {
     const outer = asRecord(record?.error);
     const inner = asRecord(outer?.error);
     return getString(inner, 'type') ?? getString(outer, 'type');
-}
-
-function getRetryAfterSeconds(error: unknown): number | undefined {
-    if (!(error instanceof APIError) || !error.headers) {
-        return undefined;
-    }
-    return parseRetryAfterSeconds(error.headers);
 }

@@ -3,6 +3,7 @@ import {
     classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
+    getRetryAfterSecondsFromError,
     indicatesModelOverload,
     isOverloadedStatus,
     isRateLimitStatus,
@@ -188,8 +189,9 @@ describe('indicatesModelOverload', () => {
 });
 
 describe('error helper utilities', () => {
-    it('getErrorMessage reads Error.message or stringifies', () => {
+    it('getErrorMessage reads Error.message, plain object message, or stringifies', () => {
         expect(getErrorMessage(new Error('x'))).toBe('x');
+        expect(getErrorMessage({ message: 'from object' })).toBe('from object');
         expect(getErrorMessage(42)).toBe('42');
     });
 
@@ -209,5 +211,14 @@ describe('error helper utilities', () => {
         expect(parseRetryAfterSeconds({ 'retry-after': 'Fri, 01 Jan' })).toBe(
             undefined
         );
+    });
+
+    it('getRetryAfterSecondsFromError reads headers from error objects', () => {
+        expect(
+            getRetryAfterSecondsFromError({
+                headers: new Headers({ 'retry-after': '9' }),
+            })
+        ).toBe(9);
+        expect(getRetryAfterSecondsFromError(new Error('x'))).toBeUndefined();
     });
 });

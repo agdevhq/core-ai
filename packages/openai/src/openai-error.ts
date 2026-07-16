@@ -6,11 +6,11 @@ import {
     classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
+    getRetryAfterSecondsFromError,
     getString,
     indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
-    parseRetryAfterSeconds,
     type ContextLengthSignal,
     type ProviderErrorSignals,
 } from '@core-ai/core-ai';
@@ -29,6 +29,9 @@ const TOKEN_LIMIT_PATTERNS = [
 /**
  * Maps OpenAI / Azure OpenAI / OpenAI-compatible SDK errors to classified
  * core-ai provider errors via the shared precedence in `classifyProviderError`.
+ *
+ * Handles the same signal categories as other providers: abort, context length,
+ * overload, rate limit (+ Retry-After), service unavailable, unknown.
  */
 export function wrapOpenAIError(
     error: unknown,
@@ -52,7 +55,7 @@ function getOpenAIErrorSignals(
     statusCode: number | undefined
 ): ProviderErrorSignals {
     const azureCapacity = isAzureOpenAIBackendCapacityError(error);
-    const rateLimited = isRateLimitStatus(statusCode) && !azureCapacity;
+    const rateLimited = isOpenAIRateLimit(error, statusCode) && !azureCapacity;
 
     return {
         aborted: isOpenAIAbortError(error),
@@ -60,14 +63,28 @@ function getOpenAIErrorSignals(
         overloaded: isOpenAIOverloaded(error, message, statusCode),
         rateLimit: rateLimited,
         retryAfterSeconds: rateLimited
-            ? getRetryAfterSeconds(error)
+            ? getRetryAfterSecondsFromError(error)
             : undefined,
+        // Generic 5xx use status fallbacks in classifyProviderError.
         serviceUnavailable: azureCapacity,
     };
 }
 
 function isOpenAIAbortError(error: unknown): error is Error {
     return error instanceof APIUserAbortError || isAbortErrorByName(error);
+}
+
+function isOpenAIRateLimit(
+    error: unknown,
+    statusCode: number | undefined
+): boolean {
+    if (isRateLimitStatus(statusCode)) {
+        return true;
+    }
+
+    const code = getProviderErrorCode(error);
+    const type = getProviderErrorType(error);
+    return code === 'rate_limit_exceeded' || type === 'rate_limit_error';
 }
 
 function isOpenAIOverloaded(
@@ -101,7 +118,6 @@ function getContextLengthSignal(
     }
 
     // Known context-length / string-max codes without parseable token counts.
-    // Do not map character lengths onto maxTokens/actualTokens.
     return true;
 }
 
@@ -189,19 +205,4 @@ function getProviderErrorType(error: unknown): string | undefined {
 
     const nested = asRecord(record.error);
     return getString(record, 'type') ?? getString(nested, 'type');
-}
-
-function getRetryAfterSeconds(error: unknown): number | undefined {
-    if (error instanceof APIError && error.headers) {
-        return parseRetryAfterSeconds(error.headers);
-    }
-
-    const record = asRecord(error);
-    if (!record?.headers || typeof record.headers !== 'object') {
-        return undefined;
-    }
-
-    return parseRetryAfterSeconds(
-        record.headers as Headers | Record<string, string>
-    );
 }

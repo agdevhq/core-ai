@@ -5,13 +5,15 @@ import {
 import {
     AbortedError,
     ProviderError,
+    asRecord,
     classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
+    getRetryAfterSecondsFromError,
+    getString,
     indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
-    isTransientUnavailableStatus,
     type ContextLengthSignal,
     type ProviderErrorSignals,
 } from '@core-ai/core-ai';
@@ -19,6 +21,9 @@ import {
 /**
  * Maps Mistral SDK errors to classified core-ai provider errors via the
  * shared precedence in `classifyProviderError`.
+ *
+ * Handles the same signal categories as other providers: abort, context length,
+ * overload, rate limit (+ Retry-After), service unavailable, unknown.
  */
 export function wrapMistralError(error: unknown): AbortedError | ProviderError {
     const message = getErrorMessage(error);
@@ -43,12 +48,18 @@ function getMistralErrorSignals(
     message: string,
     statusCode: number | undefined
 ): ProviderErrorSignals {
+    const body = parseErrorBody(error);
+    const rateLimited = isMistralRateLimit(statusCode, body?.type);
+
     return {
         aborted: isMistralAbortError(error),
-        contextLength: getContextLengthSignal(error, message),
+        contextLength: getContextLengthSignal(body, message),
         overloaded: indicatesModelOverload(message, statusCode),
-        rateLimit: isRateLimitStatus(statusCode),
-        serviceUnavailable: isTransientUnavailableStatus(statusCode),
+        rateLimit: rateLimited,
+        retryAfterSeconds: rateLimited
+            ? getRetryAfterSecondsFromError(error)
+            : undefined,
+        // Generic 5xx use status fallbacks in classifyProviderError.
     };
 }
 
@@ -58,11 +69,17 @@ function isMistralAbortError(error: unknown): boolean {
     );
 }
 
+function isMistralRateLimit(
+    statusCode: number | undefined,
+    errorType: string | undefined
+): boolean {
+    return isRateLimitStatus(statusCode) || errorType === 'rate_limit_error';
+}
+
 function getContextLengthSignal(
-    error: unknown,
+    body: { message?: string; type?: string } | undefined,
     message: string
 ): true | ContextLengthSignal | undefined {
-    const body = parseErrorBody(error);
     const errorMessage = body?.message ?? message;
     const errorType = body?.type;
 
@@ -100,22 +117,37 @@ function getContextLengthSignal(
 function parseErrorBody(
     error: unknown
 ): { message?: string; type?: string } | undefined {
-    if (!(error instanceof Object) || !('body' in error)) {
+    const record = asRecord(error);
+    if (!record || !('body' in record)) {
+        // Some SDK shapes put type/message on the error itself.
+        const type = getString(record, 'type');
+        const message = getString(record, 'message');
+        if (type || message) {
+            return { type, message };
+        }
         return undefined;
     }
 
-    const body = (error as { body: unknown }).body;
+    const body = record.body;
     if (typeof body !== 'string') {
         if (body && typeof body === 'object') {
-            return body as { message?: string; type?: string };
+            const bodyRecord = asRecord(body);
+            return {
+                message: getString(bodyRecord, 'message'),
+                type: getString(bodyRecord, 'type'),
+            };
         }
         return undefined;
     }
 
     try {
         const parsed: unknown = JSON.parse(body);
-        if (parsed && typeof parsed === 'object') {
-            return parsed as { message?: string; type?: string };
+        const parsedRecord = asRecord(parsed);
+        if (parsedRecord) {
+            return {
+                message: getString(parsedRecord, 'message'),
+                type: getString(parsedRecord, 'type'),
+            };
         }
     } catch {
         // ignore

@@ -89,6 +89,7 @@ export {
     getHttpStatusCode,
     isAbortErrorByName,
     parseRetryAfterSeconds,
+    getRetryAfterSecondsFromError,
 } from './classify-provider-error.ts';
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';

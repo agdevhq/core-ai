@@ -35,23 +35,42 @@ describe('wrapGoogleError', () => {
         );
     });
 
-    it('should map 429 RESOURCE_EXHAUSTED to RateLimitError', () => {
+    it('should map token-limit wording without counts', () => {
         const error = new ApiError({
-            message: JSON.stringify({
-                error: {
-                    code: 429,
-                    status: 'RESOURCE_EXHAUSTED',
-                    message: 'Resource exhausted',
-                },
-            }),
-            status: 429,
+            message: 'input exceeds the maximum number of tokens allowed',
+            status: 400,
         });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        const classified = wrapped as ContextLengthExceededError;
+        expect(classified.maxTokens).toBeUndefined();
+        expect(classified.actualTokens).toBeUndefined();
+    });
+
+    it('should map 429 RESOURCE_EXHAUSTED with retry-after to RateLimitError', () => {
+        const error = Object.assign(
+            new ApiError({
+                message: JSON.stringify({
+                    error: {
+                        code: 429,
+                        status: 'RESOURCE_EXHAUSTED',
+                        message: 'Resource exhausted',
+                    },
+                }),
+                status: 429,
+            }),
+            {
+                headers: new Headers({ 'retry-after': '8' }),
+            }
+        );
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
         const classified = wrapped as RateLimitError;
         expect(classified.code).toBe('rate_limit_exceeded');
         expect(classified.isRetryable).toBe(true);
+        expect(classified.retryAfterSeconds).toBe(8);
     });
 
     it('should map high-demand messages to ModelOverloadedError', () => {
@@ -93,6 +112,17 @@ describe('wrapGoogleError', () => {
         expect((wrapped as ServiceUnavailableError).code).toBe(
             'service_unavailable'
         );
+    });
+
+    it('should map 500 to ServiceUnavailableError', () => {
+        const error = new ApiError({
+            message: 'Internal error',
+            status: 500,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
     });
 
     it('should map opaque errors to ProviderError with unknown code', () => {

@@ -19,6 +19,14 @@ describe('wrapAnthropicError', () => {
         expect(wrapped.provider).toBe('anthropic');
     });
 
+    it('should map AbortError by name to AbortedError', () => {
+        const error = new Error('aborted');
+        error.name = 'AbortError';
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(AbortedError);
+    });
+
     it('should map prompt-too-long to ContextLengthExceededError', () => {
         const error = new APIError(
             400,
@@ -38,6 +46,24 @@ describe('wrapAnthropicError', () => {
         expect(classified.actualTokens).toBe(200000);
     });
 
+    it('should map prompt-too-long without counts', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'prompt is too long',
+            },
+            'prompt is too long',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        const classified = wrapped as ContextLengthExceededError;
+        expect(classified.maxTokens).toBeUndefined();
+        expect(classified.actualTokens).toBeUndefined();
+    });
+
     it('should map HTTP 529 / overloaded_error to ModelOverloadedError', () => {
         const error = new APIError(
             529,
@@ -54,7 +80,7 @@ describe('wrapAnthropicError', () => {
         expect(classified.isRetryable).toBe(true);
     });
 
-    it('should map rate_limit_error to RateLimitError', () => {
+    it('should map rate_limit_error with retry-after to RateLimitError', () => {
         const error = new APIError(
             429,
             { type: 'rate_limit_error', message: 'Rate limited' },
@@ -100,6 +126,19 @@ describe('wrapAnthropicError', () => {
         expect((wrapped as ServiceUnavailableError).code).toBe(
             'service_unavailable'
         );
+    });
+
+    it('should map 500 to ServiceUnavailableError', () => {
+        const error = new APIError(
+            500,
+            { type: 'api_error', message: 'Internal error' },
+            'Internal error',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
     });
 
     it('should map opaque errors to ProviderError with unknown code', () => {
