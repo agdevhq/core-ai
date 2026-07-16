@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import {
     AbortedError,
+    ContextLengthExceededError,
     CoreAIError,
+    ModelOverloadedError,
     ProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
     StreamAbortedError,
     StructuredOutputError,
     StructuredOutputNoObjectGeneratedError,
@@ -35,13 +39,87 @@ describe('CoreAIError', () => {
 });
 
 describe('ProviderError', () => {
-    it('should include provider and status code', () => {
+    it('should include provider and status code with default unknown code', () => {
         const error = new ProviderError('rate limited', 'openai', 429);
 
         expect(error.provider).toBe('openai');
         expect(error.statusCode).toBe(429);
+        expect(error.code).toBe('unknown');
+        expect(error.isRetryable).toBe(false);
         expect(error).toBeInstanceOf(CoreAIError);
         expect(error).toBeInstanceOf(Error);
+    });
+
+    it('should accept options object for code and cause', () => {
+        const cause = new Error('sdk');
+        const error = new ProviderError('failed', 'anthropic', {
+            code: 'unknown',
+            statusCode: 500,
+            cause,
+        });
+
+        expect(error.code).toBe('unknown');
+        expect(error.statusCode).toBe(500);
+        expect(error.cause).toBe(cause);
+        expect(error.isRetryable).toBe(false);
+    });
+});
+
+describe('classified ProviderError subclasses', () => {
+    it('should create ContextLengthExceededError with fixed code and token metadata', () => {
+        const error = new ContextLengthExceededError(
+            'context too long',
+            'openai',
+            {
+                statusCode: 400,
+                maxTokens: 8192,
+                actualTokens: 10000,
+            }
+        );
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error.name).toBe('ContextLengthExceededError');
+        expect(error.code).toBe('context_length_exceeded');
+        expect(error.maxTokens).toBe(8192);
+        expect(error.actualTokens).toBe(10000);
+        expect(error.isRetryable).toBe(false);
+    });
+
+    it('should create RateLimitError with fixed code and retry-after', () => {
+        const error = new RateLimitError('too many requests', 'openai', {
+            retryAfterSeconds: 30,
+        });
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error.name).toBe('RateLimitError');
+        expect(error.code).toBe('rate_limit_exceeded');
+        expect(error.statusCode).toBe(429);
+        expect(error.retryAfterSeconds).toBe(30);
+        expect(error.isRetryable).toBe(true);
+    });
+
+    it('should create ModelOverloadedError with fixed code', () => {
+        const error = new ModelOverloadedError('overloaded', 'anthropic', {
+            statusCode: 529,
+        });
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error.name).toBe('ModelOverloadedError');
+        expect(error.code).toBe('model_overloaded');
+        expect(error.statusCode).toBe(529);
+        expect(error.isRetryable).toBe(true);
+    });
+
+    it('should create ServiceUnavailableError with fixed code', () => {
+        const error = new ServiceUnavailableError('unavailable', 'google', {
+            statusCode: 503,
+        });
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error.name).toBe('ServiceUnavailableError');
+        expect(error.code).toBe('service_unavailable');
+        expect(error.statusCode).toBe(503);
+        expect(error.isRetryable).toBe(true);
     });
 });
 

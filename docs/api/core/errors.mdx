@@ -16,6 +16,10 @@ CoreAIError
 ├── AbortedError
 │   └── StreamAbortedError
 ├── ProviderError
+│   ├── ContextLengthExceededError
+│   ├── RateLimitError
+│   ├── ModelOverloadedError
+│   └── ServiceUnavailableError
 └── StructuredOutputError
     ├── StructuredOutputNoObjectGeneratedError
     ├── StructuredOutputParseError
@@ -146,22 +150,28 @@ try {
 
 ## ProviderError
 
-Error specific to provider/API failures.
+Error for provider/API failures. Always includes a stable `code`. Subclasses add typed metadata for common cases.
 
 ```typescript
+export type ProviderErrorCode =
+  | 'context_length_exceeded'
+  | 'rate_limit_exceeded'
+  | 'model_overloaded'
+  | 'service_unavailable'
+  | 'unknown';
+
 export class ProviderError extends CoreAIError {
+    public readonly code: ProviderErrorCode;
     public readonly statusCode?: number;
+
+    get isRetryable(): boolean;
 
     constructor(
         message: string,
         provider: string,
-        statusCode?: number,
+        statusCodeOrOptions?: number | ProviderErrorOptions,
         cause?: unknown
-    ) {
-        super(message, cause, provider);
-        this.name = 'ProviderError';
-        this.statusCode = statusCode;
-    }
+    );
 }
 ```
 
@@ -171,14 +181,36 @@ export class ProviderError extends CoreAIError {
   The provider that threw the error (e.g., `'openai'`, `'anthropic'`).
 </ParamField>
 
+<ParamField path="code" type="ProviderErrorCode">
+  Stable machine-readable classification. Defaults to `'unknown'`.
+</ParamField>
+
 <ParamField path="statusCode" type="number | undefined">
   HTTP status code if available (e.g., `404`, `500`, `429`).
 </ParamField>
 
+<ParamField path="isRetryable" type="boolean">
+  `true` for `rate_limit_exceeded`, `model_overloaded`, and `service_unavailable`.
+</ParamField>
+
+### Classified subclasses
+
+| Class | Fixed `code` | Extra fields |
+|-------|--------------|--------------|
+| `ContextLengthExceededError` | `context_length_exceeded` | `maxTokens?`, `actualTokens?` |
+| `RateLimitError` | `rate_limit_exceeded` | `retryAfterSeconds?` |
+| `ModelOverloadedError` | `model_overloaded` | — |
+| `ServiceUnavailableError` | `service_unavailable` | — |
+
 ### Example
 
 ```typescript
-import { generate, ProviderError } from '@core-ai/core-ai';
+import {
+  ContextLengthExceededError,
+  generate,
+  ProviderError,
+  RateLimitError,
+} from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 
 const openai = createOpenAI();
@@ -190,15 +222,14 @@ try {
     messages: [{ role: 'user', content: 'Hello' }]
   });
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error(`Provider ${error.provider} error:`, error.message);
-    
-    if (error.statusCode === 429) {
-      console.error('Rate limit exceeded');
-    } else if (error.statusCode === 401) {
-      console.error('Authentication failed');
-    } else if (error.statusCode && error.statusCode >= 500) {
-      console.error('Provider server error');
+  if (error instanceof ContextLengthExceededError) {
+    console.error('Context too long', error.maxTokens, error.actualTokens);
+  } else if (error instanceof RateLimitError) {
+    console.error('Rate limited; retry after', error.retryAfterSeconds);
+  } else if (error instanceof ProviderError) {
+    console.error(`Provider ${error.provider} [${error.code}]:`, error.message);
+    if (error.isRetryable) {
+      console.error('Transient failure — retry with backoff');
     }
   }
 }
@@ -429,10 +460,10 @@ try {
   
   // Handle provider errors
   if (error instanceof ProviderError) {
-    if (error.statusCode === 429) {
+    if (error.code === 'rate_limit_exceeded') {
       return handleRateLimit(error);
     }
-    if (error.statusCode && error.statusCode >= 500) {
+    if (error.isRetryable) {
       return handleServerError(error);
     }
     return handleProviderError(error);
@@ -465,18 +496,15 @@ async function generateWithRetry<T>(
       lastError = error as Error;
       
       if (error instanceof ProviderError) {
-        // Don't retry client errors (4xx)
-        if (error.statusCode && error.statusCode >= 400 && error.statusCode < 500) {
-          throw error;
-        }
-        
-        // Retry server errors (5xx) and rate limits
-        if (error.statusCode === 429 || (error.statusCode && error.statusCode >= 500)) {
+        if (error.isRetryable) {
           const delay = Math.pow(2, i) * 1000; // Exponential backoff
           console.log(`Retrying in ${delay}ms...`);
           await new Promise(resolve => setTimeout(resolve, delay));
           continue;
         }
+
+        // Don't retry non-retryable provider errors
+        throw error;
       }
       
       // Don't retry validation errors

@@ -1,4 +1,3 @@
-import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import type {
     Message as AnthropicMessage,
     RawMessageStreamEvent,
@@ -12,15 +11,15 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import type { z } from 'zod';
 import {
-    AbortedError,
     asObject,
     clampReasoningEffort,
     getProviderMetadata,
-    ProviderError,
     ValidationError,
     safeParseJsonObject,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
+
+export { wrapError } from './anthropic-error.js';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -1010,27 +1009,4 @@ function extractThinkingText(value: unknown): string {
             return typeof text === 'string' ? [text] : [];
         })
         .join('');
-}
-
-export function wrapError(
-    error: unknown,
-    provider = DEFAULT_PROVIDER_ID
-): AbortedError | ProviderError {
-    if (
-        error instanceof APIUserAbortError ||
-        (error instanceof Error && error.name === 'AbortError')
-    ) {
-        return new AbortedError(error, provider);
-    }
-
-    if (error instanceof APIError) {
-        return new ProviderError(error.message, provider, error.status, error);
-    }
-
-    return new ProviderError(
-        error instanceof Error ? error.message : String(error),
-        provider,
-        undefined,
-        error
-    );
 }
