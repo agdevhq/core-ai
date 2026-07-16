@@ -49,12 +49,24 @@ export type {
     ImageGenerateResult,
     GeneratedImage,
 } from './types.ts';
+export type {
+    ProviderErrorCode,
+    ProviderErrorOptions,
+    ContextLengthExceededErrorOptions,
+    RateLimitErrorOptions,
+    ModelOverloadedErrorOptions,
+    ServiceUnavailableErrorOptions,
+} from './errors.ts';
 export {
     CoreAIError,
     ValidationError,
     AbortedError,
     StreamAbortedError,
     ProviderError,
+    ContextLengthExceededError,
+    RateLimitError,
+    ModelOverloadedError,
+    ServiceUnavailableError,
     StructuredOutputError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,

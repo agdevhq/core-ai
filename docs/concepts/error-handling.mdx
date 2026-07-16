@@ -16,6 +16,10 @@ Error
     ├── AbortedError
     │   └── StreamAbortedError
     ├── ProviderError
+    │   ├── ContextLengthExceededError
+    │   ├── RateLimitError
+    │   ├── ModelOverloadedError
+    │   └── ServiceUnavailableError
     └── StructuredOutputError
         ├── StructuredOutputNoObjectGeneratedError
         ├── StructuredOutputParseError
@@ -126,60 +130,94 @@ try {
 
 ## ProviderError
 
-Error specific to provider API failures (network errors, API errors, rate limits, etc.).
+Error for provider API failures (network errors, API errors, rate limits, etc.).
+
+Every `ProviderError` has a stable machine-readable `code`. Prefer switching on `code` for logging and serialization; use subclasses for typed metadata and same-process `instanceof` checks.
 
 ```typescript
+type ProviderErrorCode =
+  | 'context_length_exceeded'
+  | 'rate_limit_exceeded'
+  | 'model_overloaded'
+  | 'service_unavailable'
+  | 'unknown';
+
 class ProviderError extends CoreAIError {
+  public readonly code: ProviderErrorCode;
   public readonly statusCode?: number;
+
+  get isRetryable(): boolean;
 
   constructor(
     message: string,
     provider: string,
-    statusCode?: number,
+    statusCodeOrOptions?: number | ProviderErrorOptions,
     cause?: unknown
   );
 }
 ```
 
+| Code | Subclass | Meaning | `isRetryable` |
+|------|----------|---------|---------------|
+| `context_length_exceeded` | `ContextLengthExceededError` | Input/context exceeds model limits | no |
+| `rate_limit_exceeded` | `RateLimitError` | HTTP 429 / provider rate limit | yes |
+| `model_overloaded` | `ModelOverloadedError` | Capacity / high-demand signal | yes |
+| `service_unavailable` | `ServiceUnavailableError` | Temporary unavailability (e.g. 503) | yes |
+| `unknown` | `ProviderError` | Unclassified provider failure | no |
+
+**Classification precedence** (applied by each provider's `wrap*Error`):
+
+1. Abort / cancel → `AbortedError` (not a `ProviderError`)
+2. Context length
+3. Overload (e.g. Anthropic HTTP 529, explicit capacity copy)
+4. Rate limit (HTTP 429, provider rate-limit types)
+5. Service unavailable (HTTP 503 / unavailable status)
+6. Everything else → `code: 'unknown'`
+
+Provider packages prefer structured SDK fields (status, error type/code, headers) and use message patterns only as a fallback (for example token-count extraction).
+
 **Usage:**
 
 ```typescript
-import { generate, ProviderError } from '@core-ai/core-ai';
+import {
+  ContextLengthExceededError,
+  generate,
+  ProviderError,
+  RateLimitError,
+} from '@core-ai/core-ai';
 
 try {
   const result = await generate({ model, messages });
 } catch (error) {
+  if (error instanceof ContextLengthExceededError) {
+    console.error('Context too long', error.maxTokens, error.actualTokens);
+    return;
+  }
+
+  if (error instanceof RateLimitError) {
+    console.log('Rate limited; retry after', error.retryAfterSeconds);
+    return;
+  }
+
   if (error instanceof ProviderError) {
     console.error(`Provider: ${error.provider}`);
+    console.error(`Code: ${error.code}`);
     console.error(`Status: ${error.statusCode}`);
-    console.error(`Message: ${error.message}`);
-    
-    // Handle specific status codes
-    if (error.statusCode === 429) {
-      console.log('Rate limited - retry with backoff');
-    } else if (error.statusCode === 401) {
-      console.log('Authentication failed - check API key');
+    if (error.isRetryable) {
+      console.log('Transient failure — safe to retry with backoff');
     }
   }
 }
 ```
 
-**Common Status Codes:**
+**Subclass details:**
 
-| Code | Meaning | Recommended Action |
-|------|---------|--------------------|
-| 401 | Authentication failed | Check API key |
-| 403 | Forbidden | Check API permissions |
-| 429 | Rate limit exceeded | Implement retry with exponential backoff |
-| 500 | Server error | Retry request |
-| 503 | Service unavailable | Wait and retry |
+- `ContextLengthExceededError` — optional `maxTokens` / `actualTokens` when parseable
+- `RateLimitError` — optional `retryAfterSeconds` from `Retry-After`
+- `ModelOverloadedError` — strong capacity signal (not a generic 503)
+- `ServiceUnavailableError` — generic temporary unavailability
 
-**When thrown:**
-- Invalid API key
-- Rate limits exceeded
-- Network failures
-- Provider API errors
-- Timeout errors
+Additional codes (auth, content policy, request limits) may be added later; unclassified failures remain `unknown`.
 
 ## Structured Output Errors
 
@@ -367,13 +405,13 @@ async function generateUserProfile(prompt: string) {
     
     // Handle provider errors
     if (error instanceof ProviderError) {
-      if (error.statusCode === 429) {
-        console.log('Rate limited - implementing retry...');
+      if (error.code === 'rate_limit_exceeded' || error.isRetryable) {
+        console.log('Transient provider failure - implementing retry...');
         await new Promise(resolve => setTimeout(resolve, 5000));
         return generateUserProfile(prompt); // Retry
       }
       
-      console.error(`Provider error (${error.provider}):`, error.message);
+      console.error(`Provider error (${error.provider}):`, error.code, error.message);
       throw new Error('AI service unavailable');
     }
     
@@ -404,9 +442,9 @@ async function generateWithRetry(
     try {
       return await generate({ model, messages });
     } catch (error) {
-      if (error instanceof ProviderError && error.statusCode === 429) {
+      if (error instanceof ProviderError && error.isRetryable) {
         const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
-        console.log(`Rate limited. Retrying in ${delay}ms...`);
+        console.log(`Retryable provider error (${error.code}). Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }

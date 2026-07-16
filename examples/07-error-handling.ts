@@ -1,5 +1,13 @@
 import 'dotenv/config';
-import { CoreAIError, ProviderError, generate } from '@core-ai/core-ai';
+import {
+    ContextLengthExceededError,
+    CoreAIError,
+    ModelOverloadedError,
+    ProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
+    generate,
+} from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 
 function getRequiredEnv(name: 'OPENAI_API_KEY'): string {
@@ -11,10 +19,50 @@ function getRequiredEnv(name: 'OPENAI_API_KEY'): string {
 }
 
 function handleError(error: unknown): void {
+    if (error instanceof ContextLengthExceededError) {
+        console.error('ContextLengthExceededError');
+        console.error(`provider: ${error.provider}`);
+        console.error(`code: ${error.code}`);
+        console.error(`maxTokens: ${error.maxTokens ?? 'n/a'}`);
+        console.error(`actualTokens: ${error.actualTokens ?? 'n/a'}`);
+        console.error(`message: ${error.message}`);
+        return;
+    }
+
+    if (error instanceof RateLimitError) {
+        console.error('RateLimitError');
+        console.error(`provider: ${error.provider}`);
+        console.error(`code: ${error.code}`);
+        console.error(`retryAfterSeconds: ${error.retryAfterSeconds ?? 'n/a'}`);
+        console.error(`isRetryable: ${error.isRetryable}`);
+        console.error(`message: ${error.message}`);
+        return;
+    }
+
+    if (error instanceof ModelOverloadedError) {
+        console.error('ModelOverloadedError');
+        console.error(`provider: ${error.provider}`);
+        console.error(`code: ${error.code}`);
+        console.error(`isRetryable: ${error.isRetryable}`);
+        console.error(`message: ${error.message}`);
+        return;
+    }
+
+    if (error instanceof ServiceUnavailableError) {
+        console.error('ServiceUnavailableError');
+        console.error(`provider: ${error.provider}`);
+        console.error(`code: ${error.code}`);
+        console.error(`isRetryable: ${error.isRetryable}`);
+        console.error(`message: ${error.message}`);
+        return;
+    }
+
     if (error instanceof ProviderError) {
         console.error('ProviderError');
         console.error(`provider: ${error.provider}`);
+        console.error(`code: ${error.code}`);
         console.error(`statusCode: ${error.statusCode ?? 'n/a'}`);
+        console.error(`isRetryable: ${error.isRetryable}`);
         console.error(`message: ${error.message}`);
         return;
     }
@@ -49,7 +97,7 @@ async function main(): Promise<void> {
         handleError(error);
     }
 
-    // Example 2: Provider call with robust error handling.
+    // Example 2: Provider call with classified error handling.
     try {
         const result = await generate({
             model,
