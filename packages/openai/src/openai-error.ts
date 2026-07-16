@@ -124,21 +124,23 @@ function tryContextLengthExceededError(
     const stringExceededPattern =
         /Expected a string with maximum length (\d+), but got a string with length (\d+) instead\./;
     const match = providerMessage.match(stringExceededPattern);
-    if (!match) {
-        return undefined;
+    if (match) {
+        const maxLength = match[1];
+        const actualLength = match[2];
+        if (maxLength !== undefined && actualLength !== undefined) {
+            return new ContextLengthExceededError(message, provider, {
+                statusCode,
+                cause: error,
+                maxTokens: parseInt(maxLength, 10),
+                actualTokens: parseInt(actualLength, 10),
+            });
+        }
     }
 
-    const maxLength = match[1];
-    const actualLength = match[2];
-    if (maxLength === undefined || actualLength === undefined) {
-        return undefined;
-    }
-
+    // Known context-length code without parseable counts — still classify.
     return new ContextLengthExceededError(message, provider, {
         statusCode,
         cause: error,
-        maxTokens: parseInt(maxLength, 10),
-        actualTokens: parseInt(actualLength, 10),
     });
 }
 

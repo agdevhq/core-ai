@@ -72,20 +72,20 @@ export class ValidationError extends CoreAIError {
 </ParamField>
 
 <ParamField path="name" type="string">
-  Error name, always `'CoreAIError'`.
+  Error name, always `'ValidationError'`.
 </ParamField>
 
 ### Example
 
 ```typescript
-import { CoreAIError } from '@core-ai/core-ai';
+import { ValidationError } from '@core-ai/core-ai';
 
 try {
   // Some operation
-  throw new CoreAIError('Something went wrong');
+  throw new ValidationError('messages must not be empty');
 } catch (error) {
-  if (error instanceof CoreAIError) {
-    console.error('CoreAIError:', error.message);
+  if (error instanceof ValidationError) {
+    console.error('ValidationError:', error.message);
     if (error.cause) {
       console.error('Caused by:', error.cause);
     }

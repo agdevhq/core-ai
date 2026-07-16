@@ -84,7 +84,7 @@ describe('wrapOpenAIError', () => {
             expect(classified.actualTokens).toBe(313691);
         });
 
-        it('should not map context_length_exceeded without a parseable pattern', () => {
+        it('should map known context_length_exceeded code without a parseable token pattern', () => {
             const error = {
                 code: 'context_length_exceeded',
                 error: {
@@ -94,9 +94,11 @@ describe('wrapOpenAIError', () => {
             };
 
             const wrapped = wrapOpenAIError(error);
-            expect(wrapped).toBeInstanceOf(ProviderError);
-            expect(wrapped).not.toBeInstanceOf(ContextLengthExceededError);
-            expect((wrapped as ProviderError).code).toBe('unknown');
+            expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+            const classified = wrapped as ContextLengthExceededError;
+            expect(classified.code).toBe('context_length_exceeded');
+            expect(classified.maxTokens).toBeUndefined();
+            expect(classified.actualTokens).toBeUndefined();
         });
     });
 

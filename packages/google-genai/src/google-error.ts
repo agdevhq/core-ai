@@ -1,5 +1,6 @@
 import { ApiError } from '@google/genai';
 import {
+    AbortedError,
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
@@ -17,16 +18,21 @@ type GoogleApiErrorBody = {
  * Maps Google GenAI / Vertex SDK errors to classified core-ai provider errors.
  *
  * Classification precedence:
- * 1. Context length (input token count message)
- * 2. Rate limit (HTTP 429 / RESOURCE_EXHAUSTED)
- * 3. Model overloaded (capacity / high-demand message cues)
- * 4. Service unavailable (HTTP 503 / UNAVAILABLE)
- * 5. Otherwise → ProviderError with code `unknown`
+ * 1. Abort
+ * 2. Context length (input token count message)
+ * 3. Rate limit (HTTP 429 / RESOURCE_EXHAUSTED)
+ * 4. Model overloaded (capacity / high-demand message cues)
+ * 5. Service unavailable (HTTP 503 / UNAVAILABLE)
+ * 6. Otherwise → ProviderError with code `unknown`
  */
 export function wrapGoogleError(
     error: unknown,
     provider = 'google'
-): ProviderError {
+): AbortedError | ProviderError {
+    if (isAbortError(error)) {
+        return new AbortedError(error, provider);
+    }
+
     const message = getErrorMessage(error);
     const statusCode = getStatusCode(error);
     const body = tryParseGoogleApiErrorBody(message);
@@ -156,6 +162,10 @@ function toNumericHttpCode(
 
 function normalizedStatus(body: GoogleApiErrorBody | null): string | undefined {
     return body?.status?.toUpperCase();
+}
+
+function isAbortError(error: unknown): boolean {
+    return error instanceof Error && error.name === 'AbortError';
 }
 
 function getErrorMessage(error: unknown): string {
