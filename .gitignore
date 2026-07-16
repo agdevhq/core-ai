@@ -32,3 +32,7 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+# Editor swap files
+*.swp
+*.swo

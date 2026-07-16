@@ -100,18 +100,22 @@ For one-off publishes or the initial release:
 
 ```bash
 npm publish -w @core-ai/core-ai --access public
+npm publish -w @core-ai/opentelemetry --access public
+npm publish -w @core-ai/axiom --access public
+npm publish -w @core-ai/langfuse --access public
 npm publish -w @core-ai/openai --access public
+npm publish -w @core-ai/openai-compat --access public
+npm publish -w @core-ai/azure-openai --access public
+npm publish -w @core-ai/omnifact --access public
+npm publish -w @core-ai/kimi --access public
 npm publish -w @core-ai/anthropic --access public
+npm publish -w @core-ai/anthropic-vertex --access public
 npm publish -w @core-ai/google-genai --access public
 npm publish -w @core-ai/google-vertex --access public
 npm publish -w @core-ai/mistral --access public
-npm publish -w @core-ai/azure-openai --access public
-npm publish -w @core-ai/omnifact --access public
-npm publish -w @core-ai/anthropic-vertex --access public
-npm publish -w @core-ai/kimi --access public
 ```
 
-Publish `core-ai` first since providers depend on it.
+Publish in dependency order (as listed): `core-ai` first, and each base package before the packages built on it.
 
 ## Trusted Publishing
 
