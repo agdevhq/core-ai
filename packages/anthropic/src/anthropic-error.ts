@@ -9,8 +9,12 @@ import {
     getString,
     indicatesModelOverload,
     isAbortErrorByName,
+    isOverloadedStatus,
+    isRateLimitStatus,
+    isTransientUnavailableStatus,
     parseRetryAfterSeconds,
     type ContextLengthSignal,
+    type ProviderErrorSignals,
 } from '@core-ai/core-ai';
 
 /**
@@ -26,29 +30,75 @@ export function wrapAnthropicError(
         error instanceof APIError
             ? error.status
             : getHttpStatusCode(error, ['status']);
+
+    return classifyProviderError(
+        { message, provider, cause: error, statusCode },
+        getAnthropicErrorSignals(error, message, statusCode)
+    );
+}
+
+function getAnthropicErrorSignals(
+    error: unknown,
+    message: string,
+    statusCode: number | undefined
+): ProviderErrorSignals {
     const providerMessage = getAnthropicErrorMessage(error);
     const errorType = getAnthropicErrorType(error);
 
-    return classifyProviderError({
-        message,
-        provider,
-        cause: error,
-        statusCode,
-        aborted:
-            error instanceof APIUserAbortError || isAbortErrorByName(error),
+    return {
+        aborted: isAnthropicAbortError(error),
         contextLength: getContextLengthSignal(providerMessage),
-        overloaded:
-            statusCode === 529 ||
-            errorType === 'overloaded_error' ||
-            indicatesModelOverload(
-                `${providerMessage ?? ''} ${message}`,
-                statusCode
-            ),
-        rateLimit: isRateLimitSignal(error, statusCode, errorType),
+        overloaded: isAnthropicOverloaded(
+            errorType,
+            providerMessage,
+            message,
+            statusCode
+        ),
+        rateLimit: isAnthropicRateLimit(error, statusCode, errorType),
         retryAfterSeconds: getRetryAfterSeconds(error),
-        serviceUnavailable:
-            statusCode === 503 || isUnavailableStatus(error),
-    });
+        serviceUnavailable: isAnthropicUnavailable(error, statusCode),
+    };
+}
+
+function isAnthropicAbortError(error: unknown): boolean {
+    return error instanceof APIUserAbortError || isAbortErrorByName(error);
+}
+
+function isAnthropicOverloaded(
+    errorType: string | undefined,
+    providerMessage: string | undefined,
+    message: string,
+    statusCode: number | undefined
+): boolean {
+    return (
+        isOverloadedStatus(statusCode) ||
+        errorType === 'overloaded_error' ||
+        indicatesModelOverload(
+            `${providerMessage ?? ''} ${message}`,
+            statusCode
+        )
+    );
+}
+
+function isAnthropicRateLimit(
+    error: unknown,
+    statusCode: number | undefined,
+    errorType: string | undefined
+): boolean {
+    return (
+        isRateLimitStatus(statusCode) ||
+        errorType === 'rate_limit_error' ||
+        isResourceExhaustedError(error)
+    );
+}
+
+function isAnthropicUnavailable(
+    error: unknown,
+    statusCode: number | undefined
+): boolean {
+    return (
+        isTransientUnavailableStatus(statusCode) || isUnavailableStatus(error)
+    );
 }
 
 function getContextLengthSignal(
@@ -75,18 +125,6 @@ function getContextLengthSignal(
         maxTokens: parseInt(maxTokens, 10),
         actualTokens: parseInt(actualTokens, 10),
     };
-}
-
-function isRateLimitSignal(
-    error: unknown,
-    statusCode: number | undefined,
-    errorType: string | undefined
-): boolean {
-    if (statusCode === 429 || errorType === 'rate_limit_error') {
-        return true;
-    }
-
-    return isResourceExhaustedError(error);
 }
 
 /**

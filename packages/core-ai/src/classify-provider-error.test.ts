@@ -4,6 +4,9 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     indicatesModelOverload,
+    isOverloadedStatus,
+    isRateLimitStatus,
+    isTransientUnavailableStatus,
     parseRetryAfterSeconds,
 } from './classify-provider-error.ts';
 import {
@@ -17,29 +20,37 @@ import {
 
 describe('classifyProviderError', () => {
     it('maps abort before any other signal', () => {
-        const error = classifyProviderError({
-            message: 'ignored',
-            provider: 'openai',
-            aborted: true,
-            contextLength: true,
-            rateLimit: true,
-            cause: new Error('aborted'),
-        });
+        const error = classifyProviderError(
+            {
+                message: 'ignored',
+                provider: 'openai',
+                cause: new Error('aborted'),
+            },
+            {
+                aborted: true,
+                contextLength: true,
+                rateLimit: true,
+            }
+        );
 
         expect(error).toBeInstanceOf(AbortedError);
         expect(error.provider).toBe('openai');
     });
 
     it('prefers context length over overload, rate limit, and unavailable', () => {
-        const error = classifyProviderError({
-            message: 'too long',
-            provider: 'openai',
-            statusCode: 429,
-            contextLength: { maxTokens: 8, actualTokens: 10 },
-            overloaded: true,
-            rateLimit: true,
-            serviceUnavailable: true,
-        });
+        const error = classifyProviderError(
+            {
+                message: 'too long',
+                provider: 'openai',
+                statusCode: 429,
+            },
+            {
+                contextLength: { maxTokens: 8, actualTokens: 10 },
+                overloaded: true,
+                rateLimit: true,
+                serviceUnavailable: true,
+            }
+        );
 
         expect(error).toBeInstanceOf(ContextLengthExceededError);
         expect((error as ContextLengthExceededError).maxTokens).toBe(8);
@@ -47,40 +58,52 @@ describe('classifyProviderError', () => {
     });
 
     it('prefers overload over rate limit and unavailable', () => {
-        const error = classifyProviderError({
-            message: 'busy',
-            provider: 'google',
-            statusCode: 429,
-            overloaded: true,
-            rateLimit: true,
-            serviceUnavailable: true,
-        });
+        const error = classifyProviderError(
+            {
+                message: 'busy',
+                provider: 'google',
+                statusCode: 429,
+            },
+            {
+                overloaded: true,
+                rateLimit: true,
+                serviceUnavailable: true,
+            }
+        );
 
         expect(error).toBeInstanceOf(ModelOverloadedError);
         expect((error as ModelOverloadedError).code).toBe('model_overloaded');
     });
 
     it('prefers explicit rate limit over unavailable', () => {
-        const error = classifyProviderError({
-            message: 'slow down',
-            provider: 'openai',
-            statusCode: 503,
-            rateLimit: true,
-            serviceUnavailable: true,
-            retryAfterSeconds: 15,
-        });
+        const error = classifyProviderError(
+            {
+                message: 'slow down',
+                provider: 'openai',
+                statusCode: 503,
+            },
+            {
+                rateLimit: true,
+                serviceUnavailable: true,
+                retryAfterSeconds: 15,
+            }
+        );
 
         expect(error).toBeInstanceOf(RateLimitError);
         expect((error as RateLimitError).retryAfterSeconds).toBe(15);
     });
 
     it('allows explicit service unavailable to win over status 429 fallback', () => {
-        const error = classifyProviderError({
-            message: 'Backend error.',
-            provider: 'azure-openai',
-            statusCode: 429,
-            serviceUnavailable: true,
-        });
+        const error = classifyProviderError(
+            {
+                message: 'Backend error.',
+                provider: 'azure-openai',
+                statusCode: 429,
+            },
+            {
+                serviceUnavailable: true,
+            }
+        );
 
         expect(error).toBeInstanceOf(ServiceUnavailableError);
         expect((error as ServiceUnavailableError).statusCode).toBe(429);
@@ -126,6 +149,18 @@ describe('classifyProviderError', () => {
         const providerError = error as ProviderError;
         expect(providerError.code).toBe('unknown');
         expect(providerError.isRetryable).toBe(false);
+    });
+});
+
+describe('status helpers', () => {
+    it('recognizes rate-limit, overload, and transient unavailable statuses', () => {
+        expect(isRateLimitStatus(429)).toBe(true);
+        expect(isRateLimitStatus(503)).toBe(false);
+        expect(isOverloadedStatus(529)).toBe(true);
+        expect(isOverloadedStatus(503)).toBe(false);
+        expect(isTransientUnavailableStatus(500)).toBe(true);
+        expect(isTransientUnavailableStatus(503)).toBe(true);
+        expect(isTransientUnavailableStatus(429)).toBe(false);
     });
 });
 

@@ -7,7 +7,10 @@ import {
     getHttpStatusCode,
     indicatesModelOverload,
     isAbortErrorByName,
+    isRateLimitStatus,
+    isTransientUnavailableStatus,
     type ContextLengthSignal,
+    type ProviderErrorSignals,
 } from '@core-ai/core-ai';
 
 type GoogleApiErrorBody = {
@@ -31,22 +34,48 @@ export function wrapGoogleError(
             : getHttpStatusCode(error, ['status']);
     const body = tryParseGoogleApiErrorBody(message);
     const effectiveHttp = statusCode ?? toNumericHttpCode(body);
+
+    return classifyProviderError(
+        {
+            message,
+            provider,
+            cause: error,
+            statusCode: effectiveHttp,
+        },
+        getGoogleErrorSignals(error, message, effectiveHttp, body)
+    );
+}
+
+function getGoogleErrorSignals(
+    error: unknown,
+    message: string,
+    statusCode: number | undefined,
+    body: GoogleApiErrorBody | null
+): ProviderErrorSignals {
     const status = body?.status?.toUpperCase();
     const combinedText = `${body?.message ?? ''} ${message}`;
 
-    return classifyProviderError({
-        message,
-        provider,
-        cause: error,
-        statusCode: effectiveHttp,
+    return {
         aborted: isAbortErrorByName(error),
         contextLength: getContextLengthSignal(message),
-        overloaded: indicatesModelOverload(combinedText, effectiveHttp),
-        rateLimit:
-            effectiveHttp === 429 || status === 'RESOURCE_EXHAUSTED',
-        serviceUnavailable:
-            effectiveHttp === 503 || status === 'UNAVAILABLE',
-    });
+        overloaded: indicatesModelOverload(combinedText, statusCode),
+        rateLimit: isGoogleRateLimit(statusCode, status),
+        serviceUnavailable: isGoogleUnavailable(statusCode, status),
+    };
+}
+
+function isGoogleRateLimit(
+    statusCode: number | undefined,
+    status: string | undefined
+): boolean {
+    return isRateLimitStatus(statusCode) || status === 'RESOURCE_EXHAUSTED';
+}
+
+function isGoogleUnavailable(
+    statusCode: number | undefined,
+    status: string | undefined
+): boolean {
+    return isTransientUnavailableStatus(statusCode) || status === 'UNAVAILABLE';
 }
 
 function getContextLengthSignal(

@@ -17,28 +17,33 @@ export type ContextLengthSignal = {
     actualTokens?: number;
 };
 
-/**
- * Provider wrappers extract SDK-specific signals; this input is classified
- * with one shared precedence for every provider:
- *
- * 1. abort
- * 2. context length
- * 3. model overloaded (explicit flag)
- * 4. rate limit (explicit flag)
- * 5. service unavailable (explicit flag)
- * 6. HTTP status fallbacks (same order: 529 → overload, 429 → rate limit,
- *    500/502/503/504 → unavailable)
- * 7. unknown
- *
- * Explicit flags always beat status fallbacks so provider-specific quirks
- * (e.g. Azure capacity returning HTTP 429) can opt into a higher-priority
- * class without fighting the status code.
- */
-export type ProviderErrorClassificationInput = {
+/** Identity + HTTP metadata for a provider failure. */
+export type ProviderErrorContext = {
     message: string;
     provider: string;
     cause?: unknown;
     statusCode?: number;
+};
+
+/**
+ * Explicit classification signals extracted by provider wrappers.
+ * Prefer structured SDK fields; use message helpers only as fallback.
+ *
+ * Precedence (same for every provider):
+ * 1. abort
+ * 2. context length
+ * 3. model overloaded (explicit)
+ * 4. rate limit (explicit)
+ * 5. service unavailable (explicit)
+ * 6. HTTP status fallbacks (529 → overload, 429 → rate limit,
+ *    500/502/503/504 → unavailable)
+ * 7. unknown
+ *
+ * Explicit signals beat status fallbacks so provider-specific quirks
+ * (e.g. Azure capacity returning HTTP 429) can opt into a higher-priority
+ * class without fighting the status code.
+ */
+export type ProviderErrorSignals = {
     aborted?: boolean;
     /** `true` when counts are unknown; object when parseable. */
     contextLength?: true | ContextLengthSignal;
@@ -50,18 +55,28 @@ export type ProviderErrorClassificationInput = {
 
 const TRANSIENT_UNAVAILABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
-export function classifyProviderError(
-    input: ProviderErrorClassificationInput
-): AbortedError | ProviderError {
-    const { message, provider, cause, statusCode } = input;
+/**
+ * Status codes where free-text capacity cues are allowed to classify as
+ * model overload. Message matching is intentionally not applied to ordinary
+ * 4xx responses (including 429) to avoid false positives.
+ */
+const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
+    500, 502, 503, 504, 529,
+]);
 
-    if (input.aborted) {
+export function classifyProviderError(
+    context: ProviderErrorContext,
+    signals: ProviderErrorSignals = {}
+): AbortedError | ProviderError {
+    const { message, provider, cause, statusCode } = context;
+
+    if (signals.aborted) {
         return new AbortedError(cause, provider);
     }
 
-    if (input.contextLength) {
+    if (signals.contextLength) {
         const tokens =
-            input.contextLength === true ? {} : input.contextLength;
+            signals.contextLength === true ? {} : signals.contextLength;
         return new ContextLengthExceededError(message, provider, {
             statusCode,
             cause,
@@ -70,47 +85,44 @@ export function classifyProviderError(
         });
     }
 
-    if (input.overloaded) {
+    if (signals.overloaded) {
         return new ModelOverloadedError(message, provider, {
             statusCode,
             cause,
         });
     }
 
-    if (input.rateLimit) {
+    if (signals.rateLimit) {
         return new RateLimitError(message, provider, {
             statusCode: statusCode ?? 429,
             cause,
-            retryAfterSeconds: input.retryAfterSeconds,
+            retryAfterSeconds: signals.retryAfterSeconds,
         });
     }
 
-    if (input.serviceUnavailable) {
+    if (signals.serviceUnavailable) {
         return new ServiceUnavailableError(message, provider, {
             statusCode,
             cause,
         });
     }
 
-    if (statusCode === 529) {
+    if (isOverloadedStatus(statusCode)) {
         return new ModelOverloadedError(message, provider, {
             statusCode,
             cause,
         });
     }
 
-    if (statusCode === 429) {
+    if (isRateLimitStatus(statusCode)) {
         return new RateLimitError(message, provider, {
             statusCode,
             cause,
-            retryAfterSeconds: input.retryAfterSeconds,
+            retryAfterSeconds: signals.retryAfterSeconds,
         });
     }
 
-    if (
-        statusCode !== undefined &&
-        TRANSIENT_UNAVAILABLE_STATUS_CODES.has(statusCode)
-    ) {
+    if (isTransientUnavailableStatus(statusCode)) {
         return new ServiceUnavailableError(message, provider, {
             statusCode,
             cause,
@@ -123,14 +135,22 @@ export function classifyProviderError(
     });
 }
 
-/**
- * Status codes where free-text capacity cues are allowed to classify as
- * model overload. Message matching is intentionally not applied to ordinary
- * 4xx responses (including 429) to avoid false positives.
- */
-const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
-    500, 502, 503, 504, 529,
-]);
+export function isRateLimitStatus(statusCode: number | undefined): boolean {
+    return statusCode === 429;
+}
+
+export function isOverloadedStatus(statusCode: number | undefined): boolean {
+    return statusCode === 529;
+}
+
+export function isTransientUnavailableStatus(
+    statusCode: number | undefined
+): boolean {
+    return (
+        statusCode !== undefined &&
+        TRANSIENT_UNAVAILABLE_STATUS_CODES.has(statusCode)
+    );
+}
 
 /**
  * Message-fallback detector for capacity / high-demand overload.

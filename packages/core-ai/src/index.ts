@@ -74,11 +74,15 @@ export {
 } from './errors.ts';
 export type {
     ContextLengthSignal,
-    ProviderErrorClassificationInput,
+    ProviderErrorContext,
+    ProviderErrorSignals,
 } from './classify-provider-error.ts';
 export {
     classifyProviderError,
     indicatesModelOverload,
+    isRateLimitStatus,
+    isOverloadedStatus,
+    isTransientUnavailableStatus,
     getErrorMessage,
     asRecord,
     getString,

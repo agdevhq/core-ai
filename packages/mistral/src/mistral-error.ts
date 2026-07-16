@@ -10,7 +10,10 @@ import {
     getHttpStatusCode,
     indicatesModelOverload,
     isAbortErrorByName,
+    isRateLimitStatus,
+    isTransientUnavailableStatus,
     type ContextLengthSignal,
+    type ProviderErrorSignals,
 } from '@core-ai/core-ai';
 
 /**
@@ -24,18 +27,35 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
             ? error.statusCode
             : getHttpStatusCode(error, ['statusCode', 'status']);
 
-    return classifyProviderError({
-        message,
-        provider: 'mistral',
-        cause: error,
-        statusCode,
-        aborted:
-            error instanceof RequestAbortedError || isAbortErrorByName(error),
+    return classifyProviderError(
+        {
+            message,
+            provider: 'mistral',
+            cause: error,
+            statusCode,
+        },
+        getMistralErrorSignals(error, message, statusCode)
+    );
+}
+
+function getMistralErrorSignals(
+    error: unknown,
+    message: string,
+    statusCode: number | undefined
+): ProviderErrorSignals {
+    return {
+        aborted: isMistralAbortError(error),
         contextLength: getContextLengthSignal(error, message),
         overloaded: indicatesModelOverload(message, statusCode),
-        rateLimit: statusCode === 429,
-        serviceUnavailable: statusCode === 503,
-    });
+        rateLimit: isRateLimitStatus(statusCode),
+        serviceUnavailable: isTransientUnavailableStatus(statusCode),
+    };
+}
+
+function isMistralAbortError(error: unknown): boolean {
+    return (
+        error instanceof RequestAbortedError || isAbortErrorByName(error)
+    );
 }
 
 function getContextLengthSignal(

@@ -9,8 +9,10 @@ import {
     getString,
     indicatesModelOverload,
     isAbortErrorByName,
+    isRateLimitStatus,
     parseRetryAfterSeconds,
     type ContextLengthSignal,
+    type ProviderErrorSignals,
 } from '@core-ai/core-ai';
 
 const CONTEXT_LENGTH_ERROR_CODES = new Set([
@@ -38,26 +40,46 @@ export function wrapOpenAIError(
             ? error.status
             : getHttpStatusCode(error, ['status']);
 
-    return classifyProviderError({
-        message,
-        provider,
-        cause: error,
-        statusCode,
+    return classifyProviderError(
+        { message, provider, cause: error, statusCode },
+        getOpenAIErrorSignals(error, message, statusCode)
+    );
+}
+
+function getOpenAIErrorSignals(
+    error: unknown,
+    message: string,
+    statusCode: number | undefined
+): ProviderErrorSignals {
+    const azureCapacity = isAzureOpenAIBackendCapacityError(error);
+    const rateLimited = isRateLimitStatus(statusCode) && !azureCapacity;
+
+    return {
         aborted: isOpenAIAbortError(error),
         contextLength: getContextLengthSignal(error, message),
-        overloaded: indicatesModelOverload(
-            `${getProviderMessage(error) ?? ''} ${message}`,
-            statusCode
-        ),
-        rateLimit: statusCode === 429 && !isAzureOpenAIBackendCapacityError(error),
-        retryAfterSeconds:
-            statusCode === 429 ? getRetryAfterSeconds(error) : undefined,
-        serviceUnavailable: isAzureOpenAIBackendCapacityError(error),
-    });
+        overloaded: isOpenAIOverloaded(error, message, statusCode),
+        rateLimit: rateLimited,
+        retryAfterSeconds: rateLimited
+            ? getRetryAfterSeconds(error)
+            : undefined,
+        serviceUnavailable: azureCapacity,
+    };
 }
 
 function isOpenAIAbortError(error: unknown): error is Error {
     return error instanceof APIUserAbortError || isAbortErrorByName(error);
+}
+
+function isOpenAIOverloaded(
+    error: unknown,
+    message: string,
+    statusCode: number | undefined
+): boolean {
+    const providerMessage = getProviderMessage(error) ?? '';
+    return indicatesModelOverload(
+        `${providerMessage} ${message}`,
+        statusCode
+    );
 }
 
 function getContextLengthSignal(

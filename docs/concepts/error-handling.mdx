@@ -175,7 +175,7 @@ class ProviderError extends CoreAIError {
 6. HTTP status fallbacks in the same order: `529` → overload, `429` → rate limit, `500`/`502`/`503`/`504` → unavailable
 7. Everything else → `code: 'unknown'`
 
-Provider `wrap*Error` helpers only extract SDK-specific signals (status, error type/code, headers, and message fallbacks such as token counts). Classification itself is centralized so all providers share the same importance order. Explicit signals beat status fallbacks, which is how quirks like Azure capacity returning HTTP 429 can map to `service_unavailable` instead of a rate limit. Overload message cues are only applied on capacity-like statuses (`500`/`502`/`503`/`504`/`529`), never on ordinary 4xx including `429`.
+Provider `wrap*Error` helpers build a small context (`message`, `provider`, `statusCode`, `cause`) and a separate signals object via local helpers — they should not inline compound classification logic in the `classifyProviderError` call. Classification itself is centralized so all providers share the same importance order. Explicit signals beat status fallbacks, which is how quirks like Azure capacity returning HTTP 429 can map to `service_unavailable` instead of a rate limit. Overload message cues are only applied on capacity-like statuses (`500`/`502`/`503`/`504`/`529`), never on ordinary 4xx including `429`.
 
 **Usage:**
 
