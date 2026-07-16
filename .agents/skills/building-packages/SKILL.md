@@ -13,15 +13,20 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 
 - `@core-ai/core-ai` — core types, utilities, error classes
 - `@core-ai/openai` — OpenAI provider
+- `@core-ai/openai-compat` — OpenAI-compatible endpoints provider
+- `@core-ai/azure-openai` — Azure OpenAI provider
 - `@core-ai/anthropic` — Anthropic provider
+- `@core-ai/anthropic-vertex` — Vertex AI Anthropic (Claude) provider
 - `@core-ai/google-genai` — Google GenAI provider
 - `@core-ai/google-vertex` — Vertex AI Google provider
 - `@core-ai/mistral` — Mistral provider
 - `@core-ai/omnifact` — Omnifact provider
-- `@core-ai/anthropic-vertex` — Vertex AI Anthropic (Claude) provider
 - `@core-ai/kimi` — Kimi API provider
+- `@core-ai/langfuse` — Langfuse observability middleware
+- `@core-ai/opentelemetry` — OpenTelemetry observability middleware
+- `@core-ai/axiom` — Axiom OTLP exporter preset
 
-Internal packages (`eslint-config`, `typescript-config`, `esbuild-config`) are not built or published.
+Internal packages (`testing`, `eslint-config`, `typescript-config`, `esbuild-config`) are not published.
 
 ## Build Commands
 
@@ -82,7 +87,7 @@ Each `package.json` points to built output:
 
 ### TypeScript and `.ts` imports
 
-Source code uses `.ts` import extensions with `allowImportingTsExtensions: true` and `noEmit: true` in the shared tsconfig. tsup/esbuild handles these extensions during bundling, and `dts: true` uses `emitDeclarationOnly` mode for declaration generation.
+Some packages use `.ts` import extensions (see the extension conventions in `AGENTS.md`), enabled by `allowImportingTsExtensions: true` and `noEmit: true` in the shared tsconfig. tsup/esbuild handles these extensions during bundling, and `dts: true` uses `emitDeclarationOnly` mode for declaration generation.
 
 ## Dependency Graph
 

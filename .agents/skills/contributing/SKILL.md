@@ -63,17 +63,22 @@ While packages are below `1.0.0`, use `minor` for breaking changes instead of `m
 
 ### Fixed version group
 
-All publishable packages share a single version number:
+All publishable packages share a single version number (the `fixed` group in `.changeset/config.json`):
 
 - `@core-ai/core-ai`
+- `@core-ai/opentelemetry`
+- `@core-ai/axiom`
+- `@core-ai/langfuse`
 - `@core-ai/openai`
+- `@core-ai/openai-compat`
 - `@core-ai/anthropic`
 - `@core-ai/google-genai`
 - `@core-ai/google-vertex`
 - `@core-ai/mistral`
+- `@core-ai/azure-openai`
 - `@core-ai/omnifact`
-- `@core-ai/kimi`
 - `@core-ai/anthropic-vertex`
+- `@core-ai/kimi`
 
 Selecting any one package in a changeset bumps every package in the fixed group to the same version. Create a changeset for **every package with meaningful changes** — use separate files when the changelog text differs per package.
 
