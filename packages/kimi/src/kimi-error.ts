@@ -98,7 +98,15 @@ function tryContextLengthExceededError(
         }
     }
 
-    return undefined;
+    if (!isKnownContextLengthCode) {
+        return undefined;
+    }
+
+    // Known context-length code without parseable counts — still classify.
+    return new ContextLengthExceededError(message, 'kimi', {
+        statusCode,
+        cause: error,
+    });
 }
 
 function isTokenLimitMessage(message: string): boolean {

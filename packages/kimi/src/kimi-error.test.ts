@@ -32,6 +32,22 @@ describe('wrapKimiError', () => {
         expect(classified.actualTokens).toBe(9000);
     });
 
+    it('should map known context_length_exceeded code without a parseable token pattern', () => {
+        const error = {
+            code: 'context_length_exceeded',
+            error: {
+                message: 'Prompt is too long for this model',
+            },
+        };
+
+        const wrapped = wrapKimiError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        const classified = wrapped as ContextLengthExceededError;
+        expect(classified.code).toBe('context_length_exceeded');
+        expect(classified.maxTokens).toBeUndefined();
+        expect(classified.actualTokens).toBeUndefined();
+    });
+
     it('should map 429 to RateLimitError', () => {
         const error = APIError.generate(
             429,

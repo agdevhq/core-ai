@@ -1,6 +1,7 @@
 import { ApiError } from '@google/genai';
 import { describe, expect, it } from 'vitest';
 import {
+    AbortedError,
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
@@ -10,6 +11,15 @@ import {
 import { wrapGoogleError } from './google-error.ts';
 
 describe('wrapGoogleError', () => {
+    it('should map AbortError to AbortedError', () => {
+        const error = new Error('The operation was aborted');
+        error.name = 'AbortError';
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(AbortedError);
+        expect(wrapped.provider).toBe('google');
+    });
+
     it('should map input token count overflow to ContextLengthExceededError', () => {
         const error = new ApiError({
             message:
@@ -39,8 +49,9 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        expect(wrapped.code).toBe('rate_limit_exceeded');
-        expect(wrapped.isRetryable).toBe(true);
+        const classified = wrapped as RateLimitError;
+        expect(classified.code).toBe('rate_limit_exceeded');
+        expect(classified.isRetryable).toBe(true);
     });
 
     it('should map high-demand messages to ModelOverloadedError', () => {
@@ -51,7 +62,7 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
-        expect(wrapped.code).toBe('model_overloaded');
+        expect((wrapped as ModelOverloadedError).code).toBe('model_overloaded');
     });
 
     it('should map 503 UNAVAILABLE to ServiceUnavailableError', () => {
@@ -68,13 +79,15 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect(wrapped.code).toBe('service_unavailable');
+        expect((wrapped as ServiceUnavailableError).code).toBe(
+            'service_unavailable'
+        );
     });
 
     it('should map opaque errors to ProviderError with unknown code', () => {
         const wrapped = wrapGoogleError(new Error('unexpected'));
         expect(wrapped).toBeInstanceOf(ProviderError);
-        expect(wrapped.code).toBe('unknown');
+        expect((wrapped as ProviderError).code).toBe('unknown');
         expect(wrapped.provider).toBe('google');
     });
 
