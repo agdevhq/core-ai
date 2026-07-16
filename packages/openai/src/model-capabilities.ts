@@ -1,6 +1,9 @@
 import {
+    getRegisteredModelCapabilities,
     stripModelDateSuffix,
+    UNKNOWN_MODEL,
     type ModelCapabilities,
+    type ModelCapabilitiesRegistry,
     type ReasoningEffort,
 } from '@core-ai/core-ai';
 
@@ -86,8 +89,7 @@ function createNoReasoningCapabilities(
     };
 }
 
-const NO_REASONING_CAPABILITIES =
-    createNoReasoningCapabilities('max_tokens');
+const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities('max_tokens');
 const NO_REASONING_EFFORT_CAPABILITIES = createNoReasoningCapabilities(
     'max_completion_tokens'
 );
@@ -97,7 +99,7 @@ const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities(
     false
 );
 
-const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
+export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
@@ -133,7 +135,8 @@ const MODEL_CAPABILITIES: Record<string, OpenAIModelCapabilities> = {
     'gpt-4o-mini': NO_REASONING_CAPABILITIES,
     'gpt-4-turbo': NO_REASONING_CAPABILITIES,
     'gpt-3.5-turbo': NO_REASONING_CAPABILITIES,
-};
+    [UNKNOWN_MODEL]: UNKNOWN_MODEL_CAPABILITIES,
+} as const satisfies ModelCapabilitiesRegistry<OpenAIModelCapabilities>;
 
 const OPENAI_REASONING_EFFORT_MAP: Record<
     ReasoningEffort,
@@ -149,8 +152,10 @@ const OPENAI_REASONING_EFFORT_MAP: Record<
 export function getOpenAIModelCapabilities(
     modelId: string
 ): OpenAIModelCapabilities {
-    const normalizedModelId = normalizeModelId(modelId);
-    return MODEL_CAPABILITIES[normalizedModelId] ?? UNKNOWN_MODEL_CAPABILITIES;
+    return (
+        getRegisteredModelCapabilities(OPENAI_MODEL_CAPABILITIES, modelId) ??
+        UNKNOWN_MODEL_CAPABILITIES
+    );
 }
 
 export function normalizeModelId(modelId: string): string {

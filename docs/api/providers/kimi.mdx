@@ -175,37 +175,6 @@ const result = await generateObject({
 console.log(result.object);
 ```
 
-You can also use JSON Mode directly with `generate()`:
-
-```typescript
-import { createKimi } from '@core-ai/kimi';
-import { generate } from '@core-ai/core-ai';
-import { z } from 'zod';
-
-const kimi = createKimi({ apiKey: process.env.KIMI_API_KEY });
-const model = kimi.chatModel('kimi-k2.7-code');
-
-const schema = z.object({ city: z.string(), temperatureC: z.number() });
-
-const result = await generate({
-  model,
-  messages: [
-    {
-      role: 'user',
-      content:
-        'Return only valid JSON matching {"city": string, "temperatureC": number}.',
-    },
-  ],
-  providerOptions: {
-    kimi: {
-      responseFormat: { type: 'json_object' },
-    },
-  },
-});
-
-const object = schema.parse(JSON.parse(result.content ?? '{}'));
-```
-
 Forced tool choice via `toolChoice: { type: 'tool', toolName }` is rejected on K2.7 Code models because Moonshot does not allow forced tool selection while thinking is always enabled.
 
 ## Provider-specific options
@@ -219,7 +188,6 @@ await generate({
   providerOptions: {
     kimi: {
       parallelToolCalls: true,
-      responseFormat: { type: 'json_object' },
       stopSequences: ['END'],
       seed: 42,
     },
@@ -227,7 +195,7 @@ await generate({
 });
 ```
 
-Available fields: `parallelToolCalls`, `responseFormat`, `stopSequences`, `seed`, `user`.
+Available fields: `parallelToolCalls`, `stopSequences`, `seed`, `user`.
 
 ## Error handling
 

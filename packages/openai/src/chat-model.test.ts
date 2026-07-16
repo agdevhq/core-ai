@@ -15,9 +15,22 @@ import {
     StructuredOutputValidationError,
     resultToMessage,
 } from '@core-ai/core-ai';
-import { createOpenAIChatModel } from './chat-model.js';
+import { createOpenAIChatModel as createModel } from './chat-model.js';
 import { getOpenAIModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
+
+function createOpenAIChatModel(
+    client: Parameters<typeof createModel>[0],
+    modelId: string,
+    providerId = 'openai'
+) {
+    return createModel(
+        client,
+        modelId,
+        getOpenAIModelCapabilities(modelId),
+        providerId
+    );
+}
 
 describe('createOpenAIChatModel', () => {
     it('should create model metadata', () => {

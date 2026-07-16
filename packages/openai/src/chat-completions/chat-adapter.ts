@@ -2,6 +2,7 @@ import type {
     ChatCompletion,
     ChatCompletionChunk,
     ChatCompletionContentPart,
+    ChatCompletionAssistantMessageParam,
     ChatCompletionMessageFunctionToolCall,
     ChatCompletionMessageParam,
 } from 'openai/resources/chat/completions/completions';
@@ -15,13 +16,14 @@ import type {
     ToolCall,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { clampReasoningEffort } from '@core-ai/core-ai';
+import { clampReasoningEffort, getProviderMetadata } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
     type OpenAIChatCompletionsCapabilities,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.js';
 import { convertToolChoice, convertTools } from '../shared/tools.js';
+import type { OpenAIResolvedReasoningCompatibilityOptions } from '../shared/compatibility-options.js';
 import type { OpenAIRequestOptions } from '../shared/structured-output.js';
 import {
     safeParseJsonObject,
@@ -36,17 +38,22 @@ import { extractCompatibleReasoningText } from './compatibility.js';
 export type OpenAIChatCompletionsAdapterOptions = {
     compatibility?: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
+    reasoning?: OpenAIResolvedReasoningCompatibilityOptions;
 };
 
 export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
 
 export function convertMessages(
-    messages: Message[]
+    messages: Message[],
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ): ChatCompletionMessageParam[] {
-    return messages.map(convertMessage);
+    return messages.map((message) => convertMessage(message, adapterOptions));
 }
 
-function convertMessage(message: Message): ChatCompletionMessageParam {
+function convertMessage(
+    message: Message,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions
+): ChatCompletionMessageParam {
     if (message.role === 'system') {
         return {
             role: 'system',
@@ -65,24 +72,37 @@ function convertMessage(message: Message): ChatCompletionMessageParam {
     }
 
     if (message.role === 'assistant') {
-        const text = message.parts
-            .flatMap((part) => {
-                if (part.type === 'text') return [part.text];
-                // Chat Completions API has no native reasoning item type — fold reasoning
-                // into the text content wrapped in <thinking> tags to preserve context.
-                if (part.type === 'reasoning' && part.text.length > 0) {
-                    return [`<thinking>${part.text}</thinking>`];
-                }
-                return [];
-            })
-            .join('\n\n');
+        const nativeReasoning: string[] = [];
+        const text: string[] = [];
+        for (const part of message.parts) {
+            if (part.type === 'text') {
+                text.push(part.text);
+                continue;
+            }
+            if (part.type !== 'reasoning' || part.text.length === 0) {
+                continue;
+            }
+
+            const reasoningOptions = adapterOptions.reasoning;
+            if (
+                reasoningOptions &&
+                getProviderMetadata(
+                    part.providerMetadata,
+                    reasoningOptions.providerMetadataKey
+                )
+            ) {
+                nativeReasoning.push(part.text);
+            } else {
+                text.push(`<thinking>${part.text}</thinking>`);
+            }
+        }
         const toolCalls = message.parts.flatMap((part) =>
             part.type === 'tool-call' ? [part.toolCall] : []
         );
 
-        return {
+        const assistantMessage: ChatCompletionAssistantMessageParam = {
             role: 'assistant',
-            content: text.length > 0 ? text : null,
+            content: text.length > 0 ? text.join('\n\n') : null,
             ...(toolCalls.length > 0
                 ? {
                       tool_calls: toolCalls.map((toolCall) => ({
@@ -96,6 +116,15 @@ function convertMessage(message: Message): ChatCompletionMessageParam {
                   }
                 : {}),
         };
+
+        if (adapterOptions.reasoning && nativeReasoning.length > 0) {
+            return Object.assign(assistantMessage, {
+                [adapterOptions.reasoning.requestField]:
+                    nativeReasoning.join('\n\n'),
+            });
+        }
+
+        return assistantMessage;
     }
 
     return {
@@ -163,7 +192,6 @@ function createRequest(
     const openaiOptions = parseOpenAIChatGenerateProviderOptions(
         options.providerOptions
     );
-    const structuredOutputFormat = options.structuredOutputFormat;
     return {
         ...createRequestBase(modelId, options, adapterOptions),
         ...(stream
@@ -174,25 +202,8 @@ function createRequest(
                   },
               }
             : {}),
-        ...(structuredOutputFormat
-            ? {
-                  response_format: {
-                      type: 'json_schema' as const,
-                      json_schema: {
-                          name: structuredOutputFormat.name,
-                          ...(structuredOutputFormat.description
-                              ? {
-                                    description:
-                                        structuredOutputFormat.description,
-                                }
-                              : {}),
-                          strict: structuredOutputFormat.strict,
-                          schema: structuredOutputFormat.schema,
-                      },
-                  },
-              }
-            : {}),
         ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
+        ...mapResponseFormatToRequestFields(options.structuredOutputFormat),
     };
 }
 
@@ -207,7 +218,7 @@ function createRequestBase(
 
     return {
         model: modelId,
-        messages: convertMessages(options.messages),
+        messages: convertMessages(options.messages, adapterOptions),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
@@ -264,6 +275,35 @@ function mapOpenAIProviderOptionsToRequestFields(
     };
 }
 
+function mapResponseFormatToRequestFields(
+    format: OpenAIRequestOptions['structuredOutputFormat']
+) {
+    if (!format) {
+        return {};
+    }
+    if (format.type === 'json_object') {
+        return {
+            response_format: {
+                type: 'json_object' as const,
+            },
+        };
+    }
+
+    return {
+        response_format: {
+            type: 'json_schema' as const,
+            json_schema: {
+                name: format.name,
+                ...(format.description
+                    ? { description: format.description }
+                    : {}),
+                strict: format.strict,
+                schema: format.schema,
+            },
+        },
+    };
+}
+
 export function mapGenerateResponse(
     response: ChatCompletion,
     adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
@@ -296,7 +336,12 @@ export function mapGenerateResponse(
         ? (extractCompatibleReasoningText(firstChoice.message) ?? null)
         : null;
     const toolCalls = parseToolCalls(firstChoice.message.tool_calls);
-    const parts = createAssistantParts(reasoning, content, toolCalls);
+    const parts = createAssistantParts(
+        reasoning,
+        content,
+        toolCalls,
+        adapterOptions.reasoning?.providerMetadataKey
+    );
 
     return {
         parts,
@@ -419,7 +464,16 @@ export async function* transformStream(
         }
 
         reasoningOpen = false;
-        yield { type: 'reasoning-end' };
+        yield {
+            type: 'reasoning-end',
+            ...(adapterOptions.reasoning
+                ? {
+                      providerMetadata: {
+                          [adapterOptions.reasoning.providerMetadataKey]: {},
+                      },
+                  }
+                : {}),
+        };
     };
 
     for await (const chunk of stream) {
@@ -570,7 +624,8 @@ function mapReasoningToRequestFields(
 function createAssistantParts(
     reasoning: string | null,
     content: string | null,
-    toolCalls: ToolCall[]
+    toolCalls: ToolCall[],
+    reasoningProviderMetadataKey?: string
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
 
@@ -578,6 +633,13 @@ function createAssistantParts(
         parts.push({
             type: 'reasoning',
             text: reasoning,
+            ...(reasoningProviderMetadataKey
+                ? {
+                      providerMetadata: {
+                          [reasoningProviderMetadataKey]: {},
+                      },
+                  }
+                : {}),
         });
     }
     if (content) {

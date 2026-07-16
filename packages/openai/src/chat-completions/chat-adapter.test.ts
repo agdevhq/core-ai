@@ -221,7 +221,7 @@ describe('convertToolChoice', () => {
 });
 
 describe('structured output helpers', () => {
-    it('should create a native JSON Schema response format', () => {
+    it('should create a JSON Schema response format', () => {
         const schema = z.object({
             city: z.string(),
             temperatureC: z.number(),
@@ -295,6 +295,51 @@ describe('structured output helpers', () => {
             },
         });
         expect(request).not.toHaveProperty('response_format');
+    });
+
+    it('should create a JSON object request for compatible endpoints', () => {
+        const request = createGenerateRequest(
+            'kimi-k2.7-code',
+            createStructuredOutputRequestOptions(
+                {
+                    messages: [
+                        {
+                            role: 'system',
+                            content: 'You are a weather assistant.',
+                        },
+                        { role: 'user', content: 'Return weather as JSON' },
+                    ],
+                    schema: z.object({
+                        city: z.string(),
+                        temperatureC: z.number(),
+                    }),
+                    schemaName: 'weather_schema',
+                },
+                'json-object'
+            ),
+            {
+                maxTokensParameter: 'max_tokens',
+            }
+        );
+
+        expect(request).toMatchObject({
+            response_format: {
+                type: 'json_object',
+            },
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a weather assistant.',
+                },
+                {
+                    role: 'system',
+                    content: expect.stringContaining('weather_schema'),
+                },
+                { role: 'user', content: 'Return weather as JSON' },
+            ],
+        });
+        expect(request).not.toHaveProperty('tools');
+        expect(request).not.toHaveProperty('tool_choice');
     });
 
     it('should derive the default structured output name', () => {
@@ -414,6 +459,69 @@ describe('reasoning support', () => {
                         },
                     },
                 ],
+            },
+        ]);
+    });
+
+    it('should round-trip provider-owned reasoning through a native field', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'thinking...',
+                        providerMetadata: { kimi: {} },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        expect(
+            convertMessages(messages, {
+                compatibility: true,
+                reasoning: {
+                    requestField: 'reasoning_content',
+                    providerMetadataKey: 'kimi',
+                },
+            })
+        ).toEqual([
+            {
+                role: 'assistant',
+                reasoning_content: 'thinking...',
+                content: 'answer',
+            },
+        ]);
+    });
+
+    it('should keep cross-provider reasoning in text fallback', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'other thought',
+                        providerMetadata: { anthropic: {} },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        expect(
+            convertMessages(messages, {
+                compatibility: true,
+                reasoning: {
+                    requestField: 'reasoning_content',
+                    providerMetadataKey: 'kimi',
+                },
+            })
+        ).toEqual([
+            {
+                role: 'assistant',
+                content: '<thinking>other thought</thinking>\n\nanswer',
             },
         ]);
     });
@@ -604,6 +712,41 @@ describe('reasoning support', () => {
                 { type: 'text', text: 'final answer' },
             ],
         });
+    });
+
+    it('should tag native compatible reasoning with provider metadata', () => {
+        const response = asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'final answer',
+                        refusal: null,
+                        reasoning_content: 'provider reasoning',
+                    } as ChatCompletion['choices'][number]['message'],
+                },
+            ],
+        });
+
+        expect(
+            mapGenerateResponse(response, {
+                compatibility: true,
+                reasoning: {
+                    requestField: 'reasoning_content',
+                    providerMetadataKey: 'kimi',
+                },
+            }).parts
+        ).toEqual([
+            {
+                type: 'reasoning',
+                text: 'provider reasoning',
+                providerMetadata: { kimi: {} },
+            },
+            { type: 'text', text: 'final answer' },
+        ]);
     });
 
     it('should emit compatible reasoning before text while streaming', async () => {

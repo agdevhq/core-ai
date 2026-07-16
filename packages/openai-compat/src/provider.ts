@@ -11,7 +11,8 @@ export type OpenAICompatProviderOptions = OpenAIProviderBaseOptions & {
     reasoning?: boolean;
     /**
      * Structured output transport. Defaults to `tool` for broad compatibility.
-     * Use `native` when the endpoint supports strict JSON Schema response formats.
+     * Use `json-schema` when the endpoint supports strict JSON Schema response formats.
+     * Use `json-object` when it only supports JSON Mode.
      */
     structuredOutputMode?: OpenAIStructuredOutputMode;
     /**

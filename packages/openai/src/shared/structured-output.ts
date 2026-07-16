@@ -17,15 +17,19 @@ const DEFAULT_STRUCTURED_OUTPUT_NAME = 'core_ai_generate_object';
 const DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION =
     'Return a JSON object that matches the requested schema.';
 
-export type OpenAIStructuredOutputMode = 'native' | 'tool';
+export type OpenAIStructuredOutputMode = 'json-schema' | 'tool' | 'json-object';
 
-type OpenAIStructuredOutputFormat = {
-    type: 'json_schema';
-    name: string;
-    description?: string;
-    strict: true;
-    schema: Record<string, unknown>;
-};
+type OpenAIStructuredOutputFormat =
+    | {
+          type: 'json_schema';
+          name: string;
+          description?: string;
+          strict: true;
+          schema: Record<string, unknown>;
+      }
+    | {
+          type: 'json_object';
+      };
 
 /** Internal request options; structured output is not part of public generate/stream APIs. */
 export type OpenAIRequestOptions = GenerateOptions & {
@@ -40,7 +44,7 @@ export function getStructuredOutputName<TSchema extends z.ZodType>(
 
 export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
     options: GenerateObjectOptions<TSchema>,
-    mode: OpenAIStructuredOutputMode = 'native'
+    mode: OpenAIStructuredOutputMode = 'json-schema'
 ): OpenAIRequestOptions {
     const baseOptions: GenerateOptions = {
         messages: options.messages,
@@ -72,15 +76,58 @@ export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
         };
     }
 
+    if (mode === 'json-object') {
+        const format = createOpenAIStructuredOutputFormat(options);
+        const description =
+            format.description ?? DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION;
+        const instruction = [
+            'Return only a valid JSON object.',
+            `Schema name: ${format.name}.`,
+            `Description: ${description}`,
+            `JSON Schema: ${JSON.stringify(format.schema)}`,
+            'Do not include markdown, prose, or any text outside the JSON object.',
+        ].join('\n');
+
+        return {
+            ...baseOptions,
+            messages: insertStructuredOutputSystemMessage(
+                options.messages,
+                instruction
+            ),
+            structuredOutputFormat: {
+                type: 'json_object',
+            },
+        };
+    }
+
     return {
         ...baseOptions,
         structuredOutputFormat: createOpenAIStructuredOutputFormat(options),
     };
 }
 
+function insertStructuredOutputSystemMessage(
+    messages: GenerateOptions['messages'],
+    content: string
+): GenerateOptions['messages'] {
+    const firstNonSystemMessageIndex = messages.findIndex(
+        (message) => message.role !== 'system'
+    );
+    const insertionIndex =
+        firstNonSystemMessageIndex === -1
+            ? messages.length
+            : firstNonSystemMessageIndex;
+
+    return [
+        ...messages.slice(0, insertionIndex),
+        { role: 'system', content },
+        ...messages.slice(insertionIndex),
+    ];
+}
+
 function createOpenAIStructuredOutputFormat<TSchema extends z.ZodType>(
     options: GenerateObjectOptions<TSchema>
-): OpenAIStructuredOutputFormat {
+): Extract<OpenAIStructuredOutputFormat, { type: 'json_schema' }> {
     const name = getStructuredOutputName(options);
     const format = zodTextFormat(
         options.schema,

@@ -50,28 +50,6 @@ For `kimi-k2.7-code` and `kimi-k2.7-code-highspeed`, Moonshot fixes sampling par
 
 `generateObject()` and `streamObject()` use Moonshot JSON Mode (`response_format: { type: 'json_object' }`) and validate the returned JSON with your Zod schema.
 
-You can also use JSON Mode directly with `generate()` or `stream()` and parse JSON from `result.content`:
-
-```ts
-const result = await generate({
-    model,
-    messages: [
-        {
-            role: 'user',
-            content:
-                'Return only valid JSON matching {"city": string, "temperatureC": number}.',
-        },
-    ],
-    providerOptions: {
-        kimi: {
-            responseFormat: { type: 'json_object' },
-        },
-    },
-});
-
-const object = schema.parse(JSON.parse(result.content ?? '{}'));
-```
-
 Forced tool choice via `toolChoice: { type: 'tool', toolName }` is rejected on K2.7 Code models because Moonshot does not allow forced tool selection while thinking is always enabled.
 
 ## Provider options
@@ -85,7 +63,6 @@ await generate({
     providerOptions: {
         kimi: {
             parallelToolCalls: true,
-            responseFormat: { type: 'json_object' },
             stopSequences: ['END'],
         },
     },

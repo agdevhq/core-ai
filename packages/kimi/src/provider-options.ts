@@ -4,11 +4,6 @@ import { z } from 'zod';
 export const kimiGenerateProviderOptionsSchema = z
     .object({
         parallelToolCalls: z.boolean().optional(),
-        responseFormat: z
-            .object({
-                type: z.literal('json_object'),
-            })
-            .optional(),
         stopSequences: z.array(z.string()).optional(),
         seed: z.number().int().optional(),
         user: z.string().optional(),

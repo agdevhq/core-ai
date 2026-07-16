@@ -46,7 +46,7 @@
     },
     "dependencies": {
         "@core-ai/core-ai": "^0.16.0",
-        "openai": "^6.46.0"
+        "@core-ai/openai": "^0.16.0"
     },
     "peerDependencies": {
         "zod": "^4.0.0"
@@ -55,6 +55,7 @@
         "@core-ai/eslint-config": "*",
         "@core-ai/testing": "*",
         "@core-ai/typescript-config": "*",
+        "openai": "^6.47.0",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4"
     }

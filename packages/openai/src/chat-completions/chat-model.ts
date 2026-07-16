@@ -1,11 +1,15 @@
 import type OpenAI from 'openai';
 import type { z } from 'zod';
-import type { ChatCompletionChunk } from 'openai/resources/chat/completions/completions';
+import type {
+    ChatCompletion,
+    ChatCompletionChunk,
+} from 'openai/resources/chat/completions/completions';
 import type {
     ChatModel,
     GenerateObjectOptions,
     GenerateObjectResult,
     GenerateResult,
+    ModelCapabilities,
     StreamObjectOptions,
     ObjectStream,
     ChatStream,
@@ -19,38 +23,46 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { wrapOpenAIError } from '../openai-error.js';
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+import type { OpenAIResolvedCompatibilityOptions } from '../shared/compatibility-options.js';
 import {
     createStructuredOutputRequestOptions,
     extractStructuredObject,
     getStructuredOutputName,
     transformStructuredOutputStream,
     type OpenAIRequestOptions,
-    type OpenAIStructuredOutputMode,
 } from '../shared/structured-output.js';
 
 export type OpenAIChatClient = {
     chat: OpenAI['chat'];
 };
 
-export type OpenAIChatCompletionsModelOptions =
-    OpenAIChatCompletionsAdapterOptions & {
-        providerId?: string;
-        nonStandardReasoning?: boolean;
-        structuredOutputMode?: OpenAIStructuredOutputMode;
-    };
+export type OpenAIChatCompletionsModelOptions = {
+    capabilities: ModelCapabilities;
+    providerId?: string;
+    compatibility?: OpenAIResolvedCompatibilityOptions;
+};
 
 export function createOpenAIChatCompletionsModel(
     client: OpenAIChatClient,
     modelId: string,
-    modelOptions: OpenAIChatCompletionsModelOptions = {}
+    modelOptions: OpenAIChatCompletionsModelOptions
 ): ChatModel {
     const provider = modelOptions.providerId ?? 'openai';
+    const capabilities = modelOptions.capabilities;
+    const compatibilityOptions = modelOptions.compatibility;
     const structuredOutputMode =
-        modelOptions.structuredOutputMode ??
-        (modelOptions.compatibility ? 'tool' : 'native');
-    const nonStandardReasoning =
-        modelOptions.nonStandardReasoning ?? modelOptions.compatibility;
+        compatibilityOptions?.structuredOutputMode ??
+        (compatibilityOptions ? 'tool' : 'json-schema');
+    const adapterOptions: OpenAIChatCompletionsAdapterOptions = {
+        compatibility:
+            compatibilityOptions !== undefined &&
+            compatibilityOptions.reasoning !== false,
+        maxTokensParameter: compatibilityOptions?.maxTokensParameter,
+        reasoning:
+            typeof compatibilityOptions?.reasoning === 'object'
+                ? compatibilityOptions.reasoning
+                : undefined,
+    };
 
     async function callOpenAIChatCompletionsApi<TResponse>(
         request: unknown,
@@ -68,37 +80,46 @@ export function createOpenAIChatCompletionsModel(
     async function generateChat(
         options: OpenAIRequestOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, options, modelOptions);
-        const response = await callOpenAIChatCompletionsApi<
-            Parameters<typeof mapGenerateResponse>[0]
-        >(request, options.signal);
-        return mapGenerateResponse(response, {
-            compatibility: nonStandardReasoning,
-        });
+        const preparedOptions =
+            compatibilityOptions?.prepareGenerateOptions?.(options) ?? options;
+        const request = createGenerateRequest(
+            modelId,
+            preparedOptions,
+            adapterOptions
+        );
+        const response = await callOpenAIChatCompletionsApi<ChatCompletion>(
+            request,
+            preparedOptions.signal
+        );
+        return mapGenerateResponse(response, adapterOptions);
     }
 
     async function streamChat(
         options: OpenAIRequestOptions
     ): Promise<ChatStream> {
-        const request = createStreamRequest(modelId, options, modelOptions);
+        const preparedOptions =
+            compatibilityOptions?.prepareGenerateOptions?.(options) ?? options;
+        const request = createStreamRequest(
+            modelId,
+            preparedOptions,
+            adapterOptions
+        );
         return createChatStream(
             async () =>
                 transformStream(
                     await callOpenAIChatCompletionsApi<
                         AsyncIterable<ChatCompletionChunk>
-                    >(request, options.signal),
-                    {
-                        compatibility: nonStandardReasoning,
-                    }
+                    >(request, preparedOptions.signal),
+                    adapterOptions
                 ),
-            { signal: options.signal }
+            { signal: preparedOptions.signal }
         );
     }
 
     return {
         provider,
         modelId,
-        capabilities: getOpenAIModelCapabilities(modelId),
+        capabilities,
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(
