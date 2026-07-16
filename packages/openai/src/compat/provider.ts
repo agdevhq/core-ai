@@ -9,6 +9,7 @@ import {
     type OpenAIProvider,
     type OpenAIProviderBaseOptions,
 } from '../shared/provider-factory.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 
 export type OpenAICompatProviderOptions = OpenAIProviderBaseOptions;
 export type OpenAICompatProvider = OpenAIProvider;
@@ -53,8 +54,9 @@ export function createOpenAICompatChatProvider(
     return {
         chatModel: (modelId) =>
             createOpenAIChatCompletionsModel(client, modelId, {
+                capabilities: getOpenAIModelCapabilities(modelId),
                 providerId,
-                compatibility: true,
+                compatibility: { reasoning: true },
             }),
     };
 }

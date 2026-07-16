@@ -38,6 +38,11 @@ export type OpenAIChatGenerateProviderOptions = z.infer<
     typeof openaiChatGenerateProviderOptionsSchema
 >;
 
+export type OpenAIChatGenerateProviderOptionsConfig = {
+    key: string;
+    schema: z.ZodType<OpenAIChatGenerateProviderOptions>;
+};
+
 export const openaiEmbedProviderOptionsSchema = z
     .object({
         encodingFormat: z.enum(['float', 'base64']).optional(),
@@ -69,10 +74,11 @@ export type OpenAIImageProviderOptions = z.infer<
 >;
 
 function parseOpenAIProviderOptions<TOptions>(
-    providerOptions: { openai?: unknown } | undefined,
+    providerOptions: Record<string, unknown> | undefined,
+    key: string,
     schema: z.ZodType<TOptions>
 ): TOptions | undefined {
-    const rawOptions = providerOptions?.openai;
+    const rawOptions = providerOptions?.[key];
     if (rawOptions === undefined) {
         return undefined;
     }
@@ -85,16 +91,22 @@ export function parseOpenAIResponsesGenerateProviderOptions(
 ): OpenAIResponsesGenerateProviderOptions | undefined {
     return parseOpenAIProviderOptions(
         providerOptions,
+        'openai',
         openaiResponsesGenerateProviderOptionsSchema
     );
 }
 
 export function parseOpenAIChatGenerateProviderOptions(
-    providerOptions: GenerateProviderOptions | undefined
+    providerOptions: GenerateProviderOptions | undefined,
+    config: OpenAIChatGenerateProviderOptionsConfig = {
+        key: 'openai',
+        schema: openaiChatGenerateProviderOptionsSchema,
+    }
 ): OpenAIChatGenerateProviderOptions | undefined {
     return parseOpenAIProviderOptions(
         providerOptions,
-        openaiChatGenerateProviderOptionsSchema
+        config.key,
+        config.schema
     );
 }
 
@@ -103,6 +115,7 @@ export function parseOpenAIEmbedProviderOptions(
 ): OpenAIEmbedProviderOptions | undefined {
     return parseOpenAIProviderOptions(
         providerOptions,
+        'openai',
         openaiEmbedProviderOptionsSchema
     );
 }
@@ -112,6 +125,7 @@ export function parseOpenAIImageProviderOptions(
 ): OpenAIImageProviderOptions | undefined {
     return parseOpenAIProviderOptions(
         providerOptions,
+        'openai',
         openaiImageProviderOptionsSchema
     );
 }

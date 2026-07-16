@@ -3,6 +3,7 @@ import type { ChatModel } from '@core-ai/core-ai';
 import {
     createOpenAIChatCompletionsModel,
     createOpenAIProvider,
+    getOpenAIModelCapabilities,
     type OpenAIChatClient,
 } from '@core-ai/openai';
 
@@ -52,6 +53,7 @@ export function createAzureOpenAI(
         const chat = {
             chatModel: (modelId: string) =>
                 createOpenAIChatCompletionsModel(client, modelId, {
+                    capabilities: getOpenAIModelCapabilities(modelId),
                     providerId: PROVIDER_ID,
                 }),
         };
@@ -72,6 +74,7 @@ export function createAzureOpenAI(
         { client },
         {
             providerId: PROVIDER_ID,
+            providerOptionsKey: 'openai',
         }
     );
 

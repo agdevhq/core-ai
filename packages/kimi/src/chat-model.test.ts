@@ -2,32 +2,38 @@ import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { APIUserAbortError } from 'openai';
 import type OpenAI from 'openai';
-import type { ChatCompletion, ChatCompletionChunk } from 'openai/resources/chat/completions/completions';
+import type {
+    ChatCompletion,
+    ChatCompletionChunk,
+} from 'openai/resources/chat/completions/completions';
 import {
     AbortedError,
     ProviderError,
+    ValidationError,
     resultToMessage,
 } from '@core-ai/core-ai';
-import { createKimiChatModel } from './chat-model.ts';
-import { getKimiModelCapabilities } from './model-capabilities.ts';
+import { createKimi } from './provider.ts';
+import { KIMI_MODEL_CAPABILITIES } from './model-capabilities.ts';
 import { toAsyncIterable } from '@core-ai/testing';
 
 type KimiMessage = ChatCompletion['choices'][number]['message'] & {
     reasoning_content?: string;
 };
 
-type KimiDelta = NonNullable<ChatCompletionChunk['choices'][number]>['delta'] & {
+type KimiDelta = NonNullable<
+    ChatCompletionChunk['choices'][number]
+>['delta'] & {
     reasoning_content?: string;
 };
 
-describe('createKimiChatModel', () => {
+describe('Kimi chat model', () => {
     it('should create model metadata', () => {
-        const model = createKimiChatModel(createMockClient(), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient());
 
         expect(model.provider).toBe('kimi');
         expect(model.modelId).toBe('kimi-k2.7-code');
         expect(model.capabilities).toEqual(
-            getKimiModelCapabilities('kimi-k2.7-code')
+            KIMI_MODEL_CAPABILITIES['kimi-k2.7-code']
         );
     });
 });
@@ -86,7 +92,7 @@ describe('generate', () => {
             });
         });
 
-        const model = createKimiChatModel(createMockClient(create), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient(create));
 
         const firstResult = await model.generate({
             messages: [{ role: 'user', content: 'Question' }],
@@ -108,7 +114,7 @@ describe('generate', () => {
         const create = vi.fn(async () => {
             throw new Error('network failed');
         });
-        const model = createKimiChatModel(createMockClient(create), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient(create));
 
         await expect(
             model.generate({
@@ -121,7 +127,7 @@ describe('generate', () => {
         const create = vi.fn(async () => {
             throw new APIUserAbortError();
         });
-        const model = createKimiChatModel(createMockClient(create), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient(create));
 
         await expect(
             model.generate({
@@ -130,10 +136,104 @@ describe('generate', () => {
         ).rejects.toBeInstanceOf(AbortedError);
     });
 
+    it('should map Kimi provider options directly', async () => {
+        const create = vi.fn(async (request: unknown) => {
+            expect(request).toMatchObject({
+                parallel_tool_calls: false,
+                stop: ['END'],
+                seed: 42,
+                user: 'user-1',
+            });
+
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Done',
+                            refusal: null,
+                        },
+                    },
+                ],
+            });
+        });
+        const model = createKimiModel(createMockClient(create));
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                kimi: {
+                    parallelToolCalls: false,
+                    stopSequences: ['END'],
+                    seed: 42,
+                    user: 'user-1',
+                },
+            },
+        });
+    });
+
+    it('should reject sampling and forced tool choice for always-on reasoning', async () => {
+        const model = createKimiModel(createMockClient());
+
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                temperature: 1,
+            })
+        ).rejects.toBeInstanceOf(ValidationError);
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                toolChoice: 'required',
+            })
+        ).rejects.toBeInstanceOf(ValidationError);
+    });
+
+    it('should omit unsupported reasoning effort', async () => {
+        const create = vi.fn(async (request: unknown) => {
+            expect(request).not.toHaveProperty('reasoning_effort');
+
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Done',
+                            refusal: null,
+                        },
+                    },
+                ],
+            });
+        });
+        const model = createKimiModel(createMockClient(create));
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            reasoning: { effort: 'high' },
+        });
+    });
+
     it('should generate a validated structured object through JSON mode', async () => {
         const create = vi.fn(async (request: unknown) => {
             expect(request).toMatchObject({
                 response_format: { type: 'json_object' },
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a weather assistant.',
+                    },
+                    {
+                        role: 'system',
+                        content: expect.stringContaining('weather_schema'),
+                    },
+                    { role: 'user', content: 'Return weather JSON' },
+                ],
             });
 
             return asChatCompletion({
@@ -151,14 +251,20 @@ describe('generate', () => {
                 ],
             });
         });
-        const model = createKimiChatModel(createMockClient(create), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient(create));
         const schema = z.object({
             city: z.string(),
             temperatureC: z.number(),
         });
 
         const result = await model.generateObject({
-            messages: [{ role: 'user', content: 'Return weather JSON' }],
+            messages: [
+                {
+                    role: 'system',
+                    content: 'You are a weather assistant.',
+                },
+                { role: 'user', content: 'Return weather JSON' },
+            ],
             schema,
             schemaName: 'weather_schema',
         });
@@ -202,7 +308,7 @@ describe('generate', () => {
                 }),
             ]);
         });
-        const model = createKimiChatModel(createMockClient(create), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient(create));
         const schema = z.object({
             city: z.string(),
             temperatureC: z.number(),
@@ -259,7 +365,7 @@ describe('stream', () => {
                 }),
             ])
         );
-        const model = createKimiChatModel(createMockClient(create), 'kimi-k2.7-code');
+        const model = createKimiModel(createMockClient(create));
 
         const chatStream = await model.stream({
             messages: [{ role: 'user', content: 'hello' }],
@@ -272,13 +378,29 @@ describe('stream', () => {
 
         expect(eventTypes).toContain('reasoning-delta');
         expect(eventTypes).toContain('text-delta');
-        expect((await chatStream.result).content).toBe('Answer');
+        const result = await chatStream.result;
+        expect(result.content).toBe('Answer');
+        expect(result.parts).toEqual([
+            {
+                type: 'reasoning',
+                text: 'Think',
+                providerMetadata: { kimi: {} },
+            },
+            {
+                type: 'text',
+                text: 'Answer',
+            },
+        ]);
     });
 });
 
+function createKimiModel(client: OpenAI) {
+    return createKimi({ client }).chatModel('kimi-k2.7-code');
+}
+
 function createMockClient(
     create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
-): Pick<OpenAI, 'chat'> {
+): OpenAI {
     return {
         chat: {
             completions: {
@@ -289,7 +411,7 @@ function createMockClient(
                     }),
             },
         },
-    } as unknown as Pick<OpenAI, 'chat'>;
+    } as unknown as OpenAI;
 }
 
 function asChatCompletion(value: Partial<ChatCompletion>): ChatCompletion {

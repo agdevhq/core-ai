@@ -2,6 +2,7 @@ import {
     createOpenAIChatCompletionsModel,
     type OpenAIChatClient,
 } from '../chat-completions/chat-model.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 
 export type { OpenAIChatClient };
 
@@ -12,7 +13,8 @@ export function createOpenAICompatChatModel(
     providerId = 'openai'
 ) {
     return createOpenAIChatCompletionsModel(client, modelId, {
+        capabilities: getOpenAIModelCapabilities(modelId),
         providerId,
-        compatibility: true,
+        compatibility: { reasoning: true },
     });
 }

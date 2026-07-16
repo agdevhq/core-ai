@@ -22,7 +22,7 @@ describe('normalizeModelId', () => {
 describe('getOpenAIModelCapabilities', () => {
     it('should return max-range capabilities for gpt-5.6-sol', () => {
         const capabilities = getOpenAIModelCapabilities('gpt-5.6-sol');
-        expect(capabilities.reasoning.supported).toBe(true);
+        expect(capabilities.reasoning.mode).toBe('optional');
         expect(capabilities.reasoning.supportedEfforts).toEqual([
             'low',
             'medium',
@@ -108,7 +108,7 @@ describe('getOpenAIModelCapabilities', () => {
 
     it('should return unsupported capabilities for o1-mini', () => {
         const capabilities = getOpenAIModelCapabilities('o1-mini');
-        expect(capabilities.reasoning.supported).toBe(false);
+        expect(capabilities.reasoning.mode).toBe('unsupported');
         expect(capabilities.reasoning.supportedEfforts).toEqual([]);
     });
 
@@ -123,7 +123,7 @@ describe('getOpenAIModelCapabilities', () => {
     ])('should return non-reasoning capabilities for %s', (modelId) => {
         const capabilities = getOpenAIModelCapabilities(modelId);
 
-        expect(capabilities.reasoning.supported).toBe(false);
+        expect(capabilities.reasoning.mode).toBe('unsupported');
         expect(capabilities.reasoning.supportedEfforts).toEqual([]);
         expect(capabilities.chatCompletions.maxTokensParameter).toBe(
             'max_tokens'

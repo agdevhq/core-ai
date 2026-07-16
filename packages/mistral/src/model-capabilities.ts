@@ -4,9 +4,10 @@ export type MistralModelCapabilities = ModelCapabilities;
 
 const NO_REASONING_CAPABILITIES: MistralModelCapabilities = {
     reasoning: {
-        supported: false,
+        mode: 'unsupported',
         supportedEfforts: [],
         restrictsSamplingParams: false,
+        supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
 };
 

@@ -14,9 +14,27 @@ import {
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createOpenAIChatCompletionsModel } from './chat-model.js';
+import {
+    createOpenAIChatCompletionsModel as createModel,
+    type OpenAIChatClient,
+    type OpenAIChatCompletionsModelOptions,
+} from './chat-model.js';
 import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
+
+function createOpenAIChatCompletionsModel(
+    client: OpenAIChatClient,
+    modelId: string,
+    modelOptions: Omit<
+        OpenAIChatCompletionsModelOptions,
+        'capabilities'
+    > = {}
+) {
+    return createModel(client, modelId, {
+        ...modelOptions,
+        capabilities: getOpenAIModelCapabilities(modelId),
+    });
+}
 
 describe('createOpenAIChatCompletionsModel', () => {
     it('should create model metadata', () => {

@@ -205,9 +205,12 @@ const result = await generate({
 });
 ```
 
-## Thinking modes
+## Model capabilities
 
-Inspect model capabilities before enabling reasoning:
+Google extends the shared `ModelCapabilities` shape with `thinkingParam`, which
+selects budget or level control. The shared `mode` field reports whether
+thinking is optional or always on. Inspect these values before setting
+reasoning options:
 
 ```typescript
 import { clampReasoningEffort, generate } from '@core-ai/core-ai';
@@ -219,7 +222,7 @@ import {
 const google = createGoogleGenAI();
 const model = google.chatModel('gemini-3.1-pro');
 
-if (model.capabilities.reasoning.supported) {
+if (model.capabilities.reasoning.mode !== 'unsupported') {
     const effort = clampReasoningEffort(
         'high',
         model.capabilities.reasoning.supportedEfforts
@@ -234,10 +237,16 @@ if (model.capabilities.reasoning.supported) {
 
 const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 // capabilities.reasoning.thinkingParam === 'thinkingBudget'
-// capabilities.reasoning.canDisableThinking === true
+// capabilities.reasoning.mode === 'optional'
 ```
 
-Google extends the shared capability shape with `thinkingParam` and `canDisableThinking`. Sampling params are not restricted when reasoning is enabled (`restrictsSamplingParams: false`).
+Sampling parameters and all unified tool-choice modes remain supported while
+reasoning is enabled.
+
+### Thinking modes
+
+Gemini models use either thinking levels or token budgets. Models whose
+`reasoning.mode` is `always-on` cannot disable thinking.
 
 ### Thinking level (Gemini 3.x)
 

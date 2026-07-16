@@ -89,11 +89,12 @@ Source code uses `.ts` import extensions with `allowImportingTsExtensions: true`
 Published package dependencies must remain acyclic. Current runtime dependency
 layers are:
 
-- Base providers (`anthropic`, `google-genai`, `kimi`, `mistral`, `openai`)
+- Base providers (`anthropic`, `google-genai`, `mistral`, `openai`)
   depend on `core-ai`.
 - Composed providers depend on `core-ai` and their base provider:
     - `anthropic-vertex` → `anthropic`
     - `azure-openai`, `openai-compat`, `omnifact` → `openai`
+    - `kimi` → `openai`
     - `google-vertex` → `google-genai`
 - Integrations:
     - `langfuse`, `opentelemetry` → `core-ai`

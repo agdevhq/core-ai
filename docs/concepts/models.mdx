@@ -294,16 +294,18 @@ These properties are useful for logging, debugging, and tracking which models ar
 
 ### Chat model capabilities
 
-Chat models also expose a `capabilities` property that describes what the model supports for the unified API. Use it to decide whether to pass `reasoning` and which effort levels are valid before making a request:
+Chat models also expose a `capabilities` property that describes how the model
+accepts unified generation options. Use `reasoning.mode` to distinguish
+unsupported, optional, and always-on reasoning:
 
 ```typescript
 const model = openai.chatModel('gpt-5.2');
 
-if (model.capabilities.reasoning.supported) {
+if (model.capabilities.reasoning.mode !== 'unsupported') {
     console.log(model.capabilities.reasoning.supportedEfforts);
     // ['low', 'medium', 'high', 'max']
 
-    // When true, omit temperature/topP while reasoning is enabled
+    // When true, consult the provider's sampling rules
     console.log(model.capabilities.reasoning.restrictsSamplingParams);
 }
 ```

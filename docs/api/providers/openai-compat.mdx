@@ -49,13 +49,23 @@ const provider = createOpenAICompat({
     fields. Defaults to `true`.
 </ParamField>
 
-<ParamField path="structuredOutputMode" type="'tool' | 'native'" optional>
+<ParamField
+    path="structuredOutputMode"
+    type="'tool' | 'json-schema' | 'json-object'"
+    optional
+>
     How `generateObject()` and `streamObject()` request structured output.
-    Defaults to `tool` for broad endpoint compatibility. Set this to `native`
-    when the endpoint supports strict JSON Schema response formats.
+    Defaults to `tool` for broad endpoint compatibility. Set this to
+    `json-schema` when the endpoint supports strict JSON Schema response
+    formats. Use `json-object` for endpoints that support JSON Mode without JSON
+    Schema.
 </ParamField>
 
-<ParamField path="maxTokensParameter" type="'max_tokens' | 'max_completion_tokens'" optional>
+<ParamField
+    path="maxTokensParameter"
+    type="'max_tokens' | 'max_completion_tokens'"
+    optional
+>
     Request parameter used for `maxTokens` across this provider. When unset,
     known OpenAI models use their registered capability and unknown models use
     `max_tokens`.
@@ -85,6 +95,25 @@ console.log(result.content);
 console.log(result.reasoning);
 ```
 
+## Model capabilities
+
+Each model exposes `model.capabilities` for unified reasoning, sampling, and
+tool-choice constraints:
+
+```typescript
+const model = provider.chatModel('qwen3-235b');
+const capabilities = model.capabilities;
+```
+
+Known OpenAI model IDs use the OpenAI registry. Other IDs use generic
+OpenAI-compatible fallback capabilities because the provider cannot infer
+vendor-specific behavior from an arbitrary endpoint. Treat those values as
+defaults and configure endpoint-specific wire behavior with
+`structuredOutputMode`, `maxTokensParameter`, and `reasoning`.
+
+The `reasoning` provider option controls extraction of nonstandard response
+fields; it does not change `model.capabilities`.
+
 ## Compatibility behavior
 
 The provider follows the standard Chat Completions request and response shapes,
@@ -99,13 +128,25 @@ Streaming values emit `reasoning-start`, `reasoning-delta`, and
 
 Structured output uses a forced function tool by default because support for
 `response_format.json_schema` varies between compatible endpoints. Endpoints
-that implement native strict JSON Schema output can opt in:
+that implement strict JSON Schema output can opt in:
 
 ```typescript
 const provider = createOpenAICompat({
     apiKey: process.env.GATEWAY_API_KEY,
     baseURL: 'https://gateway.example.com/v1',
-    structuredOutputMode: 'native',
+    structuredOutputMode: 'json-schema',
+});
+```
+
+Endpoints that implement JSON Mode can use `json-object`. The provider adds the
+schema to the system message and sends
+`response_format: { type: 'json_object' }`:
+
+```typescript
+const provider = createOpenAICompat({
+    apiKey: process.env.GATEWAY_API_KEY,
+    baseURL: 'https://gateway.example.com/v1',
+    structuredOutputMode: 'json-object',
 });
 ```
 

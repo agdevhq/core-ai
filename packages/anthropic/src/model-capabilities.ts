@@ -28,9 +28,10 @@ function createCapabilities(
 ): AnthropicModelCapabilities {
     return {
         reasoning: {
-            supported: true,
+            mode: 'optional',
             supportedEfforts,
             restrictsSamplingParams: true,
+            supportedToolChoices: ['auto', 'none'],
         },
     };
 }

@@ -1,4 +1,4 @@
-import type { GenerateOptions } from '@core-ai/core-ai';
+import type { GenerateOptions, ModelCapabilities } from '@core-ai/core-ai';
 import { ValidationError } from '@core-ai/core-ai';
 
 import { getOpenAIModelCapabilities } from '../model-capabilities.js';
@@ -19,29 +19,58 @@ export function validateOpenAIReasoningConfig(
     modelId: string,
     options: GenerateOptions
 ): void {
-    if (!options.reasoning) {
+    validateReasoningConfig(
+        modelId,
+        options,
+        getOpenAIModelCapabilities(modelId),
+        'openai'
+    );
+}
+
+export function validateReasoningConfig(
+    modelId: string,
+    options: GenerateOptions,
+    capabilities: ModelCapabilities,
+    providerId: string
+): void {
+    const reasoningEnabled =
+        options.reasoning !== undefined ||
+        capabilities.reasoning.mode === 'always-on';
+    if (!reasoningEnabled) {
         return;
     }
 
-    const capabilities = getOpenAIModelCapabilities(modelId);
-    if (!capabilities.reasoning.restrictsSamplingParams) {
-        return;
-    }
+    if (capabilities.reasoning.restrictsSamplingParams) {
+        const restrictedSamplingParams = [
+            { name: 'temperature', value: options.temperature },
+            { name: 'topP', value: options.topP },
+        ] as const;
 
-    const restrictedSamplingParams = [
-        { name: 'temperature', value: options.temperature },
-        { name: 'topP', value: options.topP },
-    ] as const;
+        for (const { name, value } of restrictedSamplingParams) {
+            if (value === undefined) {
+                continue;
+            }
 
-    for (const { name, value } of restrictedSamplingParams) {
-        if (value === undefined) {
-            continue;
+            throw new ValidationError(
+                `${providerId} model "${modelId}" does not support ${name} when reasoning is enabled`,
+                undefined,
+                providerId
+            );
         }
+    }
 
+    const toolChoiceMode =
+        typeof options.toolChoice === 'object'
+            ? options.toolChoice.type
+            : options.toolChoice;
+    if (
+        toolChoiceMode !== undefined &&
+        !capabilities.reasoning.supportedToolChoices.includes(toolChoiceMode)
+    ) {
         throw new ValidationError(
-            `OpenAI model "${modelId}" does not support ${name} when reasoning is enabled`,
+            `${providerId} model "${modelId}" does not support toolChoice "${toolChoiceMode}" when reasoning is enabled`,
             undefined,
-            'openai'
+            providerId
         );
     }
 }

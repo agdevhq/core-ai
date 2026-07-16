@@ -90,12 +90,10 @@ describe('createOpenAICompat', () => {
         await provider
             .chatModel('qwen3-235b')
             .generate({ messages, maxTokens: 128 });
-        await providerWithDefault
-            .chatModel('custom-reasoning-model')
-            .generate({
-                messages,
-                maxTokens: 128,
-            });
+        await providerWithDefault.chatModel('custom-reasoning-model').generate({
+            messages,
+            maxTokens: 128,
+        });
 
         expect(create.mock.calls[0]?.[0]).toMatchObject({
             max_completion_tokens: 128,
@@ -154,7 +152,7 @@ describe('createOpenAICompat', () => {
         );
         const provider = createOpenAICompat({
             client: createMockClient(create),
-            structuredOutputMode: 'native',
+            structuredOutputMode: 'json-schema',
         });
 
         await provider.chatModel('qwen3-235b').generateObject({

@@ -34,9 +34,10 @@ describe('getAnthropicModelCapabilities', () => {
     ])('should resolve adaptive max-effort capabilities for %s', (modelId) => {
         const capabilities = getAnthropicModelCapabilities(modelId);
         expect(capabilities.reasoning).toEqual({
-            supported: true,
+            mode: 'optional',
             supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
             restrictsSamplingParams: true,
+            supportedToolChoices: ['auto', 'none'],
         });
         expect(getAnthropicThinkingMode(modelId)).toBe('adaptive');
         expect(supportsAnthropicMaxEffort(modelId)).toBe(true);
@@ -45,9 +46,10 @@ describe('getAnthropicModelCapabilities', () => {
     it('should resolve manual thinking capabilities', () => {
         const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
         expect(capabilities.reasoning).toEqual({
-            supported: true,
+            mode: 'optional',
             supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
             restrictsSamplingParams: true,
+            supportedToolChoices: ['auto', 'none'],
         });
         expect(getAnthropicThinkingMode('claude-opus-4-5')).toBe('manual');
         expect(supportsAnthropicMaxEffort('claude-opus-4-5')).toBe(false);
@@ -60,14 +62,14 @@ describe('getAnthropicModelCapabilities', () => {
         expect(supportsAnthropicMaxEffort('claude-opus-4-6-20260215')).toBe(
             true
         );
-        expect(
-            getAnthropicThinkingMode('claude-haiku-4-5@20251001')
-        ).toBe('manual');
+        expect(getAnthropicThinkingMode('claude-haiku-4-5@20251001')).toBe(
+            'manual'
+        );
     });
 
     it('should fallback to defaults for unknown models', () => {
         const capabilities = getAnthropicModelCapabilities('claude-future-5');
-        expect(capabilities.reasoning.supported).toBe(true);
+        expect(capabilities.reasoning.mode).toBe('optional');
         expect(capabilities.reasoning.supportedEfforts).toEqual([
             'minimal',
             'low',

@@ -1,13 +1,30 @@
 import OpenAI from 'openai';
-import type { ChatModel, EmbeddingModel, ImageModel } from '@core-ai/core-ai';
-
 import {
-    createOpenAIChatCompletionsModel,
-    type OpenAIChatCompletionsModelOptions,
-} from '../chat-completions/chat-model.js';
+    getRegisteredModelCapabilities,
+    type ChatModel,
+    type EmbeddingModel,
+    type ImageModel,
+    type ModelCapabilitiesRegistry,
+} from '@core-ai/core-ai';
+
+import { createOpenAIChatCompletionsModel } from '../chat-completions/chat-model.js';
 import { createOpenAIChatModel } from '../chat-model.js';
 import { createOpenAIEmbeddingModel } from '../embedding-model.js';
 import { createOpenAIImageModel } from '../image-model.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+import {
+    openaiChatGenerateProviderOptionsSchema,
+    type OpenAIChatGenerateProviderOptionsConfig,
+} from '../provider-options.js';
+import type {
+    OpenAICompatibility,
+    OpenAIResolvedCompatibilityOptions,
+} from './compatibility-options.js';
+
+export type {
+    OpenAICompatibility,
+    OpenAICompatibilityOptions,
+} from './compatibility-options.js';
 
 export type OpenAIProviderBaseOptions = {
     apiKey?: string;
@@ -26,16 +43,11 @@ export type OpenAIChatProvider = {
     chatModel(modelId: string): ChatModel;
 };
 
-export type OpenAICompatibilityOptions = {
-    reasoning?: boolean;
-    structuredOutputMode?: OpenAIChatCompletionsModelOptions['structuredOutputMode'];
-    maxTokensParameter?: OpenAIChatCompletionsModelOptions['maxTokensParameter'];
-};
-
-export type OpenAICompatibility = boolean | OpenAICompatibilityOptions;
-
 export type OpenAIProviderFactoryOptions = {
+    modelCapabilities?: ModelCapabilitiesRegistry;
     providerId?: string;
+    providerOptionsKey?: string;
+    providerOptionsSchema?: OpenAIChatGenerateProviderOptionsConfig['schema'];
     defaultApi?: 'responses' | 'chat-completions';
     compatibility?: OpenAICompatibility;
 };
@@ -51,25 +63,56 @@ export function createOpenAIProvider(
             baseURL: options.baseURL,
         });
     const providerId = factoryOptions.providerId ?? 'openai';
-    const compatibilityEnabled =
-        factoryOptions.compatibility === true ||
-        typeof factoryOptions.compatibility === 'object';
     const compatibilityOptions =
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
             : undefined;
-    const createResponsesModel = (modelId: string) =>
-        createOpenAIChatModel(client, modelId, providerId);
-    const createChatCompletionsModel = (modelId: string) =>
-        createOpenAIChatCompletionsModel(client, modelId, {
+    const createResponsesModel = (modelId: string) => {
+        const capabilities =
+            getRegisteredModelCapabilities(
+                factoryOptions.modelCapabilities,
+                modelId
+            ) ?? getOpenAIModelCapabilities(modelId);
+
+        return createOpenAIChatModel(client, modelId, capabilities, providerId);
+    };
+    const createChatCompletionsModel = (modelId: string) => {
+        const capabilities =
+            getRegisteredModelCapabilities(
+                factoryOptions.modelCapabilities,
+                modelId
+            ) ?? getOpenAIModelCapabilities(modelId);
+        const compatibility: OpenAIResolvedCompatibilityOptions | undefined =
+            factoryOptions.compatibility
+                ? {
+                      reasoning:
+                          typeof compatibilityOptions?.reasoning === 'object'
+                              ? {
+                                    ...compatibilityOptions.reasoning,
+                                    providerMetadataKey:
+                                        compatibilityOptions.reasoning
+                                            .providerMetadataKey ?? providerId,
+                                }
+                              : (compatibilityOptions?.reasoning ?? true),
+                      structuredOutputMode:
+                          compatibilityOptions?.structuredOutputMode,
+                      maxTokensParameter:
+                          compatibilityOptions?.maxTokensParameter,
+                  }
+                : undefined;
+
+        return createOpenAIChatCompletionsModel(client, modelId, {
             providerId,
-            compatibility: compatibilityEnabled,
-            nonStandardReasoning:
-                compatibilityEnabled &&
-                (compatibilityOptions?.reasoning ?? true),
-            structuredOutputMode: compatibilityOptions?.structuredOutputMode,
-            maxTokensParameter: compatibilityOptions?.maxTokensParameter,
+            capabilities,
+            compatibility,
+            providerOptions: {
+                key: factoryOptions.providerOptionsKey ?? providerId,
+                schema:
+                    factoryOptions.providerOptionsSchema ??
+                    openaiChatGenerateProviderOptionsSchema,
+            },
         });
+    };
     const chat = {
         chatModel: createChatCompletionsModel,
     };

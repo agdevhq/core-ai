@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProviderError } from '@core-ai/core-ai';
+import { ProviderError, ValidationError } from '@core-ai/core-ai';
 import { createKimi } from './provider.ts';
 
 const { chatCreate } = vi.hoisted(() => ({ chatCreate: vi.fn() }));
@@ -69,6 +69,18 @@ describe('createKimi', () => {
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
         expect(chatCreate).toHaveBeenCalledTimes(1);
+    });
+
+    it('should validate requests with the model capabilities', async () => {
+        const provider = createKimi({ apiKey: 'test-key' });
+
+        await expect(
+            provider.chatModel('kimi-k2.7-code').generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                temperature: 0.2,
+            })
+        ).rejects.toBeInstanceOf(ValidationError);
+        expect(chatCreate).not.toHaveBeenCalled();
     });
 
     it('should tag errors with provider "kimi"', async () => {

@@ -21,22 +21,22 @@ Create a Kimi provider instance.
 import { createKimi } from '@core-ai/kimi';
 
 const kimi = createKimi({
-  apiKey: process.env.KIMI_API_KEY,
+    apiKey: process.env.KIMI_API_KEY,
 });
 ```
 
 ### Options
 
 <ParamField path="apiKey" type="string" optional>
-  Your Kimi (Moonshot AI) API key.
+    Your Kimi (Moonshot AI) API key.
 </ParamField>
 
 <ParamField path="baseURL" type="string" optional>
-  Custom API base URL. Defaults to `https://api.moonshot.ai/v1`.
+    Custom API base URL. Defaults to `https://api.moonshot.ai/v1`.
 </ParamField>
 
 <ParamField path="client" type="OpenAI" optional>
-  Provide your own configured OpenAI SDK client instance.
+    Provide your own configured OpenAI SDK client instance.
 </ParamField>
 
 ### Returns
@@ -48,18 +48,38 @@ const kimi = createKimi({
 - **kimi-k2.7-code** — coding-focused agentic model with always-on thinking and preserved reasoning
 - **kimi-k2.7-code-highspeed** — same model with higher output speed
 
-## Capabilities
+## Provider support
 
-| Feature | Support |
-|---------|--------|
-| Chat Completion | Yes |
-| Streaming | Yes |
-| Function Calling | Yes |
-| Vision | Yes |
-| Reasoning | Yes (always on for K2.7 Code) |
+| Feature                                               | Support                                            |
+| ----------------------------------------------------- | -------------------------------------------------- |
+| Chat Completion                                       | Yes                                                |
+| Streaming                                             | Yes                                                |
+| Function Calling                                      | Yes                                                |
+| Vision                                                | Yes                                                |
+| Reasoning                                             | Yes (always on for K2.7 Code)                      |
 | Structured Output (`generateObject` / `streamObject`) | Yes (JSON Mode with client-side schema validation) |
-| Embeddings | No |
-| Image Generation | No |
+| Embeddings                                            | No                                                 |
+| Image Generation                                      | No                                                 |
+
+## Model capabilities
+
+Inspect `model.capabilities` before setting reasoning, sampling, or tool-choice
+options:
+
+```typescript
+const model = kimi.chatModel('kimi-k2.7-code');
+const capabilities = model.capabilities;
+```
+
+For both registered K2.7 Code models:
+
+- `reasoning.mode` is `always-on`; thinking cannot be disabled.
+- `supportedEfforts` is empty because Kimi does not accept effort control.
+- `restrictsSamplingParams` is `true`; do not pass `temperature` or `topP`.
+- `supportedToolChoices` is `['auto', 'none']`.
+
+An empty effort list does not mean reasoning output is unavailable. It means
+the model chooses its own reasoning effort.
 
 ## Examples
 
@@ -70,15 +90,15 @@ import { createKimi } from '@core-ai/kimi';
 import { generate } from '@core-ai/core-ai';
 
 const kimi = createKimi({
-  apiKey: process.env.KIMI_API_KEY,
+    apiKey: process.env.KIMI_API_KEY,
 });
 
 const model = kimi.chatModel('kimi-k2.7-code');
 
 const result = await generate({
-  model,
-  messages: [{ role: 'user', content: 'Implement quicksort in TypeScript.' }],
-  maxTokens: 32768,
+    model,
+    messages: [{ role: 'user', content: 'Implement quicksort in TypeScript.' }],
+    maxTokens: 32768,
 });
 
 console.log(result.content);
@@ -91,23 +111,23 @@ import { createKimi } from '@core-ai/kimi';
 import { stream } from '@core-ai/core-ai';
 
 const kimi = createKimi({
-  apiKey: process.env.KIMI_API_KEY,
+    apiKey: process.env.KIMI_API_KEY,
 });
 
 const model = kimi.chatModel('kimi-k2.7-code');
 
 const chatStream = await stream({
-  model,
-  messages: [{ role: 'user', content: 'Explain dependency injection.' }],
+    model,
+    messages: [{ role: 'user', content: 'Explain dependency injection.' }],
 });
 
 for await (const event of chatStream) {
-  if (event.type === 'reasoning-delta') {
-    process.stdout.write(event.text);
-  }
-  if (event.type === 'text-delta') {
-    process.stdout.write(event.text);
-  }
+    if (event.type === 'reasoning-delta') {
+        process.stdout.write(event.text);
+    }
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    }
 }
 ```
 
@@ -126,13 +146,13 @@ const messages = [{ role: 'user', content: 'Plan a refactor.' }];
 const firstResult = await generate({ model, messages, maxTokens: 32768 });
 
 const followUp = await generate({
-  model,
-  messages: [
-    ...messages,
-    resultToMessage(firstResult),
-    { role: 'user', content: 'Now implement step one.' },
-  ],
-  maxTokens: 32768,
+    model,
+    messages: [
+        ...messages,
+        resultToMessage(firstResult),
+        { role: 'user', content: 'Now implement step one.' },
+    ],
+    maxTokens: 32768,
 });
 ```
 
@@ -147,7 +167,8 @@ For `kimi-k2.7-code` and `kimi-k2.7-code-highspeed`, Moonshot fixes sampling par
 Do not pass custom `temperature` or `topP` values. The provider validates these locally and omits fixed parameters from outbound requests.
 
 <Warning>
-  Kimi K2.7 Code always runs in thinking mode. Thinking cannot be disabled for this model family.
+    Kimi K2.7 Code always runs in thinking mode. Thinking cannot be disabled for
+    this model family.
 </Warning>
 
 ## Structured output
@@ -163,47 +184,16 @@ const kimi = createKimi({ apiKey: process.env.KIMI_API_KEY });
 const model = kimi.chatModel('kimi-k2.7-code');
 
 const result = await generateObject({
-  model,
-  messages: [{ role: 'user', content: 'Return the weather for Berlin.' }],
-  schema: z.object({
-    city: z.string(),
-    temperatureC: z.number(),
-  }),
-  schemaName: 'weather_schema',
+    model,
+    messages: [{ role: 'user', content: 'Return the weather for Berlin.' }],
+    schema: z.object({
+        city: z.string(),
+        temperatureC: z.number(),
+    }),
+    schemaName: 'weather_schema',
 });
 
 console.log(result.object);
-```
-
-You can also use JSON Mode directly with `generate()`:
-
-```typescript
-import { createKimi } from '@core-ai/kimi';
-import { generate } from '@core-ai/core-ai';
-import { z } from 'zod';
-
-const kimi = createKimi({ apiKey: process.env.KIMI_API_KEY });
-const model = kimi.chatModel('kimi-k2.7-code');
-
-const schema = z.object({ city: z.string(), temperatureC: z.number() });
-
-const result = await generate({
-  model,
-  messages: [
-    {
-      role: 'user',
-      content:
-        'Return only valid JSON matching {"city": string, "temperatureC": number}.',
-    },
-  ],
-  providerOptions: {
-    kimi: {
-      responseFormat: { type: 'json_object' },
-    },
-  },
-});
-
-const object = schema.parse(JSON.parse(result.content ?? '{}'));
 ```
 
 Forced tool choice via `toolChoice: { type: 'tool', toolName }` is rejected on K2.7 Code models because Moonshot does not allow forced tool selection while thinking is always enabled.
@@ -214,20 +204,19 @@ Pass Kimi-specific options via `providerOptions.kimi`:
 
 ```typescript
 await generate({
-  model: kimi.chatModel('kimi-k2.7-code'),
-  messages: [{ role: 'user', content: 'Hello!' }],
-  providerOptions: {
-    kimi: {
-      parallelToolCalls: true,
-      responseFormat: { type: 'json_object' },
-      stopSequences: ['END'],
-      seed: 42,
+    model: kimi.chatModel('kimi-k2.7-code'),
+    messages: [{ role: 'user', content: 'Hello!' }],
+    providerOptions: {
+        kimi: {
+            parallelToolCalls: true,
+            stopSequences: ['END'],
+            seed: 42,
+        },
     },
-  },
 });
 ```
 
-Available fields: `parallelToolCalls`, `responseFormat`, `stopSequences`, `seed`, `user`.
+Available fields: `parallelToolCalls`, `stopSequences`, `seed`, `user`.
 
 ## Error handling
 
@@ -235,29 +224,29 @@ Available fields: `parallelToolCalls`, `responseFormat`, `stopSequences`, `seed`
 import { ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await generate({
-    model: kimi.chatModel('kimi-k2.7-code'),
-    messages: [{ role: 'user', content: 'Hello!' }],
-  });
+    const result = await generate({
+        model: kimi.chatModel('kimi-k2.7-code'),
+        messages: [{ role: 'user', content: 'Hello!' }],
+    });
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('Kimi API error:', error.message);
-    console.error('Status:', error.statusCode);
-  }
+    if (error instanceof ProviderError) {
+        console.error('Kimi API error:', error.message);
+        console.error('Status:', error.statusCode);
+    }
 }
 ```
 
 ## Related
 
 <CardGroup cols={2}>
-  <Card
-    title="OpenAI Compat Provider"
-    icon="message"
-    href="/api/providers/openai"
-  >
-    OpenAI Chat Completions compatibility reference
-  </Card>
-  <Card title="core-ai Functions" icon="function" href="/api/core/generate">
-    Learn about generate, stream, and more
-  </Card>
+    <Card
+        title="OpenAI Compat Provider"
+        icon="message"
+        href="/api/providers/openai"
+    >
+        OpenAI Chat Completions compatibility reference
+    </Card>
+    <Card title="core-ai Functions" icon="function" href="/api/core/generate">
+        Learn about generate, stream, and more
+    </Card>
 </CardGroup>

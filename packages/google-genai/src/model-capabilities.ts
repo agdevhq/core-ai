@@ -7,7 +7,6 @@ import {
 export type GoogleModelCapabilities = {
     reasoning: ModelCapabilities['reasoning'] & {
         thinkingParam: 'thinkingLevel' | 'thinkingBudget';
-        canDisableThinking: boolean;
     };
 };
 
@@ -21,30 +20,30 @@ const ALL_EFFORTS = [
 
 function createCapabilities(config: {
     thinkingParam: GoogleModelCapabilities['reasoning']['thinkingParam'];
-    canDisableThinking: boolean;
+    mode: GoogleModelCapabilities['reasoning']['mode'];
 }): GoogleModelCapabilities {
     return {
         reasoning: {
-            supported: true,
+            mode: config.mode,
             supportedEfforts: ALL_EFFORTS,
             restrictsSamplingParams: false,
+            supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
-            canDisableThinking: config.canDisableThinking,
         },
     };
 }
 
 const DEFAULT_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingBudget',
-    canDisableThinking: true,
+    mode: 'optional',
 });
 const REQUIRED_THINKING_BUDGET_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingBudget',
-    canDisableThinking: false,
+    mode: 'always-on',
 });
 const THINKING_LEVEL_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingLevel',
-    canDisableThinking: false,
+    mode: 'always-on',
 });
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {

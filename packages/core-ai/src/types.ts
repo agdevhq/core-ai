@@ -132,15 +132,18 @@ export type ToolChoice =
     | 'required'
     | { type: 'tool'; toolName: string };
 
+export type ToolChoiceMode = 'auto' | 'none' | 'required' | 'tool';
+
 export type ModelCapabilities = {
     reasoning: {
-        supported: boolean;
+        mode: 'unsupported' | 'optional' | 'always-on';
         supportedEfforts: readonly ReasoningEffort[];
         /**
-         * When true, sampling parameters such as `temperature` and `topP`
-         * must not be set alongside `reasoning`.
+         * Whether reasoning changes which sampling parameters or values the
+         * provider accepts.
          */
         restrictsSamplingParams: boolean;
+        supportedToolChoices: readonly ToolChoiceMode[];
     };
 };
 

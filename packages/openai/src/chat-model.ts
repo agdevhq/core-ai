@@ -11,6 +11,7 @@ import type {
     GenerateObjectOptions,
     GenerateObjectResult,
     GenerateResult,
+    ModelCapabilities,
     StreamObjectOptions,
     ObjectStream,
     ChatStream,
@@ -22,7 +23,6 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
-import { getOpenAIModelCapabilities } from './model-capabilities.js';
 import { wrapOpenAIError } from './openai-error.js';
 import {
     createStructuredOutputRequestOptions,
@@ -39,6 +39,7 @@ type OpenAIChatClient = {
 export function createOpenAIChatModel(
     client: OpenAIChatClient,
     modelId: string,
+    capabilities: ModelCapabilities,
     providerId = 'openai'
 ): ChatModel {
     const provider = providerId;
@@ -87,7 +88,7 @@ export function createOpenAIChatModel(
     return {
         provider,
         modelId,
-        capabilities: getOpenAIModelCapabilities(modelId),
+        capabilities,
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(
