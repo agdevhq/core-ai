@@ -519,6 +519,7 @@ function validateAnthropicReasoningConfig(
         );
     }
 
+    const capabilities = getAnthropicModelCapabilities(modelId);
     if (
         options.temperature !== undefined &&
         (!alwaysRestrictsSampling || options.temperature !== 1)
@@ -541,13 +542,16 @@ function validateAnthropicReasoningConfig(
         );
     }
 
+    const toolChoiceMode =
+        typeof options.toolChoice === 'object'
+            ? options.toolChoice.type
+            : options.toolChoice;
     if (
-        options.toolChoice &&
-        options.toolChoice !== 'auto' &&
-        options.toolChoice !== 'none'
+        toolChoiceMode !== undefined &&
+        !capabilities.reasoning.supportedToolChoices.includes(toolChoiceMode)
     ) {
         throw new ValidationError(
-            `Anthropic model "${modelId}" only supports toolChoice "auto" or "none" when reasoning is enabled`,
+            `Anthropic model "${modelId}" does not support toolChoice "${toolChoiceMode}" when reasoning is enabled`,
             undefined,
             provider
         );

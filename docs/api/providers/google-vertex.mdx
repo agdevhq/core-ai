@@ -133,6 +133,32 @@ region, create separate providers for models hosted in different locations.
 Imagen models such as `imagen-4.0-generate-001` are also supported when they
 are available to the selected project and region.
 
+## Model capabilities
+
+Vertex-hosted Gemini models use the same capability definitions as Google
+GenAI. Inspect the model instance or use the exported helper:
+
+```typescript
+import {
+    createGoogleVertex,
+    getGoogleModelCapabilities,
+} from '@core-ai/google-vertex';
+
+const googleVertex = createGoogleVertex({
+    project: 'my-project',
+    location: 'europe-west1',
+});
+const model = googleVertex.chatModel('gemini-2.5-flash');
+const capabilities = model.capabilities;
+
+const otherCapabilities = getGoogleModelCapabilities('gemini-3.1-pro');
+```
+
+These fields describe reasoning effort, whether thinking can be disabled, and
+which request options remain valid. See
+[Google GenAI model capabilities](/api/providers/google-genai#model-capabilities)
+for details.
+
 ## Examples
 
 ### Chat and streaming

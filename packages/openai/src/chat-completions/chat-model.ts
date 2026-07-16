@@ -40,6 +40,7 @@ export type OpenAIChatCompletionsModelOptions = {
     capabilities: ModelCapabilities;
     providerId?: string;
     compatibility?: OpenAIResolvedCompatibilityOptions;
+    providerOptions?: OpenAIChatCompletionsAdapterOptions['providerOptions'];
 };
 
 export function createOpenAIChatCompletionsModel(
@@ -53,16 +54,19 @@ export function createOpenAIChatCompletionsModel(
     const structuredOutputMode =
         compatibilityOptions?.structuredOutputMode ??
         (compatibilityOptions ? 'tool' : 'json-schema');
-    const adapterOptions: OpenAIChatCompletionsAdapterOptions = {
+    const adapterOptions = {
+        capabilities,
         compatibility:
             compatibilityOptions !== undefined &&
             compatibilityOptions.reasoning !== false,
         maxTokensParameter: compatibilityOptions?.maxTokensParameter,
+        providerId: provider,
+        providerOptions: modelOptions.providerOptions,
         reasoning:
             typeof compatibilityOptions?.reasoning === 'object'
                 ? compatibilityOptions.reasoning
                 : undefined,
-    };
+    } satisfies OpenAIChatCompletionsAdapterOptions;
 
     async function callOpenAIChatCompletionsApi<TResponse>(
         request: unknown,
@@ -80,16 +84,10 @@ export function createOpenAIChatCompletionsModel(
     async function generateChat(
         options: OpenAIRequestOptions
     ): Promise<GenerateResult> {
-        const preparedOptions =
-            compatibilityOptions?.prepareGenerateOptions?.(options) ?? options;
-        const request = createGenerateRequest(
-            modelId,
-            preparedOptions,
-            adapterOptions
-        );
+        const request = createGenerateRequest(modelId, options, adapterOptions);
         const response = await callOpenAIChatCompletionsApi<ChatCompletion>(
             request,
-            preparedOptions.signal
+            options.signal
         );
         return mapGenerateResponse(response, adapterOptions);
     }
@@ -97,22 +95,16 @@ export function createOpenAIChatCompletionsModel(
     async function streamChat(
         options: OpenAIRequestOptions
     ): Promise<ChatStream> {
-        const preparedOptions =
-            compatibilityOptions?.prepareGenerateOptions?.(options) ?? options;
-        const request = createStreamRequest(
-            modelId,
-            preparedOptions,
-            adapterOptions
-        );
+        const request = createStreamRequest(modelId, options, adapterOptions);
         return createChatStream(
             async () =>
                 transformStream(
                     await callOpenAIChatCompletionsApi<
                         AsyncIterable<ChatCompletionChunk>
-                    >(request, preparedOptions.signal),
+                    >(request, options.signal),
                     adapterOptions
                 ),
-            { signal: preparedOptions.signal }
+            { signal: options.signal }
         );
     }
 

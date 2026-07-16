@@ -9,17 +9,19 @@ import type { ModelCapabilities } from './types.js';
 
 const KNOWN_CAPABILITIES: ModelCapabilities = {
     reasoning: {
-        supported: true,
+        mode: 'optional',
         supportedEfforts: ['high'],
         restrictsSamplingParams: true,
+        supportedToolChoices: ['auto', 'none'],
     },
 };
 
 const UNKNOWN_CAPABILITIES: ModelCapabilities = {
     reasoning: {
-        supported: false,
+        mode: 'unsupported',
         supportedEfforts: [],
         restrictsSamplingParams: false,
+        supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
 };
 

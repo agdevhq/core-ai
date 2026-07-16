@@ -143,6 +143,26 @@ const model = azure.chatModel('customer-support-gpt-5-mini');
 
 If your deployment name is different from the base model name, pass the deployment name.
 
+## Model capabilities
+
+Azure models expose the shared OpenAI capability shape through
+`model.capabilities`:
+
+```typescript
+const model = azure.chatModel('gpt-5-mini');
+const capabilities = model.capabilities;
+```
+
+Capability lookup uses the model ID passed to `chatModel()`. If that value is a
+custom Azure deployment name rather than an OpenAI model ID, the provider
+cannot infer the underlying model family and returns the generic OpenAI
+fallback. In that case, treat the capability data as a default rather than an
+exact description of the deployment.
+
+For recognized OpenAI model IDs, see
+[OpenAI model capabilities](/api/providers/openai#model-capabilities) for the
+reasoning and Chat Completions fields.
+
 ## Examples
 
 ### Basic chat

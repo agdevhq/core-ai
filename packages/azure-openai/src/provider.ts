@@ -74,6 +74,7 @@ export function createAzureOpenAI(
         { client },
         {
             providerId: PROVIDER_ID,
+            providerOptionsKey: 'openai',
         }
     );
 

@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
-    createGenerateRequest,
-    createStreamRequest,
+    createGenerateRequest as createGenerateRequestBase,
+    createStreamRequest as createStreamRequestBase,
     convertMessages,
     convertToolChoice,
     convertTools,
     mapGenerateResponse,
+    type OpenAIChatCompletionsAdapterOptions,
     transformStream,
 } from './chat-adapter.js';
 import {
@@ -17,6 +18,7 @@ import {
     type ToolSet,
 } from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.js';
 import {
     createStructuredOutputRequestOptions,
     getStructuredOutputName,
@@ -25,6 +27,30 @@ import type {
     ChatCompletion,
     ChatCompletionChunk,
 } from 'openai/resources/chat/completions/completions';
+
+function createGenerateRequest(
+    modelId: string,
+    options: GenerateOptions,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
+) {
+    return createGenerateRequestBase(modelId, options, {
+        capabilities: getOpenAIModelCapabilities(modelId),
+        providerId: 'openai',
+        ...adapterOptions,
+    });
+}
+
+function createStreamRequest(
+    modelId: string,
+    options: GenerateOptions,
+    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
+) {
+    return createStreamRequestBase(modelId, options, {
+        capabilities: getOpenAIModelCapabilities(modelId),
+        providerId: 'openai',
+        ...adapterOptions,
+    });
+}
 
 describe('convertMessages', () => {
     it('should convert a system message', () => {

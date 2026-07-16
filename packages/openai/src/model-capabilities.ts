@@ -46,9 +46,10 @@ function createCapabilities(
 ): OpenAIModelCapabilities {
     return {
         reasoning: {
-            supported: true,
+            mode: 'optional',
             supportedEfforts,
             restrictsSamplingParams,
+            supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         chatCompletions: {
             maxTokensParameter,
@@ -79,9 +80,10 @@ function createNoReasoningCapabilities(
 ): OpenAIModelCapabilities {
     return {
         reasoning: {
-            supported: false,
+            mode: 'unsupported',
             supportedEfforts: [],
             restrictsSamplingParams: false,
+            supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         chatCompletions: {
             maxTokensParameter,

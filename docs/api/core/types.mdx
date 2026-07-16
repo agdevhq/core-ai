@@ -190,31 +190,53 @@ type ChatModel = {
 };
 ```
 
-`capabilities` describes what the model supports for the unified API. Use it to decide whether to pass `reasoning` and which effort levels are valid.
+`capabilities` describes how a specific model accepts unified generation
+options. It is different from the provider-level feature lists in the provider
+guides: those show which APIs a provider exposes, while `ModelCapabilities`
+describes request constraints for one model ID.
 
 ### ModelCapabilities
 
 ```typescript
 type ModelCapabilities = {
     reasoning: {
-        supported: boolean;
+        mode: 'unsupported' | 'optional' | 'always-on';
         supportedEfforts: readonly ReasoningEffort[];
         /**
-         * When true, sampling parameters such as `temperature` and `topP`
-         * must not be set alongside `reasoning`.
+         * Whether reasoning changes which sampling parameters or values the
+         * provider accepts.
          */
         restrictsSamplingParams: boolean;
+        supportedToolChoices: readonly (
+            | 'auto'
+            | 'none'
+            | 'required'
+            | 'tool'
+        )[];
     };
 };
 ```
 
-| Field                               | Meaning                                                                  |
-| ----------------------------------- | ------------------------------------------------------------------------ |
-| `reasoning.supported`               | Whether the model accepts `reasoning.effort` on generate/stream requests |
-| `reasoning.supportedEfforts`        | Effort values the adapter accepts (empty when unsupported)               |
-| `reasoning.restrictsSamplingParams` | When `true`, omit `temperature` / `topP` while reasoning is enabled      |
+| Field                               | Meaning                                                              |
+| ----------------------------------- | -------------------------------------------------------------------- |
+| `reasoning.mode`                    | Whether reasoning control is unsupported, optional, or always active |
+| `reasoning.supportedEfforts`        | Effort values the adapter accepts (empty when unsupported)           |
+| `reasoning.restrictsSamplingParams` | Whether reasoning changes the accepted sampling parameters or values |
+| `reasoning.supportedToolChoices`    | Tool choice modes supported while reasoning is enabled               |
 
-Provider packages also export `get*ModelCapabilities(modelId)` helpers that return the same data without constructing a `ChatModel`.
+`mode: 'unsupported'` means the provider does not map the unified `reasoning`
+option. The model may still return reasoning output. `optional` means callers
+can enable reasoning, while `always-on` means the model reasons without an
+option and cannot disable it.
+
+An empty `supportedEfforts` list means the model does not accept effort
+control. It does not necessarily mean the model cannot produce reasoning
+output. When `restrictsSamplingParams` is true, consult the provider guide for
+the exact accepted values.
+
+Provider packages also export `get*ModelCapabilities(modelId)` helpers that
+return the same data without constructing a `ChatModel`. Kimi exposes this data
+through `ChatModel.capabilities` only.
 
 ### EmbeddingModel
 

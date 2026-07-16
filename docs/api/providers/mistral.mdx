@@ -74,7 +74,7 @@ const mistral = createMistral({
 
 - **mistral-embed** - High-quality text embeddings
 
-## Capabilities
+## Provider support
 
 | Feature          | Support     |
 | ---------------- | ----------- |
@@ -86,13 +86,23 @@ const mistral = createMistral({
 | Embeddings       | Yes         |
 | Image Generation | No          |
 
-<Note>
-    Mistral can return reasoning content from thinking-capable models, but it
-    does not map `reasoning.effort` into the request. The `reasoning` option is
-    accepted as a no-op. `ChatModel.capabilities.reasoning.supported` and
-    `getMistralModelCapabilities(modelId)` both report `supported: false` with
-    an empty effort list.
-</Note>
+## Model capabilities
+
+Mistral can return reasoning content from thinking-capable models, but the
+provider does not map `reasoning.effort` into requests. Consequently,
+`reasoning.mode` is `unsupported` and `supportedEfforts` is empty. The
+`reasoning` option is accepted as a no-op.
+
+Inspect the model instance or use the exported helper:
+
+```typescript
+import { getMistralModelCapabilities } from '@core-ai/mistral';
+
+const model = mistral.chatModel('magistral-medium-latest');
+const capabilities = model.capabilities;
+
+const otherCapabilities = getMistralModelCapabilities('mistral-large-2512');
+```
 
 ## Examples
 

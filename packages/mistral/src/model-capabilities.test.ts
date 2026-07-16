@@ -5,9 +5,10 @@ describe('getMistralModelCapabilities', () => {
     it('should report reasoning effort as unsupported', () => {
         expect(getMistralModelCapabilities('mistral-large-latest')).toEqual({
             reasoning: {
-                supported: false,
+                mode: 'unsupported',
                 supportedEfforts: [],
                 restrictsSamplingParams: false,
+                supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             },
         });
     });

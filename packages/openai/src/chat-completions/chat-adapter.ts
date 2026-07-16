@@ -12,6 +12,7 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
+    ModelCapabilities,
     StreamEvent,
     ToolCall,
     UserContentPart,
@@ -28,18 +29,29 @@ import type { OpenAIRequestOptions } from '../shared/structured-output.js';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
+    validateReasoningConfig,
 } from '../shared/utils.js';
 import {
     parseOpenAIChatGenerateProviderOptions,
     type OpenAIChatGenerateProviderOptions,
+    type OpenAIChatGenerateProviderOptionsConfig,
 } from '../provider-options.js';
 import { extractCompatibleReasoningText } from './compatibility.js';
 
 export type OpenAIChatCompletionsAdapterOptions = {
+    capabilities?: ModelCapabilities;
     compatibility?: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
+    providerId?: string;
+    providerOptions?: OpenAIChatGenerateProviderOptionsConfig;
     reasoning?: OpenAIResolvedReasoningCompatibilityOptions;
 };
+
+type OpenAIChatCompletionsRequestAdapterOptions =
+    OpenAIChatCompletionsAdapterOptions & {
+        capabilities: ModelCapabilities;
+        providerId: string;
+    };
 
 export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
 
@@ -170,7 +182,7 @@ function convertUserContentPart(
 export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions,
-    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
+    adapterOptions: OpenAIChatCompletionsRequestAdapterOptions
 ) {
     return createRequest(modelId, options, false, adapterOptions);
 }
@@ -178,7 +190,7 @@ export function createGenerateRequest(
 export function createStreamRequest(
     modelId: string,
     options: GenerateOptions,
-    adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
+    adapterOptions: OpenAIChatCompletionsRequestAdapterOptions
 ) {
     return createRequest(modelId, options, true, adapterOptions);
 }
@@ -187,10 +199,11 @@ function createRequest(
     modelId: string,
     options: OpenAIRequestOptions,
     stream: boolean,
-    adapterOptions: OpenAIChatCompletionsAdapterOptions
+    adapterOptions: OpenAIChatCompletionsRequestAdapterOptions
 ) {
     const openaiOptions = parseOpenAIChatGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        adapterOptions.providerOptions
     );
     return {
         ...createRequestBase(modelId, options, adapterOptions),
@@ -210,11 +223,19 @@ function createRequest(
 function createRequestBase(
     modelId: string,
     options: GenerateOptions,
-    adapterOptions: OpenAIChatCompletionsAdapterOptions
+    adapterOptions: OpenAIChatCompletionsRequestAdapterOptions
 ) {
-    validateOpenAIReasoningConfig(modelId, options);
+    validateReasoningConfig(
+        modelId,
+        options,
+        adapterOptions.capabilities,
+        adapterOptions.providerId
+    );
 
-    const reasoningFields = mapReasoningToRequestFields(modelId, options);
+    const reasoningFields = mapReasoningToRequestFields(
+        options,
+        adapterOptions.capabilities
+    );
 
     return {
         model: modelId,
@@ -599,15 +620,17 @@ export async function* transformStream(
 }
 
 function mapReasoningToRequestFields(
-    modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    capabilities: ModelCapabilities
 ) {
     if (!options.reasoning) {
         return {};
     }
 
-    const capabilities = getOpenAIModelCapabilities(modelId);
-    if (!capabilities.reasoning.supported) {
+    if (
+        capabilities.reasoning.mode === 'unsupported' ||
+        capabilities.reasoning.supportedEfforts.length === 0
+    ) {
         return {};
     }
 

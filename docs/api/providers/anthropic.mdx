@@ -97,7 +97,7 @@ const anthropic = createAnthropic({
   </Accordion>
 </AccordionGroup>
 
-## Capabilities
+## Provider support
 
 | Feature          | Support |
 | ---------------- | ------- |
@@ -110,10 +110,12 @@ const anthropic = createAnthropic({
 | Embeddings       | No      |
 | Image Generation | No      |
 
-Use `ChatModel.capabilities` or `getAnthropicModelCapabilities(modelId)` to inspect reasoning support at runtime:
+## Model capabilities
+
+Use `ChatModel.capabilities` to inspect the constraints for the selected model,
+or call `getAnthropicModelCapabilities(modelId)` without creating a model:
 
 ```typescript
-import { clampReasoningEffort, generate } from '@core-ai/core-ai';
 import {
     createAnthropic,
     getAnthropicModelCapabilities,
@@ -121,25 +123,20 @@ import {
 
 const anthropic = createAnthropic();
 const model = anthropic.chatModel('claude-opus-4-8');
+const capabilities = model.capabilities;
 
-if (model.capabilities.reasoning.supported) {
-    const effort = clampReasoningEffort(
-        'max',
-        model.capabilities.reasoning.supportedEfforts
-    );
-
-    await generate({
-        model,
-        messages: [{ role: 'user', content: 'Analyze this carefully.' }],
-        reasoning: { effort },
-        // Anthropic sets restrictsSamplingParams: true — omit temperature/topP
-    });
-}
-
-const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
+const otherCapabilities = getAnthropicModelCapabilities('claude-opus-4-5');
 ```
 
-When `restrictsSamplingParams` is `true`, do not set `temperature` (and keep `topP` in the allowed range) while reasoning is enabled.
+For registered Claude models:
+
+- `supportedEfforts` lists the accepted effort levels. Models with adaptive
+  thinking may also support `max`.
+- `mode` is `optional`; reasoning is enabled by passing `reasoning`.
+- `restrictsSamplingParams` is `true`. The exact temperature, `topP`, and
+  `topK` rules are described under
+  [Reasoning restrictions](/api/providers/anthropic#reasoning-restrictions).
+- `supportedToolChoices` is `['auto', 'none']` while reasoning is enabled.
 
 ## Examples
 

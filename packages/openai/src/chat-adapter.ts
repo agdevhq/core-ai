@@ -249,7 +249,7 @@ function createRequest(
 
     if (
         options.reasoning &&
-        getOpenAIModelCapabilities(modelId).reasoning.supported
+        getOpenAIModelCapabilities(modelId).reasoning.mode !== 'unsupported'
     ) {
         request.include = mergeInclude(request.include, [
             ENCRYPTED_REASONING_INCLUDE,
@@ -267,7 +267,7 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
         model: modelId,
         store: false as const,
         input: convertMessages(options.messages, {
-            includeReasoning: capabilities.reasoning.supported,
+            includeReasoning: capabilities.reasoning.mode !== 'unsupported',
         }),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertResponseTools(options.tools) }
@@ -924,7 +924,7 @@ function mapReasoningToRequestFields(
     }
 
     const capabilities = getOpenAIModelCapabilities(modelId);
-    if (!capabilities.reasoning.supported) {
+    if (capabilities.reasoning.mode === 'unsupported') {
         return {};
     }
 

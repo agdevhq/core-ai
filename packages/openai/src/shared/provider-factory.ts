@@ -12,6 +12,10 @@ import { createOpenAIChatModel } from '../chat-model.js';
 import { createOpenAIEmbeddingModel } from '../embedding-model.js';
 import { createOpenAIImageModel } from '../image-model.js';
 import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+import {
+    openaiChatGenerateProviderOptionsSchema,
+    type OpenAIChatGenerateProviderOptionsConfig,
+} from '../provider-options.js';
 import type {
     OpenAICompatibility,
     OpenAIResolvedCompatibilityOptions,
@@ -42,6 +46,8 @@ export type OpenAIChatProvider = {
 export type OpenAIProviderFactoryOptions = {
     modelCapabilities?: ModelCapabilitiesRegistry;
     providerId?: string;
+    providerOptionsKey?: string;
+    providerOptionsSchema?: OpenAIChatGenerateProviderOptionsConfig['schema'];
     defaultApi?: 'responses' | 'chat-completions';
     compatibility?: OpenAICompatibility;
 };
@@ -76,8 +82,6 @@ export function createOpenAIProvider(
                 factoryOptions.modelCapabilities,
                 modelId
             ) ?? getOpenAIModelCapabilities(modelId);
-        const prepareGenerateOptions =
-            compatibilityOptions?.prepareGenerateOptions;
         const compatibility: OpenAIResolvedCompatibilityOptions | undefined =
             factoryOptions.compatibility
                 ? {
@@ -94,14 +98,6 @@ export function createOpenAIProvider(
                           compatibilityOptions?.structuredOutputMode,
                       maxTokensParameter:
                           compatibilityOptions?.maxTokensParameter,
-                      prepareGenerateOptions: prepareGenerateOptions
-                          ? (options) =>
-                                prepareGenerateOptions(
-                                    modelId,
-                                    options,
-                                    capabilities
-                                )
-                          : undefined,
                   }
                 : undefined;
 
@@ -109,6 +105,12 @@ export function createOpenAIProvider(
             providerId,
             capabilities,
             compatibility,
+            providerOptions: {
+                key: factoryOptions.providerOptionsKey ?? providerId,
+                schema:
+                    factoryOptions.providerOptionsSchema ??
+                    openaiChatGenerateProviderOptionsSchema,
+            },
         });
     };
     const chat = {

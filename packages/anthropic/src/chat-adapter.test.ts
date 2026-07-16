@@ -551,6 +551,14 @@ describe('reasoning support', () => {
             createGenerateRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
+                toolChoice: 'required',
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'high' },
                 topP: 0.95,
             })
         ).not.toThrow();

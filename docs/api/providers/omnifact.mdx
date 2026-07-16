@@ -57,7 +57,7 @@ Direct non-EU providers use the plain type id:
 
 When both a direct and an EU backend exist for the same model type, both ids may appear in the model list. Use the one that matches where you want the request routed.
 
-## Capabilities
+## Provider support
 
 | Feature          | Support          |
 | ---------------- | ---------------- |
@@ -68,6 +68,21 @@ When both a direct and an EU backend exist for the same model type, both ids may
 | Reasoning        | Depends on model |
 | Embeddings       | No               |
 | Image Generation | No               |
+
+## Model capabilities
+
+Every chat model exposes `model.capabilities`:
+
+```typescript
+const model = omnifact.chatModel('gpt-5-mini');
+const capabilities = model.capabilities;
+```
+
+Plain OpenAI model IDs can use the OpenAI capability registry. Routed IDs such
+as `eu/gpt-5-mini` and IDs for other backend providers do not match that
+registry, so they receive generic OpenAI-compatible fallback capabilities.
+For those IDs, treat `model.capabilities` as defaults rather than an exact
+description of the backend model.
 
 ## Examples
 

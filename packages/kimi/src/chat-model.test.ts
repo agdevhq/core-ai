@@ -6,7 +6,12 @@ import type {
     ChatCompletion,
     ChatCompletionChunk,
 } from 'openai/resources/chat/completions/completions';
-import { AbortedError, ProviderError, resultToMessage } from '@core-ai/core-ai';
+import {
+    AbortedError,
+    ProviderError,
+    ValidationError,
+    resultToMessage,
+} from '@core-ai/core-ai';
 import { createKimi } from './provider.ts';
 import { KIMI_MODEL_CAPABILITIES } from './model-capabilities.ts';
 import { toAsyncIterable } from '@core-ai/testing';
@@ -129,6 +134,89 @@ describe('generate', () => {
                 messages: [{ role: 'user', content: 'hello' }],
             })
         ).rejects.toBeInstanceOf(AbortedError);
+    });
+
+    it('should map Kimi provider options directly', async () => {
+        const create = vi.fn(async (request: unknown) => {
+            expect(request).toMatchObject({
+                parallel_tool_calls: false,
+                stop: ['END'],
+                seed: 42,
+                user: 'user-1',
+            });
+
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Done',
+                            refusal: null,
+                        },
+                    },
+                ],
+            });
+        });
+        const model = createKimiModel(createMockClient(create));
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                kimi: {
+                    parallelToolCalls: false,
+                    stopSequences: ['END'],
+                    seed: 42,
+                    user: 'user-1',
+                },
+            },
+        });
+    });
+
+    it('should reject sampling and forced tool choice for always-on reasoning', async () => {
+        const model = createKimiModel(createMockClient());
+
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                temperature: 1,
+            })
+        ).rejects.toBeInstanceOf(ValidationError);
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                toolChoice: 'required',
+            })
+        ).rejects.toBeInstanceOf(ValidationError);
+    });
+
+    it('should omit unsupported reasoning effort', async () => {
+        const create = vi.fn(async (request: unknown) => {
+            expect(request).not.toHaveProperty('reasoning_effort');
+
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Done',
+                            refusal: null,
+                        },
+                    },
+                ],
+            });
+        });
+        const model = createKimiModel(createMockClient(create));
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            reasoning: { effort: 'high' },
+        });
     });
 
     it('should generate a validated structured object through JSON mode', async () => {

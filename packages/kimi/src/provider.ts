@@ -4,12 +4,9 @@ import {
     type OpenAIProviderBaseOptions,
 } from '@core-ai/openai';
 
-import { prepareKimiGenerateOptions } from './compatibility.ts';
 import { DEFAULT_BASE_URL } from './constants.ts';
-import {
-    KIMI_MODEL_CAPABILITIES,
-    type KimiModelCapabilities,
-} from './model-capabilities.ts';
+import { KIMI_MODEL_CAPABILITIES } from './model-capabilities.ts';
+import { kimiGenerateProviderOptionsSchema } from './provider-options.ts';
 
 export type KimiProviderOptions = OpenAIProviderBaseOptions;
 
@@ -30,6 +27,7 @@ export function createKimi(options: KimiProviderOptions = {}): KimiProvider {
         {
             modelCapabilities: KIMI_MODEL_CAPABILITIES,
             providerId: 'kimi',
+            providerOptionsSchema: kimiGenerateProviderOptionsSchema,
             defaultApi: 'chat-completions',
             compatibility: {
                 reasoning: {
@@ -37,16 +35,6 @@ export function createKimi(options: KimiProviderOptions = {}): KimiProvider {
                 },
                 structuredOutputMode: 'json-object',
                 maxTokensParameter: 'max_tokens',
-                prepareGenerateOptions: (
-                    modelId,
-                    generateOptions,
-                    capabilities
-                ) =>
-                    prepareKimiGenerateOptions(
-                        modelId,
-                        generateOptions,
-                        capabilities as KimiModelCapabilities
-                    ),
             },
         }
     );

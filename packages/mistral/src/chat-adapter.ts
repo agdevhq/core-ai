@@ -275,7 +275,7 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
     return {
         model: modelId,
         messages: convertMessages(options.messages, {
-            includeReasoning: capabilities.reasoning.supported,
+            includeReasoning: capabilities.reasoning.mode !== 'unsupported',
         }),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }

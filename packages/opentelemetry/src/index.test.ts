@@ -131,9 +131,10 @@ function createMockChatModel(
         modelId: 'test-model',
         capabilities: {
             reasoning: {
-                supported: false,
+                mode: 'unsupported',
                 supportedEfforts: [],
                 restrictsSamplingParams: false,
+                supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             },
         },
         generate:

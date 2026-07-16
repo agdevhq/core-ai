@@ -1,14 +1,14 @@
-import type { GenerateProviderOptions } from '@core-ai/core-ai';
 import { z } from 'zod';
+import type { GenerateProviderOptions } from '@core-ai/core-ai';
+import { openaiChatGenerateProviderOptionsSchema } from '@core-ai/openai';
 
-export const kimiGenerateProviderOptionsSchema = z
-    .object({
-        parallelToolCalls: z.boolean().optional(),
-        stopSequences: z.array(z.string()).optional(),
-        seed: z.number().int().optional(),
-        user: z.string().optional(),
-    })
-    .strict();
+export const kimiGenerateProviderOptionsSchema =
+    openaiChatGenerateProviderOptionsSchema.pick({
+        parallelToolCalls: true,
+        stopSequences: true,
+        seed: true,
+        user: true,
+    });
 
 export type KimiGenerateProviderOptions = z.infer<
     typeof kimiGenerateProviderOptionsSchema

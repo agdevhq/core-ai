@@ -218,9 +218,15 @@ const openai = createOpenAI({
 Use `openai.chat.chatModel()` if the proxy implements strict Chat Completions.
 Use `@core-ai/openai-compat` if it returns nonstandard compatible fields.
 
-## Reasoning support
+## Model capabilities
 
-Inspect model capabilities before enabling reasoning:
+`ChatModel.capabilities` describes the selected model's reasoning constraints.
+The exported `getOpenAIModelCapabilities(modelId)` helper returns the same data
+without constructing a model.
+
+### Reasoning support
+
+Inspect the supported effort levels before enabling reasoning:
 
 ```typescript
 import { clampReasoningEffort, generate } from '@core-ai/core-ai';
@@ -229,7 +235,7 @@ import { createOpenAI, getOpenAIModelCapabilities } from '@core-ai/openai';
 const openai = createOpenAI();
 const model = openai.chatModel('gpt-5.2');
 
-if (model.capabilities.reasoning.supported) {
+if (model.capabilities.reasoning.mode !== 'unsupported') {
     const effort = clampReasoningEffort(
         'medium',
         model.capabilities.reasoning.supportedEfforts
@@ -249,6 +255,15 @@ if (model.capabilities.reasoning.supported) {
 // Or look up capabilities without constructing a ChatModel:
 const capabilities = getOpenAIModelCapabilities('gpt-5.2');
 ```
+
+OpenAI reasoning is not always on. `supportedEfforts` lists the accepted effort
+levels, and `supportedToolChoices` contains all unified tool-choice modes.
+`restrictsSamplingParams` identifies models that reject `temperature` and
+`topP` while reasoning is enabled.
+
+OpenAI extends the shared capability shape with
+`chatCompletions.maxTokensParameter`. The Chat Completions adapter uses this to
+select `max_tokens` or `max_completion_tokens`; the Responses API is unaffected.
 
 Reasoning support depends on the selected model family:
 
