@@ -162,19 +162,20 @@ class ProviderError extends CoreAIError {
 | `context_length_exceeded` | `ContextLengthExceededError` | Input/context exceeds model limits | no |
 | `rate_limit_exceeded` | `RateLimitError` | HTTP 429 / provider rate limit | yes |
 | `model_overloaded` | `ModelOverloadedError` | Capacity / high-demand signal | yes |
-| `service_unavailable` | `ServiceUnavailableError` | Temporary unavailability (e.g. 503) | yes |
+| `service_unavailable` | `ServiceUnavailableError` | Temporary unavailability (e.g. 5xx) | yes |
 | `unknown` | `ProviderError` | Unclassified provider failure | no |
 
-**Classification precedence** (applied by each provider's `wrap*Error`):
+**Classification precedence** (shared by every provider via `classifyProviderError`):
 
 1. Abort / cancel → `AbortedError` (not a `ProviderError`)
 2. Context length
-3. Overload (e.g. Anthropic HTTP 529, explicit capacity copy)
+3. Model overloaded (explicit capacity signal, e.g. Anthropic HTTP 529 / `overloaded_error`, or high-demand copy on 5xx/529)
 4. Rate limit (HTTP 429, provider rate-limit types)
-5. Service unavailable (HTTP 503 / unavailable status)
-6. Everything else → `code: 'unknown'`
+5. Service unavailable (explicit unavailable signal)
+6. HTTP status fallbacks in the same order: `529` → overload, `429` → rate limit, `500`/`502`/`503`/`504` → unavailable
+7. Everything else → `code: 'unknown'`
 
-Provider packages prefer structured SDK fields (status, error type/code, headers) and use message patterns only as a fallback (for example token-count extraction).
+Provider `wrap*Error` helpers only extract SDK-specific signals (status, error type/code, headers, and message fallbacks such as token counts). Classification itself is centralized so all providers share the same importance order. Explicit signals beat status fallbacks, which is how quirks like Azure capacity returning HTTP 429 can map to `service_unavailable` instead of a rate limit. Overload message cues are only applied on capacity-like statuses (`500`/`502`/`503`/`504`/`529`), never on ordinary 4xx including `429`.
 
 **Usage:**
 
@@ -212,10 +213,10 @@ try {
 
 **Subclass details:**
 
-- `ContextLengthExceededError` — optional `maxTokens` / `actualTokens` when parseable
+- `ContextLengthExceededError` — optional `maxTokens` / `actualTokens` when token counts are parseable (string-length limits are classified without inventing token metadata)
 - `RateLimitError` — optional `retryAfterSeconds` from `Retry-After`
-- `ModelOverloadedError` — strong capacity signal (not a generic 503)
-- `ServiceUnavailableError` — generic temporary unavailability
+- `ModelOverloadedError` — capacity / high-demand signal (wins over generic 5xx unavailable)
+- `ServiceUnavailableError` — temporary unavailability, including HTTP 500/502/503/504
 
 Additional codes (auth, content policy, request limits) may be added later; unclassified failures remain `unknown`.
 

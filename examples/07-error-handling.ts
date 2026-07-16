@@ -2,10 +2,8 @@ import 'dotenv/config';
 import {
     ContextLengthExceededError,
     CoreAIError,
-    ModelOverloadedError,
     ProviderError,
     RateLimitError,
-    ServiceUnavailableError,
     generate,
 } from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
@@ -20,62 +18,46 @@ function getRequiredEnv(name: 'OPENAI_API_KEY'): string {
 
 function handleError(error: unknown): void {
     if (error instanceof ContextLengthExceededError) {
-        console.error('ContextLengthExceededError');
-        console.error(`provider: ${error.provider}`);
-        console.error(`code: ${error.code}`);
-        console.error(`maxTokens: ${error.maxTokens ?? 'n/a'}`);
-        console.error(`actualTokens: ${error.actualTokens ?? 'n/a'}`);
-        console.error(`message: ${error.message}`);
+        console.error('ContextLengthExceededError', {
+            provider: error.provider,
+            code: error.code,
+            maxTokens: error.maxTokens ?? 'n/a',
+            actualTokens: error.actualTokens ?? 'n/a',
+            message: error.message,
+        });
         return;
     }
 
     if (error instanceof RateLimitError) {
-        console.error('RateLimitError');
-        console.error(`provider: ${error.provider}`);
-        console.error(`code: ${error.code}`);
-        console.error(`retryAfterSeconds: ${error.retryAfterSeconds ?? 'n/a'}`);
-        console.error(`isRetryable: ${error.isRetryable}`);
-        console.error(`message: ${error.message}`);
-        return;
-    }
-
-    if (error instanceof ModelOverloadedError) {
-        console.error('ModelOverloadedError');
-        console.error(`provider: ${error.provider}`);
-        console.error(`code: ${error.code}`);
-        console.error(`isRetryable: ${error.isRetryable}`);
-        console.error(`message: ${error.message}`);
-        return;
-    }
-
-    if (error instanceof ServiceUnavailableError) {
-        console.error('ServiceUnavailableError');
-        console.error(`provider: ${error.provider}`);
-        console.error(`code: ${error.code}`);
-        console.error(`isRetryable: ${error.isRetryable}`);
-        console.error(`message: ${error.message}`);
+        console.error('RateLimitError', {
+            provider: error.provider,
+            code: error.code,
+            retryAfterSeconds: error.retryAfterSeconds ?? 'n/a',
+            isRetryable: error.isRetryable,
+            message: error.message,
+        });
         return;
     }
 
     if (error instanceof ProviderError) {
-        console.error('ProviderError');
-        console.error(`provider: ${error.provider}`);
-        console.error(`code: ${error.code}`);
-        console.error(`statusCode: ${error.statusCode ?? 'n/a'}`);
-        console.error(`isRetryable: ${error.isRetryable}`);
-        console.error(`message: ${error.message}`);
+        // Covers ModelOverloadedError, ServiceUnavailableError, and unknown.
+        console.error(error.name, {
+            provider: error.provider,
+            code: error.code,
+            statusCode: error.statusCode ?? 'n/a',
+            isRetryable: error.isRetryable,
+            message: error.message,
+        });
         return;
     }
 
     if (error instanceof CoreAIError) {
-        console.error('CoreAIError');
-        console.error(error.message);
+        console.error('CoreAIError', error.message);
         return;
     }
 
     if (error instanceof Error) {
-        console.error('Unexpected Error');
-        console.error(error.message);
+        console.error('Unexpected Error', error.message);
         return;
     }
 

@@ -27,7 +27,7 @@ import {
     getAnthropicRequestBetas,
     mapGenerateResponse,
     transformStream,
-    wrapError,
+    wrapAnthropicError,
 } from './chat-adapter.js';
 import { getAnthropicModelCapabilities } from './model-capabilities.js';
 
@@ -69,7 +69,7 @@ export function createAnthropicChatModel(
                 signal,
             })) as T;
         } catch (error) {
-            throw wrapError(error, provider);
+            throw wrapAnthropicError(error, provider);
         }
     }
 

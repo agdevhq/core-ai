@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ModelOverloadedError,
     ProviderError,
     RateLimitError,
     ServiceUnavailableError,
@@ -45,7 +46,7 @@ describe('wrapOpenAIError', () => {
             expect(classified.actualTokens).toBe(10000);
         });
 
-        it('should map string_above_max_length', () => {
+        it('should map string_above_max_length without inventing token counts', () => {
             const error = {
                 code: 'string_above_max_length',
                 error: {
@@ -57,8 +58,8 @@ describe('wrapOpenAIError', () => {
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
             const classified = wrapped as ContextLengthExceededError;
-            expect(classified.maxTokens).toBe(1000);
-            expect(classified.actualTokens).toBe(2000);
+            expect(classified.maxTokens).toBeUndefined();
+            expect(classified.actualTokens).toBeUndefined();
         });
 
         it('should map configured-limit token errors when code is null', () => {
@@ -163,6 +164,48 @@ describe('wrapOpenAIError', () => {
             const classified = wrapped as ServiceUnavailableError;
             expect(classified.code).toBe('service_unavailable');
             expect(classified.statusCode).toBe(503);
+        });
+
+        it('should map 500 to ServiceUnavailableError', () => {
+            const error = APIError.generate(
+                500,
+                {
+                    error: {
+                        message: 'Internal server error',
+                        type: 'server_error',
+                        code: null,
+                        param: null,
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+        });
+
+        it('should prefer overload message cues over 503 unavailable', () => {
+            const error = APIError.generate(
+                503,
+                {
+                    error: {
+                        message: 'The model is overloaded',
+                        type: 'server_error',
+                        code: null,
+                        param: null,
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+            expect((wrapped as ModelOverloadedError).code).toBe(
+                'model_overloaded'
+            );
         });
     });
 

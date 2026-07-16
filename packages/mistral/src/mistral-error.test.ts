@@ -63,6 +63,17 @@ describe('wrapMistralError', () => {
         );
     });
 
+    it('should map 502 to ServiceUnavailableError', () => {
+        const error = {
+            message: 'Bad gateway',
+            statusCode: 502,
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+    });
+
     it('should map opaque errors to ProviderError with unknown code', () => {
         const wrapped = wrapMistralError(new Error('boom'));
         expect(wrapped).toBeInstanceOf(ProviderError);

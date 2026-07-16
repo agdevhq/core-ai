@@ -202,6 +202,8 @@ export class ProviderError extends CoreAIError {
 | `ModelOverloadedError` | `model_overloaded` | — |
 | `ServiceUnavailableError` | `service_unavailable` | — |
 
+Provider packages call `classifyProviderError` so every wrapper shares the same precedence: abort → context length → overload → rate limit → service unavailable → HTTP status fallbacks (`529`, `429`, `500`/`502`/`503`/`504`) → `unknown`.
+
 ### Example
 
 ```typescript

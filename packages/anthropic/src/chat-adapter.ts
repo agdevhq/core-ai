@@ -19,7 +19,7 @@ import {
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
-export { wrapError } from './anthropic-error.js';
+export { wrapAnthropicError } from './anthropic-error.js';
 import type {
     AssistantContentPart,
     FinishReason,

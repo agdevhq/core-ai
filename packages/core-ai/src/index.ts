@@ -72,6 +72,20 @@ export {
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from './errors.ts';
+export type {
+    ContextLengthSignal,
+    ProviderErrorClassificationInput,
+} from './classify-provider-error.ts';
+export {
+    classifyProviderError,
+    indicatesModelOverload,
+    getErrorMessage,
+    asRecord,
+    getString,
+    getHttpStatusCode,
+    isAbortErrorByName,
+    parseRetryAfterSeconds,
+} from './classify-provider-error.ts';
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';

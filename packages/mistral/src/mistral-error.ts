@@ -4,67 +4,44 @@ import {
 } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
-    ContextLengthExceededError,
     ProviderError,
-    RateLimitError,
-    ServiceUnavailableError,
+    classifyProviderError,
+    getErrorMessage,
+    getHttpStatusCode,
+    indicatesModelOverload,
+    isAbortErrorByName,
+    type ContextLengthSignal,
 } from '@core-ai/core-ai';
 
 /**
- * Maps Mistral SDK errors to classified core-ai provider errors.
- *
- * Classification precedence:
- * 1. Abort
- * 2. Context length ("too large for model" + token counts)
- * 3. HTTP 429 → rate limit
- * 4. HTTP 503 → service unavailable
- * 5. Otherwise → ProviderError with code `unknown`
+ * Maps Mistral SDK errors to classified core-ai provider errors via the
+ * shared precedence in `classifyProviderError`.
  */
 export function wrapMistralError(error: unknown): AbortedError | ProviderError {
-    if (
-        error instanceof RequestAbortedError ||
-        (error instanceof Error && error.name === 'AbortError')
-    ) {
-        return new AbortedError(error, 'mistral');
-    }
-
     const message = getErrorMessage(error);
-    const statusCode = getStatusCode(error);
+    const statusCode =
+        error instanceof MistralError
+            ? error.statusCode
+            : getHttpStatusCode(error, ['statusCode', 'status']);
 
-    const contextLengthError = tryContextLengthExceededError(
-        error,
+    return classifyProviderError({
         message,
-        statusCode
-    );
-    if (contextLengthError) {
-        return contextLengthError;
-    }
-
-    if (statusCode === 429) {
-        return new RateLimitError(message, 'mistral', {
-            statusCode,
-            cause: error,
-        });
-    }
-
-    if (statusCode === 503) {
-        return new ServiceUnavailableError(message, 'mistral', {
-            statusCode,
-            cause: error,
-        });
-    }
-
-    return new ProviderError(message, 'mistral', {
-        statusCode,
+        provider: 'mistral',
         cause: error,
+        statusCode,
+        aborted:
+            error instanceof RequestAbortedError || isAbortErrorByName(error),
+        contextLength: getContextLengthSignal(error, message),
+        overloaded: indicatesModelOverload(message, statusCode),
+        rateLimit: statusCode === 429,
+        serviceUnavailable: statusCode === 503,
     });
 }
 
-function tryContextLengthExceededError(
+function getContextLengthSignal(
     error: unknown,
-    message: string,
-    statusCode: number | undefined
-): ContextLengthExceededError | undefined {
+    message: string
+): true | ContextLengthSignal | undefined {
     const body = parseErrorBody(error);
     const errorMessage = body?.message ?? message;
     const errorType = body?.type;
@@ -85,27 +62,19 @@ function tryContextLengthExceededError(
         /(\d+)\s*tokens.*too large for model with (\d+) maximum context length/
     );
     if (!match) {
-        return new ContextLengthExceededError(message, 'mistral', {
-            statusCode,
-            cause: error,
-        });
+        return true;
     }
 
     const actualTokens = match[1];
     const maxTokens = match[2];
     if (actualTokens === undefined || maxTokens === undefined) {
-        return new ContextLengthExceededError(message, 'mistral', {
-            statusCode,
-            cause: error,
-        });
+        return true;
     }
 
-    return new ContextLengthExceededError(message, 'mistral', {
-        statusCode,
-        cause: error,
+    return {
         maxTokens: parseInt(maxTokens, 10),
         actualTokens: parseInt(actualTokens, 10),
-    });
+    };
 }
 
 function parseErrorBody(
@@ -130,36 +99,6 @@ function parseErrorBody(
         }
     } catch {
         // ignore
-    }
-    return undefined;
-}
-
-function getErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-        return error.message;
-    }
-    return String(error);
-}
-
-function getStatusCode(error: unknown): number | undefined {
-    if (error instanceof MistralError) {
-        return error.statusCode;
-    }
-    if (
-        error instanceof Object &&
-        'statusCode' in error &&
-        typeof (error as { statusCode: unknown }).statusCode === 'number'
-    ) {
-        const status = (error as { statusCode: number }).statusCode;
-        return Number.isFinite(status) ? status : undefined;
-    }
-    if (
-        error instanceof Object &&
-        'status' in error &&
-        typeof (error as { status: unknown }).status === 'number'
-    ) {
-        const status = (error as { status: number }).status;
-        return Number.isFinite(status) ? status : undefined;
     }
     return undefined;
 }

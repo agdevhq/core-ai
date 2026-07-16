@@ -65,6 +65,17 @@ describe('wrapGoogleError', () => {
         expect((wrapped as ModelOverloadedError).code).toBe('model_overloaded');
     });
 
+    it('should not treat overload copy on HTTP 429 as ModelOverloadedError', () => {
+        const error = new ApiError({
+            message: 'The model is overloaded due to high demand',
+            status: 429,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect((wrapped as RateLimitError).code).toBe('rate_limit_exceeded');
+    });
+
     it('should map 503 UNAVAILABLE to ServiceUnavailableError', () => {
         const error = new ApiError({
             message: JSON.stringify({
