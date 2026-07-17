@@ -1,26 +1,14 @@
 /**
  * Shared helpers for provider error wrappers.
  * Providers decide which error subclass to throw; these utilities only
- * extract common SDK shapes and status/message cues.
+ * extract common SDK shapes and thin HTTP status conventions.
+ * Provider-specific message heuristics stay in each wrap*Error.
  */
 
 const TRANSIENT_UNAVAILABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
-/**
- * Status codes where free-text capacity cues are allowed to classify as
- * model overload. Message matching is intentionally not applied to ordinary
- * 4xx responses (including 429) to avoid false positives.
- */
-const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
-    500, 502, 503, 504, 529,
-]);
-
 export function isRateLimitStatus(statusCode: number | undefined): boolean {
     return statusCode === 429;
-}
-
-export function isOverloadedStatus(statusCode: number | undefined): boolean {
-    return statusCode === 529;
 }
 
 export function isTransientUnavailableStatus(
@@ -29,34 +17,6 @@ export function isTransientUnavailableStatus(
     return (
         statusCode !== undefined &&
         TRANSIENT_UNAVAILABLE_STATUS_CODES.has(statusCode)
-    );
-}
-
-/**
- * Message-fallback detector for capacity / high-demand overload.
- *
- * Prefer structured signals (HTTP 529, provider error types) first. When using
- * this helper, pass `statusCode` so cues are only honored on capacity-like
- * responses. If `statusCode` is omitted (unknown / non-HTTP shapes), cues are
- * still considered.
- */
-export function indicatesModelOverload(
-    text: string,
-    statusCode?: number
-): boolean {
-    if (
-        statusCode !== undefined &&
-        !OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES.has(statusCode)
-    ) {
-        return false;
-    }
-
-    const lower = text.toLowerCase();
-    return (
-        /\boverloaded\b/.test(lower) ||
-        /\bhigh demand\b/.test(lower) ||
-        /\brunning out of capacity\b/.test(lower) ||
-        /\bspikes in demand\b/.test(lower)
     );
 }
 
@@ -74,9 +34,7 @@ export function getErrorMessage(error: unknown): string {
     return String(error);
 }
 
-export function asRecord(
-    value: unknown
-): Record<string, unknown> | undefined {
+export function asRecord(value: unknown): Record<string, unknown> | undefined {
     if (value && typeof value === 'object' && !Array.isArray(value)) {
         return value as Record<string, unknown>;
     }
@@ -121,8 +79,9 @@ export function isAbortErrorByName(error: unknown): boolean {
 }
 
 /**
- * Parses `Retry-After` as integer seconds from a `Headers` instance or a
- * plain header map. Non-numeric / HTTP-date values are ignored.
+ * Parses retry delay from a `Headers` instance or plain header map.
+ * Prefers Azure `retry-after-ms` (ceil ms → seconds), then `Retry-After`
+ * as integer seconds or HTTP-date.
  */
 export function parseRetryAfterSeconds(
     headers: Headers | Record<string, string> | undefined
@@ -131,23 +90,54 @@ export function parseRetryAfterSeconds(
         return undefined;
     }
 
-    let retryAfter: string | undefined;
-    if (typeof (headers as Headers).get === 'function') {
-        retryAfter = (headers as Headers).get('retry-after') ?? undefined;
-    } else if (
-        typeof headers === 'object' &&
-        'retry-after' in headers &&
-        typeof (headers as Record<string, unknown>)['retry-after'] === 'string'
-    ) {
-        retryAfter = (headers as Record<string, string>)['retry-after'];
+    const retryAfterMs = getHeaderValue(headers, 'retry-after-ms');
+    if (retryAfterMs !== undefined) {
+        const ms = Number(retryAfterMs);
+        if (Number.isFinite(ms) && ms >= 0) {
+            return Math.ceil(ms / 1000);
+        }
     }
 
+    const retryAfter = getHeaderValue(headers, 'retry-after');
     if (retryAfter === undefined) {
         return undefined;
     }
 
-    const parsed = parseInt(retryAfter, 10);
-    return Number.isFinite(parsed) ? parsed : undefined;
+    const asSeconds = Number(retryAfter);
+    if (Number.isFinite(asSeconds) && /^\d+$/.test(retryAfter.trim())) {
+        return asSeconds;
+    }
+
+    const when = Date.parse(retryAfter);
+    if (!Number.isFinite(when)) {
+        return undefined;
+    }
+
+    const seconds = Math.ceil((when - Date.now()) / 1000);
+    return seconds >= 0 ? seconds : undefined;
+}
+
+function getHeaderValue(
+    headers: Headers | Record<string, string>,
+    name: string
+): string | undefined {
+    if (typeof (headers as Headers).get === 'function') {
+        return (headers as Headers).get(name) ?? undefined;
+    }
+
+    const record = headers as Record<string, string>;
+    const direct = record[name];
+    if (typeof direct === 'string') {
+        return direct;
+    }
+
+    const lower = name.toLowerCase();
+    for (const [key, value] of Object.entries(record)) {
+        if (key.toLowerCase() === lower && typeof value === 'string') {
+            return value;
+        }
+    }
+    return undefined;
 }
 
 /** Reads `Retry-After` from common SDK error shapes that expose `headers`. */

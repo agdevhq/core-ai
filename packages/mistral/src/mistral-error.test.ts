@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { RequestTimeoutError } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -92,6 +93,18 @@ describe('wrapMistralError', () => {
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
     });
 
+    it('should map service tier capacity exceeded on 503 to ServiceUnavailableError', () => {
+        const error = {
+            message: 'service tier capacity exceeded',
+            statusCode: 503,
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).not.toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ModelOverloadedError);
+    });
+
     it('should map 503 to ServiceUnavailableError', () => {
         const error = {
             message: 'Unavailable',
@@ -122,6 +135,54 @@ describe('wrapMistralError', () => {
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
+    });
+
+    it('should map RequestTimeoutError to ServiceUnavailableError', () => {
+        const error = new RequestTimeoutError('Request timed out');
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect(wrapped).not.toBeInstanceOf(AbortedError);
+    });
+
+    it('should map exceeds maximum context length wording', () => {
+        const error = {
+            body: JSON.stringify({
+                type: 'invalid_request_error',
+                message:
+                    "The number of tokens in the prompt exceeds the model's maximum context length of 32768",
+            }),
+            message:
+                "The number of tokens in the prompt exceeds the model's maximum context length of 32768",
+            statusCode: 400,
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        expect((wrapped as ContextLengthExceededError).maxTokens).toBe(32768);
+    });
+
+    it('should not treat 422 stringified detail JSON as context length', () => {
+        const error = {
+            body: JSON.stringify({
+                type: 'internal_error_proxy',
+                message: JSON.stringify({
+                    detail: [
+                        {
+                            loc: ['body', 'foo'],
+                            msg: 'extra fields not permitted',
+                            type: 'value_error',
+                        },
+                    ],
+                }),
+            }),
+            message: 'Validation error',
+            statusCode: 422,
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(ContextLengthExceededError);
     });
 
     it('should map opaque errors to ProviderError', () => {

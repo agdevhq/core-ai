@@ -73,9 +73,7 @@ export {
     StructuredOutputValidationError,
 } from './errors.ts';
 export {
-    indicatesModelOverload,
     isRateLimitStatus,
-    isOverloadedStatus,
     isTransientUnavailableStatus,
     getErrorMessage,
     asRecord,

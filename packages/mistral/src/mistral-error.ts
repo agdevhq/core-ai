@@ -1,5 +1,6 @@
 import {
     RequestAbortedError,
+    RequestTimeoutError,
     MistralError,
 } from '@mistralai/mistralai/models/errors';
 import {
@@ -14,11 +15,13 @@ import {
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
     getString,
-    indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
+
+/** Only honor capacity wording on 5xx — not ordinary 4xx / 429. */
+const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
 type ContextLengthDetails = {
     maxTokens?: number;
@@ -32,6 +35,12 @@ type ContextLengthDetails = {
 export function wrapMistralError(error: unknown): AbortedError | ProviderError {
     if (isMistralAbortError(error)) {
         return new AbortedError(error, 'mistral');
+    }
+
+    if (isMistralTimeoutError(error)) {
+        return new ServiceUnavailableError(getErrorMessage(error), 'mistral', {
+            cause: error,
+        });
     }
 
     const message = getErrorMessage(error);
@@ -50,7 +59,7 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
         });
     }
 
-    if (indicatesModelOverload(message, statusCode)) {
+    if (indicatesMistralOverload(message, statusCode)) {
         return new ModelOverloadedError(message, 'mistral', options);
     }
 
@@ -69,8 +78,13 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
 }
 
 function isMistralAbortError(error: unknown): boolean {
+    return error instanceof RequestAbortedError || isAbortErrorByName(error);
+}
+
+function isMistralTimeoutError(error: unknown): boolean {
     return (
-        error instanceof RequestAbortedError || isAbortErrorByName(error)
+        error instanceof RequestTimeoutError ||
+        (error instanceof Error && error.name === 'RequestTimeoutError')
     );
 }
 
@@ -81,11 +95,22 @@ function isMistralRateLimit(
     return isRateLimitStatus(statusCode) || errorType === 'rate_limit_error';
 }
 
+function indicatesMistralOverload(text: string, statusCode?: number): boolean {
+    if (
+        statusCode !== undefined &&
+        !OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES.has(statusCode)
+    ) {
+        return false;
+    }
+
+    return /\boverloaded\b/i.test(text);
+}
+
 function getContextLengthDetails(
     body: { message?: string; type?: string } | undefined,
     message: string
 ): ContextLengthDetails | undefined {
-    const errorMessage = body?.message ?? message;
+    const errorMessage = resolveMistralMessageText(body?.message ?? message);
     const errorType = body?.type;
 
     const isContextType =
@@ -93,10 +118,16 @@ function getContextLengthDetails(
         errorType === 'invalid_request_invalid_args' ||
         errorType === undefined;
 
-    if (
-        !isContextType ||
-        !errorMessage.toLowerCase().includes('too large for model')
-    ) {
+    if (!isContextType) {
+        return undefined;
+    }
+
+    const lower = errorMessage.toLowerCase();
+    const isContextWording =
+        lower.includes('too large for model') ||
+        /exceeds the model's maximum context length/i.test(errorMessage);
+
+    if (!isContextWording) {
         return undefined;
     }
 
@@ -104,6 +135,12 @@ function getContextLengthDetails(
         /(\d+)\s*tokens.*too large for model with (\d+) maximum context length/
     );
     if (!match) {
+        const alternate = errorMessage.match(
+            /exceeds the model's maximum context length of (\d+)/i
+        );
+        if (alternate?.[1]) {
+            return { maxTokens: parseInt(alternate[1], 10) };
+        }
         return {};
     }
 
@@ -119,6 +156,25 @@ function getContextLengthDetails(
     };
 }
 
+function resolveMistralMessageText(message: string): string {
+    const trimmed = message.trim();
+    if (!trimmed.startsWith('{')) {
+        return message;
+    }
+
+    try {
+        const parsed: unknown = JSON.parse(trimmed);
+        const record = asRecord(parsed);
+        const nestedMessage = getString(record, 'message');
+        if (nestedMessage) {
+            return nestedMessage;
+        }
+    } catch {
+        // keep original
+    }
+    return message;
+}
+
 function parseErrorBody(
     error: unknown
 ): { message?: string; type?: string } | undefined {
@@ -128,7 +184,12 @@ function parseErrorBody(
         const type = getString(record, 'type');
         const message = getString(record, 'message');
         if (type || message) {
-            return { type, message };
+            return {
+                type,
+                message: message
+                    ? resolveMistralMessageText(message)
+                    : undefined,
+            };
         }
         return undefined;
     }
@@ -137,8 +198,11 @@ function parseErrorBody(
     if (typeof body !== 'string') {
         if (body && typeof body === 'object') {
             const bodyRecord = asRecord(body);
+            const message = getString(bodyRecord, 'message');
             return {
-                message: getString(bodyRecord, 'message'),
+                message: message
+                    ? resolveMistralMessageText(message)
+                    : undefined,
                 type: getString(bodyRecord, 'type'),
             };
         }
@@ -149,8 +213,11 @@ function parseErrorBody(
         const parsed: unknown = JSON.parse(body);
         const parsedRecord = asRecord(parsed);
         if (parsedRecord) {
+            const message = getString(parsedRecord, 'message');
             return {
-                message: getString(parsedRecord, 'message'),
+                message: message
+                    ? resolveMistralMessageText(message)
+                    : undefined,
                 type: getString(parsedRecord, 'type'),
             };
         }

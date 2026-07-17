@@ -125,6 +125,62 @@ describe('wrapOpenAIError', () => {
             expect(classified.retryAfterSeconds).toBe(60);
         });
 
+        it('should map insufficient_quota on 429 to non-retryable ProviderError', () => {
+            const error = APIError.generate(
+                429,
+                {
+                    error: {
+                        message:
+                            'You exceeded your current quota, please check your plan and billing details.',
+                        type: 'insufficient_quota',
+                        code: 'insufficient_quota',
+                        param: null,
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(RateLimitError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+            expect((wrapped as ProviderError).statusCode).toBe(429);
+        });
+
+        it('should map Azure NoCapacity on 429 to ModelOverloadedError', () => {
+            const error = {
+                status: 429,
+                code: 'NoCapacity',
+                error: {
+                    message:
+                        'The system is currently experiencing high demand. Please retry after 5 seconds.',
+                    code: 'NoCapacity',
+                    type: 'invalid_request_error',
+                },
+            };
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+            expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect(wrapped.provider).toBe('azure-openai');
+        });
+
+        it('should classify nested Responses-shaped error bodies', () => {
+            const error = {
+                status: 429,
+                error: {
+                    message: 'You exceeded your current quota',
+                    type: 'insufficient_quota',
+                    code: 'insufficient_quota',
+                },
+            };
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
+
         it('should map Azure backend 429 to ServiceUnavailableError', () => {
             const error = {
                 status: 429,

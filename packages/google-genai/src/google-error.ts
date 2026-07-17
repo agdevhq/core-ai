@@ -9,11 +9,13 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
-    indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
+
+/** Only honor capacity wording on 5xx — not ordinary 4xx / 429. */
+const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
 type GoogleApiErrorBody = {
     code?: number | string;
@@ -57,18 +59,23 @@ export function wrapGoogleError(
         });
     }
 
-    if (indicatesModelOverload(combinedText, effectiveHttp)) {
+    if (indicatesGoogleOverload(combinedText, effectiveHttp)) {
         return new ModelOverloadedError(message, provider, options);
     }
 
     if (isGoogleRateLimit(effectiveHttp, status)) {
         return new RateLimitError(message, provider, {
             ...options,
-            retryAfterSeconds: getRetryAfterSecondsFromError(error),
+            retryAfterSeconds:
+                getRetryAfterSecondsFromError(error) ??
+                parseRetryAfterFromMessage(combinedText),
         });
     }
 
-    if (status === 'UNAVAILABLE' || isTransientUnavailableStatus(effectiveHttp)) {
+    if (
+        status === 'UNAVAILABLE' ||
+        isTransientUnavailableStatus(effectiveHttp)
+    ) {
         return new ServiceUnavailableError(message, provider, options);
     }
 
@@ -100,6 +107,24 @@ function isGoogleRateLimit(
     return isRateLimitStatus(statusCode) || status === 'RESOURCE_EXHAUSTED';
 }
 
+function indicatesGoogleOverload(text: string, statusCode?: number): boolean {
+    if (
+        statusCode !== undefined &&
+        !OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES.has(statusCode)
+    ) {
+        return false;
+    }
+
+    const lower = text.toLowerCase();
+    return (
+        /\boverloaded\b/.test(lower) ||
+        /\bhigh demand\b/.test(lower) ||
+        /\bthrottled\b/.test(lower) ||
+        /\brunning out of capacity\b/.test(lower) ||
+        /\bno capacity available\b/.test(lower)
+    );
+}
+
 function getContextLengthDetails(
     text: string
 ): ContextLengthDetails | undefined {
@@ -117,8 +142,25 @@ function getContextLengthDetails(
         }
     }
 
+    const alternate = text.match(
+        /input token count is (\d+) but model only supports up to (\d+)/i
+    );
+    if (alternate) {
+        const actualTokens = alternate[1];
+        const maxTokens = alternate[2];
+        if (actualTokens !== undefined && maxTokens !== undefined) {
+            return {
+                maxTokens: parseInt(maxTokens, 10),
+                actualTokens: parseInt(actualTokens, 10),
+            };
+        }
+    }
+
     // Detect without inventing token counts when wording is present.
-    if (/exceeds the maximum number of tokens allowed/i.test(text)) {
+    if (
+        /exceeds the maximum number of tokens allowed/i.test(text) ||
+        /unable to submit request because the input token count/i.test(text)
+    ) {
         return {};
     }
 
@@ -128,8 +170,11 @@ function getContextLengthDetails(
 function tryParseGoogleApiErrorBody(
     message: string
 ): GoogleApiErrorBody | null {
+    const jsonStart = message.indexOf('{');
+    const candidate = jsonStart >= 0 ? message.slice(jsonStart) : message;
+
     try {
-        const parsed: unknown = JSON.parse(message);
+        const parsed: unknown = JSON.parse(candidate);
         if (
             parsed &&
             typeof parsed === 'object' &&
@@ -143,6 +188,15 @@ function tryParseGoogleApiErrorBody(
         // Not JSON
     }
     return null;
+}
+
+function parseRetryAfterFromMessage(text: string): number | undefined {
+    const match = text.match(/please retry in (\d+)\s*s/i);
+    if (!match?.[1]) {
+        return undefined;
+    }
+    const seconds = parseInt(match[1], 10);
+    return Number.isFinite(seconds) ? seconds : undefined;
 }
 
 function toNumericHttpCode(

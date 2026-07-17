@@ -11,7 +11,6 @@ import {
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
     getString,
-    indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
     isTransientUnavailableStatus,
@@ -27,6 +26,11 @@ const TOKEN_LIMIT_PATTERNS = [
     /maximum context length is (\d+) tokens.*you requested (\d+) tokens/i,
     /configured limit of (\d+) tokens.*resulted in (\d+) tokens/i,
 ];
+
+/**
+ * OpenAI / Azure capacity wording. Only apply on 5xx (not ordinary 4xx / 429).
+ */
+const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
 type ContextLengthDetails = {
     maxTokens?: number;
@@ -62,6 +66,14 @@ export function wrapOpenAIError(
 
     if (isAzureOpenAIBackendCapacityError(error)) {
         return new ServiceUnavailableError(message, provider, options);
+    }
+
+    if (isOpenAIInsufficientQuota(error)) {
+        return new ProviderError(message, provider, options);
+    }
+
+    if (isAzureOpenAINoCapacity(error)) {
+        return new ModelOverloadedError(message, provider, options);
     }
 
     if (isOpenAIOverloaded(error, message, statusCode)) {
@@ -105,9 +117,23 @@ function isOpenAIOverloaded(
     statusCode: number | undefined
 ): boolean {
     const providerMessage = getProviderMessage(error) ?? '';
-    return indicatesModelOverload(
-        `${providerMessage} ${message}`,
-        statusCode
+    return indicatesOpenAIOverload(`${providerMessage} ${message}`, statusCode);
+}
+
+function indicatesOpenAIOverload(text: string, statusCode?: number): boolean {
+    if (
+        statusCode !== undefined &&
+        !OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES.has(statusCode)
+    ) {
+        return false;
+    }
+
+    const lower = text.toLowerCase();
+    return (
+        /\boverloaded\b/.test(lower) ||
+        /\bhigh demand\b/.test(lower) ||
+        /\brunning out of capacity\b/.test(lower) ||
+        /\bspikes in demand\b/.test(lower)
     );
 }
 
@@ -166,6 +192,18 @@ function isAzureOpenAIBackendCapacityError(error: unknown): boolean {
         type === 'invalid_request_error' &&
         providerMessage?.toLowerCase() === 'backend error.'
     );
+}
+
+/** Billing / plan quota — HTTP 429 but not retryable. */
+function isOpenAIInsufficientQuota(error: unknown): boolean {
+    const code = getProviderErrorCode(error);
+    const type = getProviderErrorType(error);
+    return code === 'insufficient_quota' || type === 'insufficient_quota';
+}
+
+/** Azure system capacity on 429 — overload, not org rate limit. */
+function isAzureOpenAINoCapacity(error: unknown): boolean {
+    return getProviderErrorCode(error) === 'NoCapacity';
 }
 
 function getProviderMessage(error: unknown): string | undefined {

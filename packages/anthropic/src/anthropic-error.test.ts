@@ -133,6 +133,99 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
     });
 
+    it('should not treat rate_limit_error mentioning prompt length as context', () => {
+        const error = new APIError(
+            429,
+            {
+                type: 'rate_limit_error',
+                message: 'prompt is too long: 12345 tokens > 100000 maximum',
+            },
+            'prompt is too long: 12345 tokens > 100000 maximum',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ContextLengthExceededError);
+    });
+
+    it('should map streaming overloaded_error with undefined status via APIError.type', () => {
+        const error = new APIError(
+            undefined,
+            { type: 'overloaded_error', message: 'Overloaded' },
+            JSON.stringify({
+                type: 'error',
+                error: { type: 'overloaded_error', message: 'Overloaded' },
+            }),
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+    });
+
+    it('should map single-level Vertex RESOURCE_EXHAUSTED to RateLimitError', () => {
+        const error = {
+            error: {
+                code: 429,
+                status: 'RESOURCE_EXHAUSTED',
+                message: 'Quota exceeded',
+            },
+        };
+
+        const wrapped = wrapAnthropicError(error, 'anthropic-vertex');
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect(wrapped.provider).toBe('anthropic-vertex');
+    });
+
+    it('should map single-level Vertex UNAVAILABLE to ServiceUnavailableError', () => {
+        const error = {
+            error: {
+                code: 503,
+                status: 'UNAVAILABLE',
+                message: 'Unavailable',
+            },
+        };
+
+        const wrapped = wrapAnthropicError(error, 'anthropic-vertex');
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should map prompt-too-long without maximum keyword', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'prompt is too long: 200000 tokens > 100000',
+            },
+            'prompt is too long: 200000 tokens > 100000',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        const classified = wrapped as ContextLengthExceededError;
+        expect(classified.maxTokens).toBe(100000);
+        expect(classified.actualTokens).toBe(200000);
+    });
+
+    it('should map Input tokens exceed the context limit wording', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message:
+                    'Input tokens exceed the context limit of 200000 for model claude-sonnet',
+            },
+            'Input tokens exceed the context limit of 200000 for model claude-sonnet',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        expect((wrapped as ContextLengthExceededError).maxTokens).toBe(200000);
+    });
+
     it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapAnthropicError(new Error('boom'));
         expect(wrapped).toBeInstanceOf(ProviderError);

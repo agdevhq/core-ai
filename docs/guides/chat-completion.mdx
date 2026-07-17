@@ -17,17 +17,18 @@ const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const model = openai.chatModel('gpt-5-mini');
 
 const result = await generate({
-  model,
-  messages: [
-    {
-      role: 'system',
-      content: 'You are a concise technical assistant.',
-    },
-    {
-      role: 'user',
-      content: 'Explain what an embedding vector is in one short paragraph.',
-    },
-  ],
+    model,
+    messages: [
+        {
+            role: 'system',
+            content: 'You are a concise technical assistant.',
+        },
+        {
+            role: 'user',
+            content:
+                'Explain what an embedding vector is in one short paragraph.',
+        },
+    ],
 });
 
 console.log('Response:', result.content);
@@ -44,8 +45,8 @@ core-ai supports multiple providers with the same API:
     import { generate } from '@core-ai/core-ai';
     import { createOpenAI } from '@core-ai/openai';
 
-    const openai = createOpenAI({ 
-      apiKey: process.env.OPENAI_API_KEY 
+    const openai = createOpenAI({
+      apiKey: process.env.OPENAI_API_KEY
     });
     const model = openai.chatModel('gpt-5-mini');
 
@@ -54,14 +55,15 @@ core-ai supports multiple providers with the same API:
       messages: [{ role: 'user', content: 'Hello!' }],
     });
     ```
+
   </Tab>
   <Tab title="Anthropic">
     ```typescript
     import { generate } from '@core-ai/core-ai';
     import { createAnthropic } from '@core-ai/anthropic';
 
-    const anthropic = createAnthropic({ 
-      apiKey: process.env.ANTHROPIC_API_KEY 
+    const anthropic = createAnthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY
     });
     const model = anthropic.chatModel('claude-haiku-4-5');
 
@@ -71,6 +73,7 @@ core-ai supports multiple providers with the same API:
       maxTokens: 256,
     });
     ```
+
   </Tab>
   <Tab title="Google">
     ```typescript
@@ -88,14 +91,15 @@ core-ai supports multiple providers with the same API:
       maxTokens: 256,
     });
     ```
+
   </Tab>
   <Tab title="Mistral">
     ```typescript
     import { generate } from '@core-ai/core-ai';
     import { createMistral } from '@core-ai/mistral';
 
-    const mistral = createMistral({ 
-      apiKey: process.env.MISTRAL_API_KEY 
+    const mistral = createMistral({
+      apiKey: process.env.MISTRAL_API_KEY
     });
     const model = mistral.chatModel('mistral-small-2506');
 
@@ -105,6 +109,7 @@ core-ai supports multiple providers with the same API:
       maxTokens: 256,
     });
     ```
+
   </Tab>
 </Tabs>
 
@@ -120,23 +125,27 @@ const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const model = openai.chat.chatModel('gpt-5-mini');
 
 const result = await generate({
-  model,
-  messages: [{ role: 'user', content: 'Tell me a story.' }],
-  temperature: 0.7,
-  maxTokens: 500,
-  topP: 0.9,
-  providerOptions: {
-    openai: {
-      stopSequences: ['\n\n'],
-      frequencyPenalty: 0.5,
-      presencePenalty: 0.3,
+    model,
+    messages: [{ role: 'user', content: 'Tell me a story.' }],
+    temperature: 0.7,
+    maxTokens: 500,
+    topP: 0.9,
+    providerOptions: {
+        openai: {
+            stopSequences: ['\n\n'],
+            frequencyPenalty: 0.5,
+            presencePenalty: 0.3,
+        },
     },
-  },
 });
 ```
 
 <Note>
-  `temperature`, `maxTokens`, and `topP` are top-level options. `stopSequences`, `frequencyPenalty`, and `presencePenalty` are provider-specific and passed via `providerOptions`. OpenAI supports them through `openai.chat.chatModel()` and `@core-ai/openai-compat`, not through Responses models. See [Configuration](/concepts/configuration) for details.
+    `temperature`, `maxTokens`, and `topP` are top-level options.
+    `stopSequences`, `frequencyPenalty`, and `presencePenalty` are
+    provider-specific and passed via `providerOptions`. OpenAI supports them
+    through `openai.chat.chatModel()` and `@core-ai/openai-compat`, not through
+    Responses models. See [Configuration](/concepts/configuration) for details.
 </Note>
 
 ## Response Structure
@@ -145,12 +154,12 @@ The `generate()` function returns a `GenerateResult` object:
 
 ```typescript
 type GenerateResult = {
-  parts: AssistantContentPart[];  // Raw response parts
-  content: string | null;          // Text content (null if only tool calls)
-  reasoning: string | null;        // Reasoning content (if available)
-  toolCalls: ToolCall[];          // Tool calls made by model
-  finishReason: FinishReason;     // Why generation stopped
-  usage: ChatUsage;               // Token usage information
+    parts: AssistantContentPart[]; // Raw response parts
+    content: string | null; // Text content (null if only tool calls)
+    reasoning: string | null; // Reasoning content (if available)
+    toolCalls: ToolCall[]; // Tool calls made by model
+    finishReason: FinishReason; // Why generation stopped
+    usage: ChatUsage; // Token usage information
 };
 ```
 
@@ -167,7 +176,10 @@ console.log('Cache read:', result.usage.inputTokenDetails.cacheReadTokens);
 console.log('Cache write:', result.usage.inputTokenDetails.cacheWriteTokens);
 
 if (result.usage.outputTokenDetails.reasoningTokens) {
-  console.log('Reasoning tokens:', result.usage.outputTokenDetails.reasoningTokens);
+    console.log(
+        'Reasoning tokens:',
+        result.usage.outputTokenDetails.reasoningTokens
+    );
 }
 ```
 
@@ -179,16 +191,16 @@ Build conversations by including previous messages. Use `resultToMessage()` to c
 import { generate, resultToMessage } from '@core-ai/core-ai';
 
 const messages = [
-  { role: 'system', content: 'You are a helpful assistant.' },
-  { role: 'user', content: 'What is TypeScript?' },
+    { role: 'system', content: 'You are a helpful assistant.' },
+    { role: 'user', content: 'What is TypeScript?' },
 ];
 
 const firstResponse = await generate({ model, messages });
 
 messages.push(resultToMessage(firstResponse));
 messages.push({
-  role: 'user',
-  content: 'How is it different from JavaScript?',
+    role: 'user',
+    content: 'How is it different from JavaScript?',
 });
 
 const secondResponse = await generate({ model, messages });
@@ -203,17 +215,17 @@ Handle errors gracefully:
 import { CoreAIError, ProviderError } from '@core-ai/core-ai';
 
 try {
-  const result = await generate({ model, messages });
-  console.log(result.content);
+    const result = await generate({ model, messages });
+    console.log(result.content);
 } catch (error) {
-  if (error instanceof ProviderError) {
-    console.error('Provider error:', error.message);
-    console.error('Status code:', error.statusCode);
-  } else if (error instanceof CoreAIError) {
-    console.error('CoreAIError:', error.message);
-  } else {
-    console.error('Unknown error:', error);
-  }
+    if (error instanceof ProviderError) {
+        console.error('Provider error:', error.message);
+        console.error('Status code:', error.statusCode);
+    } else if (error instanceof CoreAIError) {
+        console.error('CoreAIError:', error.message);
+    } else {
+        console.error('Unknown error:', error);
+    }
 }
 ```
 
@@ -235,6 +247,7 @@ try {
       ],
     });
     ```
+
   </Accordion>
 
   <Accordion title="Set appropriate token limits">
@@ -251,6 +264,7 @@ try {
       console.warn('Response was truncated');
     }
     ```
+
   </Accordion>
 
   <Accordion title="Handle finish reasons appropriately">
@@ -276,22 +290,27 @@ try {
         break;
     }
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Streaming" icon="water" href="/guides/streaming">
-    Stream responses in real-time for better UX
-  </Card>
-  <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
-    Let models use tools and functions
-  </Card>
-  <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
-    Work with images and files
-  </Card>
-  <Card title="Structured Outputs" icon="brackets-curly" href="/guides/structured-outputs">
-    Get type-safe JSON responses
-  </Card>
+    <Card title="Streaming" icon="water" href="/guides/streaming">
+        Stream responses in real-time for better UX
+    </Card>
+    <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
+        Let models use tools and functions
+    </Card>
+    <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
+        Work with images and files
+    </Card>
+    <Card
+        title="Structured Outputs"
+        icon="brackets-curly"
+        href="/guides/structured-outputs"
+    >
+        Get type-safe JSON responses
+    </Card>
 </CardGroup>

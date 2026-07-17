@@ -61,19 +61,19 @@ export class ValidationError extends CoreAIError {
 ### Properties
 
 <ParamField path="message" type="string">
-  Error message describing what went wrong.
+    Error message describing what went wrong.
 </ParamField>
 
 <ParamField path="cause" type="unknown">
-  Optional underlying cause of the error (e.g., network error, API error).
+    Optional underlying cause of the error (e.g., network error, API error).
 </ParamField>
 
 <ParamField path="provider" type="string | undefined">
-  Optional provider context when the error can be attributed to a provider.
+    Optional provider context when the error can be attributed to a provider.
 </ParamField>
 
 <ParamField path="name" type="string">
-  Error name, always `'ValidationError'`.
+    Error name, always `'ValidationError'`.
 </ParamField>
 
 ### Example
@@ -82,15 +82,15 @@ export class ValidationError extends CoreAIError {
 import { ValidationError } from '@core-ai/core-ai';
 
 try {
-  // Some operation
-  throw new ValidationError('messages must not be empty');
+    // Some operation
+    throw new ValidationError('messages must not be empty');
 } catch (error) {
-  if (error instanceof ValidationError) {
-    console.error('ValidationError:', error.message);
-    if (error.cause) {
-      console.error('Caused by:', error.cause);
+    if (error instanceof ValidationError) {
+        console.error('ValidationError:', error.message);
+        if (error.cause) {
+            console.error('Caused by:', error.cause);
+        }
     }
-  }
 }
 ```
 
@@ -131,21 +131,21 @@ const controller = new AbortController();
 setTimeout(() => controller.abort(), 5000);
 
 try {
-  const chatStream = await stream({
-    model,
-    messages: [{ role: 'user', content: 'Write a long story' }],
-    signal: controller.signal,
-  });
+    const chatStream = await stream({
+        model,
+        messages: [{ role: 'user', content: 'Write a long story' }],
+        signal: controller.signal,
+    });
 
-  for await (const event of chatStream) {
-    if (event.type === 'text-delta') {
-      process.stdout.write(event.text);
+    for await (const event of chatStream) {
+        if (event.type === 'text-delta') {
+            process.stdout.write(event.text);
+        }
     }
-  }
 } catch (error) {
-  if (error instanceof StreamAbortedError) {
-    console.log('Stream was cancelled');
-  }
+    if (error instanceof StreamAbortedError) {
+        console.log('Stream was cancelled');
+    }
 }
 ```
 
@@ -155,8 +155,8 @@ Error for provider/API failures. Discriminate with subclasses and `instanceof`. 
 
 ```typescript
 export type ProviderErrorOptions = {
-  statusCode?: number;
-  cause?: unknown;
+    statusCode?: number;
+    cause?: unknown;
 };
 
 export class ProviderError extends CoreAIError {
@@ -175,33 +175,35 @@ export class RetryableProviderError extends ProviderError {}
 ### Properties
 
 <ParamField path="provider" type="string">
-  The provider that threw the error (e.g., `'openai'`, `'anthropic'`).
+    The provider that threw the error (e.g., `'openai'`, `'anthropic'`).
 </ParamField>
 
 <ParamField path="statusCode" type="number | undefined">
-  HTTP status code if available (e.g., `404`, `500`, `429`).
+    HTTP status code if available (e.g., `404`, `500`, `429`).
 </ParamField>
 
 ### Classified subclasses
 
-| Class | Extends | Extra fields |
-|-------|---------|--------------|
-| `ContextLengthExceededError` | `ProviderError` | `maxTokens?`, `actualTokens?` |
-| `RateLimitError` | `RetryableProviderError` | `retryAfterSeconds?` |
-| `ModelOverloadedError` | `RetryableProviderError` | — |
-| `ServiceUnavailableError` | `RetryableProviderError` | — |
+| Class                        | Extends                  | Extra fields                  |
+| ---------------------------- | ------------------------ | ----------------------------- |
+| `ContextLengthExceededError` | `ProviderError`          | `maxTokens?`, `actualTokens?` |
+| `RateLimitError`             | `RetryableProviderError` | `retryAfterSeconds?`          |
+| `ModelOverloadedError`       | `RetryableProviderError` | —                             |
+| `ServiceUnavailableError`    | `RetryableProviderError` | —                             |
 
-Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Use `instanceof` to branch in application code.
+Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Use `instanceof` to branch in application code — `statusCode` is for logging and debugging, not for retry decisions.
+
+HTTP 429 is not always `RateLimitError`: billing quota (for example OpenAI `insufficient_quota`) remains a non-retryable `ProviderError`, while some capacity signals (for example Azure `NoCapacity`) map to `ModelOverloadedError`. `RateLimitError.retryAfterSeconds` may come from `Retry-After`, Azure `retry-after-ms`, or an HTTP-date `Retry-After` header.
 
 ### Example
 
 ```typescript
 import {
-  ContextLengthExceededError,
-  generate,
-  ProviderError,
-  RateLimitError,
-  RetryableProviderError,
+    ContextLengthExceededError,
+    generate,
+    ProviderError,
+    RateLimitError,
+    RetryableProviderError,
 } from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 
@@ -209,20 +211,23 @@ const openai = createOpenAI();
 const model = openai.chatModel('gpt-5-mini');
 
 try {
-  const result = await generate({
-    model,
-    messages: [{ role: 'user', content: 'Hello' }]
-  });
+    const result = await generate({
+        model,
+        messages: [{ role: 'user', content: 'Hello' }],
+    });
 } catch (error) {
-  if (error instanceof ContextLengthExceededError) {
-    console.error('Context too long', error.maxTokens, error.actualTokens);
-  } else if (error instanceof RateLimitError) {
-    console.error('Rate limited; retry after', error.retryAfterSeconds);
-  } else if (error instanceof RetryableProviderError) {
-    console.error(`Transient failure from ${error.provider}:`, error.message);
-  } else if (error instanceof ProviderError) {
-    console.error(`Provider ${error.provider}:`, error.message);
-  }
+    if (error instanceof ContextLengthExceededError) {
+        console.error('Context too long', error.maxTokens, error.actualTokens);
+    } else if (error instanceof RateLimitError) {
+        console.error('Rate limited; retry after', error.retryAfterSeconds);
+    } else if (error instanceof RetryableProviderError) {
+        console.error(
+            `Transient failure from ${error.provider}:`,
+            error.message
+        );
+    } else if (error instanceof ProviderError) {
+        console.error(`Provider ${error.provider}:`, error.message);
+    }
 }
 ```
 
@@ -257,7 +262,7 @@ type StructuredOutputErrorOptions = {
 ### Properties
 
 <ParamField path="rawOutput" type="string | undefined">
-  The raw output from the model that failed to parse/validate.
+    The raw output from the model that failed to parse/validate.
 </ParamField>
 
 ### Example
@@ -266,20 +271,20 @@ type StructuredOutputErrorOptions = {
 import { StructuredOutputError } from '@core-ai/core-ai';
 
 try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Generate data' }],
-    schema: z.object({ name: z.string() })
-  });
+    const result = await generateObject({
+        model,
+        messages: [{ role: 'user', content: 'Generate data' }],
+        schema: z.object({ name: z.string() }),
+    });
 } catch (error) {
-  if (error instanceof StructuredOutputError) {
-    console.error('Structured output error:', error.message);
-    console.error('Provider:', error.provider);
-    
-    if (error.rawOutput) {
-      console.error('Raw output:', error.rawOutput);
+    if (error instanceof StructuredOutputError) {
+        console.error('Structured output error:', error.message);
+        console.error('Provider:', error.provider);
+
+        if (error.rawOutput) {
+            console.error('Raw output:', error.rawOutput);
+        }
     }
-  }
 }
 ```
 
@@ -306,16 +311,16 @@ export class StructuredOutputNoObjectGeneratedError extends StructuredOutputErro
 import { StructuredOutputNoObjectGeneratedError } from '@core-ai/core-ai';
 
 try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Hello' }],
-    schema: z.object({ name: z.string() })
-  });
+    const result = await generateObject({
+        model,
+        messages: [{ role: 'user', content: 'Hello' }],
+        schema: z.object({ name: z.string() }),
+    });
 } catch (error) {
-  if (error instanceof StructuredOutputNoObjectGeneratedError) {
-    console.error('Model did not generate an object');
-    console.error('Provider:', error.provider);
-  }
+    if (error instanceof StructuredOutputNoObjectGeneratedError) {
+        console.error('Model did not generate an object');
+        console.error('Provider:', error.provider);
+    }
 }
 ```
 
@@ -342,17 +347,17 @@ export class StructuredOutputParseError extends StructuredOutputError {
 import { StructuredOutputParseError } from '@core-ai/core-ai';
 
 try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Generate user' }],
-    schema: z.object({ name: z.string() })
-  });
+    const result = await generateObject({
+        model,
+        messages: [{ role: 'user', content: 'Generate user' }],
+        schema: z.object({ name: z.string() }),
+    });
 } catch (error) {
-  if (error instanceof StructuredOutputParseError) {
-    console.error('Failed to parse model output as JSON');
-    console.error('Raw output:', error.rawOutput);
-    console.error('Parse error:', error.cause);
-  }
+    if (error instanceof StructuredOutputParseError) {
+        console.error('Failed to parse model output as JSON');
+        console.error('Raw output:', error.rawOutput);
+        console.error('Parse error:', error.cause);
+    }
 }
 ```
 
@@ -380,7 +385,7 @@ export class StructuredOutputValidationError extends StructuredOutputError {
 ### Properties
 
 <ParamField path="issues" type="string[]">
-  Array of validation error messages from Zod.
+    Array of validation error messages from Zod.
 </ParamField>
 
 ### Example
@@ -390,24 +395,24 @@ import { StructuredOutputValidationError } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Generate user' }],
-    schema: z.object({
-      name: z.string(),
-      age: z.number().min(0).max(120),
-      email: z.string().email()
-    })
-  });
-} catch (error) {
-  if (error instanceof StructuredOutputValidationError) {
-    console.error('Schema validation failed');
-    console.error('Issues:');
-    error.issues.forEach(issue => {
-      console.error(`  - ${issue}`);
+    const result = await generateObject({
+        model,
+        messages: [{ role: 'user', content: 'Generate user' }],
+        schema: z.object({
+            name: z.string(),
+            age: z.number().min(0).max(120),
+            email: z.string().email(),
+        }),
     });
-    console.error('Raw output:', error.rawOutput);
-  }
+} catch (error) {
+    if (error instanceof StructuredOutputValidationError) {
+        console.error('Schema validation failed');
+        console.error('Issues:');
+        error.issues.forEach((issue) => {
+            console.error(`  - ${issue}`);
+        });
+        console.error('Raw output:', error.rawOutput);
+    }
 }
 ```
 
@@ -417,59 +422,59 @@ try {
 
 ```typescript
 import {
-  CoreAIError,
-  ProviderError,
-  RateLimitError,
-  RetryableProviderError,
-  StructuredOutputError,
-  StructuredOutputNoObjectGeneratedError,
-  StructuredOutputParseError,
-  StructuredOutputValidationError
+    CoreAIError,
+    ProviderError,
+    RateLimitError,
+    RetryableProviderError,
+    StructuredOutputError,
+    StructuredOutputNoObjectGeneratedError,
+    StructuredOutputParseError,
+    StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 
 try {
-  const result = await generateObject({
-    model,
-    messages: [{ role: 'user', content: 'Generate data' }],
-    schema: z.object({ name: z.string() })
-  });
+    const result = await generateObject({
+        model,
+        messages: [{ role: 'user', content: 'Generate data' }],
+        schema: z.object({ name: z.string() }),
+    });
 } catch (error) {
-  // Handle specific errors first
-  if (error instanceof StructuredOutputValidationError) {
-    console.error('Validation failed:');
-    error.issues.forEach(issue => console.error(issue));
-    return handleValidationError(error);
-  }
-  
-  if (error instanceof StructuredOutputParseError) {
-    console.error('Parse error:', error.rawOutput);
-    return handleParseError(error);
-  }
-  
-  if (error instanceof StructuredOutputNoObjectGeneratedError) {
-    console.error('No object generated');
-    return handleNoObjectError(error);
-  }
-  
-  // Handle provider errors
-  if (error instanceof RateLimitError) {
-    return handleRateLimit(error);
-  }
-  if (error instanceof RetryableProviderError) {
-    return handleServerError(error);
-  }
-  if (error instanceof ProviderError) {
-    return handleProviderError(error);
-  }
-  
-  // Handle general core-ai errors
-  if (error instanceof CoreAIError) {
-    console.error('core-ai error:', error.message);
-    return handleCoreAIError(error);
-  }
-  
-  // Unknown error
-  throw error;
+    // Handle specific errors first
+    if (error instanceof StructuredOutputValidationError) {
+        console.error('Validation failed:');
+        error.issues.forEach((issue) => console.error(issue));
+        return handleValidationError(error);
+    }
+
+    if (error instanceof StructuredOutputParseError) {
+        console.error('Parse error:', error.rawOutput);
+        return handleParseError(error);
+    }
+
+    if (error instanceof StructuredOutputNoObjectGeneratedError) {
+        console.error('No object generated');
+        return handleNoObjectError(error);
+    }
+
+    // Handle provider errors
+    if (error instanceof RateLimitError) {
+        return handleRateLimit(error);
+    }
+    if (error instanceof RetryableProviderError) {
+        return handleServerError(error);
+    }
+    if (error instanceof ProviderError) {
+        return handleProviderError(error);
+    }
+
+    // Handle general core-ai errors
+    if (error instanceof CoreAIError) {
+        console.error('core-ai error:', error.message);
+        return handleCoreAIError(error);
+    }
+
+    // Unknown error
+    throw error;
 }
 ```
 
@@ -477,50 +482,50 @@ try {
 
 ```typescript
 async function generateWithRetry<T>(
-  fn: () => Promise<T>,
-  maxRetries = 3
+    fn: () => Promise<T>,
+    maxRetries = 3
 ): Promise<T> {
-  let lastError: Error;
-  
-  for (let i = 0; i < maxRetries; i++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error as Error;
-      
-      if (error instanceof RetryableProviderError) {
-        const delay = Math.pow(2, i) * 1000; // Exponential backoff
-        console.log(`Retrying in ${delay}ms...`);
-        await new Promise(resolve => setTimeout(resolve, delay));
-        continue;
-      }
+    let lastError: Error;
 
-      if (error instanceof ProviderError) {
-        // Don't retry non-retryable provider errors
-        throw error;
-      }
-      
-      // Don't retry validation errors
-      if (error instanceof StructuredOutputValidationError) {
-        throw error;
-      }
-      
-      // Retry other errors
-      if (i < maxRetries - 1) {
-        console.log(`Attempt ${i + 1} failed, retrying...`);
-      }
+    for (let i = 0; i < maxRetries; i++) {
+        try {
+            return await fn();
+        } catch (error) {
+            lastError = error as Error;
+
+            if (error instanceof RetryableProviderError) {
+                const delay = Math.pow(2, i) * 1000; // Exponential backoff
+                console.log(`Retrying in ${delay}ms...`);
+                await new Promise((resolve) => setTimeout(resolve, delay));
+                continue;
+            }
+
+            if (error instanceof ProviderError) {
+                // Don't retry non-retryable provider errors
+                throw error;
+            }
+
+            // Don't retry validation errors
+            if (error instanceof StructuredOutputValidationError) {
+                throw error;
+            }
+
+            // Retry other errors
+            if (i < maxRetries - 1) {
+                console.log(`Attempt ${i + 1} failed, retrying...`);
+            }
+        }
     }
-  }
-  
-  throw lastError!;
+
+    throw lastError!;
 }
 
 // Usage
-const result = await generateWithRetry(() => 
-  generate({
-    model,
-    messages: [{ role: 'user', content: 'Hello' }]
-  })
+const result = await generateWithRetry(() =>
+    generate({
+        model,
+        messages: [{ role: 'user', content: 'Hello' }],
+    })
 );
 ```
 
@@ -528,33 +533,33 @@ const result = await generateWithRetry(() =>
 
 ```typescript
 function logError(error: unknown): void {
-  if (error instanceof StructuredOutputValidationError) {
-    console.error({
-      type: 'validation_error',
-      provider: error.provider,
-      issues: error.issues,
-      rawOutput: error.rawOutput
-    });
-  } else if (error instanceof StructuredOutputParseError) {
-    console.error({
-      type: 'parse_error',
-      provider: error.provider,
-      rawOutput: error.rawOutput
-    });
-  } else if (error instanceof ProviderError) {
-    console.error({
-      type: 'provider_error',
-      provider: error.provider,
-      statusCode: error.statusCode,
-      message: error.message
-    });
-  } else if (error instanceof CoreAIError) {
-    console.error({
-      type: 'core_ai_error',
-      message: error.message,
-      cause: error.cause
-    });
-  }
+    if (error instanceof StructuredOutputValidationError) {
+        console.error({
+            type: 'validation_error',
+            provider: error.provider,
+            issues: error.issues,
+            rawOutput: error.rawOutput,
+        });
+    } else if (error instanceof StructuredOutputParseError) {
+        console.error({
+            type: 'parse_error',
+            provider: error.provider,
+            rawOutput: error.rawOutput,
+        });
+    } else if (error instanceof ProviderError) {
+        console.error({
+            type: 'provider_error',
+            provider: error.provider,
+            statusCode: error.statusCode,
+            message: error.message,
+        });
+    } else if (error instanceof CoreAIError) {
+        console.error({
+            type: 'core_ai_error',
+            message: error.message,
+            cause: error.cause,
+        });
+    }
 }
 ```
 
@@ -562,64 +567,60 @@ function logError(error: unknown): void {
 
 ```typescript
 async function generateWithFallback(
-  primaryModel: ChatModel,
-  fallbackModel: ChatModel,
-  messages: Message[]
+    primaryModel: ChatModel,
+    fallbackModel: ChatModel,
+    messages: Message[]
 ): Promise<GenerateResult> {
-  try {
-    return await generate({
-      model: primaryModel,
-      messages
-    });
-  } catch (error) {
-    if (error instanceof ProviderError) {
-      console.warn('Primary model failed, using fallback');
-      
-      try {
+    try {
         return await generate({
-          model: fallbackModel,
-          messages
+            model: primaryModel,
+            messages,
         });
-      } catch (fallbackError) {
-        console.error('Fallback also failed');
-        throw fallbackError;
-      }
+    } catch (error) {
+        if (error instanceof ProviderError) {
+            console.warn('Primary model failed, using fallback');
+
+            try {
+                return await generate({
+                    model: fallbackModel,
+                    messages,
+                });
+            } catch (fallbackError) {
+                console.error('Fallback also failed');
+                throw fallbackError;
+            }
+        }
+
+        throw error;
     }
-    
-    throw error;
-  }
 }
 ```
 
 ## Best Practices
 
 <Tip>
-  Always check for specific error types before general ones. Use `instanceof` checks in order from most specific to least specific.
+    Always check for specific error types before general ones. Use `instanceof`
+    checks in order from most specific to least specific.
 </Tip>
 
 <Warning>
-  Don't retry validation errors (`StructuredOutputValidationError`) - they indicate a schema mismatch that won't be fixed by retrying.
+    Don't retry validation errors (`StructuredOutputValidationError`) - they
+    indicate a schema mismatch that won't be fixed by retrying.
 </Warning>
 
 <Tip>
-  Use exponential backoff for retrying rate limit errors (429) and server errors (5xx).
+    Gate retries on `RetryableProviderError` — the umbrella for transient
+    failures (rate limits, overload, and transient 5xx) — with exponential
+    backoff. Don't treat every HTTP 429 as retryable: billing quota errors
+    surface as a non-retryable `ProviderError`.
 </Tip>
 
 <Info>
-  The `rawOutput` property in structured output errors is useful for debugging what the model actually generated.
+    The `rawOutput` property in structured output errors is useful for debugging
+    what the model actually generated.
 </Info>
 
 <Tip>
-  Log error details including provider, status codes, and causes for debugging and monitoring.
+    Log error details including provider, status codes, and causes for debugging
+    and monitoring.
 </Tip>
-
-## Common HTTP Status Codes
-
-- `400` - Bad Request (invalid parameters)
-- `401` - Unauthorized (invalid API key)
-- `403` - Forbidden (insufficient permissions)
-- `404` - Not Found (invalid model or endpoint)
-- `429` - Too Many Requests (rate limit exceeded)
-- `500` - Internal Server Error
-- `502` - Bad Gateway
-- `503` - Service Unavailable

@@ -129,6 +129,73 @@ describe('wrapGoogleError', () => {
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
     });
 
+    it('should map 499 without abort wording to ProviderError', () => {
+        const error = new ApiError({
+            message: 'The operation was cancelled.',
+            status: 499,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(AbortedError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+    });
+
+    it('should parse streaming got-status prefix and classify UNAVAILABLE', () => {
+        const error = new ApiError({
+            message:
+                'got status: UNAVAILABLE. {"error":{"code":503,"status":"UNAVAILABLE","message":"Service unavailable"}}',
+            status: undefined as unknown as number,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should map Vertex throttled overloaded 500 to ModelOverloadedError', () => {
+        const error = new ApiError({
+            message:
+                'Request is throttled, because the service is temporarily overloaded.',
+            status: 500,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+    });
+
+    it('should map alternate input-token-count context template', () => {
+        const error = new ApiError({
+            message:
+                'Unable to submit request because the input token count is 200000 but model only supports up to 128000',
+            status: 400,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        expect((wrapped as ContextLengthExceededError).actualTokens).toBe(
+            200000
+        );
+        expect((wrapped as ContextLengthExceededError).maxTokens).toBe(128000);
+    });
+
+    it('should parse Please retry in Ns from message when header missing', () => {
+        const error = new ApiError({
+            message: JSON.stringify({
+                error: {
+                    code: 429,
+                    status: 'RESOURCE_EXHAUSTED',
+                    message:
+                        'You exceeded your current quota. Please retry in 16s.',
+                },
+            }),
+            status: 429,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect((wrapped as RateLimitError).retryAfterSeconds).toBe(16);
+    });
+
     it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapGoogleError(new Error('unexpected'));
         expect(wrapped).toBeInstanceOf(ProviderError);
