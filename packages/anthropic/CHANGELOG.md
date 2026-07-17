@@ -1,5 +1,17 @@
 # @core-ai/anthropic
 
+## 0.17.0
+
+### Minor Changes
+
+- f6a6f5b: Map Anthropic SDK failures to structured `ProviderError` subclasses in `wrapAnthropicError`, including Vertex single-level envelopes and correct rate-limit vs context discrimination.
+
+### Patch Changes
+
+- Updated dependencies [5a720e8]
+- Updated dependencies [f6a6f5b]
+    - @core-ai/core-ai@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes

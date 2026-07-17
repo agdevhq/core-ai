@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/openai-compat",
-    "version": "0.16.0",
+    "version": "0.17.0",
     "description": "OpenAI-compatible Chat Completions provider for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -45,8 +45,8 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.16.0",
-        "@core-ai/openai": "^0.16.0"
+        "@core-ai/core-ai": "^0.17.0",
+        "@core-ai/openai": "^0.17.0"
     },
     "peerDependencies": {
         "zod": "^4.0.0"

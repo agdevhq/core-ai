@@ -1,5 +1,12 @@
 # @core-ai/core-ai
 
+## 0.17.0
+
+### Minor Changes
+
+- 5a720e8: Add a reusable model capabilities registry with normalized model ID lookup, a symbol-keyed fallback for unknown models, and explicit reasoning modes, sampling constraints, and supported tool choices.
+- f6a6f5b: Add structured `ProviderError` subclasses (`ContextLengthExceededError`, `RateLimitError`, `ModelOverloadedError`, `ServiceUnavailableError`) with a `RetryableProviderError` base for transient failures. Providers decide which subclass to throw; core exports shared extraction helpers only, including `retry-after-ms` and HTTP-date `Retry-After` parsing.
+
 ## 0.16.0
 
 ## 0.15.0

@@ -1,5 +1,18 @@
 # @core-ai/google-genai
 
+## 0.17.0
+
+### Minor Changes
+
+- f6a6f5b: Map Google GenAI / Vertex SDK failures to structured `ProviderError` subclasses in `wrapGoogleError`, including streaming error-body prefixes and Vertex throttled overload wording.
+
+### Patch Changes
+
+- 5a720e8: Report always-on reasoning for Gemini models whose thinking cannot be disabled.
+- Updated dependencies [5a720e8]
+- Updated dependencies [f6a6f5b]
+    - @core-ai/core-ai@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes

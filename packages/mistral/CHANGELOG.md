@@ -1,5 +1,18 @@
 # @core-ai/mistral
 
+## 0.17.0
+
+### Minor Changes
+
+- f6a6f5b: Map Mistral SDK failures to structured `ProviderError` subclasses in `wrapMistralError`, including service-tier capacity as unavailable and client timeouts as retryable unavailable.
+
+### Patch Changes
+
+- 9cee947: Preserve historical reasoning when sending conversation history to Mistral. Native Mistral reasoning is replayed as a thinking chunk only when the target model supports reasoning input; otherwise (foreign reasoning, or a model that does not support reasoning such as codestral) it is injected into the assistant message as `<thinking>` text. This matches the OpenAI, Anthropic, and Kimi adapters and avoids replaying thinking chunks to models that reject them.
+- Updated dependencies [5a720e8]
+- Updated dependencies [f6a6f5b]
+    - @core-ai/core-ai@0.17.0
+
 ## 0.16.0
 
 ### Minor Changes
