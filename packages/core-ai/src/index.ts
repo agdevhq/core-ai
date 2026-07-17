@@ -49,17 +49,40 @@ export type {
     ImageGenerateResult,
     GeneratedImage,
 } from './types.ts';
+export type {
+    ProviderErrorOptions,
+    ContextLengthExceededErrorOptions,
+    RateLimitErrorOptions,
+    ModelOverloadedErrorOptions,
+    ServiceUnavailableErrorOptions,
+} from './errors.ts';
 export {
     CoreAIError,
     ValidationError,
     AbortedError,
     StreamAbortedError,
     ProviderError,
+    RetryableProviderError,
+    ContextLengthExceededError,
+    RateLimitError,
+    ModelOverloadedError,
+    ServiceUnavailableError,
     StructuredOutputError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from './errors.ts';
+export {
+    isRateLimitStatus,
+    isTransientUnavailableStatus,
+    getErrorMessage,
+    asRecord,
+    getString,
+    getHttpStatusCode,
+    isAbortErrorByName,
+    parseRetryAfterSeconds,
+    getRetryAfterSecondsFromError,
+} from './provider-error-utils.ts';
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';

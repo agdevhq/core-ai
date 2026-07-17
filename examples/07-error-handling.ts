@@ -1,5 +1,12 @@
 import 'dotenv/config';
-import { CoreAIError, ProviderError, generate } from '@core-ai/core-ai';
+import {
+    ContextLengthExceededError,
+    CoreAIError,
+    ProviderError,
+    RateLimitError,
+    RetryableProviderError,
+    generate,
+} from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 
 function getRequiredEnv(name: 'OPENAI_API_KEY'): string {
@@ -11,23 +18,50 @@ function getRequiredEnv(name: 'OPENAI_API_KEY'): string {
 }
 
 function handleError(error: unknown): void {
+    if (error instanceof ContextLengthExceededError) {
+        console.error('ContextLengthExceededError', {
+            provider: error.provider,
+            maxTokens: error.maxTokens ?? 'n/a',
+            actualTokens: error.actualTokens ?? 'n/a',
+            message: error.message,
+        });
+        return;
+    }
+
+    if (error instanceof RateLimitError) {
+        console.error('RateLimitError', {
+            provider: error.provider,
+            retryAfterSeconds: error.retryAfterSeconds ?? 'n/a',
+            message: error.message,
+        });
+        return;
+    }
+
+    if (error instanceof RetryableProviderError) {
+        console.error(error.name, {
+            provider: error.provider,
+            statusCode: error.statusCode ?? 'n/a',
+            message: error.message,
+        });
+        return;
+    }
+
     if (error instanceof ProviderError) {
-        console.error('ProviderError');
-        console.error(`provider: ${error.provider}`);
-        console.error(`statusCode: ${error.statusCode ?? 'n/a'}`);
-        console.error(`message: ${error.message}`);
+        console.error(error.name, {
+            provider: error.provider,
+            statusCode: error.statusCode ?? 'n/a',
+            message: error.message,
+        });
         return;
     }
 
     if (error instanceof CoreAIError) {
-        console.error('CoreAIError');
-        console.error(error.message);
+        console.error('CoreAIError', error.message);
         return;
     }
 
     if (error instanceof Error) {
-        console.error('Unexpected Error');
-        console.error(error.message);
+        console.error('Unexpected Error', error.message);
         return;
     }
 
@@ -49,7 +83,7 @@ async function main(): Promise<void> {
         handleError(error);
     }
 
-    // Example 2: Provider call with robust error handling.
+    // Example 2: Provider call with classified error handling.
     try {
         const result = await generate({
             model,

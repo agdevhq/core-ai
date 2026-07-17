@@ -32,18 +32,114 @@ export class StreamAbortedError extends AbortedError {
     }
 }
 
+export type ProviderErrorOptions = {
+    statusCode?: number;
+    cause?: unknown;
+};
+
 export class ProviderError extends CoreAIError {
     public readonly statusCode?: number;
+
+    /**
+     * @param message Human-readable error message (may include provider text).
+     * @param provider Provider id (e.g. `'openai'`, `'anthropic'`).
+     * @param options Optional HTTP status and underlying cause.
+     */
+    constructor(
+        message: string,
+        provider: string,
+        options: ProviderErrorOptions = {}
+    ) {
+        super(message, options.cause, provider);
+        this.name = 'ProviderError';
+        this.statusCode = options.statusCode;
+    }
+}
+
+/**
+ * Base class for transient provider failures that are safe to retry
+ * (rate limits, overload, temporary unavailability).
+ * Discriminate with `instanceof RetryableProviderError`.
+ */
+export class RetryableProviderError extends ProviderError {
+    constructor(
+        message: string,
+        provider: string,
+        options: ProviderErrorOptions = {}
+    ) {
+        super(message, provider, options);
+        this.name = 'RetryableProviderError';
+    }
+}
+
+export type ContextLengthExceededErrorOptions = ProviderErrorOptions & {
+    maxTokens?: number;
+    actualTokens?: number;
+};
+
+export class ContextLengthExceededError extends ProviderError {
+    public readonly maxTokens?: number;
+    public readonly actualTokens?: number;
 
     constructor(
         message: string,
         provider: string,
-        statusCode?: number,
-        cause?: unknown
+        options: ContextLengthExceededErrorOptions = {}
     ) {
-        super(message, cause, provider);
-        this.name = 'ProviderError';
-        this.statusCode = statusCode;
+        super(message, provider, {
+            statusCode: options.statusCode,
+            cause: options.cause,
+        });
+        this.name = 'ContextLengthExceededError';
+        this.maxTokens = options.maxTokens;
+        this.actualTokens = options.actualTokens;
+    }
+}
+
+export type RateLimitErrorOptions = ProviderErrorOptions & {
+    retryAfterSeconds?: number;
+};
+
+export class RateLimitError extends RetryableProviderError {
+    public readonly retryAfterSeconds?: number;
+
+    constructor(
+        message: string,
+        provider: string,
+        options: RateLimitErrorOptions = {}
+    ) {
+        super(message, provider, {
+            statusCode: options.statusCode ?? 429,
+            cause: options.cause,
+        });
+        this.name = 'RateLimitError';
+        this.retryAfterSeconds = options.retryAfterSeconds;
+    }
+}
+
+export type ModelOverloadedErrorOptions = ProviderErrorOptions;
+
+export class ModelOverloadedError extends RetryableProviderError {
+    constructor(
+        message: string,
+        provider: string,
+        options: ModelOverloadedErrorOptions = {}
+    ) {
+        super(message, provider, options);
+        this.name = 'ModelOverloadedError';
+    }
+}
+
+export type ServiceUnavailableErrorOptions = ProviderErrorOptions;
+
+export class ServiceUnavailableError extends RetryableProviderError {
+    constructor(
+        message: string,
+        provider: string,
+        options: ServiceUnavailableErrorOptions = {}
+    ) {
+        super(message, provider, options);
+        this.name = 'ServiceUnavailableError';
     }
 }
 
