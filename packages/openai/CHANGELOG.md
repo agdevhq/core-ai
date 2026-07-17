@@ -1,5 +1,19 @@
 # @core-ai/openai
 
+## 0.17.0
+
+### Minor Changes
+
+- 5a720e8: Add native reasoning round trips, JSON object structured output, capability-driven request validation, provider-specific option namespaces, and support for overriding model capabilities through a shared registry. The structured output mode is now named `json-schema` instead of `native`.
+- f6a6f5b: Map OpenAI / Azure / OpenAI-compatible SDK failures to structured `ProviderError` subclasses in `wrapOpenAIError`, including non-retryable `insufficient_quota` and Azure `NoCapacity` overload.
+
+### Patch Changes
+
+- 15b9ba6: Convert historical reasoning to assistant text for OpenAI models that do not support reasoning input.
+- Updated dependencies [5a720e8]
+- Updated dependencies [f6a6f5b]
+    - @core-ai/core-ai@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes

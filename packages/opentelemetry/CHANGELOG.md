@@ -1,5 +1,13 @@
 # @core-ai/opentelemetry
 
+## 0.17.0
+
+### Patch Changes
+
+- Updated dependencies [5a720e8]
+- Updated dependencies [f6a6f5b]
+    - @core-ai/core-ai@0.17.0
+
 ## 0.16.0
 
 ### Patch Changes
