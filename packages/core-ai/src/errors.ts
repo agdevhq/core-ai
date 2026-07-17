@@ -32,60 +32,47 @@ export class StreamAbortedError extends AbortedError {
     }
 }
 
-/**
- * Stable machine-readable codes for provider API failures.
- * Prefer switching on `code` for serialization / cross-bundle checks;
- * use subclasses for typed metadata and same-process `instanceof`.
- */
-export type ProviderErrorCode =
-    | 'context_length_exceeded'
-    | 'rate_limit_exceeded'
-    | 'model_overloaded'
-    | 'service_unavailable'
-    | 'unknown';
-
 export type ProviderErrorOptions = {
-    code?: ProviderErrorCode;
     statusCode?: number;
     cause?: unknown;
 };
 
 export class ProviderError extends CoreAIError {
-    public readonly code: ProviderErrorCode;
     public readonly statusCode?: number;
 
     /**
      * @param message Human-readable error message (may include provider text).
      * @param provider Provider id (e.g. `'openai'`, `'anthropic'`).
-     * @param statusCodeOrOptions HTTP status, or options object.
-     * @param cause Underlying error when using the legacy positional form.
+     * @param options Optional HTTP status and underlying cause.
      */
     constructor(
         message: string,
         provider: string,
-        statusCodeOrOptions?: number | ProviderErrorOptions,
-        cause?: unknown
+        options: ProviderErrorOptions = {}
     ) {
-        const options = normalizeProviderErrorOptions(statusCodeOrOptions, cause);
         super(message, options.cause, provider);
         this.name = 'ProviderError';
-        this.code = options.code ?? 'unknown';
         this.statusCode = options.statusCode;
-    }
-
-    /** True for transient capacity, rate-limit, or availability failures. */
-    get isRetryable(): boolean {
-        return (
-            this.code === 'rate_limit_exceeded' ||
-            this.code === 'model_overloaded' ||
-            this.code === 'service_unavailable'
-        );
     }
 }
 
-export type ContextLengthExceededErrorOptions = {
-    statusCode?: number;
-    cause?: unknown;
+/**
+ * Base class for transient provider failures that are safe to retry
+ * (rate limits, overload, temporary unavailability).
+ * Discriminate with `instanceof RetryableProviderError`.
+ */
+export class RetryableProviderError extends ProviderError {
+    constructor(
+        message: string,
+        provider: string,
+        options: ProviderErrorOptions = {}
+    ) {
+        super(message, provider, options);
+        this.name = 'RetryableProviderError';
+    }
+}
+
+export type ContextLengthExceededErrorOptions = ProviderErrorOptions & {
     maxTokens?: number;
     actualTokens?: number;
 };
@@ -100,7 +87,6 @@ export class ContextLengthExceededError extends ProviderError {
         options: ContextLengthExceededErrorOptions = {}
     ) {
         super(message, provider, {
-            code: 'context_length_exceeded',
             statusCode: options.statusCode,
             cause: options.cause,
         });
@@ -110,13 +96,11 @@ export class ContextLengthExceededError extends ProviderError {
     }
 }
 
-export type RateLimitErrorOptions = {
-    statusCode?: number;
-    cause?: unknown;
+export type RateLimitErrorOptions = ProviderErrorOptions & {
     retryAfterSeconds?: number;
 };
 
-export class RateLimitError extends ProviderError {
+export class RateLimitError extends RetryableProviderError {
     public readonly retryAfterSeconds?: number;
 
     constructor(
@@ -125,7 +109,6 @@ export class RateLimitError extends ProviderError {
         options: RateLimitErrorOptions = {}
     ) {
         super(message, provider, {
-            code: 'rate_limit_exceeded',
             statusCode: options.statusCode ?? 429,
             cause: options.cause,
         });
@@ -134,42 +117,28 @@ export class RateLimitError extends ProviderError {
     }
 }
 
-export type ModelOverloadedErrorOptions = {
-    statusCode?: number;
-    cause?: unknown;
-};
+export type ModelOverloadedErrorOptions = ProviderErrorOptions;
 
-export class ModelOverloadedError extends ProviderError {
+export class ModelOverloadedError extends RetryableProviderError {
     constructor(
         message: string,
         provider: string,
         options: ModelOverloadedErrorOptions = {}
     ) {
-        super(message, provider, {
-            code: 'model_overloaded',
-            statusCode: options.statusCode,
-            cause: options.cause,
-        });
+        super(message, provider, options);
         this.name = 'ModelOverloadedError';
     }
 }
 
-export type ServiceUnavailableErrorOptions = {
-    statusCode?: number;
-    cause?: unknown;
-};
+export type ServiceUnavailableErrorOptions = ProviderErrorOptions;
 
-export class ServiceUnavailableError extends ProviderError {
+export class ServiceUnavailableError extends RetryableProviderError {
     constructor(
         message: string,
         provider: string,
         options: ServiceUnavailableErrorOptions = {}
     ) {
-        super(message, provider, {
-            code: 'service_unavailable',
-            statusCode: options.statusCode,
-            cause: options.cause,
-        });
+        super(message, provider, options);
         this.name = 'ServiceUnavailableError';
     }
 }
@@ -231,21 +200,4 @@ export class StructuredOutputValidationError extends StructuredOutputError {
         this.name = 'StructuredOutputValidationError';
         this.issues = issues;
     }
-}
-
-function normalizeProviderErrorOptions(
-    statusCodeOrOptions?: number | ProviderErrorOptions,
-    cause?: unknown
-): ProviderErrorOptions {
-    if (
-        statusCodeOrOptions !== undefined &&
-        typeof statusCodeOrOptions === 'object'
-    ) {
-        return statusCodeOrOptions;
-    }
-
-    return {
-        statusCode: statusCodeOrOptions,
-        cause,
-    };
 }

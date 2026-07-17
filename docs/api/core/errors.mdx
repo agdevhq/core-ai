@@ -17,9 +17,10 @@ CoreAIError
 │   └── StreamAbortedError
 ├── ProviderError
 │   ├── ContextLengthExceededError
-│   ├── RateLimitError
-│   ├── ModelOverloadedError
-│   └── ServiceUnavailableError
+│   └── RetryableProviderError
+│       ├── RateLimitError
+│       ├── ModelOverloadedError
+│       └── ServiceUnavailableError
 └── StructuredOutputError
     ├── StructuredOutputNoObjectGeneratedError
     ├── StructuredOutputParseError
@@ -150,29 +151,25 @@ try {
 
 ## ProviderError
 
-Error for provider/API failures. Always includes a stable `code`. Subclasses add typed metadata for common cases.
+Error for provider/API failures. Discriminate with subclasses and `instanceof`. Transient failures extend `RetryableProviderError`.
 
 ```typescript
-export type ProviderErrorCode =
-  | 'context_length_exceeded'
-  | 'rate_limit_exceeded'
-  | 'model_overloaded'
-  | 'service_unavailable'
-  | 'unknown';
+export type ProviderErrorOptions = {
+  statusCode?: number;
+  cause?: unknown;
+};
 
 export class ProviderError extends CoreAIError {
-    public readonly code: ProviderErrorCode;
     public readonly statusCode?: number;
-
-    get isRetryable(): boolean;
 
     constructor(
         message: string,
         provider: string,
-        statusCodeOrOptions?: number | ProviderErrorOptions,
-        cause?: unknown
+        options?: ProviderErrorOptions
     );
 }
+
+export class RetryableProviderError extends ProviderError {}
 ```
 
 ### Properties
@@ -181,28 +178,20 @@ export class ProviderError extends CoreAIError {
   The provider that threw the error (e.g., `'openai'`, `'anthropic'`).
 </ParamField>
 
-<ParamField path="code" type="ProviderErrorCode">
-  Stable machine-readable classification. Defaults to `'unknown'`.
-</ParamField>
-
 <ParamField path="statusCode" type="number | undefined">
   HTTP status code if available (e.g., `404`, `500`, `429`).
 </ParamField>
 
-<ParamField path="isRetryable" type="boolean">
-  `true` for `rate_limit_exceeded`, `model_overloaded`, and `service_unavailable`.
-</ParamField>
-
 ### Classified subclasses
 
-| Class | Fixed `code` | Extra fields |
-|-------|--------------|--------------|
-| `ContextLengthExceededError` | `context_length_exceeded` | `maxTokens?`, `actualTokens?` |
-| `RateLimitError` | `rate_limit_exceeded` | `retryAfterSeconds?` |
-| `ModelOverloadedError` | `model_overloaded` | — |
-| `ServiceUnavailableError` | `service_unavailable` | — |
+| Class | Extends | Extra fields |
+|-------|---------|--------------|
+| `ContextLengthExceededError` | `ProviderError` | `maxTokens?`, `actualTokens?` |
+| `RateLimitError` | `RetryableProviderError` | `retryAfterSeconds?` |
+| `ModelOverloadedError` | `RetryableProviderError` | — |
+| `ServiceUnavailableError` | `RetryableProviderError` | — |
 
-Provider packages call `classifyProviderError(context, signals)` so every wrapper shares the same precedence: abort → context length → overload → rate limit → service unavailable → HTTP status fallbacks (`529`, `429`, `500`/`502`/`503`/`504`) → `unknown`. Wrappers should compute `signals` through helpers rather than inlining evaluation in the call.
+Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Use `instanceof` to branch in application code.
 
 ### Example
 
@@ -212,6 +201,7 @@ import {
   generate,
   ProviderError,
   RateLimitError,
+  RetryableProviderError,
 } from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 
@@ -228,11 +218,10 @@ try {
     console.error('Context too long', error.maxTokens, error.actualTokens);
   } else if (error instanceof RateLimitError) {
     console.error('Rate limited; retry after', error.retryAfterSeconds);
+  } else if (error instanceof RetryableProviderError) {
+    console.error(`Transient failure from ${error.provider}:`, error.message);
   } else if (error instanceof ProviderError) {
-    console.error(`Provider ${error.provider} [${error.code}]:`, error.message);
-    if (error.isRetryable) {
-      console.error('Transient failure — retry with backoff');
-    }
+    console.error(`Provider ${error.provider}:`, error.message);
   }
 }
 ```
@@ -430,6 +419,8 @@ try {
 import {
   CoreAIError,
   ProviderError,
+  RateLimitError,
+  RetryableProviderError,
   StructuredOutputError,
   StructuredOutputNoObjectGeneratedError,
   StructuredOutputParseError,
@@ -461,13 +452,13 @@ try {
   }
   
   // Handle provider errors
+  if (error instanceof RateLimitError) {
+    return handleRateLimit(error);
+  }
+  if (error instanceof RetryableProviderError) {
+    return handleServerError(error);
+  }
   if (error instanceof ProviderError) {
-    if (error.code === 'rate_limit_exceeded') {
-      return handleRateLimit(error);
-    }
-    if (error.isRetryable) {
-      return handleServerError(error);
-    }
     return handleProviderError(error);
   }
   
@@ -497,14 +488,14 @@ async function generateWithRetry<T>(
     } catch (error) {
       lastError = error as Error;
       
-      if (error instanceof ProviderError) {
-        if (error.isRetryable) {
-          const delay = Math.pow(2, i) * 1000; // Exponential backoff
-          console.log(`Retrying in ${delay}ms...`);
-          await new Promise(resolve => setTimeout(resolve, delay));
-          continue;
-        }
+      if (error instanceof RetryableProviderError) {
+        const delay = Math.pow(2, i) * 1000; // Exponential backoff
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        continue;
+      }
 
+      if (error instanceof ProviderError) {
         // Don't retry non-retryable provider errors
         throw error;
       }

@@ -4,9 +4,12 @@ import {
 } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
+    ContextLengthExceededError,
+    ModelOverloadedError,
     ProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
     asRecord,
-    classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
@@ -14,53 +17,55 @@ import {
     indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
-    type ContextLengthSignal,
-    type ProviderErrorSignals,
+    isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
+type ContextLengthDetails = {
+    maxTokens?: number;
+    actualTokens?: number;
+};
+
 /**
- * Maps Mistral SDK errors to classified core-ai provider errors via the
- * shared precedence in `classifyProviderError`.
- *
- * Handles the same signal categories as other providers: abort, context length,
- * overload, rate limit (+ Retry-After), service unavailable, unknown.
+ * Maps Mistral SDK errors to core-ai provider error subclasses.
+ * Classification is owned by this wrapper.
  */
 export function wrapMistralError(error: unknown): AbortedError | ProviderError {
+    if (isMistralAbortError(error)) {
+        return new AbortedError(error, 'mistral');
+    }
+
     const message = getErrorMessage(error);
     const statusCode =
         error instanceof MistralError
             ? error.statusCode
             : getHttpStatusCode(error, ['statusCode', 'status']);
-
-    return classifyProviderError(
-        {
-            message,
-            provider: 'mistral',
-            cause: error,
-            statusCode,
-        },
-        getMistralErrorSignals(error, message, statusCode)
-    );
-}
-
-function getMistralErrorSignals(
-    error: unknown,
-    message: string,
-    statusCode: number | undefined
-): ProviderErrorSignals {
     const body = parseErrorBody(error);
-    const rateLimited = isMistralRateLimit(statusCode, body?.type);
+    const options = { statusCode, cause: error };
 
-    return {
-        aborted: isMistralAbortError(error),
-        contextLength: getContextLengthSignal(body, message),
-        overloaded: indicatesModelOverload(message, statusCode),
-        rateLimit: rateLimited,
-        retryAfterSeconds: rateLimited
-            ? getRetryAfterSecondsFromError(error)
-            : undefined,
-        // Generic 5xx use status fallbacks in classifyProviderError.
-    };
+    const contextLength = getContextLengthDetails(body, message);
+    if (contextLength) {
+        return new ContextLengthExceededError(message, 'mistral', {
+            ...options,
+            ...contextLength,
+        });
+    }
+
+    if (indicatesModelOverload(message, statusCode)) {
+        return new ModelOverloadedError(message, 'mistral', options);
+    }
+
+    if (isMistralRateLimit(statusCode, body?.type)) {
+        return new RateLimitError(message, 'mistral', {
+            ...options,
+            retryAfterSeconds: getRetryAfterSecondsFromError(error),
+        });
+    }
+
+    if (isTransientUnavailableStatus(statusCode)) {
+        return new ServiceUnavailableError(message, 'mistral', options);
+    }
+
+    return new ProviderError(message, 'mistral', options);
 }
 
 function isMistralAbortError(error: unknown): boolean {
@@ -76,10 +81,10 @@ function isMistralRateLimit(
     return isRateLimitStatus(statusCode) || errorType === 'rate_limit_error';
 }
 
-function getContextLengthSignal(
+function getContextLengthDetails(
     body: { message?: string; type?: string } | undefined,
     message: string
-): true | ContextLengthSignal | undefined {
+): ContextLengthDetails | undefined {
     const errorMessage = body?.message ?? message;
     const errorType = body?.type;
 
@@ -99,13 +104,13 @@ function getContextLengthSignal(
         /(\d+)\s*tokens.*too large for model with (\d+) maximum context length/
     );
     if (!match) {
-        return true;
+        return {};
     }
 
     const actualTokens = match[1];
     const maxTokens = match[2];
     if (actualTokens === undefined || maxTokens === undefined) {
-        return true;
+        return {};
     }
 
     return {

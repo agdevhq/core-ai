@@ -17,9 +17,10 @@ Error
     │   └── StreamAbortedError
     ├── ProviderError
     │   ├── ContextLengthExceededError
-    │   ├── RateLimitError
-    │   ├── ModelOverloadedError
-    │   └── ServiceUnavailableError
+    │   └── RetryableProviderError
+    │       ├── RateLimitError
+    │       ├── ModelOverloadedError
+    │       └── ServiceUnavailableError
     └── StructuredOutputError
         ├── StructuredOutputNoObjectGeneratedError
         ├── StructuredOutputParseError
@@ -132,52 +133,36 @@ try {
 
 Error for provider API failures (network errors, API errors, rate limits, etc.).
 
-Every `ProviderError` has a stable machine-readable `code`. Prefer switching on `code` for logging and serialization; use subclasses for typed metadata and same-process `instanceof` checks.
+Discriminate with subclasses and `instanceof`. Transient failures (`RateLimitError`, `ModelOverloadedError`, `ServiceUnavailableError`) extend `RetryableProviderError` so you can retry with a single check.
 
 ```typescript
-type ProviderErrorCode =
-  | 'context_length_exceeded'
-  | 'rate_limit_exceeded'
-  | 'model_overloaded'
-  | 'service_unavailable'
-  | 'unknown';
+type ProviderErrorOptions = {
+  statusCode?: number;
+  cause?: unknown;
+};
 
 class ProviderError extends CoreAIError {
-  public readonly code: ProviderErrorCode;
   public readonly statusCode?: number;
-
-  get isRetryable(): boolean;
 
   constructor(
     message: string,
     provider: string,
-    statusCodeOrOptions?: number | ProviderErrorOptions,
-    cause?: unknown
+    options?: ProviderErrorOptions
   );
 }
+
+class RetryableProviderError extends ProviderError {}
 ```
 
-| Code | Subclass | Meaning | `isRetryable` |
-|------|----------|---------|---------------|
-| `context_length_exceeded` | `ContextLengthExceededError` | Input/context exceeds model limits | no |
-| `rate_limit_exceeded` | `RateLimitError` | HTTP 429 / provider rate limit | yes |
-| `model_overloaded` | `ModelOverloadedError` | Capacity / high-demand signal | yes |
-| `service_unavailable` | `ServiceUnavailableError` | Temporary unavailability (e.g. 5xx) | yes |
-| `unknown` | `ProviderError` | Unclassified provider failure | no |
+| Subclass | Extends | Meaning |
+|----------|---------|---------|
+| `ContextLengthExceededError` | `ProviderError` | Input/context exceeds model limits |
+| `RateLimitError` | `RetryableProviderError` | HTTP 429 / provider rate limit |
+| `ModelOverloadedError` | `RetryableProviderError` | Capacity / high-demand signal |
+| `ServiceUnavailableError` | `RetryableProviderError` | Temporary unavailability (e.g. 5xx) |
+| `ProviderError` | — | Unclassified provider failure |
 
-**Classification precedence** (shared by every provider via `classifyProviderError`):
-
-1. Abort / cancel → `AbortedError` (not a `ProviderError`)
-2. Context length
-3. Model overloaded (explicit capacity signal, e.g. Anthropic HTTP 529 / `overloaded_error`, or high-demand copy on 5xx/529)
-4. Rate limit (HTTP 429, provider rate-limit types)
-5. Service unavailable (explicit unavailable signal)
-6. HTTP status fallbacks in the same order: `529` → overload, `429` → rate limit, `500`/`502`/`503`/`504` → unavailable
-7. Everything else → `code: 'unknown'`
-
-Provider `wrap*Error` helpers build a small context (`message`, `provider`, `statusCode`, `cause`) and a separate signals object via local helpers — they should not inline compound classification logic in the `classifyProviderError` call. Classification itself is centralized so all providers share the same importance order. Explicit signals beat status fallbacks, which is how quirks like Azure capacity returning HTTP 429 can map to `service_unavailable` instead of a rate limit. Overload message cues are only applied on capacity-like statuses (`500`/`502`/`503`/`504`/`529`), never on ordinary 4xx including `429`.
-
-Every provider wrapper covers the same signal categories at the same depth: abort, context length (with or without token counts), overload, rate limit (including `Retry-After` when present), service unavailable / transient 5xx, and unknown. Provider-specific details (error codes, message shapes, Azure/Vertex quirks) differ, but no provider should have a deeper classification surface than the others.
+Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Typical order inside a wrapper: abort → context length → overload → rate limit → service unavailable / transient 5xx → generic `ProviderError`. Provider-specific quirks stay in the provider package (for example Azure capacity returning HTTP 429 as unavailable, or Vertex `RESOURCE_EXHAUSTED` as a rate limit).
 
 **Usage:**
 
@@ -187,6 +172,7 @@ import {
   generate,
   ProviderError,
   RateLimitError,
+  RetryableProviderError,
 } from '@core-ai/core-ai';
 
 try {
@@ -202,13 +188,15 @@ try {
     return;
   }
 
+  if (error instanceof RetryableProviderError) {
+    console.error(`Transient failure from ${error.provider}`);
+    console.error(`Status: ${error.statusCode}`);
+    return;
+  }
+
   if (error instanceof ProviderError) {
     console.error(`Provider: ${error.provider}`);
-    console.error(`Code: ${error.code}`);
     console.error(`Status: ${error.statusCode}`);
-    if (error.isRetryable) {
-      console.log('Transient failure — safe to retry with backoff');
-    }
   }
 }
 ```
@@ -219,8 +207,6 @@ try {
 - `RateLimitError` — optional `retryAfterSeconds` from `Retry-After`
 - `ModelOverloadedError` — capacity / high-demand signal (wins over generic 5xx unavailable)
 - `ServiceUnavailableError` — temporary unavailability, including HTTP 500/502/503/504
-
-Additional codes (auth, content policy, request limits) may be added later; unclassified failures remain `unknown`.
 
 ## Structured Output Errors
 
@@ -362,6 +348,7 @@ import {
   generate,
   generateObject,
   ProviderError,
+  RetryableProviderError,
   StructuredOutputError,
   StructuredOutputNoObjectGeneratedError,
   StructuredOutputParseError,
@@ -407,14 +394,14 @@ async function generateUserProfile(prompt: string) {
     }
     
     // Handle provider errors
+    if (error instanceof RetryableProviderError) {
+      console.log('Transient provider failure - implementing retry...');
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      return generateUserProfile(prompt); // Retry
+    }
+
     if (error instanceof ProviderError) {
-      if (error.code === 'rate_limit_exceeded' || error.isRetryable) {
-        console.log('Transient provider failure - implementing retry...');
-        await new Promise(resolve => setTimeout(resolve, 5000));
-        return generateUserProfile(prompt); // Retry
-      }
-      
-      console.error(`Provider error (${error.provider}):`, error.code, error.message);
+      console.error(`Provider error (${error.provider}):`, error.message);
       throw new Error('AI service unavailable');
     }
     
@@ -445,9 +432,9 @@ async function generateWithRetry(
     try {
       return await generate({ model, messages });
     } catch (error) {
-      if (error instanceof ProviderError && error.isRetryable) {
+      if (error instanceof RetryableProviderError) {
         const delay = Math.pow(2, attempt) * 1000; // 1s, 2s, 4s
-        console.log(`Retryable provider error (${error.code}). Retrying in ${delay}ms...`);
+        console.log(`Retryable provider error (${error.name}). Retrying in ${delay}ms...`);
         await new Promise(resolve => setTimeout(resolve, delay));
         continue;
       }

@@ -1,9 +1,12 @@
 import { APIError, APIUserAbortError } from 'openai';
 import {
     AbortedError,
+    ContextLengthExceededError,
+    ModelOverloadedError,
     ProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
     asRecord,
-    classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
@@ -11,8 +14,7 @@ import {
     indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
-    type ContextLengthSignal,
-    type ProviderErrorSignals,
+    isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
 const CONTEXT_LENGTH_ERROR_CODES = new Set([
@@ -26,48 +28,58 @@ const TOKEN_LIMIT_PATTERNS = [
     /configured limit of (\d+) tokens.*resulted in (\d+) tokens/i,
 ];
 
+type ContextLengthDetails = {
+    maxTokens?: number;
+    actualTokens?: number;
+};
+
 /**
- * Maps OpenAI / Azure OpenAI / OpenAI-compatible SDK errors to classified
- * core-ai provider errors via the shared precedence in `classifyProviderError`.
- *
- * Handles the same signal categories as other providers: abort, context length,
- * overload, rate limit (+ Retry-After), service unavailable, unknown.
+ * Maps OpenAI / Azure OpenAI / OpenAI-compatible SDK errors to core-ai
+ * provider error subclasses. Classification is owned by this wrapper.
  */
 export function wrapOpenAIError(
     error: unknown,
     provider = 'openai'
 ): AbortedError | ProviderError {
+    if (isOpenAIAbortError(error)) {
+        return new AbortedError(error, provider);
+    }
+
     const message = getErrorMessage(error);
     const statusCode =
         error instanceof APIError
             ? error.status
             : getHttpStatusCode(error, ['status']);
+    const options = { statusCode, cause: error };
 
-    return classifyProviderError(
-        { message, provider, cause: error, statusCode },
-        getOpenAIErrorSignals(error, message, statusCode)
-    );
-}
+    const contextLength = getContextLengthDetails(error, message);
+    if (contextLength) {
+        return new ContextLengthExceededError(message, provider, {
+            ...options,
+            ...contextLength,
+        });
+    }
 
-function getOpenAIErrorSignals(
-    error: unknown,
-    message: string,
-    statusCode: number | undefined
-): ProviderErrorSignals {
-    const azureCapacity = isAzureOpenAIBackendCapacityError(error);
-    const rateLimited = isOpenAIRateLimit(error, statusCode) && !azureCapacity;
+    if (isAzureOpenAIBackendCapacityError(error)) {
+        return new ServiceUnavailableError(message, provider, options);
+    }
 
-    return {
-        aborted: isOpenAIAbortError(error),
-        contextLength: getContextLengthSignal(error, message),
-        overloaded: isOpenAIOverloaded(error, message, statusCode),
-        rateLimit: rateLimited,
-        retryAfterSeconds: rateLimited
-            ? getRetryAfterSecondsFromError(error)
-            : undefined,
-        // Generic 5xx use status fallbacks in classifyProviderError.
-        serviceUnavailable: azureCapacity,
-    };
+    if (isOpenAIOverloaded(error, message, statusCode)) {
+        return new ModelOverloadedError(message, provider, options);
+    }
+
+    if (isOpenAIRateLimit(error, statusCode)) {
+        return new RateLimitError(message, provider, {
+            ...options,
+            retryAfterSeconds: getRetryAfterSecondsFromError(error),
+        });
+    }
+
+    if (isTransientUnavailableStatus(statusCode)) {
+        return new ServiceUnavailableError(message, provider, options);
+    }
+
+    return new ProviderError(message, provider, options);
 }
 
 function isOpenAIAbortError(error: unknown): error is Error {
@@ -99,10 +111,10 @@ function isOpenAIOverloaded(
     );
 }
 
-function getContextLengthSignal(
+function getContextLengthDetails(
     error: unknown,
     fallbackMessage: string
-): true | ContextLengthSignal | undefined {
+): ContextLengthDetails | undefined {
     const providerMessage = getProviderMessage(error) ?? fallbackMessage;
     const code = getProviderErrorCode(error);
     const isKnownContextLengthCode =
@@ -118,12 +130,12 @@ function getContextLengthSignal(
     }
 
     // Known context-length / string-max codes without parseable token counts.
-    return true;
+    return {};
 }
 
 function matchTokenLimitCounts(
     providerMessage: string
-): ContextLengthSignal | undefined {
+): ContextLengthDetails | undefined {
     for (const pattern of TOKEN_LIMIT_PATTERNS) {
         const match = providerMessage.match(pattern);
         if (!match) {

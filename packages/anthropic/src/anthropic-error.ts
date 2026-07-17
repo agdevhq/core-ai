@@ -1,9 +1,12 @@
 import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import {
     AbortedError,
+    ContextLengthExceededError,
+    ModelOverloadedError,
     ProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
     asRecord,
-    classifyProviderError,
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
@@ -12,58 +15,66 @@ import {
     isAbortErrorByName,
     isOverloadedStatus,
     isRateLimitStatus,
-    type ContextLengthSignal,
-    type ProviderErrorSignals,
+    isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
+type ContextLengthDetails = {
+    maxTokens?: number;
+    actualTokens?: number;
+};
+
 /**
- * Maps Anthropic / Anthropic Vertex SDK errors to classified core-ai provider
- * errors via the shared precedence in `classifyProviderError`.
- *
- * Handles the same signal categories as other providers: abort, context length,
- * overload, rate limit (+ Retry-After), service unavailable, unknown.
+ * Maps Anthropic / Anthropic Vertex SDK errors to core-ai provider error
+ * subclasses. Classification is owned by this wrapper.
  */
 export function wrapAnthropicError(
     error: unknown,
     provider = 'anthropic'
 ): AbortedError | ProviderError {
+    if (isAnthropicAbortError(error)) {
+        return new AbortedError(error, provider);
+    }
+
     const message = getErrorMessage(error);
     const statusCode =
         error instanceof APIError
             ? error.status
             : getHttpStatusCode(error, ['status']);
-
-    return classifyProviderError(
-        { message, provider, cause: error, statusCode },
-        getAnthropicErrorSignals(error, message, statusCode)
-    );
-}
-
-function getAnthropicErrorSignals(
-    error: unknown,
-    message: string,
-    statusCode: number | undefined
-): ProviderErrorSignals {
     const providerMessage = getAnthropicErrorMessage(error);
     const errorType = getAnthropicErrorType(error);
-    const rateLimited = isAnthropicRateLimit(error, statusCode, errorType);
+    const options = { statusCode, cause: error };
 
-    return {
-        aborted: isAnthropicAbortError(error),
-        contextLength: getContextLengthSignal(providerMessage),
-        overloaded: isAnthropicOverloaded(
+    const contextLength = getContextLengthDetails(providerMessage);
+    if (contextLength) {
+        return new ContextLengthExceededError(message, provider, {
+            ...options,
+            ...contextLength,
+        });
+    }
+
+    if (
+        isAnthropicOverloaded(
             errorType,
             providerMessage,
             message,
             statusCode
-        ),
-        rateLimit: rateLimited,
-        retryAfterSeconds: rateLimited
-            ? getRetryAfterSecondsFromError(error)
-            : undefined,
-        // Generic 5xx use status fallbacks; Vertex UNAVAILABLE is explicit.
-        serviceUnavailable: isUnavailableStatus(error),
-    };
+        )
+    ) {
+        return new ModelOverloadedError(message, provider, options);
+    }
+
+    if (isAnthropicRateLimit(error, statusCode, errorType)) {
+        return new RateLimitError(message, provider, {
+            ...options,
+            retryAfterSeconds: getRetryAfterSecondsFromError(error),
+        });
+    }
+
+    if (isUnavailableStatus(error) || isTransientUnavailableStatus(statusCode)) {
+        return new ServiceUnavailableError(message, provider, options);
+    }
+
+    return new ProviderError(message, provider, options);
 }
 
 function isAnthropicAbortError(error: unknown): boolean {
@@ -98,9 +109,9 @@ function isAnthropicRateLimit(
     );
 }
 
-function getContextLengthSignal(
+function getContextLengthDetails(
     providerMessage: string | undefined
-): true | ContextLengthSignal | undefined {
+): ContextLengthDetails | undefined {
     if (!providerMessage?.includes('prompt is too long')) {
         return undefined;
     }
@@ -109,13 +120,13 @@ function getContextLengthSignal(
         /prompt is too long: (\d+) tokens > (\d+) maximum/
     );
     if (!match) {
-        return true;
+        return {};
     }
 
     const actualTokens = match[1];
     const maxTokens = match[2];
     if (actualTokens === undefined || maxTokens === undefined) {
-        return true;
+        return {};
     }
 
     return {

@@ -6,6 +6,7 @@ import {
     ModelOverloadedError,
     ProviderError,
     RateLimitError,
+    RetryableProviderError,
     ServiceUnavailableError,
 } from '@core-ai/core-ai';
 import { wrapAnthropicError } from './anthropic-error.ts';
@@ -41,7 +42,6 @@ describe('wrapAnthropicError', () => {
         const wrapped = wrapAnthropicError(error);
         expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
         const classified = wrapped as ContextLengthExceededError;
-        expect(classified.code).toBe('context_length_exceeded');
         expect(classified.maxTokens).toBe(100000);
         expect(classified.actualTokens).toBe(200000);
     });
@@ -74,10 +74,8 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
-        const classified = wrapped as ModelOverloadedError;
-        expect(classified.code).toBe('model_overloaded');
-        expect(classified.statusCode).toBe(529);
-        expect(classified.isRetryable).toBe(true);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ModelOverloadedError).statusCode).toBe(529);
     });
 
     it('should map rate_limit_error with retry-after to RateLimitError', () => {
@@ -91,7 +89,6 @@ describe('wrapAnthropicError', () => {
         const wrapped = wrapAnthropicError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
         const classified = wrapped as RateLimitError;
-        expect(classified.code).toBe('rate_limit_exceeded');
         expect(classified.retryAfterSeconds).toBe(12);
     });
 
@@ -108,9 +105,7 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error, 'anthropic-vertex');
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        const classified = wrapped as RateLimitError;
-        expect(classified.provider).toBe('anthropic-vertex');
-        expect(classified.code).toBe('rate_limit_exceeded');
+        expect(wrapped.provider).toBe('anthropic-vertex');
     });
 
     it('should map 503 to ServiceUnavailableError', () => {
@@ -123,9 +118,6 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).code).toBe(
-            'service_unavailable'
-        );
     });
 
     it('should map 500 to ServiceUnavailableError', () => {
@@ -138,12 +130,12 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
     });
 
-    it('should map opaque errors to ProviderError with unknown code', () => {
+    it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapAnthropicError(new Error('boom'));
         expect(wrapped).toBeInstanceOf(ProviderError);
-        expect((wrapped as ProviderError).code).toBe('unknown');
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
     });
 });

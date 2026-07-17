@@ -1,57 +1,8 @@
-import {
-    AbortedError,
-    ContextLengthExceededError,
-    ModelOverloadedError,
-    ProviderError,
-    RateLimitError,
-    ServiceUnavailableError,
-} from './errors.ts';
-
 /**
- * Optional token counts when a provider message includes them.
- * Omit both when the failure is context-related but counts are unknown
- * (or when the failure is a string-length limit, not a token limit).
+ * Shared helpers for provider error wrappers.
+ * Providers decide which error subclass to throw; these utilities only
+ * extract common SDK shapes and status/message cues.
  */
-export type ContextLengthSignal = {
-    maxTokens?: number;
-    actualTokens?: number;
-};
-
-/** Identity + HTTP metadata for a provider failure. */
-export type ProviderErrorContext = {
-    message: string;
-    provider: string;
-    cause?: unknown;
-    statusCode?: number;
-};
-
-/**
- * Explicit classification signals extracted by provider wrappers.
- * Prefer structured SDK fields; use message helpers only as fallback.
- *
- * Precedence (same for every provider):
- * 1. abort
- * 2. context length
- * 3. model overloaded (explicit)
- * 4. rate limit (explicit)
- * 5. service unavailable (explicit)
- * 6. HTTP status fallbacks (529 → overload, 429 → rate limit,
- *    500/502/503/504 → unavailable)
- * 7. unknown
- *
- * Explicit signals beat status fallbacks so provider-specific quirks
- * (e.g. Azure capacity returning HTTP 429) can opt into a higher-priority
- * class without fighting the status code.
- */
-export type ProviderErrorSignals = {
-    aborted?: boolean;
-    /** `true` when counts are unknown; object when parseable. */
-    contextLength?: true | ContextLengthSignal;
-    overloaded?: boolean;
-    rateLimit?: boolean;
-    retryAfterSeconds?: number;
-    serviceUnavailable?: boolean;
-};
 
 const TRANSIENT_UNAVAILABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
@@ -63,77 +14,6 @@ const TRANSIENT_UNAVAILABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
     500, 502, 503, 504, 529,
 ]);
-
-export function classifyProviderError(
-    context: ProviderErrorContext,
-    signals: ProviderErrorSignals = {}
-): AbortedError | ProviderError {
-    const { message, provider, cause, statusCode } = context;
-
-    if (signals.aborted) {
-        return new AbortedError(cause, provider);
-    }
-
-    if (signals.contextLength) {
-        const tokens =
-            signals.contextLength === true ? {} : signals.contextLength;
-        return new ContextLengthExceededError(message, provider, {
-            statusCode,
-            cause,
-            maxTokens: tokens.maxTokens,
-            actualTokens: tokens.actualTokens,
-        });
-    }
-
-    if (signals.overloaded) {
-        return new ModelOverloadedError(message, provider, {
-            statusCode,
-            cause,
-        });
-    }
-
-    if (signals.rateLimit) {
-        return new RateLimitError(message, provider, {
-            statusCode: statusCode ?? 429,
-            cause,
-            retryAfterSeconds: signals.retryAfterSeconds,
-        });
-    }
-
-    if (signals.serviceUnavailable) {
-        return new ServiceUnavailableError(message, provider, {
-            statusCode,
-            cause,
-        });
-    }
-
-    if (isOverloadedStatus(statusCode)) {
-        return new ModelOverloadedError(message, provider, {
-            statusCode,
-            cause,
-        });
-    }
-
-    if (isRateLimitStatus(statusCode)) {
-        return new RateLimitError(message, provider, {
-            statusCode,
-            cause,
-            retryAfterSeconds: signals.retryAfterSeconds,
-        });
-    }
-
-    if (isTransientUnavailableStatus(statusCode)) {
-        return new ServiceUnavailableError(message, provider, {
-            statusCode,
-            cause,
-        });
-    }
-
-    return new ProviderError(message, provider, {
-        statusCode,
-        cause,
-    });
-}
 
 export function isRateLimitStatus(statusCode: number | undefined): boolean {
     return statusCode === 429;

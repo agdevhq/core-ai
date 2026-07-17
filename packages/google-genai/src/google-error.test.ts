@@ -6,6 +6,7 @@ import {
     ModelOverloadedError,
     ProviderError,
     RateLimitError,
+    RetryableProviderError,
     ServiceUnavailableError,
 } from '@core-ai/core-ai';
 import { wrapGoogleError } from './google-error.ts';
@@ -18,6 +19,16 @@ describe('wrapGoogleError', () => {
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(AbortedError);
         expect(wrapped.provider).toBe('google');
+    });
+
+    it('should map abort-message ApiError without AbortError name to AbortedError', () => {
+        const error = new ApiError({
+            message: 'The operation was aborted',
+            status: 499,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(AbortedError);
     });
 
     it('should map input token count overflow to ContextLengthExceededError', () => {
@@ -67,10 +78,8 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        const classified = wrapped as RateLimitError;
-        expect(classified.code).toBe('rate_limit_exceeded');
-        expect(classified.isRetryable).toBe(true);
-        expect(classified.retryAfterSeconds).toBe(8);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as RateLimitError).retryAfterSeconds).toBe(8);
     });
 
     it('should map high-demand messages to ModelOverloadedError', () => {
@@ -81,7 +90,6 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
-        expect((wrapped as ModelOverloadedError).code).toBe('model_overloaded');
     });
 
     it('should not treat overload copy on HTTP 429 as ModelOverloadedError', () => {
@@ -92,7 +100,6 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        expect((wrapped as RateLimitError).code).toBe('rate_limit_exceeded');
     });
 
     it('should map 503 UNAVAILABLE to ServiceUnavailableError', () => {
@@ -109,9 +116,6 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).code).toBe(
-            'service_unavailable'
-        );
     });
 
     it('should map 500 to ServiceUnavailableError', () => {
@@ -122,13 +126,13 @@ describe('wrapGoogleError', () => {
 
         const wrapped = wrapGoogleError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
     });
 
-    it('should map opaque errors to ProviderError with unknown code', () => {
+    it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapGoogleError(new Error('unexpected'));
         expect(wrapped).toBeInstanceOf(ProviderError);
-        expect((wrapped as ProviderError).code).toBe('unknown');
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
         expect(wrapped.provider).toBe('google');
     });
 

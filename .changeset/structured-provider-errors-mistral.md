@@ -2,4 +2,4 @@
 '@core-ai/mistral': minor
 ---
 
-Classify Mistral SDK failures into structured `ProviderError` subclasses in `wrapMistralError`.
+Map Mistral SDK failures to structured `ProviderError` subclasses in `wrapMistralError`.

@@ -50,7 +50,6 @@ export type {
     GeneratedImage,
 } from './types.ts';
 export type {
-    ProviderErrorCode,
     ProviderErrorOptions,
     ContextLengthExceededErrorOptions,
     RateLimitErrorOptions,
@@ -63,6 +62,7 @@ export {
     AbortedError,
     StreamAbortedError,
     ProviderError,
+    RetryableProviderError,
     ContextLengthExceededError,
     RateLimitError,
     ModelOverloadedError,
@@ -72,13 +72,7 @@ export {
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from './errors.ts';
-export type {
-    ContextLengthSignal,
-    ProviderErrorContext,
-    ProviderErrorSignals,
-} from './classify-provider-error.ts';
 export {
-    classifyProviderError,
     indicatesModelOverload,
     isRateLimitStatus,
     isOverloadedStatus,
@@ -90,7 +84,7 @@ export {
     isAbortErrorByName,
     parseRetryAfterSeconds,
     getRetryAfterSecondsFromError,
-} from './classify-provider-error.ts';
+} from './provider-error-utils.ts';
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';

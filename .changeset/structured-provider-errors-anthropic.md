@@ -2,4 +2,4 @@
 '@core-ai/anthropic': minor
 ---
 
-Classify Anthropic SDK failures into structured `ProviderError` subclasses in `wrapAnthropicError`.
+Map Anthropic SDK failures to structured `ProviderError` subclasses in `wrapAnthropicError`.

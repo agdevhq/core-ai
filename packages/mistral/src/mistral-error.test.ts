@@ -5,6 +5,7 @@ import {
     ModelOverloadedError,
     ProviderError,
     RateLimitError,
+    RetryableProviderError,
     ServiceUnavailableError,
 } from '@core-ai/core-ai';
 import { wrapMistralError } from './mistral-error.ts';
@@ -64,10 +65,8 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        const classified = wrapped as RateLimitError;
-        expect(classified.code).toBe('rate_limit_exceeded');
-        expect(classified.isRetryable).toBe(true);
-        expect(classified.retryAfterSeconds).toBe(20);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as RateLimitError).retryAfterSeconds).toBe(20);
     });
 
     it('should map rate_limit_error type without status to RateLimitError', () => {
@@ -81,7 +80,6 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        expect((wrapped as RateLimitError).code).toBe('rate_limit_exceeded');
     });
 
     it('should map overload copy on 503 to ModelOverloadedError', () => {
@@ -92,7 +90,6 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
-        expect((wrapped as ModelOverloadedError).code).toBe('model_overloaded');
     });
 
     it('should map 503 to ServiceUnavailableError', () => {
@@ -103,9 +100,6 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).code).toBe(
-            'service_unavailable'
-        );
     });
 
     it('should map 500 to ServiceUnavailableError', () => {
@@ -116,7 +110,7 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
     });
 
     it('should map 502 to ServiceUnavailableError', () => {
@@ -127,12 +121,12 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
     });
 
-    it('should map opaque errors to ProviderError with unknown code', () => {
+    it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapMistralError(new Error('boom'));
         expect(wrapped).toBeInstanceOf(ProviderError);
-        expect((wrapped as ProviderError).code).toBe('unknown');
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
     });
 });

@@ -6,6 +6,7 @@ import {
     ModelOverloadedError,
     ProviderError,
     RateLimitError,
+    RetryableProviderError,
     ServiceUnavailableError,
 } from '@core-ai/core-ai';
 import { wrapOpenAIError } from './openai-error.ts';
@@ -41,7 +42,6 @@ describe('wrapOpenAIError', () => {
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
             const classified = wrapped as ContextLengthExceededError;
-            expect(classified.code).toBe('context_length_exceeded');
             expect(classified.maxTokens).toBe(8192);
             expect(classified.actualTokens).toBe(10000);
         });
@@ -97,7 +97,6 @@ describe('wrapOpenAIError', () => {
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
             const classified = wrapped as ContextLengthExceededError;
-            expect(classified.code).toBe('context_length_exceeded');
             expect(classified.maxTokens).toBeUndefined();
             expect(classified.actualTokens).toBeUndefined();
         });
@@ -121,9 +120,8 @@ describe('wrapOpenAIError', () => {
 
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(RateLimitError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
             const classified = wrapped as RateLimitError;
-            expect(classified.code).toBe('rate_limit_exceeded');
-            expect(classified.isRetryable).toBe(true);
             expect(classified.retryAfterSeconds).toBe(60);
         });
 
@@ -138,10 +136,8 @@ describe('wrapOpenAIError', () => {
 
             const wrapped = wrapOpenAIError(error, 'azure-openai');
             expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-            const classified = wrapped as ServiceUnavailableError;
-            expect(classified.code).toBe('service_unavailable');
-            expect(classified.provider).toBe('azure-openai');
-            expect(classified.isRetryable).toBe(true);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect(wrapped.provider).toBe('azure-openai');
         });
 
         it('should map 503 to ServiceUnavailableError', () => {
@@ -161,9 +157,7 @@ describe('wrapOpenAIError', () => {
 
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-            const classified = wrapped as ServiceUnavailableError;
-            expect(classified.code).toBe('service_unavailable');
-            expect(classified.statusCode).toBe(503);
+            expect((wrapped as ServiceUnavailableError).statusCode).toBe(503);
         });
 
         it('should map 500 to ServiceUnavailableError', () => {
@@ -183,7 +177,7 @@ describe('wrapOpenAIError', () => {
 
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-            expect((wrapped as ServiceUnavailableError).isRetryable).toBe(true);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
         });
 
         it('should prefer overload message cues over 503 unavailable', () => {
@@ -203,20 +197,15 @@ describe('wrapOpenAIError', () => {
 
             const wrapped = wrapOpenAIError(error);
             expect(wrapped).toBeInstanceOf(ModelOverloadedError);
-            expect((wrapped as ModelOverloadedError).code).toBe(
-                'model_overloaded'
-            );
         });
     });
 
-    it('should map opaque errors to ProviderError with unknown code', () => {
+    it('should map opaque errors to ProviderError', () => {
         const error = new Error('something broke');
         const wrapped = wrapOpenAIError(error);
 
         expect(wrapped).toBeInstanceOf(ProviderError);
-        const classified = wrapped as ProviderError;
-        expect(classified.code).toBe('unknown');
-        expect(classified.message).toBe('something broke');
-        expect(classified.isRetryable).toBe(false);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        expect(wrapped.message).toBe('something broke');
     });
 });

@@ -1,16 +1,18 @@
 import { ApiError } from '@google/genai';
 import {
     AbortedError,
+    ContextLengthExceededError,
+    ModelOverloadedError,
     ProviderError,
-    classifyProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
     indicatesModelOverload,
     isAbortErrorByName,
     isRateLimitStatus,
-    type ContextLengthSignal,
-    type ProviderErrorSignals,
+    isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
 type GoogleApiErrorBody = {
@@ -19,17 +21,23 @@ type GoogleApiErrorBody = {
     status?: string;
 };
 
+type ContextLengthDetails = {
+    maxTokens?: number;
+    actualTokens?: number;
+};
+
 /**
- * Maps Google GenAI / Vertex SDK errors to classified core-ai provider errors
- * via the shared precedence in `classifyProviderError`.
- *
- * Handles the same signal categories as other providers: abort, context length,
- * overload, rate limit (+ Retry-After), service unavailable, unknown.
+ * Maps Google GenAI / Vertex SDK errors to core-ai provider error subclasses.
+ * Classification is owned by this wrapper.
  */
 export function wrapGoogleError(
     error: unknown,
     provider = 'google'
 ): AbortedError | ProviderError {
+    if (isGoogleAbortError(error)) {
+        return new AbortedError(error, provider);
+    }
+
     const message = getErrorMessage(error);
     const statusCode =
         error instanceof ApiError
@@ -37,39 +45,52 @@ export function wrapGoogleError(
             : getHttpStatusCode(error, ['status']);
     const body = tryParseGoogleApiErrorBody(message);
     const effectiveHttp = statusCode ?? toNumericHttpCode(body);
-
-    return classifyProviderError(
-        {
-            message,
-            provider,
-            cause: error,
-            statusCode: effectiveHttp,
-        },
-        getGoogleErrorSignals(error, message, effectiveHttp, body)
-    );
-}
-
-function getGoogleErrorSignals(
-    error: unknown,
-    message: string,
-    statusCode: number | undefined,
-    body: GoogleApiErrorBody | null
-): ProviderErrorSignals {
+    const options = { statusCode: effectiveHttp, cause: error };
     const status = body?.status?.toUpperCase();
     const combinedText = `${body?.message ?? ''} ${message}`;
-    const rateLimited = isGoogleRateLimit(statusCode, status);
 
-    return {
-        aborted: isAbortErrorByName(error),
-        contextLength: getContextLengthSignal(combinedText),
-        overloaded: indicatesModelOverload(combinedText, statusCode),
-        rateLimit: rateLimited,
-        retryAfterSeconds: rateLimited
-            ? getRetryAfterSecondsFromError(error)
-            : undefined,
-        // Generic 5xx use status fallbacks; UNAVAILABLE is explicit.
-        serviceUnavailable: status === 'UNAVAILABLE',
-    };
+    const contextLength = getContextLengthDetails(combinedText);
+    if (contextLength) {
+        return new ContextLengthExceededError(message, provider, {
+            ...options,
+            ...contextLength,
+        });
+    }
+
+    if (indicatesModelOverload(combinedText, effectiveHttp)) {
+        return new ModelOverloadedError(message, provider, options);
+    }
+
+    if (isGoogleRateLimit(effectiveHttp, status)) {
+        return new RateLimitError(message, provider, {
+            ...options,
+            retryAfterSeconds: getRetryAfterSecondsFromError(error),
+        });
+    }
+
+    if (status === 'UNAVAILABLE' || isTransientUnavailableStatus(effectiveHttp)) {
+        return new ServiceUnavailableError(message, provider, options);
+    }
+
+    return new ProviderError(message, provider, options);
+}
+
+/**
+ * Google requests pass `abortSignal`; the SDK may surface cancellation as
+ * `AbortError` by name, or as a plain/ApiError whose message indicates abort.
+ */
+function isGoogleAbortError(error: unknown): boolean {
+    if (isAbortErrorByName(error)) {
+        return true;
+    }
+
+    const message = getErrorMessage(error).toLowerCase();
+    return (
+        message.includes('the operation was aborted') ||
+        message.includes('this operation was aborted') ||
+        message.includes('request aborted') ||
+        message.includes('the request was aborted')
+    );
 }
 
 function isGoogleRateLimit(
@@ -79,9 +100,9 @@ function isGoogleRateLimit(
     return isRateLimitStatus(statusCode) || status === 'RESOURCE_EXHAUSTED';
 }
 
-function getContextLengthSignal(
+function getContextLengthDetails(
     text: string
-): true | ContextLengthSignal | undefined {
+): ContextLengthDetails | undefined {
     const match = text.match(
         /input token count \((\d+)\) exceeds the maximum number of tokens allowed \((\d+)\)/i
     );
@@ -98,7 +119,7 @@ function getContextLengthSignal(
 
     // Detect without inventing token counts when wording is present.
     if (/exceeds the maximum number of tokens allowed/i.test(text)) {
-        return true;
+        return {};
     }
 
     return undefined;

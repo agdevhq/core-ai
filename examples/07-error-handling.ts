@@ -4,6 +4,7 @@ import {
     CoreAIError,
     ProviderError,
     RateLimitError,
+    RetryableProviderError,
     generate,
 } from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
@@ -20,7 +21,6 @@ function handleError(error: unknown): void {
     if (error instanceof ContextLengthExceededError) {
         console.error('ContextLengthExceededError', {
             provider: error.provider,
-            code: error.code,
             maxTokens: error.maxTokens ?? 'n/a',
             actualTokens: error.actualTokens ?? 'n/a',
             message: error.message,
@@ -31,21 +31,25 @@ function handleError(error: unknown): void {
     if (error instanceof RateLimitError) {
         console.error('RateLimitError', {
             provider: error.provider,
-            code: error.code,
             retryAfterSeconds: error.retryAfterSeconds ?? 'n/a',
-            isRetryable: error.isRetryable,
+            message: error.message,
+        });
+        return;
+    }
+
+    if (error instanceof RetryableProviderError) {
+        console.error(error.name, {
+            provider: error.provider,
+            statusCode: error.statusCode ?? 'n/a',
             message: error.message,
         });
         return;
     }
 
     if (error instanceof ProviderError) {
-        // Covers ModelOverloadedError, ServiceUnavailableError, and unknown.
         console.error(error.name, {
             provider: error.provider,
-            code: error.code,
             statusCode: error.statusCode ?? 'n/a',
-            isRetryable: error.isRetryable,
             message: error.message,
         });
         return;
