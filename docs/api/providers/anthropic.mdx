@@ -67,6 +67,7 @@ const anthropic = createAnthropic({
     Current Opus and Sonnet models use effort-based adaptive thinking.
 
     <ul>
+      <li><strong>claude-opus-5</strong> - Strongest Opus model for complex agentic coding and enterprise work</li>
       <li><strong>claude-sonnet-5</strong> - Most agentic Sonnet model with near-Opus performance at lower cost</li>
       <li><strong>claude-opus-4-8</strong> - Opus model for complex reasoning and agentic coding</li>
       <li><strong>claude-opus-4-7</strong> - Opus model with max effort support</li>
@@ -122,7 +123,7 @@ import {
 } from '@core-ai/anthropic';
 
 const anthropic = createAnthropic();
-const model = anthropic.chatModel('claude-opus-4-8');
+const model = anthropic.chatModel('claude-opus-5');
 const capabilities = model.capabilities;
 
 const otherCapabilities = getAnthropicModelCapabilities('claude-opus-4-5');
@@ -160,7 +161,7 @@ console.log(result.content);
 
 ```typescript
 const result = await generate({
-    model: anthropic.chatModel('claude-opus-4-8'),
+    model: anthropic.chatModel('claude-opus-5'),
     messages: [
         {
             role: 'user',
@@ -264,7 +265,7 @@ The model automatically determines thinking depth based on the effort level.
 
 ```typescript
 const result = await generate({
-    model: anthropic.chatModel('claude-opus-4-8'),
+    model: anthropic.chatModel('claude-opus-5'),
     messages: [{ role: 'user', content: 'Complex problem...' }],
     reasoning: {
         effort: 'high',
@@ -274,8 +275,8 @@ const result = await generate({
 
 <Note>
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
-    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-5`,
-    and `claude-sonnet-4-6` support `'max'` effort directly.
+    `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
+    `claude-sonnet-5`, and `claude-sonnet-4-6` support `'max'` effort directly.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)
@@ -304,9 +305,10 @@ When reasoning is enabled, Anthropic enforces additional request constraints:
 - `toolChoice` must be `'auto'` or `'none'`
 - `providerOptions.anthropic.topK` must be omitted
 
-Claude Fable 5, Mythos 5, Mythos Preview, Opus 4.8, Opus 4.7, and Sonnet 5
-also reject non-default sampling parameters when you do not explicitly enable
-reasoning. For these models, use `temperature: 1`, `topP: 1`, and omit `topK`.
+Claude Fable 5, Mythos 5, Mythos Preview, Opus 5, Opus 4.8, Opus 4.7, and
+Sonnet 5 also reject non-default sampling parameters when you do not
+explicitly enable reasoning. For these models, use `temperature: 1`,
+`topP: 1`, and omit `topK`.
 
 <Warning>
     Violating these constraints throws a `ValidationError` before the request is
@@ -328,7 +330,7 @@ import { generate, getProviderMetadata } from '@core-ai/core-ai';
 import type { AnthropicReasoningMetadata } from '@core-ai/anthropic';
 
 const result = await generate({
-    model: anthropic.chatModel('claude-opus-4-8'),
+    model: anthropic.chatModel('claude-opus-5'),
     messages: [{ role: 'user', content: 'Think step by step.' }],
     reasoning: { effort: 'high' },
 });
