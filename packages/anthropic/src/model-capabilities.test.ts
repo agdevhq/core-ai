@@ -26,6 +26,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-fable-5',
         'claude-mythos-5',
         'claude-mythos-preview',
+        'claude-opus-5',
         'claude-opus-4-8',
         'claude-opus-4-7',
         'claude-opus-4-6',
@@ -110,6 +111,9 @@ describe('interleaved thinking beta', () => {
 
 describe('sampling restrictions', () => {
     it('should identify models that always reject non-default sampling', () => {
+        expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5')).toBe(
+            true
+        );
         expect(restrictsAnthropicSamplingParamsAlways('claude-sonnet-5')).toBe(
             true
         );
