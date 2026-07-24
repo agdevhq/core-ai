@@ -1,5 +1,15 @@
 # @core-ai/anthropic
 
+## 0.18.0
+
+### Minor Changes
+
+- 3197a6b: Add model capability support for `claude-opus-5`.
+
+### Patch Changes
+
+- @core-ai/core-ai@0.18.0
+
 ## 0.17.0
 
 ### Minor Changes
