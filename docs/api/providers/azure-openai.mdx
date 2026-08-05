@@ -157,11 +157,13 @@ Capability lookup uses the model ID passed to `chatModel()`. If that value is a
 custom Azure deployment name rather than an OpenAI model ID, the provider
 cannot infer the underlying model family and returns the generic OpenAI
 fallback. In that case, treat the capability data as a default rather than an
-exact description of the deployment.
+exact description of the deployment. The fallback reports
+`imageInput.supported` as `true`, so images are forwarded to the deployment
+rather than rejected locally.
 
 For recognized OpenAI model IDs, see
 [OpenAI model capabilities](/api/providers/openai#model-capabilities) for the
-reasoning and Chat Completions fields.
+reasoning, image input, and Chat Completions fields.
 
 ## Examples
 

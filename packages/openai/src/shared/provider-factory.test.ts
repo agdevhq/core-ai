@@ -11,6 +11,10 @@ const CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
+    imageInput: {
+        supported: false,
+        supportedSources: [],
+    },
 };
 
 describe('createOpenAIProvider', () => {

@@ -104,6 +104,24 @@ const capabilities = model.capabilities;
 const otherCapabilities = getMistralModelCapabilities('mistral-large-2512');
 ```
 
+`imageInput` is resolved per model. Vision families such as `mistral-large`,
+`mistral-medium`, `mistral-small`, `magistral-*`, `ministral-*`, and `pixtral-*`
+accept `base64` and `url` sources; text-only families such as `codestral`,
+`devstral-*`, `open-mistral-*`, and `open-mixtral-*` reject images.
+Unrecognized model IDs are treated as image capable.
+
+Lookup prefers an exact model ID and falls back to the family, ignoring the
+`-latest` alias and the `-YYMM` version suffix. This matters because Mistral
+added vision to each family at a specific release, so pinning an older version
+reports the capabilities of that version rather than of `-latest`:
+
+| Family        | Vision from            | Earlier versions reported text-only            |
+| ------------- | ---------------------- | ---------------------------------------------- |
+| Mistral Large | Large 3 (`-2512`)      | `-2402`, `-2407`, `-2411`                       |
+| Mistral Small | Small 3.1 (`-2503`)    | `-2402`, `-2409`, `-2501`                       |
+| Magistral     | Magistral 1.2 (`-2509`)| `-2506`, `-2507`                                |
+| Ministral     | Ministral 3 (`-2512`)  | `-2410`                                         |
+
 ## Examples
 
 ### Basic chat

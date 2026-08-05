@@ -24,7 +24,11 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { getProviderMetadata, zodSchemaToJsonSchema } from '@core-ai/core-ai';
+import {
+    getProviderMetadata,
+    validateImageInput,
+    zodSchemaToJsonSchema,
+} from '@core-ai/core-ai';
 import {
     getGoogleModelCapabilities,
     toGoogleThinkingBudget,
@@ -39,6 +43,13 @@ import {
 export type GoogleReasoningMetadata = {
     thoughtSignature?: string;
 };
+
+/**
+ * Default provider id attributed to validation errors when no provider id is
+ * given. Callers wrapping the native client (e.g. `@core-ai/google-vertex`)
+ * pass their own provider id instead.
+ */
+export const DEFAULT_PROVIDER_ID = 'google';
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
@@ -307,11 +318,18 @@ function inferMimeTypeFromUrl(url: string): string {
 
 export function createGenerateRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    provider = DEFAULT_PROVIDER_ID
 ): GenerateContentParameters {
     const googleOptions = parseGoogleGenerateProviderOptions(
         options.providerOptions
     );
+    validateImageInput({
+        messages: options.messages,
+        capabilities: getGoogleModelCapabilities(modelId),
+        modelId,
+        providerId: provider,
+    });
     const convertedMessages = convertMessages(options.messages);
     const requestConfig = {
         ...(convertedMessages.systemInstruction

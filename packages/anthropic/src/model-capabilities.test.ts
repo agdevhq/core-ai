@@ -68,6 +68,16 @@ describe('getAnthropicModelCapabilities', () => {
         );
     });
 
+    it.each(['claude-opus-5', 'claude-haiku-4-5', 'claude-future-5'])(
+        'should report image input as supported for %s',
+        (modelId) => {
+            expect(getAnthropicModelCapabilities(modelId).imageInput).toEqual({
+                supported: true,
+                supportedSources: ['base64', 'url'],
+            });
+        }
+    );
+
     it('should fallback to defaults for unknown models', () => {
         const capabilities = getAnthropicModelCapabilities('claude-future-5');
         expect(capabilities.reasoning.mode).toBe('optional');

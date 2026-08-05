@@ -6,6 +6,7 @@ import type {
 } from '@mistralai/mistralai/models/components';
 import {
     defineTool,
+    ValidationError,
     type GenerateOptions,
     type Message,
     type ToolSet,
@@ -225,6 +226,35 @@ describe('structured output helpers', () => {
     });
 });
 
+describe('image input', () => {
+    const messages: Message[] = [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'image',
+                    source: {
+                        type: 'url',
+                        url: 'https://example.com/photo.png',
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('should reject images for text-only models', () => {
+        expect(() =>
+            createGenerateRequest('codestral-latest', { messages })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should accept images for vision models', () => {
+        expect(() =>
+            createGenerateRequest('pixtral-12b-2409', { messages })
+        ).not.toThrow();
+    });
+});
+
 describe('reasoning support', () => {
     it('should replay native mistral reasoning as a thinking chunk', () => {
         const messages: Message[] = [
@@ -356,7 +386,10 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
-                    { type: 'text', text: '<thinking>thoughts only</thinking>' },
+                    {
+                        type: 'text',
+                        text: '<thinking>thoughts only</thinking>',
+                    },
                 ],
             },
             { role: 'user', content: 'Continue' },

@@ -49,6 +49,10 @@ describe('streamObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
+                imageInput: {
+                    supported: true,
+                    supportedSources: ['base64', 'url'],
+                },
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
@@ -86,6 +90,10 @@ describe('streamObject', () => {
                     supportedEfforts: [],
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+                },
+                imageInput: {
+                    supported: true,
+                    supportedSources: ['base64', 'url'],
                 },
             },
             generate: vi.fn(async () => {

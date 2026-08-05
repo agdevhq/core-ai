@@ -192,6 +192,31 @@ describe('generate', () => {
         ).rejects.toBeInstanceOf(ValidationError);
     });
 
+    it('should reject image parts for the text-only K2.7 Code models', async () => {
+        const create = vi.fn();
+        const model = createKimiModel(createMockClient(create));
+
+        await expect(
+            model.generate({
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                source: {
+                                    type: 'url',
+                                    url: 'https://example.com/photo.png',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            })
+        ).rejects.toThrowError(/^kimi model "kimi-k2.7-code"/);
+        expect(create).not.toHaveBeenCalled();
+    });
+
     it('should omit unsupported reasoning effort', async () => {
         const create = vi.fn(async (request: unknown) => {
             expect(request).not.toHaveProperty('reasoning_effort');

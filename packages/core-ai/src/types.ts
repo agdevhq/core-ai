@@ -28,6 +28,8 @@ export type TextPart = {
     metadata?: Record<string, unknown>;
 };
 
+export type ImageSourceType = 'base64' | 'url';
+
 export type ImagePart = {
     type: 'image';
     source:
@@ -144,6 +146,11 @@ export type ModelCapabilities = {
          */
         restrictsSamplingParams: boolean;
         supportedToolChoices: readonly ToolChoiceMode[];
+    };
+    imageInput: {
+        supported: boolean;
+        /** Empty when `supported` is false. */
+        supportedSources: readonly ImageSourceType[];
     };
 };
 

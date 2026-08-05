@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProviderError } from '@core-ai/core-ai';
+import { ProviderError, ValidationError } from '@core-ai/core-ai';
 import type OpenAI from 'openai';
 import { createAzureOpenAI } from './provider.js';
 
@@ -259,5 +259,33 @@ describe('createAzureOpenAI', () => {
 
         expect(error).toBeInstanceOf(ProviderError);
         expect((error as ProviderError).provider).toBe('azure-openai');
+    });
+
+    it('should tag Responses API validation errors with provider "azure-openai"', async () => {
+        const provider = createAzureOpenAI({ apiKey: 'test-key' });
+
+        const error = await provider
+            .chatModel('gpt-3.5-turbo')
+            .generate({
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                source: {
+                                    type: 'url',
+                                    url: 'https://example.com/photo.png',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            })
+            .catch((e: unknown) => e);
+
+        expect(error).toBeInstanceOf(ValidationError);
+        expect((error as ValidationError).provider).toBe('azure-openai');
+        expect(responsesCreate).not.toHaveBeenCalled();
     });
 });

@@ -214,6 +214,11 @@ type ModelCapabilities = {
             | 'tool'
         )[];
     };
+    imageInput: {
+        supported: boolean;
+        /** Empty when `supported` is false. */
+        supportedSources: readonly ('base64' | 'url')[];
+    };
 };
 ```
 
@@ -223,6 +228,8 @@ type ModelCapabilities = {
 | `reasoning.supportedEfforts`        | Effort values the adapter accepts (empty when unsupported)           |
 | `reasoning.restrictsSamplingParams` | Whether reasoning changes the accepted sampling parameters or values |
 | `reasoning.supportedToolChoices`    | Tool choice modes supported while reasoning is enabled               |
+| `imageInput.supported`              | Whether the model accepts image parts in user messages               |
+| `imageInput.supportedSources`       | Image source types the model accepts (empty when unsupported)        |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
 option. The model may still return reasoning output. `optional` means callers
@@ -233,6 +240,12 @@ An empty `supportedEfforts` list means the model does not accept effort
 control. It does not necessarily mean the model cannot produce reasoning
 output. When `restrictsSamplingParams` is true, consult the provider guide for
 the exact accepted values.
+
+`imageInput` describes whether the model accepts [image parts](/guides/multi-modal).
+Sending an image to a model where `supported` is false, or using a source type
+outside `supportedSources`, throws a `ValidationError` before the provider call.
+Model IDs that are not in a provider's capability table are treated as image
+capable, so self-hosted and newly released models keep working.
 
 Provider packages also export `get*ModelCapabilities(modelId)` helpers that
 return the same data without constructing a `ChatModel`. Kimi exposes this data

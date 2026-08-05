@@ -16,6 +16,7 @@ import {
     getProviderMetadata,
     ValidationError,
     safeParseJsonObject,
+    validateImageInput,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
@@ -433,6 +434,12 @@ function createRequestBase(
         anthropicOptions,
         provider
     );
+    validateImageInput({
+        messages: options.messages,
+        capabilities: getAnthropicModelCapabilities(modelId),
+        modelId,
+        providerId: provider,
+    });
     const converted = convertMessages(options.messages);
     const reasoningFields = mapReasoningToRequestFields(
         modelId,

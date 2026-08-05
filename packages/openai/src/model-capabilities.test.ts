@@ -163,6 +163,32 @@ describe('getOpenAIModelCapabilities', () => {
         }
     );
 
+    it.each(['gpt-5.6-sol', 'gpt-4o', 'o3', 'o1'])(
+        'should report image input as supported for %s',
+        (modelId) => {
+            expect(getOpenAIModelCapabilities(modelId).imageInput).toEqual({
+                supported: true,
+                supportedSources: ['base64', 'url'],
+            });
+        }
+    );
+
+    it.each(['gpt-3.5-turbo', 'o1-mini', 'o3-mini'])(
+        'should report image input as unsupported for %s',
+        (modelId) => {
+            expect(getOpenAIModelCapabilities(modelId).imageInput).toEqual({
+                supported: false,
+                supportedSources: [],
+            });
+        }
+    );
+
+    it('should treat unknown models as image capable', () => {
+        expect(
+            getOpenAIModelCapabilities('custom-model').imageInput.supported
+        ).toBe(true);
+    });
+
     it('should preserve the Chat Completions parameter for dated model IDs', () => {
         const capabilities = getOpenAIModelCapabilities('gpt-5.5-2026-04-23');
 

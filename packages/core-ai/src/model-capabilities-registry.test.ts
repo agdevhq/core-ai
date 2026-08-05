@@ -7,6 +7,11 @@ import {
 } from './model-capabilities-registry.js';
 import type { ModelCapabilities } from './types.js';
 
+const IMAGE_INPUT: ModelCapabilities['imageInput'] = {
+    supported: true,
+    supportedSources: ['base64', 'url'],
+};
+
 const KNOWN_CAPABILITIES: ModelCapabilities = {
     reasoning: {
         mode: 'optional',
@@ -14,6 +19,7 @@ const KNOWN_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: true,
         supportedToolChoices: ['auto', 'none'],
     },
+    imageInput: IMAGE_INPUT,
 };
 
 const UNKNOWN_CAPABILITIES: ModelCapabilities = {
@@ -23,6 +29,7 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
+    imageInput: IMAGE_INPUT,
 };
 
 const REGISTRY = {

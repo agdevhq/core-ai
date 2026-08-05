@@ -39,11 +39,28 @@ const PRO_EFFORTS = [
 ] as const satisfies readonly ReasoningEffort[];
 const HIGH_EFFORT = ['high'] as const satisfies readonly ReasoningEffort[];
 
-function createCapabilities(
-    supportedEfforts: readonly ReasoningEffort[],
-    restrictsSamplingParams: boolean,
-    maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'] = 'max_completion_tokens'
-): OpenAIModelCapabilities {
+const IMAGE_INPUT = {
+    supported: true,
+    supportedSources: ['base64', 'url'],
+} as const satisfies ModelCapabilities['imageInput'];
+const NO_IMAGE_INPUT = {
+    supported: false,
+    supportedSources: [],
+} as const satisfies ModelCapabilities['imageInput'];
+
+type CapabilitiesConfig = {
+    supportedEfforts: readonly ReasoningEffort[];
+    restrictsSamplingParams: boolean;
+    maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
+    imageInput?: ModelCapabilities['imageInput'];
+};
+
+function createCapabilities({
+    supportedEfforts,
+    restrictsSamplingParams,
+    maxTokensParameter = 'max_completion_tokens',
+    imageInput = IMAGE_INPUT,
+}: CapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
             mode: 'optional',
@@ -51,33 +68,52 @@ function createCapabilities(
             restrictsSamplingParams,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
+        imageInput,
         chatCompletions: {
             maxTokensParameter,
         },
     };
 }
 
-const DEFAULT_CAPABILITIES = createCapabilities(STANDARD_EFFORTS, false);
-const UNKNOWN_MODEL_CAPABILITIES = createCapabilities(
-    STANDARD_EFFORTS,
-    false,
-    'max_tokens'
-);
-const SAMPLING_RESTRICTED_STANDARD_CAPABILITIES = createCapabilities(
-    STANDARD_EFFORTS,
-    true
-);
-const GPT_5_MAX_REASONING_CAPABILITIES = createCapabilities(MAX_EFFORTS, true);
-const GPT_5_MINIMAL_REASONING_CAPABILITIES = createCapabilities(
-    MINIMAL_EFFORTS,
-    true
-);
-const GPT_5_PRO_REASONING_CAPABILITIES = createCapabilities(PRO_EFFORTS, true);
-const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities(HIGH_EFFORT, true);
+const DEFAULT_CAPABILITIES = createCapabilities({
+    supportedEfforts: STANDARD_EFFORTS,
+    restrictsSamplingParams: false,
+});
+const UNKNOWN_MODEL_CAPABILITIES = createCapabilities({
+    supportedEfforts: STANDARD_EFFORTS,
+    restrictsSamplingParams: false,
+    maxTokensParameter: 'max_tokens',
+});
+const SAMPLING_RESTRICTED_STANDARD_CAPABILITIES = createCapabilities({
+    supportedEfforts: STANDARD_EFFORTS,
+    restrictsSamplingParams: true,
+});
+const GPT_5_MAX_REASONING_CAPABILITIES = createCapabilities({
+    supportedEfforts: MAX_EFFORTS,
+    restrictsSamplingParams: true,
+});
+const GPT_5_MINIMAL_REASONING_CAPABILITIES = createCapabilities({
+    supportedEfforts: MINIMAL_EFFORTS,
+    restrictsSamplingParams: true,
+});
+const GPT_5_PRO_REASONING_CAPABILITIES = createCapabilities({
+    supportedEfforts: PRO_EFFORTS,
+    restrictsSamplingParams: true,
+});
+const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
+    supportedEfforts: HIGH_EFFORT,
+    restrictsSamplingParams: true,
+});
 
-function createNoReasoningCapabilities(
-    maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter']
-): OpenAIModelCapabilities {
+type NoReasoningCapabilitiesConfig = {
+    maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
+    imageInput?: ModelCapabilities['imageInput'];
+};
+
+function createNoReasoningCapabilities({
+    maxTokensParameter,
+    imageInput = IMAGE_INPUT,
+}: NoReasoningCapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
             mode: 'unsupported',
@@ -85,21 +121,35 @@ function createNoReasoningCapabilities(
             restrictsSamplingParams: false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
+        imageInput,
         chatCompletions: {
             maxTokensParameter,
         },
     };
 }
 
-const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities('max_tokens');
-const NO_REASONING_EFFORT_CAPABILITIES = createNoReasoningCapabilities(
-    'max_completion_tokens'
-);
+const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities({
+    maxTokensParameter: 'max_tokens',
+});
+const NO_REASONING_TEXT_ONLY_CAPABILITIES = createNoReasoningCapabilities({
+    maxTokensParameter: 'max_tokens',
+    imageInput: NO_IMAGE_INPUT,
+});
+const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
+    createNoReasoningCapabilities({
+        maxTokensParameter: 'max_completion_tokens',
+        imageInput: NO_IMAGE_INPUT,
+    });
 
-const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities(
-    MAX_EFFORTS,
-    false
-);
+const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
+    supportedEfforts: MAX_EFFORTS,
+    restrictsSamplingParams: false,
+});
+const O_SERIES_TEXT_ONLY_CAPABILITIES = createCapabilities({
+    supportedEfforts: STANDARD_EFFORTS,
+    restrictsSamplingParams: false,
+    imageInput: NO_IMAGE_INPUT,
+});
 
 export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
@@ -126,17 +176,17 @@ export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-5-codex': GPT_5_MAX_REASONING_CAPABILITIES,
     'o3-pro': O_SERIES_MAX_REASONING_CAPABILITIES,
     o3: DEFAULT_CAPABILITIES,
-    'o3-mini': DEFAULT_CAPABILITIES,
+    'o3-mini': O_SERIES_TEXT_ONLY_CAPABILITIES,
     'o4-mini': DEFAULT_CAPABILITIES,
     o1: DEFAULT_CAPABILITIES,
-    'o1-mini': NO_REASONING_EFFORT_CAPABILITIES,
+    'o1-mini': NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES,
     'gpt-4.1': NO_REASONING_CAPABILITIES,
     'gpt-4.1-mini': NO_REASONING_CAPABILITIES,
     'gpt-4.1-nano': NO_REASONING_CAPABILITIES,
     'gpt-4o': NO_REASONING_CAPABILITIES,
     'gpt-4o-mini': NO_REASONING_CAPABILITIES,
     'gpt-4-turbo': NO_REASONING_CAPABILITIES,
-    'gpt-3.5-turbo': NO_REASONING_CAPABILITIES,
+    'gpt-3.5-turbo': NO_REASONING_TEXT_ONLY_CAPABILITIES,
     [UNKNOWN_MODEL]: UNKNOWN_MODEL_CAPABILITIES,
 } as const satisfies ModelCapabilitiesRegistry<OpenAIModelCapabilities>;
 

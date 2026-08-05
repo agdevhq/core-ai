@@ -42,6 +42,16 @@ describe('getGoogleModelCapabilities', () => {
         );
     });
 
+    it.each(['gemini-3-pro', 'gemini-2.5-pro', 'gemini-custom'])(
+        'should report image input as supported for %s',
+        (modelId) => {
+            expect(getGoogleModelCapabilities(modelId).imageInput).toEqual({
+                supported: true,
+                supportedSources: ['base64', 'url'],
+            });
+        }
+    );
+
     it('should return defaults for unknown models', () => {
         const capabilities = getGoogleModelCapabilities('gemini-custom');
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingBudget');

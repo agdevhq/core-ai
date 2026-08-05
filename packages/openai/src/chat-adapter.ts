@@ -16,12 +16,17 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
+    ModelCapabilities,
     StreamEvent,
     ToolCall,
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { getProviderMetadata, clampReasoningEffort } from '@core-ai/core-ai';
+import {
+    getProviderMetadata,
+    clampReasoningEffort,
+    validateImageInput,
+} from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
     toOpenAIReasoningEffort,
@@ -31,6 +36,7 @@ import type { OpenAIRequestOptions } from './shared/structured-output.js';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
+    validateReasoningConfig,
 } from './shared/utils.js';
 import {
     parseOpenAIResponsesGenerateProviderOptions,
@@ -38,6 +44,34 @@ import {
 } from './provider-options.js';
 
 export { validateOpenAIReasoningConfig };
+
+export const DEFAULT_PROVIDER_ID = 'openai';
+
+/**
+ * Wrappers around the Responses API (e.g. `@core-ai/azure-openai`) resolve
+ * capabilities from their own registry and report their own provider id in
+ * errors. Both default to first-party OpenAI when omitted.
+ */
+export type OpenAIResponsesAdapterOptions = {
+    capabilities?: ModelCapabilities;
+    providerId?: string;
+};
+
+type ResolvedAdapterOptions = {
+    capabilities: ModelCapabilities;
+    providerId: string;
+};
+
+function resolveAdapterOptions(
+    modelId: string,
+    adapterOptions: OpenAIResponsesAdapterOptions
+): ResolvedAdapterOptions {
+    return {
+        capabilities:
+            adapterOptions.capabilities ?? getOpenAIModelCapabilities(modelId),
+        providerId: adapterOptions.providerId ?? DEFAULT_PROVIDER_ID,
+    };
+}
 
 export type OpenAIReasoningMetadata = {
     encryptedContent?: string;
@@ -210,36 +244,42 @@ function convertUserContentPart(part: UserContentPart) {
 
 export function createGenerateRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    adapterOptions: OpenAIResponsesAdapterOptions = {}
 ): ResponseCreateParamsNonStreaming {
     return createRequest(
         modelId,
         options,
-        false
+        false,
+        adapterOptions
     ) as unknown as ResponseCreateParamsNonStreaming;
 }
 
 export function createStreamRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    adapterOptions: OpenAIResponsesAdapterOptions = {}
 ): ResponseCreateParamsStreaming {
     return createRequest(
         modelId,
         options,
-        true
+        true,
+        adapterOptions
     ) as unknown as ResponseCreateParamsStreaming;
 }
 
 function createRequest(
     modelId: string,
     options: OpenAIRequestOptions,
-    stream: boolean
+    stream: boolean,
+    adapterOptions: OpenAIResponsesAdapterOptions
 ) {
+    const resolved = resolveAdapterOptions(modelId, adapterOptions);
     const openaiOptions = parseOpenAIResponsesGenerateProviderOptions(
         options.providerOptions
     );
     const request: Record<string, unknown> = {
-        ...createRequestBase(modelId, options),
+        ...createRequestBase(modelId, options, resolved),
         ...(stream ? { stream: true as const } : {}),
         ...(options.structuredOutputFormat
             ? { text: { format: options.structuredOutputFormat } }
@@ -249,7 +289,7 @@ function createRequest(
 
     if (
         options.reasoning &&
-        getOpenAIModelCapabilities(modelId).reasoning.mode !== 'unsupported'
+        resolved.capabilities.reasoning.mode !== 'unsupported'
     ) {
         request.include = mergeInclude(request.include, [
             ENCRYPTED_REASONING_INCLUDE,
@@ -259,9 +299,18 @@ function createRequest(
     return request;
 }
 
-function createRequestBase(modelId: string, options: GenerateOptions) {
-    validateOpenAIReasoningConfig(modelId, options);
-    const capabilities = getOpenAIModelCapabilities(modelId);
+function createRequestBase(
+    modelId: string,
+    options: GenerateOptions,
+    { capabilities, providerId }: ResolvedAdapterOptions
+) {
+    validateReasoningConfig(modelId, options, capabilities, providerId);
+    validateImageInput({
+        messages: options.messages,
+        capabilities,
+        modelId,
+        providerId,
+    });
 
     return {
         model: modelId,
@@ -275,7 +324,7 @@ function createRequestBase(modelId: string, options: GenerateOptions) {
         ...(options.toolChoice
             ? { tool_choice: convertResponseToolChoice(options.toolChoice) }
             : {}),
-        ...mapReasoningToRequestFields(modelId, options),
+        ...mapReasoningToRequestFields(options, capabilities),
         ...mapSamplingToRequestFields(options),
     };
 }
@@ -916,14 +965,13 @@ export async function* transformStream(
 }
 
 function mapReasoningToRequestFields(
-    modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    capabilities: ModelCapabilities
 ) {
     if (!options.reasoning) {
         return {};
     }
 
-    const capabilities = getOpenAIModelCapabilities(modelId);
     if (capabilities.reasoning.mode === 'unsupported') {
         return {};
     }

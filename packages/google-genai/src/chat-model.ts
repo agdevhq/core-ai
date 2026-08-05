@@ -57,13 +57,13 @@ export function createGoogleGenAIChatModel(
     async function generateChat(
         options: GenerateOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, options);
+        const request = createGenerateRequest(modelId, options, provider);
         const response = await callGenerateContentApi(request);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const request = createGenerateRequest(modelId, options);
+        const request = createGenerateRequest(modelId, options, provider);
         return createChatStream(
             async () =>
                 transformStream(await callGenerateContentStreamApi(request)),

@@ -28,6 +28,7 @@ import {
     asObject,
     getProviderMetadata,
     safeParseJsonObject,
+    validateImageInput,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
@@ -271,6 +272,12 @@ export function createStreamRequest(
 
 function createRequestBase(modelId: string, options: GenerateOptions) {
     const capabilities = getMistralModelCapabilities(modelId);
+    validateImageInput({
+        messages: options.messages,
+        capabilities,
+        modelId,
+        providerId: 'mistral',
+    });
 
     return {
         model: modelId,

@@ -15,7 +15,20 @@ import {
     transformStream,
     validateOpenAIReasoningConfig,
 } from './chat-adapter.js';
+import { getOpenAIModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
+
+const IMAGE_MESSAGES: Message[] = [
+    {
+        role: 'user',
+        content: [
+            {
+                type: 'image',
+                source: { type: 'url', url: 'https://example.com/photo.png' },
+            },
+        ],
+    },
+];
 
 describe('convertMessages', () => {
     it('should convert system messages to developer role', () => {
@@ -373,6 +386,45 @@ describe('createGenerateRequest', () => {
             effort: 'high',
             summary: 'auto',
         });
+    });
+
+    it('should reject images for models without image input', () => {
+        expect(() =>
+            createGenerateRequest('gpt-3.5-turbo', {
+                messages: IMAGE_MESSAGES,
+            })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should accept images for models with image input', () => {
+        expect(() =>
+            createGenerateRequest('gpt-5-mini', { messages: IMAGE_MESSAGES })
+        ).not.toThrow();
+    });
+
+    it('should attribute validation errors to the wrapping provider', () => {
+        expect(() =>
+            createGenerateRequest(
+                'gpt-3.5-turbo',
+                { messages: IMAGE_MESSAGES },
+                { providerId: 'azure-openai' }
+            )
+        ).toThrowError(/^azure-openai model "gpt-3.5-turbo"/);
+    });
+
+    it('should honor capabilities supplied by a wrapping provider', () => {
+        const textOnly = {
+            ...getOpenAIModelCapabilities('gpt-4o'),
+            imageInput: { supported: false, supportedSources: [] },
+        };
+
+        expect(() =>
+            createGenerateRequest(
+                'gpt-4o',
+                { messages: IMAGE_MESSAGES },
+                { capabilities: textOnly }
+            )
+        ).toThrowError(ValidationError);
     });
 });
 
