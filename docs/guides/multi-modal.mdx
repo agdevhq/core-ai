@@ -512,12 +512,12 @@ Multi-modal support varies by provider:
 
 ## Model support
 
-Not every model accepts images. Read `model.capabilities.imageInput` to find out before you build a request:
+Not every model accepts images. Read `model.capabilities.modalities.imageInput` to find out before you build a request:
 
 ```typescript
 const model = openai.chatModel('gpt-4o-mini');
 
-console.log(model.capabilities.imageInput);
+console.log(model.capabilities.modalities.imageInput);
 // { supported: true, supportedSources: ['base64', 'url'] }
 ```
 
@@ -613,7 +613,7 @@ validateImageInput({
     text-only prompt when images are not available:
 
     ```typescript
-    const { supported, supportedSources } = model.capabilities.imageInput;
+    const { supported, supportedSources } = model.capabilities.modalities.imageInput;
 
     const content = supported && supportedSources.includes('url')
       ? [

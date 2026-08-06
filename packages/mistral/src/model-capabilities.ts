@@ -14,14 +14,14 @@ const MISTRAL_VERSION_SUFFIX_PATTERN = /-(?:latest|\d{4})$/;
 const IMAGE_INPUT = {
     supported: true,
     supportedSources: ['base64', 'url'],
-} as const satisfies ModelCapabilities['imageInput'];
+} as const satisfies ModelCapabilities['modalities']['imageInput'];
 const NO_IMAGE_INPUT = {
     supported: false,
     supportedSources: [],
-} as const satisfies ModelCapabilities['imageInput'];
+} as const satisfies ModelCapabilities['modalities']['imageInput'];
 
 function createCapabilities(
-    imageInput: ModelCapabilities['imageInput']
+    imageInput: ModelCapabilities['modalities']['imageInput']
 ): MistralModelCapabilities {
     return {
         reasoning: {
@@ -30,7 +30,7 @@ function createCapabilities(
             restrictsSamplingParams: false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
-        imageInput,
+        modalities: { imageInput },
     };
 }
 

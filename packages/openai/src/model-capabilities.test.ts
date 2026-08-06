@@ -166,7 +166,7 @@ describe('getOpenAIModelCapabilities', () => {
     it.each(['gpt-5.6-sol', 'gpt-4o', 'o3', 'o1'])(
         'should report image input as supported for %s',
         (modelId) => {
-            expect(getOpenAIModelCapabilities(modelId).imageInput).toEqual({
+            expect(getOpenAIModelCapabilities(modelId).modalities.imageInput).toEqual({
                 supported: true,
                 supportedSources: ['base64', 'url'],
             });
@@ -176,7 +176,7 @@ describe('getOpenAIModelCapabilities', () => {
     it.each(['gpt-3.5-turbo', 'o1-mini', 'o3-mini'])(
         'should report image input as unsupported for %s',
         (modelId) => {
-            expect(getOpenAIModelCapabilities(modelId).imageInput).toEqual({
+            expect(getOpenAIModelCapabilities(modelId).modalities.imageInput).toEqual({
                 supported: false,
                 supportedSources: [],
             });
@@ -185,7 +185,7 @@ describe('getOpenAIModelCapabilities', () => {
 
     it('should treat unknown models as image capable', () => {
         expect(
-            getOpenAIModelCapabilities('custom-model').imageInput.supported
+            getOpenAIModelCapabilities('custom-model').modalities.imageInput.supported
         ).toBe(true);
     });
 

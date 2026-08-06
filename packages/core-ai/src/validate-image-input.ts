@@ -14,7 +14,7 @@ export function validateImageInput({
     modelId,
     providerId,
 }: ValidateImageInputOptions): void {
-    const { supported, supportedSources } = capabilities.imageInput;
+    const { supported, supportedSources } = capabilities.modalities.imageInput;
 
     for (const message of messages) {
         if (message.role !== 'user' || typeof message.content === 'string') {

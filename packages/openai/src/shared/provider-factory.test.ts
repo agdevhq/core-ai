@@ -11,9 +11,11 @@ const CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
-    imageInput: {
-        supported: false,
-        supportedSources: [],
+    modalities: {
+        imageInput: {
+            supported: false,
+            supportedSources: [],
+        },
     },
 };
 

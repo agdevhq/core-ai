@@ -49,9 +49,11 @@ describe('streamObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
-                imageInput: {
-                    supported: true,
-                    supportedSources: ['base64', 'url'],
+                modalities: {
+                    imageInput: {
+                        supported: true,
+                        supportedSources: ['base64', 'url'],
+                    },
                 },
             },
             generate: vi.fn(async () => {
@@ -91,9 +93,11 @@ describe('streamObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
-                imageInput: {
-                    supported: true,
-                    supportedSources: ['base64', 'url'],
+                modalities: {
+                    imageInput: {
+                        supported: true,
+                        supportedSources: ['base64', 'url'],
+                    },
                 },
             },
             generate: vi.fn(async () => {

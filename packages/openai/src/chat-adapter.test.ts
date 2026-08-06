@@ -415,7 +415,9 @@ describe('createGenerateRequest', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getOpenAIModelCapabilities('gpt-4o'),
-            imageInput: { supported: false, supportedSources: [] },
+            modalities: {
+                imageInput: { supported: false, supportedSources: [] },
+            },
         };
 
         expect(() =>

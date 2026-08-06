@@ -104,7 +104,7 @@ const capabilities = model.capabilities;
 const otherCapabilities = getMistralModelCapabilities('mistral-large-2512');
 ```
 
-`imageInput` is resolved per model. Vision families such as `mistral-large`,
+`modalities.imageInput` is resolved per model. Vision families such as `mistral-large`,
 `mistral-medium`, `mistral-small`, `magistral-*`, `ministral-*`, and `pixtral-*`
 accept `base64` and `url` sources; text-only families such as `codestral`,
 `devstral-*`, `open-mistral-*`, and `open-mixtral-*` reject images.

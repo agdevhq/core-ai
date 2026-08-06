@@ -505,7 +505,9 @@ describe('reasoning support', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getGoogleModelCapabilities('gemini-2.5-pro'),
-            imageInput: { supported: false, supportedSources: [] },
+            modalities: {
+                imageInput: { supported: false, supportedSources: [] },
+            },
         };
         const messages: Message[] = [
             {

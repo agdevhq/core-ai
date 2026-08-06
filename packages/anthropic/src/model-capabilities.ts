@@ -26,7 +26,7 @@ const MAX_EFFORTS = [
 const IMAGE_INPUT = {
     supported: true,
     supportedSources: ['base64', 'url'],
-} as const satisfies ModelCapabilities['imageInput'];
+} as const satisfies ModelCapabilities['modalities']['imageInput'];
 
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[]
@@ -38,7 +38,7 @@ function createCapabilities(
             restrictsSamplingParams: true,
             supportedToolChoices: ['auto', 'none'],
         },
-        imageInput: IMAGE_INPUT,
+        modalities: { imageInput: IMAGE_INPUT },
     };
 }
 

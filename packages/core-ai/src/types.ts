@@ -147,10 +147,12 @@ export type ModelCapabilities = {
         restrictsSamplingParams: boolean;
         supportedToolChoices: readonly ToolChoiceMode[];
     };
-    imageInput: {
-        supported: boolean;
-        /** Empty when `supported` is false. */
-        supportedSources: readonly ImageSourceType[];
+    modalities: {
+        imageInput: {
+            supported: boolean;
+            /** Empty when `supported` is false. */
+            supportedSources: readonly ImageSourceType[];
+        };
     };
 };
 

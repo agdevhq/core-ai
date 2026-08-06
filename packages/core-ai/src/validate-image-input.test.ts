@@ -12,17 +12,23 @@ const REASONING: ModelCapabilities['reasoning'] = {
 
 const SUPPORTED: ModelCapabilities = {
     reasoning: REASONING,
-    imageInput: { supported: true, supportedSources: ['base64', 'url'] },
+    modalities: {
+        imageInput: { supported: true, supportedSources: ['base64', 'url'] },
+    },
 };
 
 const BASE64_ONLY: ModelCapabilities = {
     reasoning: REASONING,
-    imageInput: { supported: true, supportedSources: ['base64'] },
+    modalities: {
+        imageInput: { supported: true, supportedSources: ['base64'] },
+    },
 };
 
 const UNSUPPORTED: ModelCapabilities = {
     reasoning: REASONING,
-    imageInput: { supported: false, supportedSources: [] },
+    modalities: {
+        imageInput: { supported: false, supportedSources: [] },
+    },
 };
 
 const URL_IMAGE_MESSAGES: Message[] = [

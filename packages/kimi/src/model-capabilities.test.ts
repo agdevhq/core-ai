@@ -17,7 +17,7 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'auto',
             'none',
         ]);
-        expect(capabilities.imageInput).toEqual({
+        expect(capabilities.modalities.imageInput).toEqual({
             supported: false,
             supportedSources: [],
         });
@@ -34,6 +34,6 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'required',
             'tool',
         ]);
-        expect(capabilities.imageInput.supported).toBe(true);
+        expect(capabilities.modalities.imageInput.supported).toBe(true);
     });
 });

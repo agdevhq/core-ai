@@ -258,7 +258,9 @@ describe('image input', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getMistralModelCapabilities('pixtral-12b-2409'),
-            imageInput: { supported: false, supportedSources: [] },
+            modalities: {
+                imageInput: { supported: false, supportedSources: [] },
+            },
         };
 
         expect(() =>

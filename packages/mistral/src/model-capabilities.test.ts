@@ -46,7 +46,7 @@ describe('getMistralModelCapabilities', () => {
         'ministral-8b-latest',
         'ministral-14b-2512',
     ])('should report image input as supported for %s', (modelId) => {
-        expect(getMistralModelCapabilities(modelId).imageInput).toEqual({
+        expect(getMistralModelCapabilities(modelId).modalities.imageInput).toEqual({
             supported: true,
             supportedSources: ['base64', 'url'],
         });
@@ -60,7 +60,7 @@ describe('getMistralModelCapabilities', () => {
         'open-mistral-nemo',
         'open-mixtral-8x22b',
     ])('should report image input as unsupported for %s', (modelId) => {
-        expect(getMistralModelCapabilities(modelId).imageInput).toEqual({
+        expect(getMistralModelCapabilities(modelId).modalities.imageInput).toEqual({
             supported: false,
             supportedSources: [],
         });
@@ -81,25 +81,25 @@ describe('getMistralModelCapabilities', () => {
         'should report image input as unsupported for the pre-vision %s',
         (modelId) => {
             expect(
-                getMistralModelCapabilities(modelId).imageInput.supported
+                getMistralModelCapabilities(modelId).modalities.imageInput.supported
             ).toBe(false);
         }
     );
 
     it('should prefer an exact version over the family entry', () => {
         expect(
-            getMistralModelCapabilities('ministral-8b-2410').imageInput
+            getMistralModelCapabilities('ministral-8b-2410').modalities.imageInput
                 .supported
         ).toBe(false);
         expect(
-            getMistralModelCapabilities('ministral-8b-2512').imageInput
+            getMistralModelCapabilities('ministral-8b-2512').modalities.imageInput
                 .supported
         ).toBe(true);
     });
 
     it('should treat unknown models as image capable', () => {
         expect(
-            getMistralModelCapabilities('self-hosted-model').imageInput
+            getMistralModelCapabilities('self-hosted-model').modalities.imageInput
                 .supported
         ).toBe(true);
     });

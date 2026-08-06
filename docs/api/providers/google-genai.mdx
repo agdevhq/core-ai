@@ -243,7 +243,7 @@ const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 Sampling parameters and all unified tool-choice modes remain supported while
 reasoning is enabled.
 
-`imageInput.supported` is `true` for every Gemini model. Both `base64` and `url`
+`modalities.imageInput.supported` is `true` for every Gemini model. Both `base64` and `url`
 sources are accepted. A URL maps to `fileData.fileUri`, which accepts publicly
 readable HTTP(S) URLs, pre-signed URLs, `gs://` objects, and Files API URIs. The
 URL is fetched by Google rather than by this library, so the content must be

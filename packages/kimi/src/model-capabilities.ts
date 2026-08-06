@@ -11,9 +11,11 @@ const UNKNOWN_MODEL_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
-    imageInput: {
-        supported: true,
-        supportedSources: ['base64', 'url'],
+    modalities: {
+        imageInput: {
+            supported: true,
+            supportedSources: ['base64', 'url'],
+        },
     },
 };
 
@@ -24,9 +26,11 @@ const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: true,
         supportedToolChoices: ['auto', 'none'],
     },
-    imageInput: {
-        supported: false,
-        supportedSources: [],
+    modalities: {
+        imageInput: {
+            supported: false,
+            supportedSources: [],
+        },
     },
 };
 

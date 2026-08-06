@@ -71,7 +71,7 @@ describe('getAnthropicModelCapabilities', () => {
     it.each(['claude-opus-5', 'claude-haiku-4-5', 'claude-future-5'])(
         'should report image input as supported for %s',
         (modelId) => {
-            expect(getAnthropicModelCapabilities(modelId).imageInput).toEqual({
+            expect(getAnthropicModelCapabilities(modelId).modalities.imageInput).toEqual({
                 supported: true,
                 supportedSources: ['base64', 'url'],
             });

@@ -298,7 +298,9 @@ describe('image input', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getAnthropicModelCapabilities('claude-sonnet-4-6'),
-            imageInput: { supported: false, supportedSources: [] },
+            modalities: {
+                imageInput: { supported: false, supportedSources: [] },
+            },
         };
 
         expect(() =>

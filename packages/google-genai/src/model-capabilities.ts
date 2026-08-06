@@ -25,7 +25,7 @@ const ALL_EFFORTS = [
 const IMAGE_INPUT = {
     supported: true,
     supportedSources: ['base64', 'url'],
-} as const satisfies ModelCapabilities['imageInput'];
+} as const satisfies ModelCapabilities['modalities']['imageInput'];
 
 function createCapabilities(config: {
     thinkingParam: GoogleModelCapabilities['reasoning']['thinkingParam'];
@@ -39,7 +39,7 @@ function createCapabilities(config: {
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
         },
-        imageInput: IMAGE_INPUT,
+        modalities: { imageInput: IMAGE_INPUT },
     };
 }
 
