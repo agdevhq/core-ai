@@ -18,6 +18,7 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
+    ModelCapabilities,
     StreamEvent,
     ToolCall,
     ToolChoice,
@@ -241,15 +242,25 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
     };
 }
 
+/**
+ * Capabilities are resolved once on the chat model. When omitted, the adapter
+ * falls back to the Mistral registry.
+ */
+export type MistralAdapterOptions = {
+    capabilities?: ModelCapabilities;
+    providerId?: string;
+};
+
 export function createGenerateRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    adapterOptions: MistralAdapterOptions = {}
 ): ChatCompletionRequest {
     const mistralOptions = parseMistralGenerateProviderOptions(
         options.providerOptions
     );
     const baseRequest: ChatCompletionRequest = {
-        ...createRequestBase(modelId, options),
+        ...createRequestBase(modelId, options, adapterOptions),
     };
 
     return mapMistralProviderOptionsToRequest(baseRequest, mistralOptions);
@@ -257,26 +268,33 @@ export function createGenerateRequest(
 
 export function createStreamRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    adapterOptions: MistralAdapterOptions = {}
 ): ChatCompletionStreamRequest {
     const mistralOptions = parseMistralGenerateProviderOptions(
         options.providerOptions
     );
     const baseRequest: ChatCompletionStreamRequest = {
-        ...createRequestBase(modelId, options),
+        ...createRequestBase(modelId, options, adapterOptions),
         stream: true,
     };
 
     return mapMistralProviderOptionsToRequest(baseRequest, mistralOptions);
 }
 
-function createRequestBase(modelId: string, options: GenerateOptions) {
-    const capabilities = getMistralModelCapabilities(modelId);
+function createRequestBase(
+    modelId: string,
+    options: GenerateOptions,
+    adapterOptions: MistralAdapterOptions
+) {
+    const capabilities =
+        adapterOptions.capabilities ?? getMistralModelCapabilities(modelId);
+    const providerId = adapterOptions.providerId ?? 'mistral';
     validateImageInput({
         messages: options.messages,
         capabilities,
         modelId,
-        providerId: 'mistral',
+        providerId,
     });
 
     return {

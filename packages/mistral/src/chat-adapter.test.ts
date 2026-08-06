@@ -21,6 +21,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { getMistralModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
@@ -252,6 +253,19 @@ describe('image input', () => {
         expect(() =>
             createGenerateRequest('pixtral-12b-2409', { messages })
         ).not.toThrow();
+    });
+
+    it('should honor capabilities supplied by a wrapping provider', () => {
+        const textOnly = {
+            ...getMistralModelCapabilities('pixtral-12b-2409'),
+            imageInput: { supported: false, supportedSources: [] },
+        };
+
+        expect(() =>
+            createGenerateRequest('pixtral-12b-2409', { messages }, {
+                capabilities: textOnly,
+            })
+        ).toThrowError(ValidationError);
     });
 });
 

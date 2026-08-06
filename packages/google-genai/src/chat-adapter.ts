@@ -33,6 +33,7 @@ import {
     getGoogleModelCapabilities,
     toGoogleThinkingBudget,
     toGoogleThinkingLevel,
+    type GoogleModelCapabilities,
 } from './model-capabilities.js';
 import { asObject } from './object-utils.js';
 import {
@@ -316,17 +317,28 @@ function inferMimeTypeFromUrl(url: string): string {
     return 'application/octet-stream';
 }
 
+/**
+ * Wrappers (e.g. `@core-ai/google-vertex`) resolve capabilities once on the
+ * chat model. When omitted, the adapter falls back to the Google registry.
+ */
+export type GoogleAdapterOptions = {
+    capabilities?: GoogleModelCapabilities;
+};
+
 export function createGenerateRequest(
     modelId: string,
     options: GenerateOptions,
-    provider = DEFAULT_PROVIDER_ID
+    provider = DEFAULT_PROVIDER_ID,
+    adapterOptions: GoogleAdapterOptions = {}
 ): GenerateContentParameters {
     const googleOptions = parseGoogleGenerateProviderOptions(
         options.providerOptions
     );
+    const capabilities =
+        adapterOptions.capabilities ?? getGoogleModelCapabilities(modelId);
     validateImageInput({
         messages: options.messages,
-        capabilities: getGoogleModelCapabilities(modelId),
+        capabilities,
         modelId,
         providerId: provider,
     });
@@ -342,7 +354,7 @@ export function createGenerateRequest(
             ? { toolConfig: convertToolChoice(options.toolChoice) }
             : {}),
         ...mapSamplingToConfig(options),
-        ...mapReasoningToConfig(modelId, options),
+        ...mapReasoningToConfig(options, capabilities),
         ...mapGoogleProviderOptionsToConfig(googleOptions),
         ...(options.signal ? { abortSignal: options.signal } : {}),
     };
@@ -602,14 +614,13 @@ export async function* transformStream(
 }
 
 function mapReasoningToConfig(
-    modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    capabilities: GoogleModelCapabilities
 ): Record<string, unknown> {
     if (!options.reasoning) {
         return {};
     }
 
-    const capabilities = getGoogleModelCapabilities(modelId);
     if (capabilities.reasoning.thinkingParam === 'thinkingLevel') {
         return {
             thinkingConfig: {

@@ -39,6 +39,8 @@ export function createMistralChatModel(
     modelId: string
 ): ChatModel {
     const provider = 'mistral';
+    const capabilities = getMistralModelCapabilities(modelId);
+    const adapterOptions = { capabilities, providerId: provider };
 
     async function callMistralChatApi<TResponse>(
         call: () => Promise<TResponse>
@@ -53,7 +55,7 @@ export function createMistralChatModel(
     async function generateChat(
         options: GenerateOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, options);
+        const request = createGenerateRequest(modelId, options, adapterOptions);
         const response = await callMistralChatApi(() =>
             client.chat.complete(request, { signal: options.signal })
         );
@@ -61,7 +63,7 @@ export function createMistralChatModel(
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const request = createStreamRequest(modelId, options);
+        const request = createStreamRequest(modelId, options, adapterOptions);
         return createChatStream(
             async () =>
                 transformStream(
@@ -78,7 +80,7 @@ export function createMistralChatModel(
     return {
         provider,
         modelId,
-        capabilities: getMistralModelCapabilities(modelId),
+        capabilities,
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

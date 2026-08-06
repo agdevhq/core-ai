@@ -28,6 +28,7 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
+    ModelCapabilities,
     StreamEvent,
     ToolSet,
     UserContentPart,
@@ -373,12 +374,21 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
+/**
+ * Wrappers (e.g. `@core-ai/anthropic-vertex`) resolve capabilities once on the
+ * chat model. When omitted, the adapter falls back to the Anthropic registry.
+ */
+export type AnthropicAdapterOptions = {
+    capabilities?: ModelCapabilities;
+};
+
 export function createGenerateRequest(
     modelId: string,
     defaultMaxTokens: number,
     options: GenerateOptions,
     provider = DEFAULT_PROVIDER_ID,
-    useStrictToolSchemas = true
+    useStrictToolSchemas = true,
+    adapterOptions: AnthropicAdapterOptions = {}
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
@@ -389,7 +399,8 @@ export function createGenerateRequest(
         options,
         anthropicOptions,
         provider,
-        useStrictToolSchemas
+        useStrictToolSchemas,
+        adapterOptions
     );
     return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
 }
@@ -399,7 +410,8 @@ export function createStreamRequest(
     defaultMaxTokens: number,
     options: GenerateOptions,
     provider = DEFAULT_PROVIDER_ID,
-    useStrictToolSchemas = true
+    useStrictToolSchemas = true,
+    adapterOptions: AnthropicAdapterOptions = {}
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
@@ -411,7 +423,8 @@ export function createStreamRequest(
             options,
             anthropicOptions,
             provider,
-            useStrictToolSchemas
+            useStrictToolSchemas,
+            adapterOptions
         ),
         stream: true as const,
     };
@@ -424,19 +437,23 @@ function createRequestBase(
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
     provider: string,
-    useStrictToolSchemas: boolean
+    useStrictToolSchemas: boolean,
+    adapterOptions: AnthropicAdapterOptions
 ) {
     const maxTokens = options.maxTokens ?? defaultMaxTokens;
+    const capabilities =
+        adapterOptions.capabilities ?? getAnthropicModelCapabilities(modelId);
     validateAnthropicReasoningConfig(
         modelId,
         maxTokens,
         options,
         anthropicOptions,
-        provider
+        provider,
+        capabilities
     );
     validateImageInput({
         messages: options.messages,
-        capabilities: getAnthropicModelCapabilities(modelId),
+        capabilities,
         modelId,
         providerId: provider,
     });
@@ -444,7 +461,8 @@ function createRequestBase(
     const reasoningFields = mapReasoningToRequestFields(
         modelId,
         maxTokens,
-        options
+        options,
+        capabilities
     );
 
     return {
@@ -479,7 +497,8 @@ function validateAnthropicReasoningConfig(
     maxTokens: number,
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
-    provider: string
+    provider: string,
+    capabilities: ModelCapabilities
 ): void {
     const alwaysRestrictsSampling =
         restrictsAnthropicSamplingParamsAlways(modelId);
@@ -525,7 +544,6 @@ function validateAnthropicReasoningConfig(
         );
     }
 
-    const capabilities = getAnthropicModelCapabilities(modelId);
     if (
         options.temperature !== undefined &&
         (!alwaysRestrictsSampling || options.temperature !== 1)
@@ -575,14 +593,14 @@ function validateAnthropicReasoningConfig(
 function mapReasoningToRequestFields(
     modelId: string,
     maxTokens: number,
-    options: GenerateOptions
+    options: GenerateOptions,
+    capabilities: ModelCapabilities
 ) {
     if (!options.reasoning) {
         return {};
     }
 
     const thinkingMode = getAnthropicThinkingMode(modelId);
-    const capabilities = getAnthropicModelCapabilities(modelId);
     const effort = clampReasoningEffort(
         options.reasoning.effort,
         capabilities.reasoning.supportedEfforts

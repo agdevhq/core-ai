@@ -34,6 +34,9 @@ export function createGoogleGenAIChatModel(
     modelId: string,
     provider = 'google'
 ): ChatModel {
+    const capabilities = getGoogleModelCapabilities(modelId);
+    const adapterOptions = { capabilities };
+
     async function callGenerateContentApi(
         request: unknown
     ): Promise<GenerateContentResponse> {
@@ -57,13 +60,23 @@ export function createGoogleGenAIChatModel(
     async function generateChat(
         options: GenerateOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, options, provider);
+        const request = createGenerateRequest(
+            modelId,
+            options,
+            provider,
+            adapterOptions
+        );
         const response = await callGenerateContentApi(request);
         return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
-        const request = createGenerateRequest(modelId, options, provider);
+        const request = createGenerateRequest(
+            modelId,
+            options,
+            provider,
+            adapterOptions
+        );
         return createChatStream(
             async () =>
                 transformStream(await callGenerateContentStreamApi(request)),
@@ -74,7 +87,7 @@ export function createGoogleGenAIChatModel(
     return {
         provider,
         modelId,
-        capabilities: getGoogleModelCapabilities(modelId),
+        capabilities,
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(

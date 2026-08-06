@@ -15,8 +15,10 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { getGoogleModelCapabilities } from './model-capabilities.js';
 import {
     defineTool,
+    ValidationError,
     type GenerateOptions,
     type Message,
     type ToolSet,
@@ -498,6 +500,33 @@ describe('reasoning support', () => {
                 providerOptions: invalidProviderOptions,
             })
         ).toThrowError(/expected number/);
+    });
+
+    it('should honor capabilities supplied by a wrapping provider', () => {
+        const textOnly = {
+            ...getGoogleModelCapabilities('gemini-2.5-pro'),
+            imageInput: { supported: false, supportedSources: [] },
+        };
+        const messages: Message[] = [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'image',
+                        source: {
+                            type: 'url',
+                            url: 'https://example.com/photo.jpg',
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', { messages }, 'google', {
+                capabilities: textOnly,
+            })
+        ).toThrowError(ValidationError);
     });
 
     it('should reject null google provider options', () => {
