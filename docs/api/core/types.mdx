@@ -244,8 +244,12 @@ the exact accepted values.
 `imageInput` describes whether the model accepts [image parts](/guides/multi-modal).
 Sending an image to a model where `supported` is false, or using a source type
 outside `supportedSources`, throws a `ValidationError` before the provider call.
-Model IDs that are not in a provider's capability table are treated as image
-capable, so self-hosted and newly released models keep working.
+Unrecognized model IDs are treated as image capable on purpose (fail-open), so
+self-hosted endpoints and newly released models are never blocked locally.
+Typos and custom deployment names that do not match a registry key therefore
+report `imageInput.supported: true` and still rely on the provider to reject
+unsupported requests. For Azure and other wrappers, pass a known registry model
+ID when you need accurate capability data.
 
 Provider packages also export `get*ModelCapabilities(modelId)` helpers that
 return the same data without constructing a `ChatModel`. Kimi exposes this data

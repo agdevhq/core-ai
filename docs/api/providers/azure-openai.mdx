@@ -153,13 +153,14 @@ const model = azure.chatModel('gpt-5-mini');
 const capabilities = model.capabilities;
 ```
 
-Capability lookup uses the model ID passed to `chatModel()`. If that value is a
-custom Azure deployment name rather than an OpenAI model ID, the provider
-cannot infer the underlying model family and returns the generic OpenAI
-fallback. In that case, treat the capability data as a default rather than an
-exact description of the deployment. The fallback reports
-`imageInput.supported` as `true`, so images are forwarded to the deployment
-rather than rejected locally.
+Capability lookup uses the model ID passed to `chatModel()`. Prefer a known
+OpenAI model ID when that matches your Azure deployment name, so reasoning and
+image-input flags reflect the underlying model. If the value is a custom
+deployment name that is not in the OpenAI registry, the provider cannot infer
+the model family and returns the generic OpenAI fallback. Treat that data as a
+default rather than an exact description of the deployment. The fallback
+reports `imageInput.supported` as `true`, so images are forwarded to the
+deployment rather than rejected locally.
 
 For recognized OpenAI model IDs, see
 [OpenAI model capabilities](/api/providers/openai#model-capabilities) for the
