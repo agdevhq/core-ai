@@ -102,10 +102,11 @@ export function getMistralModelCapabilities(
     const registry: ModelCapabilitiesRegistry<MistralModelCapabilities> =
         MISTRAL_MODEL_CAPABILITIES;
 
+    // Exact ID first (versioned text-only pins), then family / UNKNOWN_MODEL.
+    // FAMILY_CAPABILITIES always includes [UNKNOWN_MODEL], so this is defined.
     return (
         registry[modelId] ??
-        getRegisteredModelCapabilities(registry, normalizeModelId(modelId)) ??
-        VISION_CAPABILITIES
+        getRegisteredModelCapabilities(registry, normalizeModelId(modelId))!
     );
 }
 
