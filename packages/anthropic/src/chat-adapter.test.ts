@@ -6,6 +6,7 @@ import {
     type GenerateOptions,
     type Message,
     type ToolSet,
+    TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import type {
     Message as AnthropicMessage,
@@ -22,6 +23,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { getAnthropicModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
@@ -275,6 +277,41 @@ describe('convertToolChoice', () => {
             type: 'tool',
             name: 'search',
         });
+    });
+});
+
+describe('image input', () => {
+    const messages: Message[] = [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'image',
+                    source: {
+                        type: 'url',
+                        url: 'https://example.com/photo.jpg',
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('should honor capabilities supplied by a wrapping provider', () => {
+        const textOnly = {
+            ...getAnthropicModelCapabilities('claude-sonnet-4-6'),
+            modalities: TEXT_ONLY_MODALITIES,
+        };
+
+        expect(() =>
+            createGenerateRequest(
+                'claude-sonnet-4-6',
+                4096,
+                { messages },
+                'anthropic',
+                true,
+                { capabilities: textOnly }
+            )
+        ).toThrowError(ValidationError);
     });
 });
 

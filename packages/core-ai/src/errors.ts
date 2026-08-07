@@ -17,6 +17,44 @@ export class ValidationError extends CoreAIError {
     }
 }
 
+export type UnsupportedInputModalityErrorOptions = {
+    modelId: string;
+    providerId: string;
+    requestedModalities: readonly string[];
+    supportedModalities: readonly string[];
+    unsupportedModalities: readonly string[];
+};
+
+/**
+ * Thrown when user messages include content parts the model does not accept.
+ * Extends {@link ValidationError} so existing `instanceof ValidationError`
+ * checks still match.
+ */
+export class UnsupportedInputModalityError extends ValidationError {
+    public readonly requestedModalities: readonly string[];
+    public readonly supportedModalities: readonly string[];
+    public readonly unsupportedModalities: readonly string[];
+
+    constructor(options: UnsupportedInputModalityErrorOptions) {
+        const unsupported = options.unsupportedModalities.join(', ');
+        const supported = options.supportedModalities.join(', ') || '(none)';
+        const modalityWord =
+            options.unsupportedModalities.length === 1
+                ? 'modality'
+                : 'modalities';
+
+        super(
+            `${options.providerId} model "${options.modelId}" does not support input ${modalityWord}: ${unsupported}. Supported: ${supported}`,
+            undefined,
+            options.providerId
+        );
+        this.name = 'UnsupportedInputModalityError';
+        this.requestedModalities = options.requestedModalities;
+        this.supportedModalities = options.supportedModalities;
+        this.unsupportedModalities = options.unsupportedModalities;
+    }
+}
+
 export class AbortedError extends CoreAIError {
     constructor(cause?: unknown, provider?: string) {
         super('operation aborted', cause, provider);

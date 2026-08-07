@@ -265,6 +265,14 @@ OpenAI extends the shared capability shape with
 `chatCompletions.maxTokensParameter`. The Chat Completions adapter uses this to
 select `max_tokens` or `max_completion_tokens`; the Responses API is unaffected.
 
+### Image input
+
+`modalities.input` is `['text', 'image', 'file']` for the GPT-4 and GPT-5
+families, `o1`, `o3`, `o3-pro`, and `o4-mini` (image sources: `base64` and
+`url`). It is `['text']` for `gpt-3.5-turbo`, `o1-mini`, and `o3-mini`. Model
+IDs outside the registry are treated as multimodal capable.
+`modalities.output` is `['text']` for all chat models.
+
 Reasoning support depends on the selected model family:
 
 | Models                                                                                                           | Supported effort levels            |

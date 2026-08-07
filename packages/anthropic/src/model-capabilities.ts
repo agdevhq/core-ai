@@ -1,4 +1,5 @@
 import {
+    MULTIMODAL_INPUT_MODALITIES,
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
@@ -33,6 +34,7 @@ function createCapabilities(
             restrictsSamplingParams: true,
             supportedToolChoices: ['auto', 'none'],
         },
+        modalities: MULTIMODAL_INPUT_MODALITIES,
     };
 }
 

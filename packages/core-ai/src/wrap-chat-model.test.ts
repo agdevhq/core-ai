@@ -5,6 +5,7 @@ import { resultToMessage } from './result-to-message.ts';
 import { createChatStream } from './stream.ts';
 import { createObjectStream } from './stream-object.ts';
 import { wrapChatModel } from './wrap-chat-model.ts';
+import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
 import type {
     ChatModel,
     ChatStream,
@@ -128,6 +129,7 @@ function createMockChatModel(): {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: generateMock,
             stream: streamMock,

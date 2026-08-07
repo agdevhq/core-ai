@@ -18,6 +18,8 @@ export type {
     ToolDefinition,
     ToolSet,
     ToolChoice,
+    ChatInputModality,
+    ChatOutputModality,
     ModelCapabilities,
     ChatModel,
     ChatModelMiddleware,
@@ -55,10 +57,12 @@ export type {
     RateLimitErrorOptions,
     ModelOverloadedErrorOptions,
     ServiceUnavailableErrorOptions,
+    UnsupportedInputModalityErrorOptions,
 } from './errors.ts';
 export {
     CoreAIError,
     ValidationError,
+    UnsupportedInputModalityError,
     AbortedError,
     StreamAbortedError,
     ProviderError,
@@ -86,7 +90,15 @@ export {
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';
-export { clampReasoningEffort } from './model-capabilities.ts';
+export {
+    clampReasoningEffort,
+    MULTIMODAL_INPUT_MODALITIES,
+    supportsInputModality,
+    supportsOutputModality,
+    TEXT_ONLY_MODALITIES,
+} from './model-capabilities.ts';
+export { validateInputModalities } from './validate-input-modalities.ts';
+export type { ValidateInputModalitiesOptions } from './validate-input-modalities.ts';
 export {
     getRegisteredModelCapabilities,
     UNKNOWN_MODEL,

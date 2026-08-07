@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ValidationError } from './errors.ts';
 import { generateObject } from './generate-object.ts';
 import type { ChatModel } from './types.ts';
+import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
 
 describe('generateObject', () => {
     it('should delegate to model.generateObject', async () => {
@@ -34,6 +35,7 @@ describe('generateObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
@@ -75,6 +77,7 @@ describe('generateObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');

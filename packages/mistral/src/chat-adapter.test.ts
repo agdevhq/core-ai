@@ -6,9 +6,11 @@ import type {
 } from '@mistralai/mistralai/models/components';
 import {
     defineTool,
+    ValidationError,
     type GenerateOptions,
     type Message,
     type ToolSet,
+    TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import {
     createGenerateRequest,
@@ -20,6 +22,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
+import { getMistralModelCapabilities } from './model-capabilities.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
@@ -225,6 +228,48 @@ describe('structured output helpers', () => {
     });
 });
 
+describe('image input', () => {
+    const messages: Message[] = [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'image',
+                    source: {
+                        type: 'url',
+                        url: 'https://example.com/photo.png',
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('should reject images for text-only models', () => {
+        expect(() =>
+            createGenerateRequest('codestral-latest', { messages })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should accept images for vision models', () => {
+        expect(() =>
+            createGenerateRequest('pixtral-12b-2409', { messages })
+        ).not.toThrow();
+    });
+
+    it('should honor capabilities supplied by a wrapping provider', () => {
+        const textOnly = {
+            ...getMistralModelCapabilities('pixtral-12b-2409'),
+            modalities: TEXT_ONLY_MODALITIES,
+        };
+
+        expect(() =>
+            createGenerateRequest('pixtral-12b-2409', { messages }, {
+                capabilities: textOnly,
+            })
+        ).toThrowError(ValidationError);
+    });
+});
+
 describe('reasoning support', () => {
     it('should replay native mistral reasoning as a thinking chunk', () => {
         const messages: Message[] = [
@@ -356,7 +401,10 @@ describe('reasoning support', () => {
             {
                 role: 'assistant',
                 content: [
-                    { type: 'text', text: '<thinking>thoughts only</thinking>' },
+                    {
+                        type: 'text',
+                        text: '<thinking>thoughts only</thinking>',
+                    },
                 ],
             },
             { role: 'user', content: 'Continue' },

@@ -82,7 +82,9 @@ Plain OpenAI model IDs can use the OpenAI capability registry. Routed IDs such
 as `eu/gpt-5-mini` and IDs for other backend providers do not match that
 registry, so they receive generic OpenAI-compatible fallback capabilities.
 For those IDs, treat `model.capabilities` as defaults rather than an exact
-description of the backend model.
+description of the backend model. In particular, the fallback reports
+`'image'` and `'file'` in `modalities.input`, so multimodal requests are
+forwarded to the backend rather than rejected locally.
 
 ## Examples
 

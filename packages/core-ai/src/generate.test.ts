@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ValidationError } from './errors.ts';
 import { generate } from './generate.ts';
 import type { ChatModel, GenerateResult } from './types.ts';
+import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
 
 function createMockChatModel(result: GenerateResult): ChatModel {
     return {
@@ -14,6 +15,7 @@ function createMockChatModel(result: GenerateResult): ChatModel {
                 restrictsSamplingParams: false,
                 supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             },
+            modalities: MULTIMODAL_INPUT_MODALITIES,
         },
         generate: vi.fn(async () => result),
         stream: vi.fn(async () => {

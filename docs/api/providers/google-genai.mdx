@@ -243,6 +243,15 @@ const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 Sampling parameters and all unified tool-choice modes remain supported while
 reasoning is enabled.
 
+`modalities.input` is `['text', 'image', 'file']` for every Gemini chat model.
+Image sources accept both `base64` and `url`. A URL maps to `fileData.fileUri`,
+which accepts publicly readable HTTP(S) URLs, pre-signed URLs, `gs://` objects,
+and Files API URIs. The URL is fetched by Google rather than by this library,
+so the content must be reachable from Google's side. File parts map to
+`inlineData` with the provided MIME type. `modalities.output` is `['text']`
+for chat models; native image generation uses `imageModel()`. Audio and video
+are not advertised until dedicated user content parts exist.
+
 ### Thinking modes
 
 Gemini models use either thinking levels or token budgets. Models whose

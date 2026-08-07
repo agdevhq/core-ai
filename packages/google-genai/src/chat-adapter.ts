@@ -24,11 +24,16 @@ import type {
     ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { getProviderMetadata, zodSchemaToJsonSchema } from '@core-ai/core-ai';
+import {
+    getProviderMetadata,
+    validateInputModalities,
+    zodSchemaToJsonSchema,
+} from '@core-ai/core-ai';
 import {
     getGoogleModelCapabilities,
     toGoogleThinkingBudget,
     toGoogleThinkingLevel,
+    type GoogleModelCapabilities,
 } from './model-capabilities.js';
 import { asObject } from './object-utils.js';
 import {
@@ -39,6 +44,13 @@ import {
 export type GoogleReasoningMetadata = {
     thoughtSignature?: string;
 };
+
+/**
+ * Default provider id attributed to validation errors when no provider id is
+ * given. Callers wrapping the native client (e.g. `@core-ai/google-vertex`)
+ * pass their own provider id instead.
+ */
+export const DEFAULT_PROVIDER_ID = 'google';
 
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME = 'core_ai_generate_object';
 export const DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION =
@@ -305,13 +317,31 @@ function inferMimeTypeFromUrl(url: string): string {
     return 'application/octet-stream';
 }
 
+/**
+ * Wrappers (e.g. `@core-ai/google-vertex`) resolve capabilities once on the
+ * chat model. When omitted, the adapter falls back to the Google registry.
+ */
+export type GoogleAdapterOptions = {
+    capabilities?: GoogleModelCapabilities;
+};
+
 export function createGenerateRequest(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    provider = DEFAULT_PROVIDER_ID,
+    adapterOptions: GoogleAdapterOptions = {}
 ): GenerateContentParameters {
     const googleOptions = parseGoogleGenerateProviderOptions(
         options.providerOptions
     );
+    const capabilities =
+        adapterOptions.capabilities ?? getGoogleModelCapabilities(modelId);
+    validateInputModalities({
+        messages: options.messages,
+        capabilities,
+        modelId,
+        providerId: provider,
+    });
     const convertedMessages = convertMessages(options.messages);
     const requestConfig = {
         ...(convertedMessages.systemInstruction
@@ -324,7 +354,7 @@ export function createGenerateRequest(
             ? { toolConfig: convertToolChoice(options.toolChoice) }
             : {}),
         ...mapSamplingToConfig(options),
-        ...mapReasoningToConfig(modelId, options),
+        ...mapReasoningToConfig(options, capabilities),
         ...mapGoogleProviderOptionsToConfig(googleOptions),
         ...(options.signal ? { abortSignal: options.signal } : {}),
     };
@@ -584,14 +614,13 @@ export async function* transformStream(
 }
 
 function mapReasoningToConfig(
-    modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    capabilities: GoogleModelCapabilities
 ): Record<string, unknown> {
     if (!options.reasoning) {
         return {};
     }
 
-    const capabilities = getGoogleModelCapabilities(modelId);
     if (capabilities.reasoning.thinkingParam === 'thinkingLevel') {
         return {
             thinkingConfig: {

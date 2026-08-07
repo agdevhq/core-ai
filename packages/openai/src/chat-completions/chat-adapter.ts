@@ -17,7 +17,11 @@ import type {
     ToolCall,
     UserContentPart,
 } from '@core-ai/core-ai';
-import { clampReasoningEffort, getProviderMetadata } from '@core-ai/core-ai';
+import {
+    clampReasoningEffort,
+    getProviderMetadata,
+    validateInputModalities,
+} from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
     type OpenAIChatCompletionsCapabilities,
@@ -231,6 +235,12 @@ function createRequestBase(
         adapterOptions.capabilities,
         adapterOptions.providerId
     );
+    validateInputModalities({
+        messages: options.messages,
+        capabilities: adapterOptions.capabilities,
+        modelId,
+        providerId: adapterOptions.providerId,
+    });
 
     const reasoningFields = mapReasoningToRequestFields(
         options,

@@ -20,6 +20,7 @@ import { createObjectStream, createChatStream } from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
+    DEFAULT_PROVIDER_ID,
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.js';
@@ -40,9 +41,10 @@ export function createOpenAIChatModel(
     client: OpenAIChatClient,
     modelId: string,
     capabilities: ModelCapabilities,
-    providerId = 'openai'
+    providerId = DEFAULT_PROVIDER_ID
 ): ChatModel {
     const provider = providerId;
+    const adapterOptions = { capabilities, providerId };
 
     async function callOpenAIResponsesApi<TResponse>(
         request:
@@ -62,7 +64,7 @@ export function createOpenAIChatModel(
     async function generateChat(
         options: OpenAIRequestOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(modelId, options);
+        const request = createGenerateRequest(modelId, options, adapterOptions);
         const response = await callOpenAIResponsesApi<Response>(
             request,
             options.signal
@@ -73,7 +75,7 @@ export function createOpenAIChatModel(
     async function streamChat(
         options: OpenAIRequestOptions
     ): Promise<ChatStream> {
-        const request = createStreamRequest(modelId, options);
+        const request = createStreamRequest(modelId, options, adapterOptions);
         return createChatStream(
             async () =>
                 transformStream(

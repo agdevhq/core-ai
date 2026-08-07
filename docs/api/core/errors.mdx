@@ -13,6 +13,7 @@ core-ai provides a hierarchy of error classes for handling different types of fa
 ```
 CoreAIError
 ├── ValidationError
+│   └── UnsupportedInputModalityError
 ├── AbortedError
 │   └── StreamAbortedError
 ├── ProviderError
@@ -90,6 +91,47 @@ try {
         if (error.cause) {
             console.error('Caused by:', error.cause);
         }
+    }
+}
+```
+
+## UnsupportedInputModalityError
+
+Thrown when user messages include content parts the model does not accept,
+before the provider call. Extends `ValidationError`.
+
+```typescript
+export class UnsupportedInputModalityError extends ValidationError {
+    public readonly requestedModalities: readonly string[];
+    public readonly supportedModalities: readonly string[];
+    public readonly unsupportedModalities: readonly string[];
+}
+```
+
+### Properties
+
+<ParamField path="requestedModalities" type="readonly string[]">
+    Modalities present in the user messages.
+</ParamField>
+
+<ParamField path="supportedModalities" type="readonly string[]">
+    Modalities from `model.capabilities.modalities.input`.
+</ParamField>
+
+<ParamField path="unsupportedModalities" type="readonly string[]">
+    Requested modalities missing from the model capabilities.
+</ParamField>
+
+### Example
+
+```typescript
+import { UnsupportedInputModalityError, generate } from '@core-ai/core-ai';
+
+try {
+    await generate({ model, messages });
+} catch (error) {
+    if (error instanceof UnsupportedInputModalityError) {
+        console.error(error.unsupportedModalities);
     }
 }
 ```

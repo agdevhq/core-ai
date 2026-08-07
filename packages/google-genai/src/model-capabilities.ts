@@ -1,10 +1,11 @@
 import {
+    MULTIMODAL_INPUT_MODALITIES,
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
 } from '@core-ai/core-ai';
 
-export type GoogleModelCapabilities = {
+export type GoogleModelCapabilities = Omit<ModelCapabilities, 'reasoning'> & {
     reasoning: ModelCapabilities['reasoning'] & {
         thinkingParam: 'thinkingLevel' | 'thinkingBudget';
     };
@@ -30,6 +31,7 @@ function createCapabilities(config: {
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
         },
+        modalities: MULTIMODAL_INPUT_MODALITIES,
     };
 }
 

@@ -42,6 +42,18 @@ describe('getGoogleModelCapabilities', () => {
         );
     });
 
+    it.each(['gemini-3-pro', 'gemini-2.5-pro', 'gemini-custom'])(
+        'should report multimodal input as supported for %s',
+        (modelId) => {
+            expect(
+                getGoogleModelCapabilities(modelId).modalities.input
+            ).toEqual(['text', 'image', 'file']);
+            expect(
+                getGoogleModelCapabilities(modelId).modalities.output
+            ).toEqual(['text']);
+        }
+    );
+
     it('should return defaults for unknown models', () => {
         const capabilities = getGoogleModelCapabilities('gemini-custom');
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingBudget');

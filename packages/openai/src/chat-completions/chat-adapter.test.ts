@@ -451,6 +451,44 @@ describe('max tokens parameter', () => {
     });
 });
 
+describe('image input', () => {
+    const messages: Message[] = [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'image',
+                    source: {
+                        type: 'url',
+                        url: 'https://example.com/photo.png',
+                    },
+                },
+            ],
+        },
+    ];
+
+    it('should reject images for text-only models', () => {
+        expect(() =>
+            createGenerateRequest('gpt-3.5-turbo', { messages })
+        ).toThrowError(ValidationError);
+        expect(() =>
+            createStreamRequest('gpt-3.5-turbo', { messages })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should accept images for vision models', () => {
+        expect(() =>
+            createGenerateRequest('gpt-4o-mini', { messages })
+        ).not.toThrow();
+    });
+
+    it('should accept images for unknown models', () => {
+        expect(() =>
+            createGenerateRequest('qwen3-235b', { messages })
+        ).not.toThrow();
+    });
+});
+
 describe('reasoning support', () => {
     it('should fold reasoning parts into text content wrapped in <thinking> tags', () => {
         const messages: Message[] = [

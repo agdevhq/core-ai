@@ -1,10 +1,11 @@
 import { GoogleGenAI } from '@google/genai';
 import type { ChatModel, EmbeddingModel, ImageModel } from '@core-ai/core-ai';
+import { DEFAULT_PROVIDER_ID } from './chat-adapter.js';
 import { createGoogleGenAIChatModel } from './chat-model.js';
 import { createGoogleGenAIEmbeddingModel } from './embedding-model.js';
 import { createGoogleGenAIImageModel } from './image-model.js';
 
-export const DEFAULT_PROVIDER_ID = 'google';
+export { DEFAULT_PROVIDER_ID };
 
 export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];

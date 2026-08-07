@@ -17,6 +17,7 @@ import {
     wrapChatModel,
     wrapEmbeddingModel,
     wrapImageModel,
+    MULTIMODAL_INPUT_MODALITIES,
 } from '@core-ai/core-ai';
 import type {
     ChatModel,
@@ -136,6 +137,7 @@ function createMockChatModel(
                 restrictsSamplingParams: false,
                 supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             },
+            modalities: MULTIMODAL_INPUT_MODALITIES,
         },
         generate:
             overrides?.generate ??

@@ -134,6 +134,28 @@ export type ToolChoice =
 
 export type ToolChoiceMode = 'auto' | 'none' | 'required' | 'tool';
 
+/**
+ * Modalities a chat model can accept in user messages.
+ *
+ * `file` covers document attachments such as PDFs. `audio` and `video` are
+ * reserved for future input parts.
+ */
+export type ChatInputModality =
+    | 'text'
+    | 'image'
+    | 'file'
+    | 'audio'
+    | 'video';
+
+/**
+ * Modalities a chat model can emit as assistant content.
+ *
+ * Dedicated generators (`ImageModel`, and future audio/video models) are
+ * separate operations. Chat `output` describes native multimodal responses
+ * from `generate` / `stream`, not those dedicated APIs.
+ */
+export type ChatOutputModality = 'text' | 'image' | 'audio' | 'video';
+
 export type ModelCapabilities = {
     reasoning: {
         mode: 'unsupported' | 'optional' | 'always-on';
@@ -144,6 +166,15 @@ export type ModelCapabilities = {
          */
         restrictsSamplingParams: boolean;
         supportedToolChoices: readonly ToolChoiceMode[];
+    };
+    modalities: {
+        /** Modalities accepted in user messages. Always includes `'text'`. */
+        input: readonly ChatInputModality[];
+        /**
+         * Modalities the model can emit as assistant content. Always includes
+         * `'text'`. Does not describe dedicated `ImageModel` generation.
+         */
+        output: readonly ChatOutputModality[];
     };
 };
 

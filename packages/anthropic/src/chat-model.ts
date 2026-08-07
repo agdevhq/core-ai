@@ -51,6 +51,8 @@ export function createAnthropicChatModel(
     const defaultMaxTokens = modelOptions.defaultMaxTokens ?? 4096;
     const provider = modelOptions.providerId ?? DEFAULT_PROVIDER_ID;
     const useStrictToolSchemas = modelOptions.useStrictToolSchemas ?? true;
+    const capabilities = getAnthropicModelCapabilities(modelId);
+    const adapterOptions = { capabilities };
 
     async function callAnthropicMessagesApi<T>(
         request: unknown,
@@ -81,7 +83,8 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options,
             provider,
-            useStrictToolSchemas
+            useStrictToolSchemas,
+            adapterOptions
         );
         const response = await callAnthropicMessagesApi<
             Parameters<typeof mapGenerateResponse>[0]
@@ -95,7 +98,8 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options,
             provider,
-            useStrictToolSchemas
+            useStrictToolSchemas,
+            adapterOptions
         );
         return createChatStream(
             async () =>
@@ -115,7 +119,7 @@ export function createAnthropicChatModel(
     return {
         provider,
         modelId,
-        capabilities: getAnthropicModelCapabilities(modelId),
+        capabilities,
         generate: generateChat,
         stream: streamChat,
         async generateObject<TSchema extends z.ZodType>(
