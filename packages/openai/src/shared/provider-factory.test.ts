@@ -12,10 +12,7 @@ const CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: {
-        imageInput: {
-            supported: false,
-            supportedSources: [],
-        },
+        imageInput: false,
     },
 };
 

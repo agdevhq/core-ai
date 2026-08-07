@@ -506,7 +506,7 @@ describe('reasoning support', () => {
         const textOnly = {
             ...getGoogleModelCapabilities('gemini-2.5-pro'),
             modalities: {
-                imageInput: { supported: false, supportedSources: [] },
+                imageInput: false,
             },
         };
         const messages: Message[] = [

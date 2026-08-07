@@ -299,7 +299,7 @@ describe('image input', () => {
         const textOnly = {
             ...getAnthropicModelCapabilities('claude-sonnet-4-6'),
             modalities: {
-                imageInput: { supported: false, supportedSources: [] },
+                imageInput: false,
             },
         };
 

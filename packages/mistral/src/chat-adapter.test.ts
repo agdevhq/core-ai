@@ -259,7 +259,7 @@ describe('image input', () => {
         const textOnly = {
             ...getMistralModelCapabilities('pixtral-12b-2409'),
             modalities: {
-                imageInput: { supported: false, supportedSources: [] },
+                imageInput: false,
             },
         };
 

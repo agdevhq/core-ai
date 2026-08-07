@@ -23,11 +23,6 @@ const MAX_EFFORTS = [
     'max',
 ] as const satisfies readonly ReasoningEffort[];
 
-const IMAGE_INPUT = {
-    supported: true,
-    supportedSources: ['base64', 'url'],
-} as const satisfies ModelCapabilities['modalities']['imageInput'];
-
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[]
 ): AnthropicModelCapabilities {
@@ -38,7 +33,7 @@ function createCapabilities(
             restrictsSamplingParams: true,
             supportedToolChoices: ['auto', 'none'],
         },
-        modalities: { imageInput: IMAGE_INPUT },
+        modalities: { imageInput: true },
     };
 }
 

@@ -12,10 +12,7 @@ const UNKNOWN_MODEL_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: {
-        imageInput: {
-            supported: true,
-            supportedSources: ['base64', 'url'],
-        },
+        imageInput: true,
     },
 };
 
@@ -27,10 +24,7 @@ const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none'],
     },
     modalities: {
-        imageInput: {
-            supported: false,
-            supportedSources: [],
-        },
+        imageInput: false,
     },
 };
 

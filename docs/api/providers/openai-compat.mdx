@@ -110,7 +110,7 @@ OpenAI-compatible fallback capabilities because the provider cannot infer
 vendor-specific behavior from an arbitrary endpoint. Treat those values as
 defaults and configure endpoint-specific wire behavior with
 `structuredOutputMode`, `maxTokensParameter`, and `reasoning`. The fallback
-reports `modalities.imageInput.supported` as `true`, so images are forwarded to the
+reports `modalities.imageInput` as `true`, so images are forwarded to the
 endpoint rather than rejected locally.
 
 The `reasoning` provider option controls extraction of nonstandard response

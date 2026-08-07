@@ -83,7 +83,7 @@ as `eu/gpt-5-mini` and IDs for other backend providers do not match that
 registry, so they receive generic OpenAI-compatible fallback capabilities.
 For those IDs, treat `model.capabilities` as defaults rather than an exact
 description of the backend model. In particular, the fallback reports
-`modalities.imageInput.supported` as `true`, so image requests are forwarded to the backend
+`modalities.imageInput` as `true`, so image requests are forwarded to the backend
 rather than rejected locally.
 
 ## Examples

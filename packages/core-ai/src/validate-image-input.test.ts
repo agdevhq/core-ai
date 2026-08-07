@@ -12,23 +12,12 @@ const REASONING: ModelCapabilities['reasoning'] = {
 
 const SUPPORTED: ModelCapabilities = {
     reasoning: REASONING,
-    modalities: {
-        imageInput: { supported: true, supportedSources: ['base64', 'url'] },
-    },
-};
-
-const BASE64_ONLY: ModelCapabilities = {
-    reasoning: REASONING,
-    modalities: {
-        imageInput: { supported: true, supportedSources: ['base64'] },
-    },
+    modalities: { imageInput: true },
 };
 
 const UNSUPPORTED: ModelCapabilities = {
     reasoning: REASONING,
-    modalities: {
-        imageInput: { supported: false, supportedSources: [] },
-    },
+    modalities: { imageInput: false },
 };
 
 const URL_IMAGE_MESSAGES: Message[] = [
@@ -45,7 +34,7 @@ const URL_IMAGE_MESSAGES: Message[] = [
 ];
 
 describe('validateImageInput', () => {
-    it('accepts images when the model supports the source', () => {
+    it('accepts images when the model supports image input', () => {
         expect(() =>
             validateImageInput({
                 messages: URL_IMAGE_MESSAGES,
@@ -65,40 +54,6 @@ describe('validateImageInput', () => {
                 providerId: 'openai',
             })
         ).toThrowError(ValidationError);
-    });
-
-    it('rejects image sources the model does not support', () => {
-        expect(() =>
-            validateImageInput({
-                messages: URL_IMAGE_MESSAGES,
-                capabilities: BASE64_ONLY,
-                modelId: 'model',
-                providerId: 'openai',
-            })
-        ).toThrowError(/does not support "url" image sources/);
-
-        expect(() =>
-            validateImageInput({
-                messages: [
-                    {
-                        role: 'user',
-                        content: [
-                            {
-                                type: 'image',
-                                source: {
-                                    type: 'base64',
-                                    mediaType: 'image/jpeg',
-                                    data: 'AAAA',
-                                },
-                            },
-                        ],
-                    },
-                ],
-                capabilities: BASE64_ONLY,
-                modelId: 'model',
-                providerId: 'openai',
-            })
-        ).not.toThrow();
     });
 
     it('ignores messages without images', () => {

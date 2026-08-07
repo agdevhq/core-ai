@@ -77,7 +77,7 @@ For both registered K2.7 Code models:
 - `supportedEfforts` is empty because Kimi does not accept effort control.
 - `restrictsSamplingParams` is `true`; do not pass `temperature` or `topP`.
 - `supportedToolChoices` is `['auto', 'none']`.
-- `modalities.imageInput.supported` is `false`; both are text-only models.
+- `modalities.imageInput` is `false`; both are text-only models.
 
 An empty effort list does not mean reasoning output is unavailable. It means
 the model chooses its own reasoning effort.

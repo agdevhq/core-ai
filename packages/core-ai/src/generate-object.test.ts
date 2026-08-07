@@ -35,10 +35,7 @@ describe('generateObject', () => {
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
                 modalities: {
-                    imageInput: {
-                        supported: true,
-                        supportedSources: ['base64', 'url'],
-                    },
+                    imageInput: true,
                 },
             },
             generate: vi.fn(async () => {
@@ -82,10 +79,7 @@ describe('generateObject', () => {
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
                 modalities: {
-                    imageInput: {
-                        supported: true,
-                        supportedSources: ['base64', 'url'],
-                    },
+                    imageInput: true,
                 },
             },
             generate: vi.fn(async () => {

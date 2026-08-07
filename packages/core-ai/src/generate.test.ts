@@ -15,10 +15,7 @@ function createMockChatModel(result: GenerateResult): ChatModel {
                 supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             },
             modalities: {
-                imageInput: {
-                    supported: true,
-                    supportedSources: ['base64', 'url'],
-                },
+                imageInput: true,
             },
         },
         generate: vi.fn(async () => result),

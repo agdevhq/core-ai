@@ -148,11 +148,8 @@ export type ModelCapabilities = {
         supportedToolChoices: readonly ToolChoiceMode[];
     };
     modalities: {
-        imageInput: {
-            supported: boolean;
-            /** Empty when `supported` is false. */
-            supportedSources: readonly ImageSourceType[];
-        };
+        /** Whether the model accepts image parts in user messages. */
+        imageInput: boolean;
     };
 };
 

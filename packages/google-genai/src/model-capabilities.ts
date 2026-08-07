@@ -18,15 +18,6 @@ const ALL_EFFORTS = [
     'max',
 ] as const satisfies readonly ReasoningEffort[];
 
-/**
- * URL sources map to `fileData.fileUri`, which accepts publicly readable
- * HTTP(S) URLs, pre-signed URLs, `gs://` objects, and Files API URIs.
- */
-const IMAGE_INPUT = {
-    supported: true,
-    supportedSources: ['base64', 'url'],
-} as const satisfies ModelCapabilities['modalities']['imageInput'];
-
 function createCapabilities(config: {
     thinkingParam: GoogleModelCapabilities['reasoning']['thinkingParam'];
     mode: GoogleModelCapabilities['reasoning']['mode'];
@@ -39,7 +30,8 @@ function createCapabilities(config: {
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
         },
-        modalities: { imageInput: IMAGE_INPUT },
+        // URL sources map to `fileData.fileUri` (HTTP(S), gs://, Files API).
+        modalities: { imageInput: true },
     };
 }
 

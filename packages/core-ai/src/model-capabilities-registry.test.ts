@@ -7,11 +7,6 @@ import {
 } from './model-capabilities-registry.js';
 import type { ModelCapabilities } from './types.js';
 
-const IMAGE_INPUT: ModelCapabilities['modalities']['imageInput'] = {
-    supported: true,
-    supportedSources: ['base64', 'url'],
-};
-
 const KNOWN_CAPABILITIES: ModelCapabilities = {
     reasoning: {
         mode: 'optional',
@@ -20,7 +15,7 @@ const KNOWN_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none'],
     },
     modalities: {
-        imageInput: IMAGE_INPUT,
+        imageInput: true,
     },
 };
 
@@ -32,7 +27,7 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: {
-        imageInput: IMAGE_INPUT,
+        imageInput: true,
     },
 };
 

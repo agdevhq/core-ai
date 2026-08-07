@@ -17,10 +17,7 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'auto',
             'none',
         ]);
-        expect(capabilities.modalities.imageInput).toEqual({
-            supported: false,
-            supportedSources: [],
-        });
+        expect(capabilities.modalities.imageInput).toBe(false);
     });
 
     it('should define unrestricted capabilities for unknown models', () => {
@@ -34,6 +31,6 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'required',
             'tool',
         ]);
-        expect(capabilities.modalities.imageInput.supported).toBe(true);
+        expect(capabilities.modalities.imageInput).toBe(true);
     });
 });

@@ -39,27 +39,18 @@ const PRO_EFFORTS = [
 ] as const satisfies readonly ReasoningEffort[];
 const HIGH_EFFORT = ['high'] as const satisfies readonly ReasoningEffort[];
 
-const IMAGE_INPUT = {
-    supported: true,
-    supportedSources: ['base64', 'url'],
-} as const satisfies ModelCapabilities['modalities']['imageInput'];
-const NO_IMAGE_INPUT = {
-    supported: false,
-    supportedSources: [],
-} as const satisfies ModelCapabilities['modalities']['imageInput'];
-
 type CapabilitiesConfig = {
     supportedEfforts: readonly ReasoningEffort[];
     restrictsSamplingParams: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
-    imageInput?: ModelCapabilities['modalities']['imageInput'];
+    imageInput?: boolean;
 };
 
 function createCapabilities({
     supportedEfforts,
     restrictsSamplingParams,
     maxTokensParameter = 'max_completion_tokens',
-    imageInput = IMAGE_INPUT,
+    imageInput = true,
 }: CapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -107,12 +98,12 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
 
 type NoReasoningCapabilitiesConfig = {
     maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
-    imageInput?: ModelCapabilities['modalities']['imageInput'];
+    imageInput?: boolean;
 };
 
 function createNoReasoningCapabilities({
     maxTokensParameter,
-    imageInput = IMAGE_INPUT,
+    imageInput = true,
 }: NoReasoningCapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -133,12 +124,12 @@ const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities({
 });
 const NO_REASONING_TEXT_ONLY_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_tokens',
-    imageInput: NO_IMAGE_INPUT,
+    imageInput: false,
 });
 const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
     createNoReasoningCapabilities({
         maxTokensParameter: 'max_completion_tokens',
-        imageInput: NO_IMAGE_INPUT,
+        imageInput: false,
     });
 
 const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
@@ -148,7 +139,7 @@ const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
 const O_SERIES_TEXT_ONLY_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
-    imageInput: NO_IMAGE_INPUT,
+    imageInput: false,
 });
 
 export const OPENAI_MODEL_CAPABILITIES = {

@@ -416,7 +416,7 @@ describe('createGenerateRequest', () => {
         const textOnly = {
             ...getOpenAIModelCapabilities('gpt-4o'),
             modalities: {
-                imageInput: { supported: false, supportedSources: [] },
+                imageInput: false,
             },
         };
 
