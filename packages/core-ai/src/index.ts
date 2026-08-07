@@ -57,10 +57,12 @@ export type {
     RateLimitErrorOptions,
     ModelOverloadedErrorOptions,
     ServiceUnavailableErrorOptions,
+    UnsupportedInputModalityErrorOptions,
 } from './errors.ts';
 export {
     CoreAIError,
     ValidationError,
+    UnsupportedInputModalityError,
     AbortedError,
     StreamAbortedError,
     ProviderError,
@@ -95,8 +97,8 @@ export {
     supportsOutputModality,
     TEXT_ONLY_MODALITIES,
 } from './model-capabilities.ts';
-export { validateImageInput } from './validate-image-input.ts';
-export type { ValidateImageInputOptions } from './validate-image-input.ts';
+export { validateInputModalities } from './validate-input-modalities.ts';
+export type { ValidateInputModalitiesOptions } from './validate-input-modalities.ts';
 export {
     getRegisteredModelCapabilities,
     UNKNOWN_MODEL,

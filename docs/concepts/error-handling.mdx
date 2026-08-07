@@ -13,6 +13,7 @@ core-ai provides a hierarchy of error types that help you handle failures gracef
 Error
 └── CoreAIError
     ├── ValidationError
+    │   └── UnsupportedInputModalityError
     ├── AbortedError
     │   └── StreamAbortedError
     ├── ProviderError
@@ -80,6 +81,7 @@ class ValidationError extends CoreAIError {
 - Empty messages array
 - Empty input for embeddings
 - Empty prompt for image generation
+- Unsupported input modalities in user messages (`UnsupportedInputModalityError`)
 - Invalid local request configuration
 
 ## AbortedError

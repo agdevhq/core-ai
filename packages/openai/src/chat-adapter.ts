@@ -25,7 +25,7 @@ import type {
 import {
     getProviderMetadata,
     clampReasoningEffort,
-    validateImageInput,
+    validateInputModalities,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
@@ -305,7 +305,7 @@ function createRequestBase(
     { capabilities, providerId }: ResolvedAdapterOptions
 ) {
     validateReasoningConfig(modelId, options, capabilities, providerId);
-    validateImageInput({
+    validateInputModalities({
         messages: options.messages,
         capabilities,
         modelId,

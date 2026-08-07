@@ -257,14 +257,15 @@ common presets `TEXT_ONLY_MODALITIES` (`text` in / `text` out) and
 `'audio'` and `'video'` are reserved on the input union until dedicated user
 content parts exist; they are not advertised today.
 
-Sending an image when `'image'` is not in `modalities.input` throws a
-`ValidationError` before the provider call. Unrecognized model IDs are treated
-as multimodal capable on purpose (fail-open), so self-hosted endpoints and newly
-released models are never blocked locally. Typos and custom deployment names
-that do not match a registry key therefore include `'image'` and `'file'` in
-`modalities.input` and still rely on the provider to reject unsupported
-requests. For Azure and other wrappers, pass a known registry model ID when you
-need accurate capability data.
+Sending image or file parts when those modalities are not in
+`modalities.input` throws an `UnsupportedInputModalityError` before the
+provider call. Unrecognized model IDs are treated as multimodal capable on
+purpose (fail-open), so self-hosted endpoints and newly released models are
+never blocked locally. Typos and custom deployment names that do not match a
+registry key therefore include `'image'` and `'file'` in `modalities.input`
+and still rely on the provider to reject unsupported requests. For Azure and
+other wrappers, pass a known registry model ID when you need accurate
+capability data.
 
 `modalities.output` currently always includes `'text'`. Dedicated image
 generation uses `ImageModel` / `generateImage`, not chat `output`.

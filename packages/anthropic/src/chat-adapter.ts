@@ -16,7 +16,7 @@ import {
     getProviderMetadata,
     ValidationError,
     safeParseJsonObject,
-    validateImageInput,
+    validateInputModalities,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
@@ -451,7 +451,7 @@ function createRequestBase(
         provider,
         capabilities
     );
-    validateImageInput({
+    validateInputModalities({
         messages: options.messages,
         capabilities,
         modelId,

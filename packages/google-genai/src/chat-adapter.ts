@@ -26,7 +26,7 @@ import type {
 } from '@core-ai/core-ai';
 import {
     getProviderMetadata,
-    validateImageInput,
+    validateInputModalities,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
@@ -336,7 +336,7 @@ export function createGenerateRequest(
     );
     const capabilities =
         adapterOptions.capabilities ?? getGoogleModelCapabilities(modelId);
-    validateImageInput({
+    validateInputModalities({
         messages: options.messages,
         capabilities,
         modelId,

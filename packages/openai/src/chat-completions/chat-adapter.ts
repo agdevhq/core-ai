@@ -20,7 +20,7 @@ import type {
 import {
     clampReasoningEffort,
     getProviderMetadata,
-    validateImageInput,
+    validateInputModalities,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
@@ -235,7 +235,7 @@ function createRequestBase(
         adapterOptions.capabilities,
         adapterOptions.providerId
     );
-    validateImageInput({
+    validateInputModalities({
         messages: options.messages,
         capabilities: adapterOptions.capabilities,
         modelId,

@@ -29,7 +29,7 @@ import {
     asObject,
     getProviderMetadata,
     safeParseJsonObject,
-    validateImageInput,
+    validateInputModalities,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
@@ -290,7 +290,7 @@ function createRequestBase(
     const capabilities =
         adapterOptions.capabilities ?? getMistralModelCapabilities(modelId);
     const providerId = adapterOptions.providerId ?? 'mistral';
-    validateImageInput({
+    validateInputModalities({
         messages: options.messages,
         capabilities,
         modelId,

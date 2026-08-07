@@ -552,10 +552,12 @@ console.log(supportsInputModality(model.capabilities, 'image'));
 // true
 ```
 
-Sending an image to a model that does not support it throws a `ValidationError` before the request reaches the provider:
+Sending image or file parts to a model that does not support them throws an
+`UnsupportedInputModalityError` (a `ValidationError`) before the request
+reaches the provider:
 
 ```typescript
-import { ValidationError } from '@core-ai/core-ai';
+import { UnsupportedInputModalityError } from '@core-ai/core-ai';
 
 try {
     await generate({
@@ -563,20 +565,21 @@ try {
         messages,
     });
 } catch (error) {
-    if (error instanceof ValidationError) {
-        // openai model "gpt-3.5-turbo" does not support image input
+    if (error instanceof UnsupportedInputModalityError) {
+        // openai model "gpt-3.5-turbo" does not support input modality: image. Supported: text
+        console.log(error.unsupportedModalities);
     }
 }
 ```
 
 Model IDs a provider does not recognize are treated as multimodal capable, so self-hosted and newly released models are never blocked. Vision-capable models accept both `base64` and `url` image sources.
 
-To run the same check yourself before dispatching a request, use `validateImageInput`:
+To run the same check yourself before dispatching a request, use `validateInputModalities`:
 
 ```typescript
-import { validateImageInput } from '@core-ai/core-ai';
+import { validateInputModalities } from '@core-ai/core-ai';
 
-validateImageInput({
+validateInputModalities({
     messages,
     capabilities: model.capabilities,
     modelId: model.modelId,
