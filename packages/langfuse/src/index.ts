@@ -1,24 +1,27 @@
 import { startActiveObservation } from '@langfuse/tracing';
 import type { LangfuseEmbedding, LangfuseGeneration } from '@langfuse/tracing';
 import type { z } from 'zod';
-import type {
-    ChatModel,
-    ChatModelMiddleware,
-    ChatUsage,
-    EmbedOptions,
-    EmbeddingModel,
-    EmbeddingModelMiddleware,
-    EmbeddingUsage,
-    GenerateObjectOptions,
-    GenerateObjectResult,
-    GenerateOptions,
-    GenerateResult,
-    ImageGenerateOptions,
-    ImageGenerateResult,
-    ImageModel,
-    ImageModelMiddleware,
-    ObjectStream,
-    StreamObjectOptions,
+import {
+    zodSchemaToJsonSchema,
+    type ChatModel,
+    type ChatModelMiddleware,
+    type ChatUsage,
+    type EmbedOptions,
+    type EmbeddingModel,
+    type EmbeddingModelMiddleware,
+    type EmbeddingUsage,
+    type GenerateObjectOptions,
+    type GenerateObjectResult,
+    type GenerateOptions,
+    type GenerateResult,
+    type ImageGenerateOptions,
+    type ImageGenerateResult,
+    type ImageModel,
+    type ImageModelMiddleware,
+    type ObjectStream,
+    type StreamObjectOptions,
+    type ToolChoice,
+    type ToolSet,
 } from '@core-ai/core-ai';
 
 type TraceObservation = LangfuseGeneration | LangfuseEmbedding;
@@ -79,13 +82,64 @@ function createObservationAttributes(config: {
     };
 }
 
+function serializeToolChoice(toolChoice: ToolChoice): string {
+    return typeof toolChoice === 'string'
+        ? toolChoice
+        : JSON.stringify(toolChoice);
+}
+
+function createToolDefinitions(
+    tools?: ToolSet
+): Array<{
+    type: 'function';
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+}> | undefined {
+    if (!tools || Object.keys(tools).length === 0) {
+        return undefined;
+    }
+
+    return Object.entries(tools).map(([name, definition]) => ({
+        type: 'function',
+        name,
+        description: definition.description,
+        parameters: zodSchemaToJsonSchema(definition.parameters),
+    }));
+}
+
+function createChatMetadata(config: {
+    metadata?: Record<string, unknown>;
+    tools?: ToolSet;
+    recordContent: boolean;
+}): Record<string, unknown> | undefined {
+    const toolDefinitions = config.recordContent
+        ? createToolDefinitions(config.tools)
+        : undefined;
+
+    if (!config.metadata && !toolDefinitions) {
+        return undefined;
+    }
+
+    return {
+        ...config.metadata,
+        ...(toolDefinitions ? { tools: toolDefinitions } : {}),
+    };
+}
+
 function createModelParameters(
     options: GenerateOptions | GenerateObjectOptions<z.ZodType>
 ): Record<string, unknown> | undefined {
+    const toolChoice =
+        'toolChoice' in options && options.toolChoice !== undefined
+            ? serializeToolChoice(options.toolChoice)
+            : undefined;
+
     return compactRecord({
         temperature: options.temperature,
         maxTokens: options.maxTokens,
         topP: options.topP,
+        toolChoice,
     });
 }
 
@@ -294,7 +348,11 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        tools: generateOptions.tools,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -318,7 +376,11 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        tools: generateOptions.tools,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -348,7 +410,10 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -381,7 +446,10 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),

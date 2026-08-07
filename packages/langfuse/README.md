@@ -46,5 +46,5 @@ const model = wrapChatModel({
 });
 ```
 
-`recordContent` is disabled by default. Enable it only when you want prompts and outputs
-attached to Langfuse observations.
+`recordContent` is disabled by default. Enable it only when you want prompts, available
+tool definitions, and outputs attached to Langfuse observations.

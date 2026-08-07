@@ -94,7 +94,7 @@ type LangfuseMiddlewareOptions = {
 
 ### recordContent
 
-When `true`, input messages and output content are recorded on the Langfuse observation. Defaults to `false` to avoid sending sensitive data.
+When `true`, input messages, available tool definitions, and output content are recorded on the Langfuse observation. Defaults to `false` to avoid sending sensitive data.
 
 ```typescript
 const middleware = createLangfuseMiddleware({ recordContent: true });
@@ -103,6 +103,8 @@ const middleware = createLangfuseMiddleware({ recordContent: true });
 ## Metadata
 
 The `metadata` field on generation, embed, and image options is forwarded to the Langfuse observation. Use this to attach custom data to your traces.
+
+When `recordContent` is `true` and tools are provided to `generate` / `stream`, available tool definitions are added to observation metadata as `tools` (JSON Schema parameters). Do not put a conflicting `tools` key in your own metadata if you want those definitions preserved.
 
 ```typescript
 const result = await generate({
@@ -122,10 +124,10 @@ Each Langfuse observation includes:
 | Attribute | Description |
 | --- | --- |
 | `model` | Model ID |
-| `modelParameters` | Temperature, max tokens, top-p (when set) |
+| `modelParameters` | Temperature, max tokens, top-p, tool choice (when set) |
 | `input` | Input messages (when `recordContent` is `true`) |
 | `output` | Response content (when `recordContent` is `true`) |
 | `usageDetails` | Input tokens, output tokens, cache tokens, reasoning tokens |
-| `metadata` | Custom metadata from the options |
+| `metadata` | Custom metadata from the options, plus available `tools` when `recordContent` is `true` |
 | `level` | Set to `ERROR` on failures |
 | `statusMessage` | Error message on failures |

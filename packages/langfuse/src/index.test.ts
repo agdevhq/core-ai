@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
+    defineTool,
     embed,
     generate,
     generateImage,
@@ -11,6 +12,7 @@ import {
     wrapEmbeddingModel,
     wrapImageModel,
     MULTIMODAL_INPUT_MODALITIES,
+    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import type {
     ChatModel,
@@ -294,6 +296,96 @@ describe('@core-ai/langfuse', () => {
                 output: 3,
                 cache_read_input: 0,
                 cache_creation_input: 0,
+            },
+        });
+    });
+
+    it('records available tools and toolChoice when recordContent is enabled', async () => {
+        const weatherTool = defineTool({
+            name: 'get_weather',
+            description: 'Get the weather in a location',
+            parameters: z.object({
+                location: z.string(),
+            }),
+        });
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createLangfuseMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [{ role: 'user', content: 'Weather in Berlin?' }],
+            tools: {
+                get_weather: weatherTool,
+            },
+            toolChoice: 'auto',
+            metadata: {
+                feature: 'weather',
+            },
+        });
+
+        const observation = expectDefined(observations[0]);
+
+        expect(observation.update).toHaveBeenNthCalledWith(1, {
+            model: 'test-model',
+            modelParameters: {
+                toolChoice: 'auto',
+            },
+            metadata: {
+                feature: 'weather',
+                tools: [
+                    {
+                        type: 'function',
+                        name: 'get_weather',
+                        description: 'Get the weather in a location',
+                        parameters: zodSchemaToJsonSchema(weatherTool.parameters),
+                    },
+                ],
+            },
+            input: [{ role: 'user', content: 'Weather in Berlin?' }],
+        });
+    });
+
+    it('records forced toolChoice as JSON and omits tools when recordContent is disabled', async () => {
+        const weatherTool = defineTool({
+            name: 'get_weather',
+            description: 'Get the weather in a location',
+            parameters: z.object({
+                location: z.string(),
+            }),
+        });
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createLangfuseMiddleware(),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [{ role: 'user', content: 'Weather in Berlin?' }],
+            tools: {
+                get_weather: weatherTool,
+            },
+            toolChoice: { type: 'tool', toolName: 'get_weather' },
+            metadata: {
+                feature: 'weather',
+            },
+        });
+
+        const observation = expectDefined(observations[0]);
+
+        expect(observation.update).toHaveBeenNthCalledWith(1, {
+            model: 'test-model',
+            modelParameters: {
+                toolChoice: JSON.stringify({
+                    type: 'tool',
+                    toolName: 'get_weather',
+                }),
+            },
+            metadata: {
+                feature: 'weather',
             },
         });
     });
