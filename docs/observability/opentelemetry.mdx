@@ -95,7 +95,7 @@ type OtelMiddlewareOptions = {
 
 ### recordContent
 
-When `true`, input messages, tool definitions, and output content are recorded as span attributes. Defaults to `false` to avoid sending sensitive data to your tracing backend.
+When `true`, input messages, tool definitions, and output content are recorded as span attributes. This includes complete base64 image and audio payloads, which may be sensitive and can create large span attributes. Defaults to `false`. Leave it disabled for calls or recordings unless your tracing backend is approved to receive that content.
 
 ```typescript
 const middleware = createOtelMiddleware({ recordContent: true });

@@ -54,7 +54,7 @@ describe('convertMessages', () => {
         expect(result.systemInstruction).toBe('Rule 1\nRule 2');
     });
 
-    it('should convert user text, image URL, and file parts', () => {
+    it('should convert user text, image, file, and audio parts', () => {
         const messages: Message[] = [
             {
                 role: 'user',
@@ -85,6 +85,14 @@ describe('convertMessages', () => {
                             data: 'base64-image',
                         },
                     },
+                    {
+                        type: 'audio',
+                        source: {
+                            type: 'base64',
+                            mediaType: 'audio/wav',
+                            data: 'base64-audio',
+                        },
+                    },
                 ],
             },
         ];
@@ -112,6 +120,12 @@ describe('convertMessages', () => {
                         inlineData: {
                             data: 'base64-image',
                             mimeType: 'image/jpeg',
+                        },
+                    },
+                    {
+                        inlineData: {
+                            data: 'base64-audio',
+                            mimeType: 'audio/wav',
                         },
                     },
                 ],

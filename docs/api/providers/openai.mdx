@@ -127,6 +127,16 @@ const imageGen = openai.imageModel('gpt-image-1');
       <li><strong>o1-mini</strong> - Compact reasoning model with no effort control</li>
     </ul>
   </Accordion>
+
+  <Accordion title="Audio Models" icon="waveform">
+    <ul>
+      <li><strong>gpt-audio-1.5</strong></li>
+      <li><strong>gpt-audio</strong></li>
+      <li><strong>gpt-audio-mini</strong></li>
+      <li><strong>gpt-4o-audio-preview</strong></li>
+      <li><strong>gpt-4o-mini-audio-preview</strong></li>
+    </ul>
+  </Accordion>
 </AccordionGroup>
 
 <Note>
@@ -270,8 +280,46 @@ select `max_tokens` or `max_completion_tokens`; the Responses API is unaffected.
 `modalities.input` is `['text', 'image', 'file']` for the GPT-4 and GPT-5
 families, `o1`, `o3`, `o3-pro`, and `o4-mini` (image sources: `base64` and
 `url`). It is `['text']` for `gpt-3.5-turbo`, `o1-mini`, and `o3-mini`. Model
-IDs outside the registry are treated as multimodal capable.
+IDs outside the registry allow image and file input but do not advertise audio.
 `modalities.output` is `['text']` for all chat models.
+
+### Audio input
+
+Audio input is available only through Chat Completions:
+
+```typescript
+import { readFile } from 'fs/promises';
+
+const audioData = (await readFile('recording.wav')).toString('base64');
+const model = openai.chat.chatModel('gpt-audio-1.5');
+
+const result = await generate({
+    model,
+    messages: [
+        {
+            role: 'user',
+            content: [
+                { type: 'text', text: 'Transcribe this recording' },
+                {
+                    type: 'audio',
+                    source: {
+                        type: 'base64',
+                        mediaType: 'audio/wav',
+                        data: audioData,
+                    },
+                },
+            ],
+        },
+    ],
+});
+```
+
+The audio model IDs listed above advertise `modalities.input` as
+`['text', 'audio']` on `openai.chat.chatModel()`. The adapter accepts
+`audio/wav`, `audio/mp3`, and `audio/mpeg`; both MP3 MIME types map to the
+native `mp3` format. `openai.chatModel()` uses the Responses API, does not
+advertise audio, and rejects audio input with guidance to use Chat Completions.
+Unknown model IDs do not advertise audio. Output remains text-only.
 
 Reasoning support depends on the selected model family:
 

@@ -137,6 +137,66 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it.each([
+        ['audio/wav', 'wav'],
+        ['audio/mp3', 'mp3'],
+        ['audio/mpeg', 'mp3'],
+    ] as const)(
+        'should convert %s audio to input_audio with %s format',
+        (mediaType, format) => {
+            const messages: Message[] = [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'audio',
+                            source: {
+                                type: 'base64',
+                                mediaType,
+                                data: 'base64-audio',
+                            },
+                        },
+                    ],
+                },
+            ];
+
+            expect(convertMessages(messages)).toEqual([
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'input_audio',
+                            input_audio: {
+                                data: 'base64-audio',
+                                format,
+                            },
+                        },
+                    ],
+                },
+            ]);
+        }
+    );
+
+    it('should reject unsupported audio media types', () => {
+        const messages: Message[] = [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'audio',
+                        source: {
+                            type: 'base64',
+                            mediaType: 'audio/flac',
+                            data: 'base64-audio',
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(() => convertMessages(messages)).toThrowError(ValidationError);
+    });
+
     it('should convert an assistant message with tool calls', () => {
         const messages: Message[] = [
             {
@@ -487,6 +547,45 @@ describe('image input', () => {
             createGenerateRequest('qwen3-235b', { messages })
         ).not.toThrow();
     });
+});
+
+describe('audio input', () => {
+    const messages: Message[] = [
+        {
+            role: 'user',
+            content: [
+                {
+                    type: 'audio',
+                    source: {
+                        type: 'base64',
+                        mediaType: 'audio/wav',
+                        data: 'base64-audio',
+                    },
+                },
+            ],
+        },
+    ];
+
+    it.each([
+        'gpt-audio-1.5',
+        'gpt-audio',
+        'gpt-audio-mini',
+        'gpt-4o-audio-preview',
+        'gpt-4o-mini-audio-preview',
+    ])('should accept audio for %s', (modelId) => {
+        expect(() =>
+            createGenerateRequest(modelId, { messages })
+        ).not.toThrow();
+    });
+
+    it.each(['gpt-4o', 'custom-model'])(
+        'should reject audio for %s',
+        (modelId) => {
+            expect(() =>
+                createGenerateRequest(modelId, { messages })
+            ).toThrowError(ValidationError);
+        }
+    );
 });
 
 describe('reasoning support', () => {

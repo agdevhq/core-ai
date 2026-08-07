@@ -268,6 +268,30 @@ describe('image input', () => {
             })
         ).toThrowError(ValidationError);
     });
+
+    it('should reject audio before converting it as a document', () => {
+        const audioMessages: Message[] = [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'audio',
+                        source: {
+                            type: 'base64',
+                            mediaType: 'audio/wav',
+                            data: 'base64-audio',
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(() =>
+            createGenerateRequest('mistral-large-latest', {
+                messages: audioMessages,
+            })
+        ).toThrowError(/input modality: audio/);
+    });
 });
 
 describe('reasoning support', () => {

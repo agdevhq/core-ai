@@ -313,6 +313,34 @@ describe('image input', () => {
             )
         ).toThrowError(ValidationError);
     });
+
+    it('should reject audio before converting it as a document', () => {
+        const audioMessages: Message[] = [
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'audio',
+                        source: {
+                            type: 'base64',
+                            mediaType: 'audio/wav',
+                            data: 'base64-audio',
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(() =>
+            createGenerateRequest(
+                'claude-sonnet-4-6',
+                4096,
+                { messages: audioMessages },
+                'anthropic',
+                true
+            )
+        ).toThrowError(/input modality: audio/);
+    });
 });
 
 describe('structured output helpers', () => {

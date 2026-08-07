@@ -11,7 +11,10 @@ import { createOpenAIChatCompletionsModel } from '../chat-completions/chat-model
 import { createOpenAIChatModel } from '../chat-model.js';
 import { createOpenAIEmbeddingModel } from '../embedding-model.js';
 import { createOpenAIImageModel } from '../image-model.js';
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+import {
+    getOpenAIModelCapabilities,
+    toOpenAIResponsesCapabilities,
+} from '../model-capabilities.js';
 import {
     openaiChatGenerateProviderOptionsSchema,
     type OpenAIChatGenerateProviderOptionsConfig,
@@ -74,7 +77,12 @@ export function createOpenAIProvider(
                 modelId
             ) ?? getOpenAIModelCapabilities(modelId);
 
-        return createOpenAIChatModel(client, modelId, capabilities, providerId);
+        return createOpenAIChatModel(
+            client,
+            modelId,
+            toOpenAIResponsesCapabilities(capabilities),
+            providerId
+        );
     };
     const createChatCompletionsModel = (modelId: string) => {
         const capabilities =

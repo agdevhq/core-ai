@@ -25,10 +25,13 @@ import type {
 import {
     getProviderMetadata,
     clampReasoningEffort,
+    UnsupportedInputModalityError,
+    ValidationError,
     validateInputModalities,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
+    toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
 import { convertToolChoice, convertTools } from './shared/tools.js';
@@ -66,9 +69,11 @@ function resolveAdapterOptions(
     modelId: string,
     adapterOptions: OpenAIResponsesAdapterOptions
 ): ResolvedAdapterOptions {
+    const capabilities =
+        adapterOptions.capabilities ?? getOpenAIModelCapabilities(modelId);
+
     return {
-        capabilities:
-            adapterOptions.capabilities ?? getOpenAIModelCapabilities(modelId),
+        capabilities: toOpenAIResponsesCapabilities(capabilities),
         providerId: adapterOptions.providerId ?? DEFAULT_PROVIDER_ID,
     };
 }
@@ -83,6 +88,8 @@ type ConvertMessagesOptions = {
 
 const ENCRYPTED_REASONING_INCLUDE = 'reasoning.encrypted_content';
 const REASONING_SUMMARY_SEPARATOR = '\n\n';
+const RESPONSES_AUDIO_REJECTION =
+    'OpenAI Responses does not accept audio input; use provider.chat.chatModel() with an audio-capable Chat Completions model';
 
 export function convertMessages(
     messages: Message[],
@@ -235,6 +242,10 @@ function convertUserContentPart(part: UserContentPart) {
         };
     }
 
+    if (part.type === 'audio') {
+        throw new ValidationError(RESPONSES_AUDIO_REJECTION);
+    }
+
     return {
         type: 'input_file' as const,
         file_data: part.data,
@@ -305,7 +316,7 @@ function createRequestBase(
     { capabilities, providerId }: ResolvedAdapterOptions
 ) {
     validateReasoningConfig(modelId, options, capabilities, providerId);
-    validateInputModalities({
+    validateResponsesInputModalities({
         messages: options.messages,
         capabilities,
         modelId,
@@ -327,6 +338,22 @@ function createRequestBase(
         ...mapReasoningToRequestFields(options, capabilities),
         ...mapSamplingToRequestFields(options),
     };
+}
+
+function validateResponsesInputModalities(
+    options: Parameters<typeof validateInputModalities>[0]
+): void {
+    try {
+        validateInputModalities(options);
+    } catch (error) {
+        if (
+            error instanceof UnsupportedInputModalityError &&
+            error.unsupportedModalities.includes('audio')
+        ) {
+            error.message = `${error.message}. ${RESPONSES_AUDIO_REJECTION}`;
+        }
+        throw error;
+    }
 }
 
 function convertResponseTools(tools: ToolSet) {

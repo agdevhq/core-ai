@@ -186,6 +186,15 @@ function convertUserContentPart(part: UserContentPart): Part {
         };
     }
 
+    if (part.type === 'audio') {
+        return {
+            inlineData: {
+                data: part.source.data,
+                mimeType: part.source.mediaType,
+            },
+        };
+    }
+
     return {
         inlineData: {
             data: part.data,

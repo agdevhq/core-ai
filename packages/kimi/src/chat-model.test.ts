@@ -217,6 +217,34 @@ describe('generate', () => {
         expect(create).not.toHaveBeenCalled();
     });
 
+    it('should reject audio parts before calling the provider', async () => {
+        const create = vi.fn();
+        const model = createKimiModel(createMockClient(create));
+
+        await expect(
+            model.generate({
+                messages: [
+                    {
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'audio',
+                                source: {
+                                    type: 'base64',
+                                    mediaType: 'audio/wav',
+                                    data: 'base64-audio',
+                                },
+                            },
+                        ],
+                    },
+                ],
+            })
+        ).rejects.toThrowError(
+            /^kimi model "kimi-k2.7-code" does not support input modality: audio/
+        );
+        expect(create).not.toHaveBeenCalled();
+    });
+
     it('should omit unsupported reasoning effort', async () => {
         const create = vi.fn(async (request: unknown) => {
             expect(request).not.toHaveProperty('reasoning_effort');

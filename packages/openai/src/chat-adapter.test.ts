@@ -4,6 +4,7 @@ import type {
     ResponseStreamEvent,
 } from 'openai/resources/responses/responses';
 import {
+    UnsupportedInputModalityError,
     ValidationError,
     type GenerateOptions,
     type Message,
@@ -26,6 +27,22 @@ const IMAGE_MESSAGES: Message[] = [
             {
                 type: 'image',
                 source: { type: 'url', url: 'https://example.com/photo.png' },
+            },
+        ],
+    },
+];
+
+const AUDIO_MESSAGES: Message[] = [
+    {
+        role: 'user',
+        content: [
+            {
+                type: 'audio',
+                source: {
+                    type: 'base64',
+                    mediaType: 'audio/wav',
+                    data: 'base64-audio',
+                },
             },
         ],
     },
@@ -150,6 +167,12 @@ describe('convertMessages', () => {
                 ],
             },
         ]);
+    });
+
+    it('should reject audio instead of coercing it to input_file', () => {
+        expect(() => convertMessages(AUDIO_MESSAGES)).toThrowError(
+            /use provider\.chat\.chatModel\(\)/
+        );
     });
 
     it('should wrap cross-provider reasoning in <thinking> tags', () => {
@@ -426,6 +449,26 @@ describe('createGenerateRequest', () => {
                 { capabilities: textOnly }
             )
         ).toThrowError(ValidationError);
+    });
+
+    it('should reject audio with Chat Completions guidance', () => {
+        try {
+            createGenerateRequest('gpt-audio-1.5', {
+                messages: AUDIO_MESSAGES,
+            });
+            expect.unreachable();
+        } catch (error) {
+            expect(error).toBeInstanceOf(UnsupportedInputModalityError);
+            expect(error).toMatchObject({
+                requestedModalities: ['audio'],
+                supportedModalities: ['text'],
+                unsupportedModalities: ['audio'],
+            });
+            expect(error).toHaveProperty(
+                'message',
+                expect.stringMatching(/use provider\.chat\.chatModel\(\)/)
+            );
+        }
     });
 });
 

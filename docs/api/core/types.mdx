@@ -39,7 +39,7 @@ type UserMessage = {
     content: string | UserContentPart[];
 };
 
-type UserContentPart = TextPart | ImagePart | FilePart;
+type UserContentPart = TextPart | ImagePart | FilePart | AudioPart;
 ```
 
 ### TextPart
@@ -71,6 +71,19 @@ type FilePart = {
     data: string;
     mimeType: string;
     filename?: string;
+};
+```
+
+### AudioPart
+
+```typescript
+type AudioPart = {
+    type: 'audio';
+    source: {
+        type: 'base64';
+        mediaType: string;
+        data: string;
+    };
 };
 ```
 
@@ -254,18 +267,18 @@ them with `.includes(...)`, or with the exported helpers
 `supportsInputModality` and `supportsOutputModality`. Core also exports the
 common presets `TEXT_ONLY_MODALITIES` (`text` in / `text` out) and
 `MULTIMODAL_INPUT_MODALITIES` (`text` + `image` + `file` in / `text` out).
-`'audio'` and `'video'` are reserved on the input union until dedicated user
-content parts exist; they are not advertised today.
+Providers that support `AudioPart` add `'audio'` to their input array. `'video'`
+is reserved until a dedicated user content part exists.
 
-Sending image or file parts when those modalities are not in
+Sending image, file, or audio parts when those modalities are not in
 `modalities.input` throws an `UnsupportedInputModalityError` before the
 provider call. Unrecognized model IDs are treated as multimodal capable on
-purpose (fail-open), so self-hosted endpoints and newly released models are
-never blocked locally. Typos and custom deployment names that do not match a
-registry key therefore include `'image'` and `'file'` in `modalities.input`
-and still rely on the provider to reject unsupported requests. For Azure and
-other wrappers, pass a known registry model ID when you need accurate
-capability data.
+purpose for image and file input (fail-open), so self-hosted endpoints and
+newly released models are not blocked locally for those parts. Audio remains
+opt-in. Typos and custom deployment names that do not match a registry key
+therefore include `'image'` and `'file'` in `modalities.input` and still rely
+on the provider to reject unsupported requests. For Azure and other wrappers,
+pass a known registry model ID when you need accurate capability data.
 
 `modalities.output` currently always includes `'text'`. Dedicated image
 generation uses `ImageModel` / `generateImage`, not chat `output`.

@@ -8,6 +8,7 @@ export type {
     TextPart,
     ImagePart,
     FilePart,
+    AudioPart,
     ReasoningEffort,
     ReasoningConfig,
     AssistantTextPart,

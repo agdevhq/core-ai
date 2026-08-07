@@ -1,9 +1,10 @@
 ---
 title: Multi-Modal
-description: Work with images, files, and multi-part messages in chat conversations
+description: Work with images, files, audio, and multi-part messages in chat conversations
 ---
 
-core-ai supports multi-modal inputs, allowing you to include images, files, and text in the same message.
+core-ai supports multi-modal inputs, allowing you to include images, files,
+audio, and text in the same message.
 
 ## Images in Messages
 
@@ -122,6 +123,11 @@ type FilePart = {
     mimeType: string; // MIME type of the file
     filename?: string; // Optional filename
 };
+
+type AudioPart = {
+    type: 'audio';
+    source: { type: 'base64'; mediaType: string; data: string };
+};
 ```
 
 ## Multiple Images
@@ -186,6 +192,42 @@ const result = await generate({
     ],
 });
 ```
+
+## Audio input
+
+Audio parts use base64 data and a MIME type:
+
+```typescript
+import { readFile } from 'fs/promises';
+import { generate } from '@core-ai/core-ai';
+
+const audioData = (await readFile('recording.wav')).toString('base64');
+
+const result = await generate({
+    model,
+    messages: [
+        {
+            role: 'user',
+            content: [
+                { type: 'text', text: 'Transcribe this recording' },
+                {
+                    type: 'audio',
+                    source: {
+                        type: 'base64',
+                        mediaType: 'audio/wav',
+                        data: audioData,
+                    },
+                },
+            ],
+        },
+    ],
+});
+```
+
+Google Gemini chat models accept audio through `inlineData`. OpenAI accepts
+audio only through `openai.chat.chatModel()` with an audio-capable Chat
+Completions model. Other providers reject audio with
+`UnsupportedInputModalityError`.
 
 ## File Attachments
 
@@ -538,7 +580,8 @@ Multi-modal support varies by provider:
 
 ## Model support
 
-Not every model accepts images. Read `model.capabilities.modalities.input` to find out before you build a request:
+Not every model accepts every input type. Read
+`model.capabilities.modalities.input` before you build a request:
 
 ```typescript
 import { supportsInputModality } from '@core-ai/core-ai';
@@ -552,7 +595,7 @@ console.log(supportsInputModality(model.capabilities, 'image'));
 // true
 ```
 
-Sending image or file parts to a model that does not support them throws an
+Sending image, file, or audio parts to a model that does not support them throws an
 `UnsupportedInputModalityError` (a `ValidationError`) before the request
 reaches the provider:
 
@@ -572,7 +615,10 @@ try {
 }
 ```
 
-Model IDs a provider does not recognize are treated as multimodal capable, so self-hosted and newly released models are never blocked. Vision-capable models accept both `base64` and `url` image sources.
+Provider registries generally allow image and file input for unrecognized model
+IDs so self-hosted and newly released models are not blocked locally. Audio
+remains opt-in. Vision-capable models accept both `base64` and `url` image
+sources.
 
 To run the same check yourself before dispatching a request, use `validateInputModalities`:
 
