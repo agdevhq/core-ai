@@ -223,6 +223,51 @@ describe('@core-ai/opentelemetry', () => {
         expect(span.attributes['output.value']).toBe('Hello');
     });
 
+    it('records audio parts when content recording is enabled', async () => {
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createOtelMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [
+                {
+                    role: 'user',
+                    content: [
+                        {
+                            type: 'audio',
+                            source: {
+                                type: 'base64',
+                                mediaType: 'audio/wav',
+                                data: 'base64-audio',
+                            },
+                        },
+                    ],
+                },
+            ],
+        });
+
+        const span = expectDefined(exporter.getFinishedSpans()[0]);
+        const inputMessages = JSON.parse(
+            String(span.attributes['gen_ai.input.messages'])
+        ) as Array<{
+            parts: Array<{ type: string; source?: unknown }>;
+        }>;
+
+        expect(inputMessages[0]?.parts).toEqual([
+            {
+                type: 'audio',
+                source: {
+                    type: 'base64',
+                    mediaType: 'audio/wav',
+                    data: 'base64-audio',
+                },
+            },
+        ]);
+    });
+
     it('omits content attributes by default', async () => {
         const model = createMockChatModel();
         const wrappedModel = wrapChatModel({

@@ -52,6 +52,23 @@ const FILE_MESSAGES: Message[] = [
     },
 ];
 
+const AUDIO_MESSAGES: Message[] = [
+    {
+        role: 'user',
+        content: [
+            { type: 'text', text: 'Transcribe this' },
+            {
+                type: 'audio',
+                source: {
+                    type: 'base64',
+                    mediaType: 'audio/wav',
+                    data: 'UklGRg==',
+                },
+            },
+        ],
+    },
+];
+
 describe('validateInputModalities', () => {
     it('accepts images and files when the model is multimodal', () => {
         expect(() =>
@@ -84,6 +101,47 @@ describe('validateInputModalities', () => {
                 providerId: 'openai',
             })
         ).toThrowError(UnsupportedInputModalityError);
+    });
+
+    it('accepts audio when the model advertises audio input', () => {
+        const audioCapabilities: ModelCapabilities = {
+            reasoning: REASONING,
+            modalities: {
+                input: ['text', 'audio'],
+                output: ['text'],
+            },
+        };
+
+        expect(() =>
+            validateInputModalities({
+                messages: AUDIO_MESSAGES,
+                capabilities: audioCapabilities,
+                modelId: 'audio-model',
+                providerId: 'provider',
+            })
+        ).not.toThrow();
+    });
+
+    it('rejects audio with structured modality details', () => {
+        try {
+            validateInputModalities({
+                messages: AUDIO_MESSAGES,
+                capabilities: TEXT_ONLY,
+                modelId: 'text-model',
+                providerId: 'provider',
+            });
+            expect.unreachable();
+        } catch (error) {
+            expect(error).toBeInstanceOf(UnsupportedInputModalityError);
+            const modalityError = error as UnsupportedInputModalityError;
+            expect(modalityError.unsupportedModalities).toEqual(['audio']);
+            expect(modalityError.supportedModalities).toEqual(['text']);
+            expect(modalityError.requestedModalities).toEqual([
+                'text',
+                'audio',
+            ]);
+            expect(modalityError.provider).toBe('provider');
+        }
     });
 
     it('reports every unsupported modality in one error', () => {

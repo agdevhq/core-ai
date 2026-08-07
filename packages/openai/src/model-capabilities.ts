@@ -41,6 +41,11 @@ const PRO_EFFORTS = [
 ] as const satisfies readonly ReasoningEffort[];
 const HIGH_EFFORT = ['high'] as const satisfies readonly ReasoningEffort[];
 
+const OPENAI_AUDIO_INPUT_MODALITIES = {
+    input: ['text', 'audio'],
+    output: ['text'],
+} as const satisfies ModelCapabilities['modalities'];
+
 type CapabilitiesConfig = {
     supportedEfforts: readonly ReasoningEffort[];
     restrictsSamplingParams: boolean;
@@ -133,6 +138,14 @@ const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
         maxTokensParameter: 'max_completion_tokens',
         modalities: TEXT_ONLY_MODALITIES,
     });
+const AUDIO_CAPABILITIES = createNoReasoningCapabilities({
+    maxTokensParameter: 'max_completion_tokens',
+    modalities: OPENAI_AUDIO_INPUT_MODALITIES,
+});
+const GPT_4O_AUDIO_CAPABILITIES = createNoReasoningCapabilities({
+    maxTokensParameter: 'max_tokens',
+    modalities: OPENAI_AUDIO_INPUT_MODALITIES,
+});
 
 const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
     supportedEfforts: MAX_EFFORTS,
@@ -180,6 +193,11 @@ export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-4o-mini': NO_REASONING_CAPABILITIES,
     'gpt-4-turbo': NO_REASONING_CAPABILITIES,
     'gpt-3.5-turbo': NO_REASONING_TEXT_ONLY_CAPABILITIES,
+    'gpt-audio-1.5': AUDIO_CAPABILITIES,
+    'gpt-audio': AUDIO_CAPABILITIES,
+    'gpt-audio-mini': AUDIO_CAPABILITIES,
+    'gpt-4o-audio-preview': GPT_4O_AUDIO_CAPABILITIES,
+    'gpt-4o-mini-audio-preview': GPT_4O_AUDIO_CAPABILITIES,
     [UNKNOWN_MODEL]: UNKNOWN_MODEL_CAPABILITIES,
 } as const satisfies ModelCapabilitiesRegistry<OpenAIModelCapabilities>;
 
@@ -201,6 +219,24 @@ export function getOpenAIModelCapabilities(
         getRegisteredModelCapabilities(OPENAI_MODEL_CAPABILITIES, modelId) ??
         UNKNOWN_MODEL_CAPABILITIES
     );
+}
+
+export function toOpenAIResponsesCapabilities(
+    capabilities: ModelCapabilities
+): ModelCapabilities {
+    if (!capabilities.modalities.input.includes('audio')) {
+        return capabilities;
+    }
+
+    return {
+        ...capabilities,
+        modalities: {
+            input: capabilities.modalities.input.filter(
+                (modality) => modality !== 'audio'
+            ),
+            output: capabilities.modalities.output,
+        },
+    };
 }
 
 export function normalizeModelId(modelId: string): string {

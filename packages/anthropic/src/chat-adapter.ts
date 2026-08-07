@@ -245,6 +245,10 @@ function convertUserContentPart(part: UserContentPart): ContentBlockParam {
         };
     }
 
+    if (part.type === 'audio') {
+        throw new ValidationError('Anthropic does not support audio input');
+    }
+
     if (part.mimeType !== 'application/pdf') {
         throw new Error(
             'Anthropic only supports PDF file content in this abstraction'

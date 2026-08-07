@@ -42,7 +42,8 @@ const systemMessage: SystemMessage = {
 
 ### User Message
 
-User messages represent input from the user. They can be simple text or multi-modal content with images and files.
+User messages represent input from the user. They can be simple text or
+multi-modal content with images, files, and audio.
 
 ```typescript
 type UserMessage = {
@@ -227,6 +228,34 @@ const filePart: FilePart = {
     data: base64Data,
     mimeType: 'application/pdf',
     filename: 'document.pdf',
+};
+```
+
+### Audio Parts
+
+Audio parts contain base64-encoded audio:
+
+```typescript
+type AudioPart = {
+    type: 'audio';
+    source: {
+        type: 'base64';
+        mediaType: string;
+        data: string;
+    };
+};
+```
+
+```typescript
+import { readFileSync } from 'fs';
+
+const audioPart: AudioPart = {
+    type: 'audio',
+    source: {
+        type: 'base64',
+        mediaType: 'audio/wav',
+        data: readFileSync('./recording.wav').toString('base64'),
+    },
 };
 ```
 

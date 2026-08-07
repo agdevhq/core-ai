@@ -184,6 +184,18 @@ describe('getOpenAIModelCapabilities', () => {
         }
     );
 
+    it.each([
+        'gpt-audio-1.5',
+        'gpt-audio',
+        'gpt-audio-mini',
+        'gpt-4o-audio-preview',
+        'gpt-4o-mini-audio-preview',
+    ])('should report text and audio input for %s', (modelId) => {
+        const modalities = getOpenAIModelCapabilities(modelId).modalities;
+        expect(modalities.input).toEqual(['text', 'audio']);
+        expect(modalities.output).toEqual(['text']);
+    });
+
     it('should treat unknown models as multimodal capable', () => {
         expect(
             getOpenAIModelCapabilities('custom-model').modalities.input

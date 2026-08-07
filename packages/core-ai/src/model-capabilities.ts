@@ -51,8 +51,8 @@ export const TEXT_ONLY_MODALITIES = {
 /**
  * Text, image, and file in; text out.
  *
- * Typical vision / document chat models. `'audio'` and `'video'` stay reserved
- * on `ChatInputModality` until dedicated user content parts exist.
+ * Typical vision / document chat models. Audio support is advertised separately
+ * by providers whose adapters accept `AudioPart`.
  */
 export const MULTIMODAL_INPUT_MODALITIES = {
     input: ['text', 'image', 'file'],

@@ -34,6 +34,20 @@ describe('createOpenAIProvider', () => {
         );
     });
 
+    it('should advertise audio only on Chat Completions audio models', () => {
+        const provider = createOpenAIProvider({
+            client: createMockClient(),
+        });
+
+        expect(
+            provider.chatModel('gpt-audio-1.5').capabilities.modalities.input
+        ).toEqual(['text']);
+        expect(
+            provider.chat.chatModel('gpt-audio-1.5').capabilities.modalities
+                .input
+        ).toEqual(['text', 'audio']);
+    });
+
     it('should read chat provider options from the provider namespace', async () => {
         const create = vi.fn(async () => createChatCompletion());
         const provider = createOpenAIProvider(

@@ -20,6 +20,7 @@ import type {
 import {
     clampReasoningEffort,
     getProviderMetadata,
+    ValidationError,
     validateInputModalities,
 } from '@core-ai/core-ai';
 import {
@@ -83,7 +84,12 @@ function convertMessage(
             content:
                 typeof message.content === 'string'
                     ? message.content
-                    : message.content.map(convertUserContentPart),
+                    : message.content.map((part) =>
+                          convertUserContentPart(
+                              part,
+                              adapterOptions.providerId
+                          )
+                      ),
         };
     }
 
@@ -151,7 +157,8 @@ function convertMessage(
 }
 
 function convertUserContentPart(
-    part: UserContentPart
+    part: UserContentPart,
+    providerId?: string
 ): ChatCompletionContentPart {
     if (part.type === 'text') {
         return {
@@ -174,6 +181,16 @@ function convertUserContentPart(
         };
     }
 
+    if (part.type === 'audio') {
+        return {
+            type: 'input_audio',
+            input_audio: {
+                data: part.source.data,
+                format: toOpenAIAudioFormat(part.source.mediaType, providerId),
+            },
+        };
+    }
+
     return {
         type: 'file',
         file: {
@@ -181,6 +198,28 @@ function convertUserContentPart(
             ...(part.filename ? { filename: part.filename } : {}),
         },
     };
+}
+
+const AUDIO_FORMAT_BY_MEDIA_TYPE: Readonly<Record<string, 'wav' | 'mp3'>> = {
+    'audio/wav': 'wav',
+    'audio/mp3': 'mp3',
+    'audio/mpeg': 'mp3',
+};
+
+function toOpenAIAudioFormat(
+    mediaType: string,
+    providerId?: string
+): 'wav' | 'mp3' {
+    const format = AUDIO_FORMAT_BY_MEDIA_TYPE[mediaType.toLowerCase()];
+    if (format === undefined) {
+        throw new ValidationError(
+            `unsupported audio media type "${mediaType}"; OpenAI Chat Completions accepts audio/wav, audio/mp3, and audio/mpeg`,
+            undefined,
+            providerId
+        );
+    }
+
+    return format;
 }
 
 export function createGenerateRequest(

@@ -1,5 +1,4 @@
 import {
-    MULTIMODAL_INPUT_MODALITIES,
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
@@ -19,6 +18,11 @@ const ALL_EFFORTS = [
     'max',
 ] as const satisfies readonly ReasoningEffort[];
 
+const GOOGLE_INPUT_MODALITIES = {
+    input: ['text', 'image', 'file', 'audio'],
+    output: ['text'],
+} as const satisfies ModelCapabilities['modalities'];
+
 function createCapabilities(config: {
     thinkingParam: GoogleModelCapabilities['reasoning']['thinkingParam'];
     mode: GoogleModelCapabilities['reasoning']['mode'];
@@ -31,7 +35,7 @@ function createCapabilities(config: {
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
         },
-        modalities: MULTIMODAL_INPUT_MODALITIES,
+        modalities: GOOGLE_INPUT_MODALITIES,
     };
 }
 

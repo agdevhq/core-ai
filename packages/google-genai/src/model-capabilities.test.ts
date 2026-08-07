@@ -47,7 +47,7 @@ describe('getGoogleModelCapabilities', () => {
         (modelId) => {
             expect(
                 getGoogleModelCapabilities(modelId).modalities.input
-            ).toEqual(['text', 'image', 'file']);
+            ).toEqual(['text', 'image', 'file', 'audio']);
             expect(
                 getGoogleModelCapabilities(modelId).modalities.output
             ).toEqual(['text']);

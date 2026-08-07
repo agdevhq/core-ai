@@ -29,6 +29,7 @@ import {
     asObject,
     getProviderMetadata,
     safeParseJsonObject,
+    ValidationError,
     validateInputModalities,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
@@ -170,6 +171,10 @@ function convertUserContentPart(part: UserContentPart): ContentChunk {
                 url,
             },
         };
+    }
+
+    if (part.type === 'audio') {
+        throw new ValidationError('Mistral does not support audio input');
     }
 
     return {

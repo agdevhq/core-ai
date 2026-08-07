@@ -243,14 +243,19 @@ const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 Sampling parameters and all unified tool-choice modes remain supported while
 reasoning is enabled.
 
-`modalities.input` is `['text', 'image', 'file']` for every Gemini chat model.
-Image sources accept both `base64` and `url`. A URL maps to `fileData.fileUri`,
-which accepts publicly readable HTTP(S) URLs, pre-signed URLs, `gs://` objects,
-and Files API URIs. The URL is fetched by Google rather than by this library,
-so the content must be reachable from Google's side. File parts map to
-`inlineData` with the provided MIME type. `modalities.output` is `['text']`
-for chat models; native image generation uses `imageModel()`. Audio and video
-are not advertised until dedicated user content parts exist.
+`modalities.input` is `['text', 'image', 'file', 'audio']` for every Gemini
+chat model. Image sources accept both `base64` and `url`. A URL maps to
+`fileData.fileUri`, which accepts publicly readable HTTP(S) URLs, pre-signed
+URLs, `gs://` objects, and Files API URIs. The URL is fetched by Google rather
+than by this library, so the content must be reachable from Google's side.
+File and audio parts map to `inlineData` with the provided MIME type.
+
+Audio parts support `audio/wav`, `audio/mp3`, `audio/aiff`, `audio/aac`,
+`audio/ogg`, and `audio/flac`. The total inline request size is limited to 20
+MB. Use base64 data only; core-ai does not upload audio through the Files API.
+
+`modalities.output` is `['text']` for chat models. Native image generation uses
+`imageModel()`.
 
 ### Thinking modes
 

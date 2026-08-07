@@ -132,6 +132,13 @@ function serializeUserContentParts(
             };
         }
 
+        if (part.type === 'audio') {
+            return {
+                type: 'audio',
+                source: part.source,
+            };
+        }
+
         return {
             type: 'file',
             data: part.data,

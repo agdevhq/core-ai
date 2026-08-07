@@ -16,7 +16,7 @@ export type UserMessage = {
     content: string | UserContentPart[];
 };
 
-export type UserContentPart = TextPart | ImagePart | FilePart;
+export type UserContentPart = TextPart | ImagePart | FilePart | AudioPart;
 
 export type TextPart = {
     type: 'text';
@@ -40,6 +40,11 @@ export type FilePart = {
     data: string;
     mimeType: string;
     filename?: string;
+};
+
+export type AudioPart = {
+    type: 'audio';
+    source: { type: 'base64'; mediaType: string; data: string };
 };
 
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'max';
@@ -137,8 +142,8 @@ export type ToolChoiceMode = 'auto' | 'none' | 'required' | 'tool';
 /**
  * Modalities a chat model can accept in user messages.
  *
- * `file` covers document attachments such as PDFs. `audio` and `video` are
- * reserved for future input parts.
+ * `file` covers document attachments such as PDFs. `video` is reserved for a
+ * future input part.
  */
 export type ChatInputModality =
     | 'text'
