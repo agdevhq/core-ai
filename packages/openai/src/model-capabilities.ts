@@ -1,6 +1,8 @@
 import {
     getRegisteredModelCapabilities,
+    MULTIMODAL_INPUT_MODALITIES,
     stripModelDateSuffix,
+    TEXT_ONLY_MODALITIES,
     UNKNOWN_MODEL,
     type ModelCapabilities,
     type ModelCapabilitiesRegistry,
@@ -43,14 +45,14 @@ type CapabilitiesConfig = {
     supportedEfforts: readonly ReasoningEffort[];
     restrictsSamplingParams: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
-    imageInput?: boolean;
+    modalities?: ModelCapabilities['modalities'];
 };
 
 function createCapabilities({
     supportedEfforts,
     restrictsSamplingParams,
     maxTokensParameter = 'max_completion_tokens',
-    imageInput = true,
+    modalities = MULTIMODAL_INPUT_MODALITIES,
 }: CapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -59,7 +61,7 @@ function createCapabilities({
             restrictsSamplingParams,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
-        modalities: { imageInput },
+        modalities,
         chatCompletions: {
             maxTokensParameter,
         },
@@ -98,12 +100,12 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
 
 type NoReasoningCapabilitiesConfig = {
     maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
-    imageInput?: boolean;
+    modalities?: ModelCapabilities['modalities'];
 };
 
 function createNoReasoningCapabilities({
     maxTokensParameter,
-    imageInput = true,
+    modalities = MULTIMODAL_INPUT_MODALITIES,
 }: NoReasoningCapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -112,7 +114,7 @@ function createNoReasoningCapabilities({
             restrictsSamplingParams: false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
-        modalities: { imageInput },
+        modalities,
         chatCompletions: {
             maxTokensParameter,
         },
@@ -124,12 +126,12 @@ const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities({
 });
 const NO_REASONING_TEXT_ONLY_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_tokens',
-    imageInput: false,
+    modalities: TEXT_ONLY_MODALITIES,
 });
 const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
     createNoReasoningCapabilities({
         maxTokensParameter: 'max_completion_tokens',
-        imageInput: false,
+        modalities: TEXT_ONLY_MODALITIES,
     });
 
 const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
@@ -139,7 +141,7 @@ const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
 const O_SERIES_TEXT_ONLY_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
-    imageInput: false,
+    modalities: TEXT_ONLY_MODALITIES,
 });
 
 export const OPENAI_MODEL_CAPABILITIES = {

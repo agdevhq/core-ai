@@ -6,6 +6,7 @@ import {
     type GenerateOptions,
     type Message,
     type ToolSet,
+    TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import type {
     Message as AnthropicMessage,
@@ -298,9 +299,7 @@ describe('image input', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getAnthropicModelCapabilities('claude-sonnet-4-6'),
-            modalities: {
-                imageInput: false,
-            },
+            modalities: TEXT_ONLY_MODALITIES,
         };
 
         expect(() =>

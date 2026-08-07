@@ -164,23 +164,30 @@ describe('getOpenAIModelCapabilities', () => {
     );
 
     it.each(['gpt-5.6-sol', 'gpt-4o', 'o3', 'o1'])(
-        'should report image input as supported for %s',
+        'should report multimodal input as supported for %s',
         (modelId) => {
-            expect(getOpenAIModelCapabilities(modelId).modalities.imageInput).toBe(true);
+            expect(
+                getOpenAIModelCapabilities(modelId).modalities.input
+            ).toEqual(['text', 'image', 'file']);
+            expect(
+                getOpenAIModelCapabilities(modelId).modalities.output
+            ).toEqual(['text']);
         }
     );
 
     it.each(['gpt-3.5-turbo', 'o1-mini', 'o3-mini'])(
-        'should report image input as unsupported for %s',
+        'should report text-only input for %s',
         (modelId) => {
-            expect(getOpenAIModelCapabilities(modelId).modalities.imageInput).toBe(false);
+            expect(
+                getOpenAIModelCapabilities(modelId).modalities.input
+            ).toEqual(['text']);
         }
     );
 
-    it('should treat unknown models as image capable', () => {
+    it('should treat unknown models as multimodal capable', () => {
         expect(
-            getOpenAIModelCapabilities('custom-model').modalities.imageInput
-        ).toBe(true);
+            getOpenAIModelCapabilities('custom-model').modalities.input
+        ).toEqual(['text', 'image', 'file']);
     });
 
     it('should preserve the Chat Completions parameter for dated model IDs', () => {

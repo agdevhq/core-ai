@@ -22,6 +22,7 @@ import {
     type GenerateOptions,
     type Message,
     type ToolSet,
+    TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import { toAsyncIterable } from '@core-ai/testing';
 
@@ -505,9 +506,7 @@ describe('reasoning support', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getGoogleModelCapabilities('gemini-2.5-pro'),
-            modalities: {
-                imageInput: false,
-            },
+            modalities: TEXT_ONLY_MODALITIES,
         };
         const messages: Message[] = [
             {

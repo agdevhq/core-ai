@@ -538,12 +538,17 @@ Multi-modal support varies by provider:
 
 ## Model support
 
-Not every model accepts images. Read `model.capabilities.modalities.imageInput` to find out before you build a request:
+Not every model accepts images. Read `model.capabilities.modalities.input` to find out before you build a request:
 
 ```typescript
+import { supportsInputModality } from '@core-ai/core-ai';
+
 const model = openai.chatModel('gpt-4o-mini');
 
-console.log(model.capabilities.modalities.imageInput);
+console.log(model.capabilities.modalities.input);
+// ['text', 'image', 'file']
+
+console.log(supportsInputModality(model.capabilities, 'image'));
 // true
 ```
 
@@ -564,7 +569,7 @@ try {
 }
 ```
 
-Model IDs a provider does not recognize are treated as image capable, so self-hosted and newly released models are never blocked. Vision-capable models accept both `base64` and `url` image sources.
+Model IDs a provider does not recognize are treated as multimodal capable, so self-hosted and newly released models are never blocked. Vision-capable models accept both `base64` and `url` image sources.
 
 To run the same check yourself before dispatching a request, use `validateImageInput`:
 
@@ -637,7 +642,9 @@ validateImageInput({
     text-only prompt when images are not available:
 
     ```typescript
-    const content = model.capabilities.modalities.imageInput
+    import { supportsInputModality } from '@core-ai/core-ai';
+
+    const content = supportsInputModality(model.capabilities, 'image')
       ? [
           { type: 'text', text: 'Describe this image' },
           { type: 'image', source: { type: 'url', url: imageUrl } },

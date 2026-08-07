@@ -2,4 +2,4 @@
 '@core-ai/anthropic': minor
 ---
 
-Report image input support in model capabilities. Every Claude model reports `modalities.imageInput: true`, and the adapter validates image parts against the capability before calling the API.
+Report chat modalities in model capabilities. Every Claude model reports `modalities.input: ['text', 'image', 'file']` and `modalities.output: ['text']`, and the adapter validates image parts against the capability before calling the API. File parts remain PDF-only at the adapter layer.

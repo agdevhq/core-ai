@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { ValidationError } from './errors.ts';
 import type { Message, ModelCapabilities } from './types.ts';
 import { validateImageInput } from './validate-image-input.ts';
+import { MULTIMODAL_INPUT_MODALITIES, TEXT_ONLY_MODALITIES } from './model-capabilities.ts';
 
 const REASONING: ModelCapabilities['reasoning'] = {
     mode: 'unsupported',
@@ -12,12 +13,12 @@ const REASONING: ModelCapabilities['reasoning'] = {
 
 const SUPPORTED: ModelCapabilities = {
     reasoning: REASONING,
-    modalities: { imageInput: true },
+    modalities: MULTIMODAL_INPUT_MODALITIES,
 };
 
 const UNSUPPORTED: ModelCapabilities = {
     reasoning: REASONING,
-    modalities: { imageInput: false },
+    modalities: TEXT_ONLY_MODALITIES,
 };
 
 const URL_IMAGE_MESSAGES: Message[] = [

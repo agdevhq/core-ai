@@ -1,4 +1,9 @@
-import type { ReasoningEffort } from './types.ts';
+import type {
+    ChatInputModality,
+    ChatOutputModality,
+    ModelCapabilities,
+    ReasoningEffort,
+} from './types.ts';
 
 const EFFORT_RANK: Record<ReasoningEffort, number> = {
     minimal: 0,
@@ -35,4 +40,35 @@ export function clampReasoningEffort(
     }
 
     return best;
+}
+
+/** Text in, text out — the default chat modality profile. */
+export const TEXT_ONLY_MODALITIES = {
+    input: ['text'],
+    output: ['text'],
+} as const satisfies ModelCapabilities['modalities'];
+
+/**
+ * Text, image, and file in; text out.
+ *
+ * Typical vision / document chat models. `'audio'` and `'video'` stay reserved
+ * on `ChatInputModality` until dedicated user content parts exist.
+ */
+export const MULTIMODAL_INPUT_MODALITIES = {
+    input: ['text', 'image', 'file'],
+    output: ['text'],
+} as const satisfies ModelCapabilities['modalities'];
+
+export function supportsInputModality(
+    capabilities: ModelCapabilities,
+    modality: ChatInputModality
+): boolean {
+    return capabilities.modalities.input.includes(modality);
+}
+
+export function supportsOutputModality(
+    capabilities: ModelCapabilities,
+    modality: ChatOutputModality
+): boolean {
+    return capabilities.modalities.output.includes(modality);
 }

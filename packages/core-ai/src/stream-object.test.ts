@@ -4,6 +4,7 @@ import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 import { CoreAIError, StreamAbortedError, ValidationError } from './errors.ts';
 import { createObjectStream, streamObject } from './stream-object.ts';
 import type { ChatModel, ObjectStreamEvent, ObjectStream } from './types.ts';
+import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
 
 const weatherSchema = z.object({
     city: z.string(),
@@ -49,9 +50,7 @@ describe('streamObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
-                modalities: {
-                    imageInput: true,
-                },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
@@ -90,9 +89,7 @@ describe('streamObject', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
-                modalities: {
-                    imageInput: true,
-                },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');

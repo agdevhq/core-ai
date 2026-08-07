@@ -1,4 +1,5 @@
 import { ValidationError } from './errors.ts';
+import { supportsInputModality } from './model-capabilities.ts';
 import type { Message, ModelCapabilities } from './types.ts';
 
 export type ValidateImageInputOptions = {
@@ -14,7 +15,7 @@ export function validateImageInput({
     modelId,
     providerId,
 }: ValidateImageInputOptions): void {
-    if (capabilities.modalities.imageInput) {
+    if (supportsInputModality(capabilities, 'image')) {
         return;
     }
 

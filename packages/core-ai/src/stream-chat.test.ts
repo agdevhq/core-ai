@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ValidationError } from './errors.ts';
 import { stream } from './stream-chat.ts';
 import type { ChatModel, ChatOutputTokenDetails, ChatStream } from './types.ts';
+import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
 
 async function* events(): AsyncIterable<{
     type: 'finish';
@@ -72,9 +73,7 @@ describe('stream', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
-                modalities: {
-                    imageInput: true,
-                },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
@@ -110,9 +109,7 @@ describe('stream', () => {
                     restrictsSamplingParams: false,
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
-                modalities: {
-                    imageInput: true,
-                },
+                modalities: MULTIMODAL_INPUT_MODALITIES,
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');

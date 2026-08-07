@@ -1,4 +1,6 @@
 import {
+    MULTIMODAL_INPUT_MODALITIES,
+    TEXT_ONLY_MODALITIES,
     UNKNOWN_MODEL,
     type ModelCapabilities,
     type ModelCapabilitiesRegistry,
@@ -11,9 +13,7 @@ const UNKNOWN_MODEL_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
-    modalities: {
-        imageInput: true,
-    },
+    modalities: MULTIMODAL_INPUT_MODALITIES,
 };
 
 const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
@@ -23,9 +23,7 @@ const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: true,
         supportedToolChoices: ['auto', 'none'],
     },
-    modalities: {
-        imageInput: false,
-    },
+    modalities: TEXT_ONLY_MODALITIES,
 };
 
 export const KIMI_MODEL_CAPABILITIES = {

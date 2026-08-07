@@ -1,4 +1,5 @@
 import {
+    MULTIMODAL_INPUT_MODALITIES,
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
@@ -30,8 +31,7 @@ function createCapabilities(config: {
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
         },
-        // URL sources map to `fileData.fileUri` (HTTP(S), gs://, Files API).
-        modalities: { imageInput: true },
+        modalities: MULTIMODAL_INPUT_MODALITIES,
     };
 }
 

@@ -1,6 +1,8 @@
 import {
     getRegisteredModelCapabilities,
+    MULTIMODAL_INPUT_MODALITIES,
     stripModelDateSuffix,
+    TEXT_ONLY_MODALITIES,
     UNKNOWN_MODEL,
     type ModelCapabilities,
     type ModelCapabilitiesRegistry,
@@ -11,7 +13,9 @@ export type MistralModelCapabilities = ModelCapabilities;
 /** Mistral versions models with a `-YYMM` suffix, or the `-latest` alias. */
 const MISTRAL_VERSION_SUFFIX_PATTERN = /-(?:latest|\d{4})$/;
 
-function createCapabilities(imageInput: boolean): MistralModelCapabilities {
+function createCapabilities(
+    modalities: ModelCapabilities['modalities']
+): MistralModelCapabilities {
     return {
         reasoning: {
             mode: 'unsupported',
@@ -19,12 +23,12 @@ function createCapabilities(imageInput: boolean): MistralModelCapabilities {
             restrictsSamplingParams: false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
-        modalities: { imageInput },
+        modalities,
     };
 }
 
-const VISION_CAPABILITIES = createCapabilities(true);
-const TEXT_ONLY_CAPABILITIES = createCapabilities(false);
+const VISION_CAPABILITIES = createCapabilities(MULTIMODAL_INPUT_MODALITIES);
+const TEXT_ONLY_CAPABILITIES = createCapabilities(TEXT_ONLY_MODALITIES);
 
 /**
  * Keyed by version-less model ID, describing the generation that `-latest`

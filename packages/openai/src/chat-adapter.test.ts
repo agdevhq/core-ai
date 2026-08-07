@@ -7,6 +7,7 @@ import {
     ValidationError,
     type GenerateOptions,
     type Message,
+    TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import {
     convertMessages,
@@ -415,9 +416,7 @@ describe('createGenerateRequest', () => {
     it('should honor capabilities supplied by a wrapping provider', () => {
         const textOnly = {
             ...getOpenAIModelCapabilities('gpt-4o'),
-            modalities: {
-                imageInput: false,
-            },
+            modalities: TEXT_ONLY_MODALITIES,
         };
 
         expect(() =>

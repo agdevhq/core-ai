@@ -198,6 +198,10 @@ describes request constraints for one model ID.
 ### ModelCapabilities
 
 ```typescript
+type ChatInputModality = 'text' | 'image' | 'file' | 'audio' | 'video';
+
+type ChatOutputModality = 'text' | 'image' | 'audio' | 'video';
+
 type ModelCapabilities = {
     reasoning: {
         mode: 'unsupported' | 'optional' | 'always-on';
@@ -215,8 +219,13 @@ type ModelCapabilities = {
         )[];
     };
     modalities: {
-        /** Whether the model accepts image parts in user messages. */
-        imageInput: boolean;
+        /** Modalities accepted in user messages. Always includes `'text'`. */
+        input: readonly ChatInputModality[];
+        /**
+         * Modalities the model can emit as assistant content. Always includes
+         * `'text'`. Does not describe dedicated `ImageModel` generation.
+         */
+        output: readonly ChatOutputModality[];
     };
 };
 ```
@@ -227,7 +236,8 @@ type ModelCapabilities = {
 | `reasoning.supportedEfforts`        | Effort values the adapter accepts (empty when unsupported)           |
 | `reasoning.restrictsSamplingParams` | Whether reasoning changes the accepted sampling parameters or values |
 | `reasoning.supportedToolChoices`    | Tool choice modes supported while reasoning is enabled               |
-| `modalities.imageInput`             | Whether the model accepts image parts in user messages               |
+| `modalities.input`                  | Modalities accepted in user messages                                 |
+| `modalities.output`                 | Modalities the model can emit as assistant content                   |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
 option. The model may still return reasoning output. `optional` means callers
@@ -239,14 +249,25 @@ control. It does not necessarily mean the model cannot produce reasoning
 output. When `restrictsSamplingParams` is true, consult the provider guide for
 the exact accepted values.
 
-`modalities.imageInput` describes whether the model accepts [image parts](/guides/multi-modal).
-Sending an image when it is `false` throws a `ValidationError` before the
-provider call. Unrecognized model IDs are treated as image capable on purpose
-(fail-open), so self-hosted endpoints and newly released models are never
-blocked locally. Typos and custom deployment names that do not match a registry
-key therefore report `modalities.imageInput: true` and still rely on the
-provider to reject unsupported requests. For Azure and other wrappers, pass a
-known registry model ID when you need accurate capability data.
+`modalities.input` / `modalities.output` describe chat I/O modalities. Check
+them with `.includes(...)`, or with the exported helpers
+`supportsInputModality` and `supportsOutputModality`. Core also exports the
+common presets `TEXT_ONLY_MODALITIES` (`text` in / `text` out) and
+`MULTIMODAL_INPUT_MODALITIES` (`text` + `image` + `file` in / `text` out).
+`'audio'` and `'video'` are reserved on the input union until dedicated user
+content parts exist; they are not advertised today.
+
+Sending an image when `'image'` is not in `modalities.input` throws a
+`ValidationError` before the provider call. Unrecognized model IDs are treated
+as multimodal capable on purpose (fail-open), so self-hosted endpoints and newly
+released models are never blocked locally. Typos and custom deployment names
+that do not match a registry key therefore include `'image'` and `'file'` in
+`modalities.input` and still rely on the provider to reject unsupported
+requests. For Azure and other wrappers, pass a known registry model ID when you
+need accurate capability data.
+
+`modalities.output` currently always includes `'text'`. Dedicated image
+generation uses `ImageModel` / `generateImage`, not chat `output`.
 
 Provider packages also export `get*ModelCapabilities(modelId)` helpers that
 return the same data without constructing a `ChatModel`. Kimi exposes this data

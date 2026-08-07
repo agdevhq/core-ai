@@ -2,4 +2,4 @@
 '@core-ai/google-genai': minor
 ---
 
-Report image input support in model capabilities. Every Gemini model reports `modalities.imageInput: true`, and the adapter validates image parts against the capability before calling the API.
+Report chat modalities in model capabilities. Every Gemini chat model reports `modalities.input: ['text', 'image', 'file']` and `modalities.output: ['text']`, and the adapter validates image parts against the capability before calling the API. Audio and video are not advertised until dedicated user content parts exist.

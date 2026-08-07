@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ModelCapabilities } from '@core-ai/core-ai';
 
 import { createOpenAIProvider } from './provider-factory.js';
+import { TEXT_ONLY_MODALITIES } from '@core-ai/core-ai';
 
 const CAPABILITIES: ModelCapabilities = {
     reasoning: {
@@ -11,9 +12,7 @@ const CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
-    modalities: {
-        imageInput: false,
-    },
+    modalities: TEXT_ONLY_MODALITIES,
 };
 
 describe('createOpenAIProvider', () => {

@@ -6,6 +6,7 @@ import {
     type ModelCapabilitiesRegistry,
 } from './model-capabilities-registry.js';
 import type { ModelCapabilities } from './types.js';
+import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
 
 const KNOWN_CAPABILITIES: ModelCapabilities = {
     reasoning: {
@@ -14,9 +15,7 @@ const KNOWN_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: true,
         supportedToolChoices: ['auto', 'none'],
     },
-    modalities: {
-        imageInput: true,
-    },
+    modalities: MULTIMODAL_INPUT_MODALITIES,
 };
 
 const UNKNOWN_CAPABILITIES: ModelCapabilities = {
@@ -26,9 +25,7 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
         restrictsSamplingParams: false,
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
-    modalities: {
-        imageInput: true,
-    },
+    modalities: MULTIMODAL_INPUT_MODALITIES,
 };
 
 const REGISTRY = {

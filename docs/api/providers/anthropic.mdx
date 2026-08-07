@@ -138,8 +138,9 @@ For registered Claude models:
   `topK` rules are described under
   [Reasoning restrictions](/api/providers/anthropic#reasoning-restrictions).
 - `supportedToolChoices` is `['auto', 'none']` while reasoning is enabled.
-- `modalities.imageInput` is `true` for every Claude model, with both `base64`
-  and `url` sources accepted.
+- `modalities.input` is `['text', 'image', 'file']` for every Claude model.
+  Image sources accept both `base64` and `url`. File parts are PDF-only.
+  `modalities.output` is `['text']`.
 
 ## Examples
 

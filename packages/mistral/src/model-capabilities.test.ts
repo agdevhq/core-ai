@@ -45,10 +45,15 @@ describe('getMistralModelCapabilities', () => {
         'ministral-3b-2512',
         'ministral-8b-latest',
         'ministral-14b-2512',
-    ])('should report image input as supported for %s', (modelId) => {
-        expect(getMistralModelCapabilities(modelId).modalities.imageInput).toBe(
-            true
-        );
+    ])('should report multimodal input as supported for %s', (modelId) => {
+        expect(getMistralModelCapabilities(modelId).modalities.input).toEqual([
+            'text',
+            'image',
+            'file',
+        ]);
+        expect(getMistralModelCapabilities(modelId).modalities.output).toEqual([
+            'text',
+        ]);
     });
 
     it.each([
@@ -58,10 +63,10 @@ describe('getMistralModelCapabilities', () => {
         'open-mistral-7b',
         'open-mistral-nemo',
         'open-mixtral-8x22b',
-    ])('should report image input as unsupported for %s', (modelId) => {
-        expect(getMistralModelCapabilities(modelId).modalities.imageInput).toBe(
-            false
-        );
+    ])('should report text-only input for %s', (modelId) => {
+        expect(getMistralModelCapabilities(modelId).modalities.input).toEqual([
+            'text',
+        ]);
     });
 
     it.each([
@@ -75,30 +80,24 @@ describe('getMistralModelCapabilities', () => {
         'magistral-medium-2507',
         // Vision arrived with Ministral 3 (-2512).
         'ministral-8b-2410',
-    ])(
-        'should report image input as unsupported for the pre-vision %s',
-        (modelId) => {
-            expect(
-                getMistralModelCapabilities(modelId).modalities.imageInput
-            ).toBe(false);
-        }
-    );
+    ])('should report text-only input for the pre-vision %s', (modelId) => {
+        expect(getMistralModelCapabilities(modelId).modalities.input).toEqual([
+            'text',
+        ]);
+    });
 
     it('should prefer an exact version over the family entry', () => {
         expect(
-            getMistralModelCapabilities('ministral-8b-2410').modalities
-                .imageInput
-        ).toBe(false);
+            getMistralModelCapabilities('ministral-8b-2410').modalities.input
+        ).toEqual(['text']);
         expect(
-            getMistralModelCapabilities('ministral-8b-2512').modalities
-                .imageInput
-        ).toBe(true);
+            getMistralModelCapabilities('ministral-8b-2512').modalities.input
+        ).toEqual(['text', 'image', 'file']);
     });
 
-    it('should treat unknown models as image capable', () => {
+    it('should treat unknown models as multimodal capable', () => {
         expect(
-            getMistralModelCapabilities('self-hosted-model').modalities
-                .imageInput
-        ).toBe(true);
+            getMistralModelCapabilities('self-hosted-model').modalities.input
+        ).toEqual(['text', 'image', 'file']);
     });
 });

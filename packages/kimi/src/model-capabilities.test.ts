@@ -17,7 +17,8 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'auto',
             'none',
         ]);
-        expect(capabilities.modalities.imageInput).toBe(false);
+        expect(capabilities.modalities.input).toEqual(['text']);
+        expect(capabilities.modalities.output).toEqual(['text']);
     });
 
     it('should define unrestricted capabilities for unknown models', () => {
@@ -31,6 +32,11 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'required',
             'tool',
         ]);
-        expect(capabilities.modalities.imageInput).toBe(true);
+        expect(capabilities.modalities.input).toEqual([
+            'text',
+            'image',
+            'file',
+        ]);
+        expect(capabilities.modalities.output).toEqual(['text']);
     });
 });

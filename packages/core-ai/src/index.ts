@@ -7,7 +7,6 @@ export type {
     UserContentPart,
     TextPart,
     ImagePart,
-    ImageSourceType,
     FilePart,
     ReasoningEffort,
     ReasoningConfig,
@@ -19,6 +18,8 @@ export type {
     ToolDefinition,
     ToolSet,
     ToolChoice,
+    ChatInputModality,
+    ChatOutputModality,
     ModelCapabilities,
     ChatModel,
     ChatModelMiddleware,
@@ -87,7 +88,13 @@ export {
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';
-export { clampReasoningEffort } from './model-capabilities.ts';
+export {
+    clampReasoningEffort,
+    MULTIMODAL_INPUT_MODALITIES,
+    supportsInputModality,
+    supportsOutputModality,
+    TEXT_ONLY_MODALITIES,
+} from './model-capabilities.ts';
 export { validateImageInput } from './validate-image-input.ts';
 export type { ValidateImageInputOptions } from './validate-image-input.ts';
 export {
