@@ -1,5 +1,18 @@
 # @core-ai/anthropic
 
+## 0.19.0
+
+### Minor Changes
+
+- de380ee: Reject unsupported audio user content before calling the Anthropic Messages API.
+- b087061: Report chat modalities in model capabilities. Every Claude model reports `modalities.input: ['text', 'image', 'file']` and `modalities.output: ['text']`, and the adapter validates image parts against the capability before calling the API. File parts remain PDF-only at the adapter layer.
+
+### Patch Changes
+
+- Updated dependencies [de380ee]
+- Updated dependencies [b087061]
+    - @core-ai/core-ai@0.19.0
+
 ## 0.18.0
 
 ### Minor Changes
