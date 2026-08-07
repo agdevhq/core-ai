@@ -1,5 +1,21 @@
 # @core-ai/kimi
 
+## 0.19.0
+
+### Minor Changes
+
+- de380ee: Reject audio user content because Kimi chat models remain text-only.
+- b087061: Report chat modalities in model capabilities. The K2.7 Code models are text-only (`modalities.input: ['text']`), so image parts are rejected before the request is sent; unknown model IDs stay multimodal capable (`['text', 'image', 'file']`). `modalities.output` is `['text']`.
+
+### Patch Changes
+
+- Updated dependencies [de380ee]
+- Updated dependencies [de380ee]
+- Updated dependencies [b087061]
+- Updated dependencies [b087061]
+    - @core-ai/core-ai@0.19.0
+    - @core-ai/openai@0.19.0
+
 ## 0.18.0
 
 ### Patch Changes

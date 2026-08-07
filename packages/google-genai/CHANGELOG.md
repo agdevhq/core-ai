@@ -1,5 +1,18 @@
 # @core-ai/google-genai
 
+## 0.19.0
+
+### Minor Changes
+
+- de380ee: Accept base64 audio input on Gemini chat models and map it to Generate Content inline data.
+- b087061: Report chat modalities in model capabilities. Every Gemini chat model reports `modalities.input: ['text', 'image', 'file']` and `modalities.output: ['text']`, and the adapter validates image parts against the capability before calling the API. Audio and video are not advertised until dedicated user content parts exist.
+
+### Patch Changes
+
+- Updated dependencies [de380ee]
+- Updated dependencies [b087061]
+    - @core-ai/core-ai@0.19.0
+
 ## 0.18.0
 
 ### Patch Changes

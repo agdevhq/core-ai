@@ -1,5 +1,17 @@
 # @core-ai/opentelemetry
 
+## 0.19.0
+
+### Minor Changes
+
+- de380ee: Serialize audio user content in recorded chat input attributes.
+
+### Patch Changes
+
+- Updated dependencies [de380ee]
+- Updated dependencies [b087061]
+    - @core-ai/core-ai@0.19.0
+
 ## 0.18.0
 
 ### Patch Changes
