@@ -141,6 +141,52 @@ describe('createChatStream', () => {
         expect(response.finishReason).toBe('tool-calls');
     });
 
+    it('should preserve tool call providerMetadata from stream events', async () => {
+        const events: StreamEvent[] = [
+            {
+                type: 'tool-call-start',
+                toolCallId: 'tc1',
+                toolName: 'search',
+            },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'tc1',
+                    name: 'search',
+                    arguments: { query: 'hello' },
+                },
+                providerMetadata: { google: { thoughtSignature: 'sig_1' } },
+            },
+            {
+                type: 'finish',
+                finishReason: 'tool-calls',
+                usage: {
+                    inputTokens: 10,
+                    outputTokens: 20,
+                    inputTokenDetails: {
+                        cacheReadTokens: 0,
+                        cacheWriteTokens: 0,
+                    },
+                    outputTokenDetails: {},
+                },
+            },
+        ];
+        const chatStream = createChatStream(toAsyncIterable(events));
+        const response = await chatStream.result;
+
+        expect(response.parts).toEqual([
+            {
+                type: 'tool-call',
+                toolCall: {
+                    id: 'tc1',
+                    name: 'search',
+                    arguments: { query: 'hello' },
+                },
+                providerMetadata: { google: { thoughtSignature: 'sig_1' } },
+            },
+        ]);
+    });
+
     it('should preserve reasoning providerMetadata from stream events', async () => {
         const events: StreamEvent[] = [
             { type: 'reasoning-start' },

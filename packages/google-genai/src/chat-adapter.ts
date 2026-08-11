@@ -41,6 +41,12 @@ import {
     type GoogleGenerateProviderOptions,
 } from './provider-options.js';
 
+/**
+ * Thought signature Google attaches to reasoning and function call parts. Both
+ * part kinds carry it under the `google` provider metadata key, and Gemini 3
+ * rejects a request when a function call from the current turn is replayed
+ * without the signature it was issued with.
+ */
 export type GoogleReasoningMetadata = {
     thoughtSignature?: string;
 };
@@ -95,12 +101,20 @@ export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
 
                 if (part.type === 'tool-call') {
                     toolCallNameById.set(part.toolCall.id, part.toolCall.name);
+                    const toolCallSignature =
+                        getProviderMetadata<GoogleReasoningMetadata>(
+                            part.providerMetadata,
+                            'google'
+                        )?.thoughtSignature;
                     assistantParts.push({
                         functionCall: {
                             id: part.toolCall.id,
                             name: part.toolCall.name,
                             args: part.toolCall.arguments,
                         },
+                        ...(typeof toolCallSignature === 'string'
+                            ? { thoughtSignature: toolCallSignature }
+                            : {}),
                     });
                     continue;
                 }
@@ -471,10 +485,12 @@ export async function* transformStream(
     stream: AsyncIterable<GenerateContentResponse>
 ): AsyncIterable<StreamEvent> {
     const bufferedToolCalls = new Map<string, ToolCall>();
+    const toolCallSignatures = new Map<string, string>();
     let finishReason: FinishReason = 'unknown';
     let sawToolCalls = false;
     let textOpen = false;
     let reasoningOpen = false;
+    let reasoningSignature: string | undefined;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -490,10 +506,18 @@ export async function* transformStream(
         }
 
         reasoningOpen = false;
-        return {
+        const reasoningEnd: StreamEvent = {
             type: 'reasoning-end',
-            providerMetadata: { google: {} },
+            providerMetadata: {
+                google: {
+                    ...(reasoningSignature
+                        ? { thoughtSignature: reasoningSignature }
+                        : {}),
+                },
+            },
         };
+        reasoningSignature = undefined;
+        return reasoningEnd;
     };
     const startText = function* (): Iterable<StreamEvent> {
         if (textOpen) {
@@ -515,6 +539,9 @@ export async function* transformStream(
     for await (const chunk of stream) {
         usage = mapUsage(chunk, usage);
 
+        reasoningSignature =
+            extractReasoningSignature(chunk) ?? reasoningSignature;
+
         const reasoningDeltas = extractReasoningDeltas(chunk);
         if (reasoningDeltas.length > 0) {
             yield* closeText();
@@ -533,19 +560,22 @@ export async function* transformStream(
             }
         }
 
-        if (chunk.text) {
+        const textDeltas = extractTextDeltas(chunk);
+        if (textDeltas.length > 0) {
             const reasoningEnd = closeReasoning();
             if (reasoningEnd) {
                 yield reasoningEnd;
             }
             yield* startText();
-            yield {
-                type: 'text-delta',
-                text: chunk.text,
-            };
+            for (const text of textDeltas) {
+                yield {
+                    type: 'text-delta',
+                    text,
+                };
+            }
         }
 
-        const functionCalls = chunk.functionCalls ?? [];
+        const functionCalls = extractStreamedFunctionCalls(chunk);
         if (functionCalls.length > 0) {
             yield* closeText();
             const reasoningEnd = closeReasoning();
@@ -553,8 +583,13 @@ export async function* transformStream(
                 yield reasoningEnd;
             }
             sawToolCalls = true;
-            for (const [index, functionCall] of functionCalls.entries()) {
-                const mappedCall = mapFunctionCall(functionCall, index);
+            for (const {
+                toolCall: mappedCall,
+                thoughtSignature,
+            } of functionCalls) {
+                if (thoughtSignature) {
+                    toolCallSignatures.set(mappedCall.id, thoughtSignature);
+                }
                 const existing = bufferedToolCalls.get(mappedCall.id);
                 if (!existing) {
                     bufferedToolCalls.set(mappedCall.id, mappedCall);
@@ -605,9 +640,13 @@ export async function* transformStream(
     yield* closeText();
 
     for (const toolCall of bufferedToolCalls.values()) {
+        const thoughtSignature = toolCallSignatures.get(toolCall.id);
         yield {
             type: 'tool-call-end',
             toolCall,
+            ...(thoughtSignature
+                ? { providerMetadata: { google: { thoughtSignature } } }
+                : {}),
         };
     }
 
@@ -660,11 +699,7 @@ function extractAssistantParts(
             if (thoughtText.length === 0) {
                 continue;
             }
-            const thoughtSignature =
-                typeof (part as { thoughtSignature?: unknown })
-                    .thoughtSignature === 'string'
-                    ? (part as { thoughtSignature?: string }).thoughtSignature
-                    : undefined;
+            const thoughtSignature = readThoughtSignature(part);
             parts.push({
                 type: 'reasoning',
                 text: thoughtText,
@@ -682,9 +717,17 @@ function extractAssistantParts(
             const key = `${toolCall.id}:${toolCall.name}`;
             if (!seenToolCalls.has(key)) {
                 seenToolCalls.add(key);
+                const thoughtSignature = readThoughtSignature(part);
                 parts.push({
                     type: 'tool-call',
                     toolCall,
+                    ...(thoughtSignature
+                        ? {
+                              providerMetadata: {
+                                  google: { thoughtSignature },
+                              },
+                          }
+                        : {}),
                 });
             }
             continue;
@@ -713,14 +756,108 @@ function extractAssistantParts(
         });
     }
 
-    if (parts.length === 0 && response.text) {
-        parts.push({
-            type: 'text',
-            text: response.text,
-        });
+    if (parts.length === 0) {
+        for (const text of extractTextDeltas(response)) {
+            parts.push({
+                type: 'text',
+                text,
+            });
+        }
     }
 
     return parts;
+}
+
+type StreamedFunctionCall = {
+    toolCall: ToolCall;
+    thoughtSignature?: string;
+};
+
+/**
+ * Reads assistant text from candidate parts so we never touch the SDK `.text`
+ * getter. That getter warns whenever the same response also contains
+ * functionCall parts, which is normal during tool-calling streams.
+ *
+ * Falls back to `.text` only when the response has no candidate parts (unit
+ * mocks and edge cases).
+ */
+function extractTextDeltas(response: GenerateContentResponse): string[] {
+    const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
+    if (candidateParts.length > 0) {
+        return candidateParts.flatMap((part) => {
+            if (part.thought || part.functionCall) {
+                return [];
+            }
+            if (typeof part.text === 'string' && part.text.length > 0) {
+                return [part.text];
+            }
+            return [];
+        });
+    }
+
+    return typeof response.text === 'string' && response.text.length > 0
+        ? [response.text]
+        : [];
+}
+
+/**
+ * Reads function calls from the candidate parts so their thought signatures
+ * survive. The `functionCalls` convenience accessor exposes `FunctionCall`
+ * objects, which drop the part-level signature Gemini 3 requires back.
+ */
+function extractStreamedFunctionCalls(
+    chunk: GenerateContentResponse
+): StreamedFunctionCall[] {
+    const candidateParts = chunk.candidates?.[0]?.content?.parts ?? [];
+    const fromCandidateParts: StreamedFunctionCall[] = [];
+    for (const part of candidateParts) {
+        if (!part.functionCall) {
+            continue;
+        }
+        const thoughtSignature = readThoughtSignature(part);
+        fromCandidateParts.push({
+            toolCall: mapFunctionCall(
+                part.functionCall,
+                fromCandidateParts.length
+            ),
+            ...(thoughtSignature ? { thoughtSignature } : {}),
+        });
+    }
+
+    if (fromCandidateParts.length > 0) {
+        return fromCandidateParts;
+    }
+
+    return (chunk.functionCalls ?? []).map((functionCall, index) => ({
+        toolCall: mapFunctionCall(functionCall, index),
+    }));
+}
+
+/**
+ * Thought signatures can arrive on a thought part with empty text, so they are
+ * read separately from the reasoning deltas.
+ */
+function extractReasoningSignature(
+    response: GenerateContentResponse
+): string | undefined {
+    const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
+    for (const part of candidateParts) {
+        if (!part.thought) {
+            continue;
+        }
+        const thoughtSignature = readThoughtSignature(part);
+        if (thoughtSignature) {
+            return thoughtSignature;
+        }
+    }
+    return undefined;
+}
+
+function readThoughtSignature(part: Part): string | undefined {
+    return typeof part.thoughtSignature === 'string' &&
+        part.thoughtSignature.length > 0
+        ? part.thoughtSignature
+        : undefined;
 }
 
 function extractReasoningDeltas(response: GenerateContentResponse): string[] {

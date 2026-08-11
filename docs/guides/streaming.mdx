@@ -65,7 +65,11 @@ type StreamEvent =
     | { type: 'text-end'; metadata?: Record<string, unknown> }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
-    | { type: 'tool-call-end'; toolCall: ToolCall }
+    | {
+          type: 'tool-call-end';
+          toolCall: ToolCall;
+          providerMetadata?: Record<string, Record<string, unknown>>;
+      }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
 

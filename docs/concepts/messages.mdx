@@ -327,6 +327,7 @@ Requests to call external tools:
 type ToolCallPart = {
     type: 'tool-call';
     toolCall: ToolCall;
+    providerMetadata?: Record<string, Record<string, unknown>>;
 };
 
 type ToolCall = {
@@ -337,6 +338,8 @@ type ToolCall = {
 };
 ```
 
+Pass tool call parts back into the next request unchanged. Some providers put data on them that has to return verbatim: Gemini 3 rejects a request when a function call from the current turn is replayed without its thought signature.
+
 ## Part metadata
 
 Text-bearing parts can carry optional `metadata` for application and middleware state. Use it for annotations such as classification results, provenance, validation status, or text transformation spans.
@@ -346,7 +349,7 @@ This metadata stays with the part in message history and generated results. Prov
 core-ai has three metadata layers:
 
 - `GenerateOptions.metadata` is call-level context for observability and middleware.
-- `ReasoningPart.providerMetadata` is provider-owned data used to round-trip reasoning blocks with the same provider.
+- `ReasoningPart.providerMetadata` and `ToolCallPart.providerMetadata` are provider-owned data used to round-trip reasoning blocks and tool calls with the same provider.
 - Part `metadata` is application-owned data attached to text parts, reasoning parts, tool calls, and tool results.
 
 ## Multi-Turn Conversations

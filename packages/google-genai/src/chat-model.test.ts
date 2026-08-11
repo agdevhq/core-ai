@@ -186,6 +186,58 @@ describe('generate', () => {
         ]);
     });
 
+    it('should keep tool call thought signatures on the assistant parts', async () => {
+        const generateContent = vi.fn(async () => {
+            return asGenerateContentResponse({
+                candidates: [
+                    {
+                        finishReason: GoogleFinishReason.STOP,
+                        content: {
+                            role: 'model',
+                            parts: [
+                                {
+                                    functionCall: {
+                                        id: 'tc_1',
+                                        name: 'search',
+                                        args: { query: 'weather' },
+                                    },
+                                    thoughtSignature: 'sig_fc',
+                                },
+                            ],
+                        },
+                    },
+                ],
+                usageMetadata: {
+                    promptTokenCount: 10,
+                    candidatesTokenCount: 20,
+                    totalTokenCount: 30,
+                },
+            });
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-3-pro'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'weather?' }],
+        });
+
+        expect(result.parts).toEqual([
+            {
+                type: 'tool-call',
+                toolCall: {
+                    id: 'tc_1',
+                    name: 'search',
+                    arguments: { query: 'weather' },
+                },
+                providerMetadata: {
+                    google: { thoughtSignature: 'sig_fc' },
+                },
+            },
+        ]);
+    });
+
     it('should generate a validated structured object', async () => {
         const generateContent = vi.fn(async () => {
             return asGenerateContentResponse({

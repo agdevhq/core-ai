@@ -144,9 +144,11 @@ type ChatStream = AsyncIterable<StreamEvent> & {
 
 <ResponseField
     name="tool-call-end"
-    type="{ type: 'tool-call-end'; toolCall: ToolCall }"
+    type="{ type: 'tool-call-end'; toolCall: ToolCall; providerMetadata?: Record<string, Record<string, unknown>> }"
 >
     Emitted when a tool call completes with the full tool call object.
+    `providerMetadata` carries provider-owned data that has to be replayed with
+    the call, such as a Google thought signature.
 </ResponseField>
 
 <ResponseField
