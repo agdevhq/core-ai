@@ -19,10 +19,15 @@ export type AnthropicChatProviderOptions = {
 /**
  * Factory options for sibling packages that compose Anthropic chat.
  * Not part of {@link createAnthropic} / {@link AnthropicProviderOptions} —
- * first-party Anthropic always uses strict tool schemas.
+ * first-party Anthropic defaults to strict tool schemas when a tool omits
+ * `strict` on its definition.
  */
 export type AnthropicChatProviderFactoryOptions = {
     providerId?: string;
+    /**
+     * Default for tools that omit `ToolDefinition.strict`. Per-tool `strict`
+     * always wins when set. Anthropic caps requests at 20 strict tools.
+     */
     useStrictToolSchemas?: boolean;
 };
 

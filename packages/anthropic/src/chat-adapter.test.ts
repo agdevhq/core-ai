@@ -255,6 +255,50 @@ describe('convertTools', () => {
 
         expect(result[0]?.strict).toBeUndefined();
     });
+
+    it('should honor per-tool strict over the provider default', () => {
+        const tools: ToolSet = {
+            internal: defineTool({
+                name: 'internal',
+                description: 'Internal tool',
+                parameters: z.object({ id: z.string() }),
+                strict: true,
+            }),
+            external: defineTool({
+                name: 'external',
+                description: 'External MCP tool',
+                parameters: z.object({ query: z.string() }),
+                strict: false,
+            }),
+            unset: defineTool({
+                name: 'unset',
+                description: 'Uses provider default',
+                parameters: z.object({ value: z.string() }),
+            }),
+        };
+
+        const withDefaultStrict = convertTools(tools, true);
+        expect(
+            withDefaultStrict.find((tool) => tool.name === 'internal')?.strict
+        ).toBe(true);
+        expect(
+            withDefaultStrict.find((tool) => tool.name === 'external')?.strict
+        ).toBeUndefined();
+        expect(
+            withDefaultStrict.find((tool) => tool.name === 'unset')?.strict
+        ).toBe(true);
+
+        const withDefaultOff = convertTools(tools, false);
+        expect(
+            withDefaultOff.find((tool) => tool.name === 'internal')?.strict
+        ).toBe(true);
+        expect(
+            withDefaultOff.find((tool) => tool.name === 'external')?.strict
+        ).toBeUndefined();
+        expect(
+            withDefaultOff.find((tool) => tool.name === 'unset')?.strict
+        ).toBeUndefined();
+    });
 });
 
 describe('convertToolChoice', () => {

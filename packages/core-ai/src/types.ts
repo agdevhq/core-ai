@@ -142,6 +142,13 @@ export type ToolDefinition = {
     name: string;
     description: string;
     parameters: z.ZodType;
+    /**
+     * When set, providers that support grammar-constrained / strict tool
+     * schemas (e.g. Anthropic `strict: true`) should follow this per tool.
+     * When omitted, the provider default applies (Anthropic enables strict
+     * unless the provider factory disables it globally).
+     */
+    strict?: boolean;
 };
 
 export type ToolSet = Record<string, ToolDefinition>;
