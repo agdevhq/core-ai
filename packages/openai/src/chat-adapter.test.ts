@@ -200,6 +200,70 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it('should treat OpenAI encrypted reasoning as foreign under azure-openai', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'azure must not replay openai ciphertext',
+                        providerMetadata: {
+                            openai: { encryptedContent: 'enc_openai' },
+                        },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        expect(
+            convertMessages(messages, {
+                providerMetadataKey: 'azure-openai',
+            })
+        ).toEqual([
+            {
+                role: 'assistant',
+                content:
+                    '<thinking>azure must not replay openai ciphertext</thinking>\n\nanswer',
+            },
+        ]);
+    });
+
+    it('should preserve azure-openai encrypted reasoning for same-provider round-trips', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'thinking...',
+                        providerMetadata: {
+                            'azure-openai': { encryptedContent: 'enc_azure' },
+                        },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        expect(
+            convertMessages(messages, {
+                providerMetadataKey: 'azure-openai',
+            })
+        ).toEqual([
+            {
+                type: 'reasoning',
+                summary: [{ type: 'summary_text', text: 'thinking...' }],
+                encrypted_content: 'enc_azure',
+            },
+            {
+                role: 'assistant',
+                content: 'answer',
+            },
+        ]);
+    });
+
     it('should preserve reasoning encrypted content for stateless round-trips', () => {
         const messages: Message[] = [
             {
@@ -543,6 +607,46 @@ describe('mapGenerateResponse', () => {
                 reasoningTokens: 2,
             },
         });
+    });
+
+    it('should namespace encrypted reasoning under a wrapping provider id', () => {
+        const response = asResponse({
+            output: [
+                {
+                    type: 'reasoning',
+                    summary: [{ type: 'summary_text', text: 'short summary' }],
+                    encrypted_content: 'enc_azure',
+                },
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'Final answer' }],
+                },
+            ],
+            status: 'completed',
+            usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 0 },
+                total_tokens: 2,
+            },
+        });
+
+        expect(
+            mapGenerateResponse(response, {
+                providerMetadataKey: 'azure-openai',
+            }).parts
+        ).toEqual([
+            {
+                type: 'reasoning',
+                text: 'short summary',
+                providerMetadata: {
+                    'azure-openai': { encryptedContent: 'enc_azure' },
+                },
+            },
+            { type: 'text', text: 'Final answer' },
+        ]);
     });
 
     it('should separate multiple reasoning summary parts', () => {

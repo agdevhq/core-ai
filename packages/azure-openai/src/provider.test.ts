@@ -178,6 +178,103 @@ describe('createAzureOpenAI', () => {
         expect(request).toMatchObject({ model: 'chat-deployment' });
     });
 
+    it('should namespace encrypted reasoning under azure-openai', async () => {
+        responsesCreate.mockResolvedValue({
+            output: [
+                {
+                    type: 'reasoning',
+                    id: 'rs_1',
+                    summary: [{ type: 'summary_text', text: 'plan' }],
+                    encrypted_content: 'enc_azure',
+                },
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'ok' }],
+                },
+            ],
+            status: 'completed',
+            usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 1 },
+                total_tokens: 2,
+            },
+        });
+
+        const provider = createAzureOpenAI({ apiKey: 'test-key' });
+        const result = await provider.chatModel('gpt-5.4').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        expect(result.parts).toEqual([
+            {
+                type: 'reasoning',
+                text: 'plan',
+                providerMetadata: {
+                    'azure-openai': { encryptedContent: 'enc_azure' },
+                },
+            },
+            { type: 'text', text: 'ok' },
+        ]);
+    });
+
+    it('should downgrade OpenAI encrypted reasoning when calling Azure', async () => {
+        responsesCreate.mockResolvedValue({
+            output: [
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'ok' }],
+                },
+            ],
+            status: 'completed',
+            usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 0 },
+                total_tokens: 2,
+            },
+        });
+
+        const provider = createAzureOpenAI({ apiKey: 'test-key' });
+        await provider.chatModel('gpt-5.4').generate({
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'prior openai thought',
+                            providerMetadata: {
+                                openai: { encryptedContent: 'enc_openai' },
+                            },
+                        },
+                        { type: 'text', text: 'prior answer' },
+                    ],
+                },
+                { role: 'user', content: 'continue' },
+            ],
+            reasoning: { effort: 'medium' },
+        });
+
+        const [request] = responsesCreate.mock.calls[0] ?? [];
+        expect(request).toMatchObject({
+            input: [
+                {
+                    role: 'assistant',
+                    content:
+                        '<thinking>prior openai thought</thinking>\n\nprior answer',
+                },
+                { role: 'user', content: 'continue' },
+            ],
+        });
+        expect(JSON.stringify(request.input)).not.toContain('enc_openai');
+    });
+
     it('should expose strict Chat Completions under chat', async () => {
         chatCreate.mockResolvedValue({
             id: 'chatcmpl-1',
