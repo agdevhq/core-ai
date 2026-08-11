@@ -230,6 +230,35 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it('should treat azure-openai encrypted reasoning as foreign under openai', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'reasoning',
+                        text: 'openai must not replay azure ciphertext',
+                        providerMetadata: {
+                            'azure-openai': { encryptedContent: 'enc_azure' },
+                        },
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            {
+                role: 'assistant',
+                content:
+                    '<thinking>openai must not replay azure ciphertext</thinking>\n\nanswer',
+            },
+        ]);
+        expect(JSON.stringify(convertMessages(messages))).not.toContain(
+            'enc_azure'
+        );
+    });
+
     it('should preserve azure-openai encrypted reasoning for same-provider round-trips', () => {
         const messages: Message[] = [
             {
@@ -1355,6 +1384,56 @@ describe('transformStream', () => {
 
         const finish = events.find((e) => e.type === 'finish');
         expect(finish).toMatchObject({ finishReason: 'length' });
+    });
+
+    it('should namespace streamed encrypted reasoning under a wrapping provider id', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.reasoning_summary_text.delta',
+                item_id: 'rs_azure',
+                summary_index: 0,
+                delta: 'plan',
+            }),
+            asStreamEvent({
+                type: 'response.output_item.done',
+                output_index: 0,
+                item: {
+                    type: 'reasoning',
+                    id: 'rs_azure',
+                    summary: [{ type: 'summary_text', text: 'plan' }],
+                    encrypted_content: 'enc_azure',
+                },
+            }),
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                    usage: {
+                        input_tokens: 1,
+                        output_tokens: 1,
+                        input_tokens_details: { cached_tokens: 0 },
+                        output_tokens_details: { reasoning_tokens: 1 },
+                        total_tokens: 2,
+                    },
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream, {
+            providerMetadataKey: 'azure-openai',
+        })) {
+            events.push(event);
+        }
+
+        expect(events).toContainEqual({
+            type: 'reasoning-end',
+            providerMetadata: {
+                'azure-openai': { encryptedContent: 'enc_azure' },
+            },
+        });
+        expect(JSON.stringify(events)).not.toContain('"openai"');
     });
 });
 

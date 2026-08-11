@@ -166,6 +166,41 @@ For recognized OpenAI model IDs, see
 [OpenAI model capabilities](/api/providers/openai#model-capabilities) for the
 reasoning, image input, and Chat Completions fields.
 
+## Reasoning metadata
+
+On Azure v1 Responses, encrypted reasoning is stored under the `azure-openai`
+provider key — not `openai`. Use that key when reading metadata, and keep
+escape-hatch request options under `providerOptions.openai` (shared Responses
+field shapes).
+
+```typescript
+import { generate, getProviderMetadata } from '@core-ai/core-ai';
+import type { OpenAIReasoningMetadata } from '@core-ai/openai';
+import { createAzureOpenAI } from '@core-ai/azure-openai';
+
+const azure = createAzureOpenAI({
+    apiKey: process.env.AZURE_OPENAI_API_KEY,
+    endpoint: process.env.AZURE_OPENAI_ENDPOINT,
+});
+
+const result = await generate({
+    model: azure.chatModel('gpt-5.4'),
+    messages: [{ role: 'user', content: 'Think carefully before answering.' }],
+    reasoning: { effort: 'high' },
+});
+
+for (const part of result.parts) {
+    if (part.type !== 'reasoning') continue;
+
+    const metadata = getProviderMetadata<OpenAIReasoningMetadata>(
+        part.providerMetadata,
+        'azure-openai'
+    );
+
+    console.log(metadata?.encryptedContent);
+}
+```
+
 ## Examples
 
 ### Basic chat

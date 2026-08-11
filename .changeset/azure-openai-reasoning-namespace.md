@@ -1,7 +1,5 @@
 ---
-'@core-ai/openai': patch
 '@core-ai/azure-openai': patch
-'@core-ai/core-ai': patch
 ---
 
-Namespace Azure OpenAI Responses encrypted reasoning under `azure-openai` instead of `openai`, so cross-provider history no longer replays undecryptable ciphertext.
+Store Responses encrypted reasoning under `azure-openai` instead of `openai`, so Azure↔OpenAI history no longer replays undecryptable ciphertext. Existing Azure turns that still carry `providerMetadata.openai.encryptedContent` are downgraded to thinking text on continuation (same-provider encrypted round-trip resumes after new turns).
