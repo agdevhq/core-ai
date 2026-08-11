@@ -271,12 +271,13 @@ export function convertTools(
 ): Tool[] {
     return Object.values(tools).map((tool) => {
         const schema = toAnthropicJsonSchema(tool.parameters);
+        const strict = tool.strict ?? useStrictToolSchemas;
 
         return {
             name: tool.name,
             description: tool.description,
             input_schema: schema as Tool['input_schema'],
-            ...(useStrictToolSchemas ? { strict: true } : {}),
+            ...(strict ? { strict: true } : {}),
         };
     });
 }
