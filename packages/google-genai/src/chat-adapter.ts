@@ -42,10 +42,9 @@ import {
 } from './provider-options.js';
 
 /**
- * Thought signature Google attaches to reasoning and function call parts. Both
- * part kinds carry it under the `google` provider metadata key, and Gemini 3
- * rejects a request when a function call from the current turn is replayed
- * without the signature it was issued with.
+ * Thought signature Google attaches under the `google` provider metadata key.
+ * Used on reasoning parts today, and on tool-call parts so Gemini 3 function
+ * calls can be replayed without a missing-`thought_signature` 400.
  */
 export type GoogleReasoningMetadata = {
     thoughtSignature?: string;
@@ -490,7 +489,6 @@ export async function* transformStream(
     let sawToolCalls = false;
     let textOpen = false;
     let reasoningOpen = false;
-    let reasoningSignature: string | undefined;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -506,18 +504,10 @@ export async function* transformStream(
         }
 
         reasoningOpen = false;
-        const reasoningEnd: StreamEvent = {
+        return {
             type: 'reasoning-end',
-            providerMetadata: {
-                google: {
-                    ...(reasoningSignature
-                        ? { thoughtSignature: reasoningSignature }
-                        : {}),
-                },
-            },
+            providerMetadata: { google: {} },
         };
-        reasoningSignature = undefined;
-        return reasoningEnd;
     };
     const startText = function* (): Iterable<StreamEvent> {
         if (textOpen) {
@@ -538,9 +528,6 @@ export async function* transformStream(
 
     for await (const chunk of stream) {
         usage = mapUsage(chunk, usage);
-
-        reasoningSignature =
-            extractReasoningSignature(chunk) ?? reasoningSignature;
 
         const reasoningDeltas = extractReasoningDeltas(chunk);
         if (reasoningDeltas.length > 0) {
@@ -831,26 +818,6 @@ function extractStreamedFunctionCalls(
     return (chunk.functionCalls ?? []).map((functionCall, index) => ({
         toolCall: mapFunctionCall(functionCall, index),
     }));
-}
-
-/**
- * Thought signatures can arrive on a thought part with empty text, so they are
- * read separately from the reasoning deltas.
- */
-function extractReasoningSignature(
-    response: GenerateContentResponse
-): string | undefined {
-    const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
-    for (const part of candidateParts) {
-        if (!part.thought) {
-            continue;
-        }
-        const thoughtSignature = readThoughtSignature(part);
-        if (thoughtSignature) {
-            return thoughtSignature;
-        }
-    }
-    return undefined;
 }
 
 function readThoughtSignature(part: Part): string | undefined {

@@ -1025,54 +1025,6 @@ describe('tool call thought signatures', () => {
         });
     });
 
-    it('should emit a thought signature on reasoning-end in streams', async () => {
-        const events: StreamEvent[] = [];
-        for await (const event of transformStream(
-            toAsyncIterable<GenerateContentResponse>([
-                asGenerateContentResponse({
-                    candidates: [
-                        {
-                            content: {
-                                role: 'model',
-                                parts: [{ text: 'thinking', thought: true }],
-                            },
-                        },
-                    ],
-                }),
-                asGenerateContentResponse({
-                    candidates: [
-                        {
-                            content: {
-                                role: 'model',
-                                parts: [
-                                    {
-                                        text: '',
-                                        thought: true,
-                                        thoughtSignature: 'sig_thought',
-                                    },
-                                ],
-                            },
-                            finishReason: GoogleFinishReason.STOP,
-                        },
-                    ],
-                    usageMetadata: {
-                        promptTokenCount: 10,
-                        candidatesTokenCount: 1,
-                        totalTokenCount: 11,
-                    },
-                }),
-            ])
-        )) {
-            events.push(event);
-        }
-
-        expect(events.find((event) => event.type === 'reasoning-end')).toEqual({
-            type: 'reasoning-end',
-            providerMetadata: {
-                google: { thoughtSignature: 'sig_thought' },
-            },
-        });
-    });
 });
 
 function asGenerateContentResponse(
