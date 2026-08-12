@@ -307,6 +307,11 @@ The `GoogleReasoningMetadata` type contains:
 
 - `thoughtSignature` -- signature for preserving thought context across multi-turn conversations
 
+On stream, the signature is available on the `reasoning-end` event's
+`providerMetadata` (and therefore on the aggregated reasoning part). Gemini
+sometimes puts the signature on a trailing empty thought part; generate
+attaches that to the prior reasoning part so it is not dropped.
+
 ## Provider-specific options
 
 Options are namespaced under `google` in `providerOptions`:

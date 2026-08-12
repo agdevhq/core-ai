@@ -21,6 +21,7 @@ import {
     ValidationError,
     type GenerateOptions,
     type Message,
+    type StreamEvent,
     type ToolSet,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
@@ -644,6 +645,39 @@ describe('reasoning support', () => {
         expect(result.parts).toEqual([{ type: 'text', text: 'answer' }]);
     });
 
+    it('should attach a trailing empty-thought signature to the prior reasoning part', () => {
+        const response = asGenerateContentResponse({
+            candidates: [
+                {
+                    finishReason: GoogleFinishReason.STOP,
+                    content: {
+                        role: 'model',
+                        parts: [
+                            { text: 'internal thought', thought: true },
+                            {
+                                text: '',
+                                thought: true,
+                                thoughtSignature: 'sig_trailing',
+                            },
+                            { text: 'final answer', thought: false },
+                        ],
+                    },
+                },
+            ],
+        });
+
+        expect(mapGenerateResponse(response).parts).toEqual([
+            {
+                type: 'reasoning',
+                text: 'internal thought',
+                providerMetadata: {
+                    google: { thoughtSignature: 'sig_trailing' },
+                },
+            },
+            { type: 'text', text: 'final answer' },
+        ]);
+    });
+
     it('should emit reasoning events for thought deltas in streams', async () => {
         const events = [];
         for await (const event of transformStream(
@@ -804,6 +838,165 @@ describe('reasoning support', () => {
             'reasoning-end',
             'finish',
         ]);
+    });
+
+    it('should emit a thought signature on reasoning-end in streams', async () => {
+        const events: StreamEvent[] = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'thinking', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [
+                                    {
+                                        text: '',
+                                        thought: true,
+                                        thoughtSignature: 'sig_thought',
+                                    },
+                                ],
+                            },
+                            finishReason: GoogleFinishReason.STOP,
+                        },
+                    ],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 1,
+                        totalTokenCount: 11,
+                    },
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.find((event) => event.type === 'reasoning-end')).toEqual({
+            type: 'reasoning-end',
+            providerMetadata: {
+                google: { thoughtSignature: 'sig_thought' },
+            },
+        });
+    });
+
+    it('should capture a same-chunk trailing empty-thought signature before text', async () => {
+        const events: StreamEvent[] = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [
+                                    { text: 'thinking', thought: true },
+                                    {
+                                        text: '',
+                                        thought: true,
+                                        thoughtSignature: 'sig_same_chunk',
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    text: 'answer',
+                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.find((event) => event.type === 'reasoning-end')).toEqual({
+            type: 'reasoning-end',
+            providerMetadata: {
+                google: { thoughtSignature: 'sig_same_chunk' },
+            },
+        });
+    });
+
+    it('should not attach a late empty-thought signature to a later reasoning block', async () => {
+        const events: StreamEvent[] = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'first', thought: true }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    text: 'mid',
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'mid', thought: false }],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [
+                                    {
+                                        text: '',
+                                        thought: true,
+                                        thoughtSignature: 'sig_late',
+                                    },
+                                ],
+                            },
+                        },
+                    ],
+                }),
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'second', thought: true }],
+                            },
+                            finishReason: GoogleFinishReason.STOP,
+                        },
+                    ],
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        const reasoningEnds = events.filter(
+            (event) => event.type === 'reasoning-end'
+        );
+        expect(reasoningEnds).toHaveLength(2);
+        expect(reasoningEnds[0]).toEqual({
+            type: 'reasoning-end',
+            providerMetadata: { google: {} },
+        });
+        expect(reasoningEnds[1]).toEqual({
+            type: 'reasoning-end',
+            providerMetadata: { google: {} },
+        });
+        expect(JSON.stringify(events)).not.toContain('sig_late');
     });
 });
 
