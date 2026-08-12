@@ -1,5 +1,15 @@
 # @core-ai/core-ai
 
+## 0.20.0
+
+### Minor Changes
+
+- 7281534: Add `providerMetadata` to `ToolCallPart` and the `tool-call-end` stream event so provider-owned data attached to a tool call, such as a Google thought signature, survives aggregation and can be replayed with the call.
+
+### Patch Changes
+
+- 05515dc: Document that reasoning `providerMetadata` treats `openai` and `azure-openai` as distinct ownership namespaces.
+
 ## 0.19.0
 
 ### Minor Changes

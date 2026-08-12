@@ -1,5 +1,17 @@
 # @core-ai/google-genai
 
+## 0.20.0
+
+### Minor Changes
+
+- 7281534: Round-trip thought signatures on function calls. Signatures are read from the candidate parts on generate and stream, exposed under `providerMetadata.google` of the tool call part, and sent back on the matching `functionCall` part. Without this, Gemini 3 rejects multi-step tool calling with a 400 for a missing `thought_signature`. Stream and generate adapters also read assistant text from candidate parts instead of the SDK `.text` getter, which otherwise warns whenever a chunk mixes text with function calls.
+
+### Patch Changes
+
+- Updated dependencies [05515dc]
+- Updated dependencies [7281534]
+    - @core-ai/core-ai@0.20.0
+
 ## 0.19.0
 
 ### Minor Changes
