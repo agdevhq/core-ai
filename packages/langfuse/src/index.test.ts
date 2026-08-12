@@ -340,7 +340,9 @@ describe('@core-ai/langfuse', () => {
                         type: 'function',
                         name: 'get_weather',
                         description: 'Get the weather in a location',
-                        parameters: zodSchemaToJsonSchema(weatherTool.parameters),
+                        parameters: zodSchemaToJsonSchema(
+                            weatherTool.parameters
+                        ),
                     },
                 ],
             },

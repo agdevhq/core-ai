@@ -39,7 +39,9 @@ function getErrorMessage(error: unknown): string {
     return String(error);
 }
 
-function compactRecord(record: ObservationAttributes): ObservationAttributes | undefined {
+function compactRecord(
+    record: ObservationAttributes
+): ObservationAttributes | undefined {
     const entries = Object.entries(record).filter(
         ([, value]) => value !== undefined && value !== null
     );
@@ -72,7 +74,9 @@ function createObservationAttributes(config: {
 }): ObservationAttributes {
     return {
         model: config.modelId,
-        ...(config.modelParameters ? { modelParameters: config.modelParameters } : {}),
+        ...(config.modelParameters
+            ? { modelParameters: config.modelParameters }
+            : {}),
         ...(config.metadata ? { metadata: config.metadata } : {}),
         ...(config.recordContent && config.input !== undefined
             ? {
@@ -88,14 +92,14 @@ function serializeToolChoice(toolChoice: ToolChoice): string {
         : JSON.stringify(toolChoice);
 }
 
-function createToolDefinitions(
-    tools?: ToolSet
-): Array<{
-    type: 'function';
-    name: string;
-    description: string;
-    parameters: Record<string, unknown>;
-}> | undefined {
+function createToolDefinitions(tools?: ToolSet):
+    | Array<{
+          type: 'function';
+          name: string;
+          description: string;
+          parameters: Record<string, unknown>;
+      }>
+    | undefined {
     if (!tools || Object.keys(tools).length === 0) {
         return undefined;
     }
@@ -197,7 +201,9 @@ function createChatOutput(result: GenerateResult): ObservationAttributes {
     };
 }
 
-function createImageOutput(result: ImageGenerateResult): ObservationAttributes[] {
+function createImageOutput(
+    result: ImageGenerateResult
+): ObservationAttributes[] {
     return result.images.map((image) => ({
         hasBase64: image.base64 !== undefined,
         ...(image.url ? { url: image.url } : {}),
@@ -236,12 +242,19 @@ function updateObservation(
 function runGeneration<TResult>(config: {
     name: string;
     initialAttributes: ObservationAttributes;
-    createSuccessAttributes: (result: TResult) => ObservationAttributes | undefined;
+    createSuccessAttributes: (
+        result: TResult
+    ) => ObservationAttributes | undefined;
     recordContent: boolean;
     execute: () => Promise<TResult>;
 }): Promise<TResult> {
-    const { name, initialAttributes, createSuccessAttributes, recordContent, execute } =
-        config;
+    const {
+        name,
+        initialAttributes,
+        createSuccessAttributes,
+        recordContent,
+        execute,
+    } = config;
 
     return startActiveObservation(
         name,
@@ -253,7 +266,10 @@ function runGeneration<TResult>(config: {
                 updateObservation(observation, createSuccessAttributes(result));
                 return result;
             } catch (error) {
-                updateObservation(observation, createErrorAttributes(error, recordContent));
+                updateObservation(
+                    observation,
+                    createErrorAttributes(error, recordContent)
+                );
                 throw error;
             }
         },
@@ -264,12 +280,19 @@ function runGeneration<TResult>(config: {
 function runEmbedding<TResult>(config: {
     name: string;
     initialAttributes: ObservationAttributes;
-    createSuccessAttributes: (result: TResult) => ObservationAttributes | undefined;
+    createSuccessAttributes: (
+        result: TResult
+    ) => ObservationAttributes | undefined;
     recordContent: boolean;
     execute: () => Promise<TResult>;
 }): Promise<TResult> {
-    const { name, initialAttributes, createSuccessAttributes, recordContent, execute } =
-        config;
+    const {
+        name,
+        initialAttributes,
+        createSuccessAttributes,
+        recordContent,
+        execute,
+    } = config;
 
     return startActiveObservation(
         name,
@@ -281,7 +304,10 @@ function runEmbedding<TResult>(config: {
                 updateObservation(observation, createSuccessAttributes(result));
                 return result;
             } catch (error) {
-                updateObservation(observation, createErrorAttributes(error, recordContent));
+                updateObservation(
+                    observation,
+                    createErrorAttributes(error, recordContent)
+                );
                 throw error;
             }
         },
@@ -292,7 +318,9 @@ function runEmbedding<TResult>(config: {
 function runGenerationStream<TStream, TResult>(config: {
     name: string;
     initialAttributes: ObservationAttributes;
-    createSuccessAttributes: (result: TResult) => ObservationAttributes | undefined;
+    createSuccessAttributes: (
+        result: TResult
+    ) => ObservationAttributes | undefined;
     recordContent: boolean;
     execute: () => Promise<TStream>;
     getResult: (stream: TStream) => Promise<TResult>;
@@ -316,10 +344,16 @@ function runGenerationStream<TStream, TResult>(config: {
 
                 void getResult(stream)
                     .then((result) => {
-                        updateObservation(observation, createSuccessAttributes(result));
+                        updateObservation(
+                            observation,
+                            createSuccessAttributes(result)
+                        );
                     })
                     .catch((error: unknown) => {
-                        updateObservation(observation, createErrorAttributes(error, recordContent));
+                        updateObservation(
+                            observation,
+                            createErrorAttributes(error, recordContent)
+                        );
                     })
                     .finally(() => {
                         observation.end();
@@ -327,7 +361,10 @@ function runGenerationStream<TStream, TResult>(config: {
 
                 return stream;
             } catch (error) {
-                updateObservation(observation, createErrorAttributes(error, recordContent));
+                updateObservation(
+                    observation,
+                    createErrorAttributes(error, recordContent)
+                );
                 observation.end();
                 throw error;
             }
@@ -476,11 +513,14 @@ export function createLangfuseEmbeddingMiddleware(
 
     return {
         embed: ({ execute, options: embedOptions, model }) =>
-            runEmbedding<ReturnType<typeof execute> extends Promise<infer T> ? T : never>({
+            runEmbedding<
+                ReturnType<typeof execute> extends Promise<infer T> ? T : never
+            >({
                 name: createEmbeddingObservationName(model),
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
-                    modelParameters: createEmbeddingModelParameters(embedOptions),
+                    modelParameters:
+                        createEmbeddingModelParameters(embedOptions),
                     metadata: embedOptions.metadata,
                     input: embedOptions.input,
                     recordContent,
@@ -502,7 +542,9 @@ export function createLangfuseImageMiddleware(
 
     return {
         generate: ({ execute, options: imageOptions, model }) =>
-            runGeneration<ReturnType<typeof execute> extends Promise<infer T> ? T : never>({
+            runGeneration<
+                ReturnType<typeof execute> extends Promise<infer T> ? T : never
+            >({
                 name: createImageObservationName(model),
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
