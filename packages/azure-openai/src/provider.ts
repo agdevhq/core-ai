@@ -74,6 +74,10 @@ export function createAzureOpenAI(
         { client },
         {
             providerId: PROVIDER_ID,
+            // Escape-hatch options stay under `providerOptions.openai` (Responses
+            // field shapes are shared). Reasoning `providerMetadata` is namespaced
+            // by `providerId` (`azure-openai`) so encrypted content is not replayed
+            // to first-party OpenAI.
             providerOptionsKey: 'openai',
         }
     );

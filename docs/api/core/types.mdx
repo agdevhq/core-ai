@@ -119,7 +119,7 @@ type ReasoningPart = {
 };
 ```
 
-The `metadata` field is application-owned and provider adapters ignore it. The `providerMetadata` field is provider-namespaced. The top-level key is the provider identifier (for example `'anthropic'`, `'google'`, or `'openai'`). Use [`getProviderMetadata()`](/api/core/utilities) for typed access.
+The `metadata` field is application-owned and provider adapters ignore it. The `providerMetadata` field is provider-namespaced. The top-level key is the provider identifier (for example `'anthropic'`, `'google'`, `'openai'`, or `'azure-openai'`). Adapters treat other providers' keys as foreign and downgrade those reasoning blocks to plain text instead of forwarding opaque metadata. Use [`getProviderMetadata()`](/api/core/utilities) for typed access.
 
 ### ToolCallPart
 

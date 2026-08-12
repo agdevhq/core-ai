@@ -53,7 +53,9 @@ export const DEFAULT_PROVIDER_ID = 'openai';
 /**
  * Wrappers around the Responses API (e.g. `@core-ai/azure-openai`) resolve
  * capabilities from their own registry and report their own provider id in
- * errors. Both default to first-party OpenAI when omitted.
+ * errors / reasoning `providerMetadata`. Both default to first-party OpenAI
+ * when omitted — Azure must keep a distinct namespace so encrypted reasoning
+ * from one endpoint is never forwarded to the other.
  */
 export type OpenAIResponsesAdapterOptions = {
     capabilities?: ModelCapabilities;
@@ -74,6 +76,8 @@ function resolveAdapterOptions(
 
     return {
         capabilities: toOpenAIResponsesCapabilities(capabilities),
+        // Also the ownership key for encrypted reasoning metadata — Azure
+        // (`azure-openai`) must not share the `openai` namespace.
         providerId: adapterOptions.providerId ?? DEFAULT_PROVIDER_ID,
     };
 }
@@ -84,6 +88,15 @@ export type OpenAIReasoningMetadata = {
 
 type ConvertMessagesOptions = {
     includeReasoning?: boolean;
+    /**
+     * Ownership namespace for encrypted reasoning metadata. Defaults to
+     * `'openai'`; Azure OpenAI passes `'azure-openai'`.
+     */
+    providerId?: string;
+};
+
+type ResponsesReasoningAdapterOptions = {
+    providerId?: string;
 };
 
 const ENCRYPTED_REASONING_INCLUDE = 'reasoning.encrypted_content';
@@ -96,14 +109,16 @@ export function convertMessages(
     options: ConvertMessagesOptions = {}
 ): ResponseInputItem[] {
     const includeReasoning = options.includeReasoning ?? true;
+    const providerId = options.providerId ?? DEFAULT_PROVIDER_ID;
     return messages.flatMap((message) =>
-        convertMessage(message, includeReasoning)
+        convertMessage(message, includeReasoning, providerId)
     );
 }
 
 function convertMessage(
     message: Message,
-    includeReasoning: boolean
+    includeReasoning: boolean,
+    providerId: string
 ): ResponseInputItem[] {
     if (message.role === 'system') {
         return [
@@ -127,7 +142,11 @@ function convertMessage(
     }
 
     if (message.role === 'assistant') {
-        return convertAssistantMessage(message.parts, includeReasoning);
+        return convertAssistantMessage(
+            message.parts,
+            includeReasoning,
+            providerId
+        );
     }
 
     return [
@@ -141,7 +160,8 @@ function convertMessage(
 
 function convertAssistantMessage(
     parts: AssistantContentPart[],
-    includeReasoning: boolean
+    includeReasoning: boolean,
+    providerId: string
 ): ResponseInputItem[] {
     const items: ResponseInputItem[] = [];
     const textParts: string[] = [];
@@ -169,7 +189,7 @@ function convertAssistantMessage(
                 !includeReasoning ||
                 getProviderMetadata<OpenAIReasoningMetadata>(
                     part.providerMetadata,
-                    'openai'
+                    providerId
                 ) == null
             ) {
                 if (part.text.length > 0) {
@@ -179,7 +199,10 @@ function convertAssistantMessage(
             }
 
             flushTextBuffer();
-            const encryptedContent = getEncryptedReasoningContent(part);
+            const encryptedContent = getEncryptedReasoningContent(
+                part,
+                providerId
+            );
             items.push({
                 type: 'reasoning',
                 summary: [
@@ -210,16 +233,28 @@ function convertAssistantMessage(
 }
 
 function getEncryptedReasoningContent(
-    part: Extract<AssistantContentPart, { type: 'reasoning' }>
+    part: Extract<AssistantContentPart, { type: 'reasoning' }>,
+    providerId: string
 ): string | undefined {
     const { encryptedContent } =
         getProviderMetadata<OpenAIReasoningMetadata>(
             part.providerMetadata,
-            'openai'
+            providerId
         ) ?? {};
     return typeof encryptedContent === 'string' && encryptedContent.length > 0
         ? encryptedContent
         : undefined;
+}
+
+function createReasoningProviderMetadata(
+    providerId: string,
+    encryptedContent?: string
+): Record<string, OpenAIReasoningMetadata> {
+    return {
+        [providerId]: {
+            ...(encryptedContent ? { encryptedContent } : {}),
+        },
+    };
 }
 
 function convertUserContentPart(part: UserContentPart) {
@@ -328,6 +363,7 @@ function createRequestBase(
         store: false as const,
         input: convertMessages(options.messages, {
             includeReasoning: capabilities.reasoning.mode !== 'unsupported',
+            providerId,
         }),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertResponseTools(options.tools) }
@@ -427,12 +463,16 @@ function mapOpenAIProviderOptionsToRequestFields(
     };
 }
 
-export function mapGenerateResponse(response: Response): GenerateResult {
+export function mapGenerateResponse(
+    response: Response,
+    adapterOptions: ResponsesReasoningAdapterOptions = {}
+): GenerateResult {
+    const providerId = adapterOptions.providerId ?? DEFAULT_PROVIDER_ID;
     const parts: AssistantContentPart[] = [];
 
     for (const item of response.output) {
         if (isReasoningItem(item)) {
-            const reasoningPart = mapReasoningPart(item);
+            const reasoningPart = mapReasoningPart(item, providerId);
             if (reasoningPart) {
                 parts.push(reasoningPart);
             }
@@ -471,7 +511,8 @@ export function mapGenerateResponse(response: Response): GenerateResult {
 }
 
 function mapReasoningPart(
-    item: ResponseReasoningItem
+    item: ResponseReasoningItem,
+    providerId: string
 ): Extract<AssistantContentPart, { type: 'reasoning' }> | null {
     const text = getReasoningSummaryText(item.summary);
     const encryptedContent =
@@ -487,9 +528,10 @@ function mapReasoningPart(
     return {
         type: 'reasoning',
         text,
-        providerMetadata: {
-            openai: { ...(encryptedContent ? { encryptedContent } : {}) },
-        },
+        providerMetadata: createReasoningProviderMetadata(
+            providerId,
+            encryptedContent
+        ),
     };
 }
 
@@ -643,8 +685,11 @@ function getReasoningEndTransition(
 }
 
 export async function* transformStream(
-    stream: AsyncIterable<ResponseStreamEvent>
+    stream: AsyncIterable<ResponseStreamEvent>,
+    adapterOptions: ResponsesReasoningAdapterOptions = {}
 ): AsyncIterable<StreamEvent> {
+    const providerId = adapterOptions.providerId ?? DEFAULT_PROVIDER_ID;
+    const emptyReasoningMetadata = createReasoningProviderMetadata(providerId);
     const bufferedToolCalls = new Map<number, BufferedToolCall>();
     const emittedToolCalls = new Set<string>();
     const startedToolCalls = new Set<string>();
@@ -782,7 +827,9 @@ export async function* transformStream(
         }
 
         if (event.type === 'response.output_text.delta') {
-            const reasoningEndEvent = getNextReasoningEndEvent({ openai: {} });
+            const reasoningEndEvent = getNextReasoningEndEvent(
+                emptyReasoningMetadata
+            );
             if (reasoningEndEvent) {
                 yield reasoningEndEvent;
             }
@@ -886,11 +933,9 @@ export async function* transformStream(
                     }
                 }
 
-                const reasoningEndEvent = getNextReasoningEndEvent({
-                    openai: {
-                        ...(encryptedContent ? { encryptedContent } : {}),
-                    },
-                });
+                const reasoningEndEvent = getNextReasoningEndEvent(
+                    createReasoningProviderMetadata(providerId, encryptedContent)
+                );
                 if (reasoningEndEvent) {
                     yield reasoningEndEvent;
                 }
@@ -935,7 +980,9 @@ export async function* transformStream(
             latestResponse = event.response;
 
             yield* closeText();
-            const reasoningEndEvent = getNextReasoningEndEvent({ openai: {} });
+            const reasoningEndEvent = getNextReasoningEndEvent(
+                emptyReasoningMetadata
+            );
             if (reasoningEndEvent) {
                 yield reasoningEndEvent;
             }
@@ -968,9 +1015,7 @@ export async function* transformStream(
         }
     }
 
-    const reasoningEndEvent = getNextReasoningEndEvent({
-        openai: {},
-    });
+    const reasoningEndEvent = getNextReasoningEndEvent(emptyReasoningMetadata);
     yield* closeText();
     if (reasoningEndEvent) {
         yield reasoningEndEvent;

@@ -69,7 +69,7 @@ export function createOpenAIChatModel(
             request,
             options.signal
         );
-        return mapGenerateResponse(response);
+        return mapGenerateResponse(response, { providerId: provider });
     }
 
     async function streamChat(
@@ -81,7 +81,8 @@ export function createOpenAIChatModel(
                 transformStream(
                     await callOpenAIResponsesApi<
                         AsyncIterable<ResponseStreamEvent>
-                    >(request, options.signal)
+                    >(request, options.signal),
+                    { providerId: provider }
                 ),
             { signal: options.signal }
         );

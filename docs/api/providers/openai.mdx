@@ -345,7 +345,7 @@ Reasoning support depends on the selected model family:
 
 ### Reasoning metadata
 
-When reasoning is enabled on the Responses API, core-ai automatically requests encrypted reasoning content and exposes it through provider metadata.
+When reasoning is enabled on the Responses API, core-ai automatically requests encrypted reasoning content and exposes it through provider metadata under the `'openai'` key. Wrappers such as Azure OpenAI use their own provider id (for example `'azure-openai'`) for the same ciphertext shape.
 
 ```typescript
 import { generate, getProviderMetadata } from '@core-ai/core-ai';
