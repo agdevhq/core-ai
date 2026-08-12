@@ -1,5 +1,17 @@
 # @core-ai/openai
 
+## 0.20.0
+
+### Minor Changes
+
+- 05515dc: Namespace Responses API encrypted reasoning under each wrapper's `providerId` instead of always using `openai`. Foreign namespaces (e.g. `azure-openai`) downgrade to thinking text; same-namespace ciphertext still round-trips.
+
+### Patch Changes
+
+- Updated dependencies [05515dc]
+- Updated dependencies [7281534]
+    - @core-ai/core-ai@0.20.0
+
 ## 0.19.0
 
 ### Minor Changes

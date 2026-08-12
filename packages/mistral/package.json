@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/mistral",
-    "version": "0.19.0",
+    "version": "0.20.0",
     "description": "Mistral provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -43,7 +43,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.19.0",
+        "@core-ai/core-ai": "^0.20.0",
         "@mistralai/mistralai": "^2.4.1"
     },
     "peerDependencies": {

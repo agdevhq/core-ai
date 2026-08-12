@@ -1,5 +1,13 @@
 # @core-ai/anthropic
 
+## 0.20.0
+
+### Patch Changes
+
+- Updated dependencies [05515dc]
+- Updated dependencies [7281534]
+    - @core-ai/core-ai@0.20.0
+
 ## 0.19.0
 
 ### Minor Changes
