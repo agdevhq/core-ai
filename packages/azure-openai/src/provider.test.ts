@@ -275,6 +275,67 @@ describe('createAzureOpenAI', () => {
         expect(JSON.stringify(request.input)).not.toContain('enc_openai');
     });
 
+    it('should round-trip azure-openai encrypted reasoning on continuation', async () => {
+        responsesCreate.mockResolvedValue({
+            output: [
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'ok' }],
+                },
+            ],
+            status: 'completed',
+            usage: {
+                input_tokens: 1,
+                output_tokens: 1,
+                input_tokens_details: { cached_tokens: 0 },
+                output_tokens_details: { reasoning_tokens: 0 },
+                total_tokens: 2,
+            },
+        });
+
+        const provider = createAzureOpenAI({ apiKey: 'test-key' });
+        await provider.chatModel('gpt-5.4').generate({
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'prior azure thought',
+                            providerMetadata: {
+                                'azure-openai': {
+                                    encryptedContent: 'enc_azure',
+                                },
+                            },
+                        },
+                        { type: 'text', text: 'prior answer' },
+                    ],
+                },
+                { role: 'user', content: 'continue' },
+            ],
+            reasoning: { effort: 'medium' },
+        });
+
+        const [request] = responsesCreate.mock.calls[0] ?? [];
+        expect(request).toMatchObject({
+            input: [
+                {
+                    type: 'reasoning',
+                    summary: [
+                        { type: 'summary_text', text: 'prior azure thought' },
+                    ],
+                    encrypted_content: 'enc_azure',
+                },
+                {
+                    role: 'assistant',
+                    content: 'prior answer',
+                },
+                { role: 'user', content: 'continue' },
+            ],
+        });
+    });
+
     it('should expose strict Chat Completions under chat', async () => {
         chatCreate.mockResolvedValue({
             id: 'chatcmpl-1',

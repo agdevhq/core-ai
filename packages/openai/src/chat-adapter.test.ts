@@ -219,7 +219,7 @@ describe('convertMessages', () => {
 
         expect(
             convertMessages(messages, {
-                providerMetadataKey: 'azure-openai',
+                providerId: 'azure-openai',
             })
         ).toEqual([
             {
@@ -278,7 +278,7 @@ describe('convertMessages', () => {
 
         expect(
             convertMessages(messages, {
-                providerMetadataKey: 'azure-openai',
+                providerId: 'azure-openai',
             })
         ).toEqual([
             {
@@ -664,7 +664,7 @@ describe('mapGenerateResponse', () => {
 
         expect(
             mapGenerateResponse(response, {
-                providerMetadataKey: 'azure-openai',
+                providerId: 'azure-openai',
             }).parts
         ).toEqual([
             {
@@ -1422,7 +1422,7 @@ describe('transformStream', () => {
 
         const events = [];
         for await (const event of transformStream(stream, {
-            providerMetadataKey: 'azure-openai',
+            providerId: 'azure-openai',
         })) {
             events.push(event);
         }
