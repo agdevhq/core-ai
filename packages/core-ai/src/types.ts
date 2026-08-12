@@ -90,6 +90,19 @@ export type ReasoningPart = {
 export type ToolCallPart = {
     type: 'tool-call';
     toolCall: ToolCall;
+    /**
+     * Provider-namespaced metadata for this tool call. The top-level key is the
+     * provider identifier and serves as the ownership discriminator, exactly as
+     * for `ReasoningPart`: an adapter only forwards metadata stored under its
+     * own key and ignores blocks produced by another provider.
+     *
+     * Some providers require this data to be replayed verbatim. Gemini 3 rejects
+     * a request when a function call from the current turn is sent back without
+     * the thought signature it was issued with.
+     *
+     * @example Google: `{ google: { thoughtSignature: '...' } }`
+     */
+    providerMetadata?: Record<string, Record<string, unknown>>;
 };
 
 export type AssistantContentPart =
@@ -359,7 +372,11 @@ export type StreamEvent =
     | { type: 'text-end'; metadata?: Record<string, unknown> }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
-    | { type: 'tool-call-end'; toolCall: ToolCall }
+    | {
+          type: 'tool-call-end';
+          toolCall: ToolCall;
+          providerMetadata?: Record<string, Record<string, unknown>>;
+      }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 
 /**

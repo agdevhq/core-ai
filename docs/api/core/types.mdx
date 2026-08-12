@@ -127,8 +127,11 @@ The `metadata` field is application-owned and provider adapters ignore it. The `
 type ToolCallPart = {
     type: 'tool-call';
     toolCall: ToolCall;
+    providerMetadata?: Record<string, Record<string, unknown>>;
 };
 ```
+
+`providerMetadata` follows the same provider-namespaced convention as `ReasoningPart`. Keep it on the part when you replay history: Gemini 3 rejects a request when a function call from the current turn comes back without its thought signature.
 
 ### ToolCall
 
@@ -457,7 +460,11 @@ type StreamEvent =
     | { type: 'text-end'; metadata?: Record<string, unknown> }
     | { type: 'tool-call-start'; toolCallId: string; toolName: string }
     | { type: 'tool-call-delta'; toolCallId: string; argumentsDelta: string }
-    | { type: 'tool-call-end'; toolCall: ToolCall }
+    | {
+          type: 'tool-call-end';
+          toolCall: ToolCall;
+          providerMetadata?: Record<string, Record<string, unknown>>;
+      }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
 

@@ -277,9 +277,12 @@ Token budgets: `minimal` -> 1,024, `low` -> 4,096, `medium` -> 16,384, `high`/`m
     the reasoning parameter.
 </Note>
 
-### Reasoning metadata
+### Thought signatures
 
-When reasoning is enabled, Google GenAI reasoning parts include a thought signature for multi-turn fidelity. Use `getProviderMetadata` to access it in a type-safe way.
+Google may attach a thought signature under the `google` key of a part's
+`providerMetadata`. Reasoning parts already expose it there. Gemini 3 also
+attaches a signature to function call parts; core-ai stores that on the
+`tool-call` part so multi-step tool loops can round-trip it.
 
 ```typescript
 import { generate, getProviderMetadata } from '@core-ai/core-ai';
@@ -287,12 +290,12 @@ import type { GoogleReasoningMetadata } from '@core-ai/google-genai';
 
 const result = await generate({
     model: google.chatModel('gemini-3.1-pro'),
-    messages: [{ role: 'user', content: 'Think step by step.' }],
-    reasoning: { effort: 'high' },
+    messages: [{ role: 'user', content: 'Search for something.' }],
+    tools: { /* ... */ },
 });
 
 for (const part of result.parts) {
-    if (part.type !== 'reasoning') continue;
+    if (part.type !== 'tool-call') continue;
 
     const metadata = getProviderMetadata<GoogleReasoningMetadata>(
         part.providerMetadata,
@@ -306,6 +309,14 @@ for (const part of result.parts) {
 The `GoogleReasoningMetadata` type contains:
 
 - `thoughtSignature` -- signature for preserving thought context across multi-turn conversations
+
+<Warning>
+    Gemini 3 validates thought signatures on function calls. Replay assistant
+    parts unchanged in the next request: a function call from the current turn
+    that comes back without its signature fails with a 400. Sending
+    `result.parts` (or the parts aggregated from a stream) as the next assistant
+    message preserves them.
+</Warning>
 
 ## Provider-specific options
 

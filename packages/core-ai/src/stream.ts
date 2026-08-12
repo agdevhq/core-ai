@@ -130,7 +130,8 @@ export function createChatStream(
     };
 
     const appendToolCall = (
-        toolCall: Extract<StreamEvent, { type: 'tool-call-end' }>['toolCall']
+        toolCall: Extract<StreamEvent, { type: 'tool-call-end' }>['toolCall'],
+        providerMetadata?: Record<string, Record<string, unknown>>
     ) => {
         flushText();
         insideText = false;
@@ -139,6 +140,7 @@ export function createChatStream(
         parts.push({
             type: 'tool-call',
             toolCall,
+            ...(providerMetadata ? { providerMetadata } : {}),
         });
     };
 
@@ -200,7 +202,7 @@ export function createChatStream(
                     endText(event.metadata);
                     break;
                 case 'tool-call-end':
-                    appendToolCall(event.toolCall);
+                    appendToolCall(event.toolCall, event.providerMetadata);
                     break;
                 case 'finish':
                     setFinish(event);

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
     FinishReason as GoogleFinishReason,
@@ -21,6 +21,7 @@ import {
     ValidationError,
     type GenerateOptions,
     type Message,
+    type StreamEvent,
     type ToolSet,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
@@ -145,6 +146,79 @@ describe('convertMessages', () => {
                             name: 'search',
                             arguments: { query: 'weather' },
                             metadata: { transformed: true },
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages).contents).toEqual([
+            {
+                role: 'model',
+                parts: [
+                    {
+                        functionCall: {
+                            id: 'tc_1',
+                            name: 'search',
+                            args: { query: 'weather' },
+                        },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should replay a tool call thought signature', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'search',
+                            arguments: { query: 'weather' },
+                        },
+                        providerMetadata: {
+                            google: { thoughtSignature: 'sig_fc' },
+                        },
+                    },
+                ],
+            },
+        ];
+
+        expect(convertMessages(messages).contents).toEqual([
+            {
+                role: 'model',
+                parts: [
+                    {
+                        functionCall: {
+                            id: 'tc_1',
+                            name: 'search',
+                            args: { query: 'weather' },
+                        },
+                        thoughtSignature: 'sig_fc',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should not send a cross-provider tool call signature', () => {
+        const messages: Message[] = [
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'search',
+                            arguments: { query: 'weather' },
+                        },
+                        providerMetadata: {
+                            anthropic: { signature: 'sig_123' },
                         },
                     },
                 ],
@@ -805,6 +879,152 @@ describe('reasoning support', () => {
             'finish',
         ]);
     });
+});
+
+describe('tool call thought signatures', () => {
+    it('should stream text next to function calls without using the SDK text getter', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+        const response = asGenerateContentResponse({
+            candidates: [
+                {
+                    content: {
+                        role: 'model',
+                        parts: [
+                            { text: 'Looking that up.' },
+                            {
+                                functionCall: {
+                                    id: 'tc_1',
+                                    name: 'search',
+                                    args: { query: 'weather' },
+                                },
+                            },
+                        ],
+                    },
+                    finishReason: GoogleFinishReason.STOP,
+                },
+            ],
+            usageMetadata: {
+                promptTokenCount: 10,
+                candidatesTokenCount: 2,
+                totalTokenCount: 12,
+            },
+        });
+        Object.defineProperty(response, 'text', {
+            configurable: true,
+            get() {
+                console.warn(
+                    'there are non-text parts functionCall in the response, returning concatenation of all text parts. Please refer to the non text parts for a full response from model.'
+                );
+                return 'Looking that up.';
+            },
+        });
+
+        const events: StreamEvent[] = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([response])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.map((event) => event.type)).toEqual([
+            'text-start',
+            'text-delta',
+            'text-end',
+            'tool-call-start',
+            'tool-call-delta',
+            'tool-call-end',
+            'finish',
+        ]);
+        expect(events).toContainEqual({
+            type: 'text-delta',
+            text: 'Looking that up.',
+        });
+        expect(warn).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
+    it('should extract a thought signature from a function call response part', () => {
+        const response = asGenerateContentResponse({
+            candidates: [
+                {
+                    finishReason: GoogleFinishReason.STOP,
+                    content: {
+                        role: 'model',
+                        parts: [
+                            {
+                                functionCall: {
+                                    id: 'tc_1',
+                                    name: 'search',
+                                    args: { query: 'weather' },
+                                },
+                                thoughtSignature: 'sig_fc',
+                            },
+                        ],
+                    },
+                },
+            ],
+        });
+
+        expect(mapGenerateResponse(response).parts).toEqual([
+            {
+                type: 'tool-call',
+                toolCall: {
+                    id: 'tc_1',
+                    name: 'search',
+                    arguments: { query: 'weather' },
+                },
+                providerMetadata: {
+                    google: { thoughtSignature: 'sig_fc' },
+                },
+            },
+        ]);
+    });
+
+    it('should emit a thought signature on tool-call-end in streams', async () => {
+        const events: StreamEvent[] = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    candidates: [
+                        {
+                            content: {
+                                role: 'model',
+                                parts: [
+                                    {
+                                        functionCall: {
+                                            id: 'tc_1',
+                                            name: 'search',
+                                            args: { query: 'weather' },
+                                        },
+                                        thoughtSignature: 'sig_fc',
+                                    },
+                                ],
+                            },
+                            finishReason: GoogleFinishReason.STOP,
+                        },
+                    ],
+                    usageMetadata: {
+                        promptTokenCount: 10,
+                        candidatesTokenCount: 2,
+                        totalTokenCount: 12,
+                    },
+                }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.find((event) => event.type === 'tool-call-end')).toEqual({
+            type: 'tool-call-end',
+            toolCall: {
+                id: 'tc_1',
+                name: 'search',
+                arguments: { query: 'weather' },
+            },
+            providerMetadata: { google: { thoughtSignature: 'sig_fc' } },
+        });
+    });
+
 });
 
 function asGenerateContentResponse(
