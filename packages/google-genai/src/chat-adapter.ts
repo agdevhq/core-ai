@@ -475,6 +475,7 @@ export async function* transformStream(
     let sawToolCalls = false;
     let textOpen = false;
     let reasoningOpen = false;
+    let reasoningSignature: string | undefined;
     let usage: GenerateResult['usage'] = {
         inputTokens: 0,
         outputTokens: 0,
@@ -490,10 +491,18 @@ export async function* transformStream(
         }
 
         reasoningOpen = false;
-        return {
+        const reasoningEnd: StreamEvent = {
             type: 'reasoning-end',
-            providerMetadata: { google: {} },
+            providerMetadata: {
+                google: {
+                    ...(reasoningSignature
+                        ? { thoughtSignature: reasoningSignature }
+                        : {}),
+                },
+            },
         };
+        reasoningSignature = undefined;
+        return reasoningEnd;
     };
     const startText = function* (): Iterable<StreamEvent> {
         if (textOpen) {
@@ -515,6 +524,7 @@ export async function* transformStream(
     for await (const chunk of stream) {
         usage = mapUsage(chunk, usage);
 
+        const chunkReasoningSignature = extractReasoningSignature(chunk);
         const reasoningDeltas = extractReasoningDeltas(chunk);
         if (reasoningDeltas.length > 0) {
             yield* closeText();
@@ -524,6 +534,11 @@ export async function* transformStream(
                     type: 'reasoning-start',
                 };
             }
+            // Same chunk often carries thought text plus a trailing empty
+            // thought part that holds the signature.
+            if (chunkReasoningSignature) {
+                reasoningSignature = chunkReasoningSignature;
+            }
 
             for (const delta of reasoningDeltas) {
                 yield {
@@ -531,7 +546,12 @@ export async function* transformStream(
                     text: delta,
                 };
             }
+        } else if (chunkReasoningSignature && reasoningOpen) {
+            // Empty thought + signature while the current block is still open.
+            reasoningSignature = chunkReasoningSignature;
         }
+        // After reasoning-end, ignore signature-only chunks so they cannot
+        // attach to a later reasoning block (stream events are immutable).
 
         if (chunk.text) {
             const reasoningEnd = closeReasoning();
@@ -657,14 +677,15 @@ function extractAssistantParts(
     for (const part of candidateParts) {
         if (part.thought) {
             const thoughtText = typeof part.text === 'string' ? part.text : '';
+            const thoughtSignature = readThoughtSignature(part);
+            // Gemini often puts the signature on a trailing empty thought
+            // part — attach it to the prior reasoning part instead of dropping.
             if (thoughtText.length === 0) {
+                if (thoughtSignature) {
+                    attachReasoningSignature(parts, thoughtSignature);
+                }
                 continue;
             }
-            const thoughtSignature =
-                typeof (part as { thoughtSignature?: unknown })
-                    .thoughtSignature === 'string'
-                    ? (part as { thoughtSignature?: string }).thoughtSignature
-                    : undefined;
             parts.push({
                 type: 'reasoning',
                 text: thoughtText,
@@ -735,6 +756,48 @@ function extractReasoningDeltas(response: GenerateContentResponse): string[] {
         }
         return [part.text];
     });
+}
+
+function extractReasoningSignature(
+    response: GenerateContentResponse
+): string | undefined {
+    const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
+    for (const part of candidateParts) {
+        if (!part.thought) {
+            continue;
+        }
+        const thoughtSignature = readThoughtSignature(part);
+        if (thoughtSignature) {
+            return thoughtSignature;
+        }
+    }
+    return undefined;
+}
+
+function readThoughtSignature(part: Part): string | undefined {
+    return typeof part.thoughtSignature === 'string' &&
+        part.thoughtSignature.length > 0
+        ? part.thoughtSignature
+        : undefined;
+}
+
+function attachReasoningSignature(
+    parts: AssistantContentPart[],
+    thoughtSignature: string
+): void {
+    for (let index = parts.length - 1; index >= 0; index -= 1) {
+        const part = parts[index];
+        if (part?.type !== 'reasoning') {
+            continue;
+        }
+        parts[index] = {
+            ...part,
+            providerMetadata: {
+                google: { thoughtSignature },
+            },
+        };
+        return;
+    }
 }
 
 function mapUsage(
