@@ -13,6 +13,9 @@ const CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: TEXT_ONLY_MODALITIES,
+    tools: {
+        strictSchemas: { supported: false },
+    },
 };
 
 describe('createOpenAIProvider', () => {
@@ -46,6 +49,18 @@ describe('createOpenAIProvider', () => {
             provider.chat.chatModel('gpt-audio-1.5').capabilities.modalities
                 .input
         ).toEqual(['text', 'audio']);
+    });
+
+    it('should report strict schemas supported for unknown model ids', () => {
+        const provider = createOpenAIProvider({ client: createMockClient() });
+
+        expect(
+            provider.chatModel('opaque-model').capabilities.tools.strictSchemas
+        ).toEqual({ supported: true });
+        expect(
+            provider.chat.chatModel('ft:gpt-4o-2024-08-06:acme::abc123')
+                .capabilities.tools.strictSchemas
+        ).toEqual({ supported: true });
     });
 
     it('should read chat provider options from the provider namespace', async () => {

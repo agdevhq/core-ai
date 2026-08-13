@@ -2,7 +2,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ValidationError } from './errors.ts';
 import { stream } from './stream-chat.ts';
 import type { ChatModel, ChatOutputTokenDetails, ChatStream } from './types.ts';
-import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
+import {
+    MULTIMODAL_INPUT_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+} from './model-capabilities.ts';
 
 async function* events(): AsyncIterable<{
     type: 'finish';
@@ -74,6 +77,9 @@ describe('stream', () => {
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
                 modalities: MULTIMODAL_INPUT_MODALITIES,
+                tools: {
+                    strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                },
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
@@ -110,6 +116,9 @@ describe('stream', () => {
                     supportedToolChoices: ['auto', 'none', 'required', 'tool'],
                 },
                 modalities: MULTIMODAL_INPUT_MODALITIES,
+                tools: {
+                    strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                },
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');

@@ -19,6 +19,7 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
         ]);
         expect(capabilities.modalities.input).toEqual(['text']);
         expect(capabilities.modalities.output).toEqual(['text']);
+        expect(capabilities.tools.strictSchemas).toEqual({ supported: true });
     });
 
     it('should define unrestricted capabilities for unknown models', () => {
@@ -38,5 +39,6 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             'file',
         ]);
         expect(capabilities.modalities.output).toEqual(['text']);
+        expect(capabilities.tools.strictSchemas).toEqual({ supported: true });
     });
 });

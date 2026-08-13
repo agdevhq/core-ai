@@ -33,6 +33,29 @@ describe('getMistralModelCapabilities', () => {
 
     it.each([
         'mistral-large-latest',
+        'mistral-medium-latest',
+        'mistral-small-latest',
+        'mistral-small-2503',
+        'mistral-small-2506',
+        'ministral-8b-latest',
+        'magistral-medium-latest',
+        'codestral-latest',
+        'devstral-latest',
+        'pixtral-large-latest',
+        'self-hosted-model',
+    ])(
+        'should report strict tool schemas as unsupported for unverified %s',
+        (modelId) => {
+            expect(
+                getMistralModelCapabilities(modelId).tools.strictSchemas
+            ).toEqual({
+                supported: false,
+            });
+        }
+    );
+
+    it.each([
+        'mistral-large-latest',
         'mistral-large-2512',
         'mistral-medium-latest',
         'mistral-medium-2508',

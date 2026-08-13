@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { ProviderError, ValidationError } from '@core-ai/core-ai';
 import type OpenAI from 'openai';
 import { createAzureOpenAI } from './provider.js';
@@ -108,6 +109,55 @@ describe('createAzureOpenAI', () => {
 
         expect(chatModel.provider).toBe('azure-openai');
         expect(chatModel.modelId).toBe('chat-deployment');
+        expect(chatModel.capabilities.tools.strictSchemas).toEqual({
+            supported: true,
+        });
+    });
+
+    it('should forward strict tools on the v1 Responses API', async () => {
+        responsesCreate.mockResolvedValue(createResponsesResult());
+        const model = createAzureOpenAI({
+            apiKey: 'test-key',
+        }).chatModel('opaque-deployment');
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: createStrictTools(),
+        });
+
+        expect(responsesCreate.mock.calls[0]?.[0]).toMatchObject({
+            tools: [
+                expect.objectContaining({
+                    strict: true,
+                    name: 'search',
+                }),
+            ],
+        });
+    });
+
+    it('should forward classic strict tools inside the function payload', async () => {
+        chatCreate.mockResolvedValue(createChatCompletionResult());
+        const model = createAzureOpenAI({
+            api: 'classic',
+            apiVersion: '2024-08-01-preview',
+        }).chatModel('opaque-deployment');
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: createStrictTools(),
+        });
+
+        expect(chatCreate.mock.calls[0]?.[0]).toMatchObject({
+            tools: [
+                {
+                    type: 'function',
+                    function: expect.objectContaining({
+                        strict: true,
+                        name: 'search',
+                    }),
+                },
+            ],
+        });
     });
 
     it('should keep classic root chat models on Chat Completions', async () => {
@@ -447,3 +497,60 @@ describe('createAzureOpenAI', () => {
         expect(responsesCreate).not.toHaveBeenCalled();
     });
 });
+
+function createStrictTools() {
+    return {
+        search: {
+            name: 'search',
+            description: 'Search',
+            parameters: z.object({ query: z.string() }),
+            strict: true,
+        },
+    };
+}
+
+function createResponsesResult() {
+    return {
+        output: [
+            {
+                type: 'message',
+                role: 'assistant',
+                content: [{ type: 'output_text', text: 'ok' }],
+            },
+        ],
+        status: 'completed',
+        usage: {
+            input_tokens: 1,
+            output_tokens: 1,
+            input_tokens_details: { cached_tokens: 0 },
+            output_tokens_details: { reasoning_tokens: 0 },
+            total_tokens: 2,
+        },
+    };
+}
+
+function createChatCompletionResult() {
+    return {
+        id: 'chatcmpl-1',
+        object: 'chat.completion',
+        created: Date.now(),
+        model: 'opaque-deployment',
+        choices: [
+            {
+                index: 0,
+                finish_reason: 'stop',
+                logprobs: null,
+                message: {
+                    role: 'assistant',
+                    content: 'ok',
+                    refusal: null,
+                },
+            },
+        ],
+        usage: {
+            prompt_tokens: 1,
+            completion_tokens: 1,
+            total_tokens: 2,
+        },
+    };
+}

@@ -8,6 +8,7 @@ import {
 import {
     ProviderError,
     StructuredOutputValidationError,
+    ToolSchemaStrictnessError,
 } from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.js';
 import { getGoogleModelCapabilities } from './model-capabilities.js';
@@ -142,6 +143,29 @@ describe('generate', () => {
                 providerOptions: invalidProviderOptions,
             })
         ).rejects.toThrow(/unrecognized_key/);
+        expect(generateContent).not.toHaveBeenCalled();
+    });
+
+    it('should reject explicit strict tools before calling Google', async () => {
+        const generateContent = vi.fn();
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+
+        await expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'Search' }],
+                tools: {
+                    search: {
+                        name: 'search',
+                        description: 'Search the web',
+                        parameters: z.object({ query: z.string() }),
+                        strict: true,
+                    },
+                },
+            })
+        ).rejects.toBeInstanceOf(ToolSchemaStrictnessError);
         expect(generateContent).not.toHaveBeenCalled();
     });
 

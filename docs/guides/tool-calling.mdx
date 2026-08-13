@@ -14,14 +14,140 @@ import { defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherTool = defineTool({
-  name: 'get_weather',
-  description: 'Get mocked weather information for a city',
-  parameters: z.object({
-    location: z.string().describe('City name'),
-    unit: z.enum(['celsius', 'fahrenheit']).default('celsius'),
-  }),
+    name: 'get_weather',
+    description: 'Get mocked weather information for a city',
+    parameters: z.object({
+        location: z.string().describe('City name'),
+        unit: z.enum(['celsius', 'fahrenheit']).default('celsius'),
+    }),
 });
 ```
+
+## Strict tool schemas
+
+Set `strict: true` on a tool to make the provider enforce the tool's parameter
+schema during argument generation. Strictness is a per-tool opt-in: omitting
+`strict` or setting `strict: false` keeps that tool non-strict on every
+provider.
+
+```typescript
+const lookupOrder = defineTool({
+    name: 'lookup_order',
+    description: 'Look up an order by id',
+    strict: true,
+    parameters: z.object({
+        orderId: z.string(),
+        note: z.string().nullable().describe('Extra note, or null'),
+    }),
+});
+```
+
+### Strict-capable schema contract
+
+A strict tool's schema must fit the strict-capable subset that schema-enforcing
+providers accept. Core-ai validates strict tools against this contract locally,
+before any API call, and reports every violation with a fix hint. Non-strict
+tools are never validated against it.
+
+- **Closed objects with every key required.** Use `.nullable()` for values the
+  model may leave out — `.optional()` makes a key optional and is rejected, and
+  `.default()` also makes a key optional.
+- **Allowed keywords:** `$ref` / `$defs`, `type` (`object`, `array`, `string`,
+  `number`, `integer`, `boolean`, `null`), `properties`, `required`,
+  `additionalProperties: false`, `items`, `enum`, `const`, `anyOf`, `allOf`,
+  `format` (`date-time`, `time`, `date`, `duration`, `email`, `hostname`,
+  `ipv4`, `ipv6`, `uuid`, `uri`), `pattern`, `title`, `description`, `default`,
+  `examples`.
+- **Rejected:** numeric bounds (`minimum`, `maximum`, `multipleOf` — Zod's
+  implicit safe-integer bounds on `z.int()` are exempt and stripped), string
+  and array length constraints (`minLength`, `maxLength`, `minItems`,
+  `maxItems`), tuples (`prefixItems`), `oneOf`, `not`, open objects
+  (`z.record()`, `.catchall()`, `.passthrough()`, `z.looseObject()`), and
+  recursive schemas (`z.lazy()`).
+
+Validate constraints you remove from the schema (ranges, lengths) with Zod
+after parsing the returned arguments.
+
+### Check model support
+
+`model.capabilities.tools.strictSchemas` reports whether the selected model
+supports strict tools and any provider limit:
+
+```typescript
+import { createOpenAI } from '@core-ai/openai';
+
+const model = createOpenAI().chatModel('gpt-5-mini');
+const strictSchemas = model.capabilities.tools.strictSchemas;
+
+if (strictSchemas.supported) {
+    console.log(strictSchemas.maxStrictTools); // provider limit, if any
+}
+```
+
+Unknown and future model IDs resolve optimistically to `{ supported: true }`:
+core-ai forwards the explicit `strict: true` and lets the provider reject the
+request if the model genuinely lacks support. This keeps fine-tuned `ft:...`
+OpenAI models and newly released Claude models usable without a registry
+update.
+
+### Errors
+
+Invalid strict configuration throws
+[`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror)
+before the provider request. Its `reason` is one of:
+
+- `'unsupported'` — the model is known not to support strict tool schemas.
+- `'limit-exceeded'` — the request contains more strict tools than the
+  provider's `maxStrictTools` limit.
+- `'invalid-schema'` — a strict tool's schema is outside the strict-capable
+  contract. The error carries a `violations` array naming each offending
+  schema path:
+
+```text
+openai model "gpt-5-mini" received strict tools whose schemas are outside the
+strict-capable schema contract: tool "search" at properties.limit.maximum:
+remove numeric bounds (.max()/.lt()/.lte()) — numeric range constraints are
+outside the strict-capable subset; validate ranges after parsing instead
+```
+
+### Parallel tool calls
+
+OpenAI does not guarantee schema adherence when parallel tool calls are
+enabled. Core-ai does not change that setting for you: when you combine strict
+tools with `providerOptions.openai.parallelToolCalls: true`, set it to `false`
+yourself if you need guaranteed adherence.
+
+### Provider support
+
+| Provider                     | Strict tool schemas                                                                                                                                                    |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anthropic                    | Yes, on Claude 4.5 and later models; at most 20 strict tools per request                                                                                               |
+| Anthropic Vertex             | Yes; requires the `structured_outputs` partner-model feature in your organization policy — see [Anthropic Vertex](/api/providers/anthropic-vertex#strict-tool-schemas) |
+| OpenAI                       | Yes                                                                                                                                                                    |
+| Azure OpenAI                 | Yes; classic deployments need `api-version` `2024-08-01-preview` or later                                                                                              |
+| Kimi                         | Yes                                                                                                                                                                    |
+| OpenAI Compat                | Yes, when the endpoint implements OpenAI strict function tools                                                                                                         |
+| Omnifact                     | Yes                                                                                                                                                                    |
+| Google GenAI / Google Vertex | No; `strict: true` throws locally                                                                                                                                      |
+| Mistral                      | No; `strict: true` throws locally                                                                                                                                      |
+
+On the OpenAI family (`openai`, `azure-openai`, `kimi`, `openai-compat`,
+`omnifact`), strict tools are sent with `strict: true` and a normalized schema
+(`$schema` stripped, `additionalProperties: false` added recursively — both
+semantics-preserving). Non-strict tools are sent with the raw converted schema,
+without a strict field.
+
+<Warning>
+    Strict generation reduces invalid arguments but does not make tool execution
+    trusted. Continue to parse every `ToolCall.arguments` value with Zod before
+    executing code or making external requests.
+</Warning>
+
+Strict tool schemas apply to function arguments during `generate()` and
+`stream()`. They are separate from the structured response formats used by
+[`generateObject()`](/api/core/generate-object) and
+[`streamObject()`](/api/core/stream-object). A provider can support one without
+supporting the other.
 
 ## Basic Tool Usage
 
@@ -37,76 +163,76 @@ const model = openai.chatModel('gpt-5-mini');
 
 // Define the tool
 const weatherTool = defineTool({
-  name: 'get_weather',
-  description: 'Get mocked weather information for a city',
-  parameters: z.object({
-    location: z.string().describe('City name'),
-    unit: z.enum(['celsius', 'fahrenheit']).default('celsius'),
-  }),
+    name: 'get_weather',
+    description: 'Get mocked weather information for a city',
+    parameters: z.object({
+        location: z.string().describe('City name'),
+        unit: z.enum(['celsius', 'fahrenheit']).default('celsius'),
+    }),
 });
 
 // Implement the tool function
 function runWeatherTool(args: { location: string; unit: string }): string {
-  const conditions = ['sunny', 'cloudy', 'windy'];
-  const condition = conditions[args.location.length % conditions.length];
-  const temperature = 10 + (args.location.length % 18);
+    const conditions = ['sunny', 'cloudy', 'windy'];
+    const condition = conditions[args.location.length % conditions.length];
+    const temperature = 10 + (args.location.length % 18);
 
-  return JSON.stringify({
-    location: args.location,
-    unit: args.unit,
-    temperature,
-    condition,
-  });
+    return JSON.stringify({
+        location: args.location,
+        unit: args.unit,
+        temperature,
+        condition,
+    });
 }
 
 // Initial request with tools
 const initialMessages = [
-  {
-    role: 'user' as const,
-    content: 'What is the weather in Berlin? Reply in one sentence.',
-  },
+    {
+        role: 'user' as const,
+        content: 'What is the weather in Berlin? Reply in one sentence.',
+    },
 ];
 
 const firstResult = await generate({
-  model,
-  messages: initialMessages,
-  tools: { get_weather: weatherTool },
-  toolChoice: 'auto',
+    model,
+    messages: initialMessages,
+    tools: { get_weather: weatherTool },
+    toolChoice: 'auto',
 });
 
 // Check if model wants to call tools
 if (firstResult.finishReason !== 'tool-calls') {
-  console.log('Model response without tool calls:', firstResult.content);
-  process.exit(0);
+    console.log('Model response without tool calls:', firstResult.content);
+    process.exit(0);
 }
 
 // Execute the tool calls
 const toolMessages = firstResult.toolCalls.map((call) => {
-  if (call.name !== 'get_weather') {
-    return {
-      role: 'tool' as const,
-      toolCallId: call.id,
-      content: JSON.stringify({ error: `Unknown tool: ${call.name}` }),
-      isError: true,
-    };
-  }
+    if (call.name !== 'get_weather') {
+        return {
+            role: 'tool' as const,
+            toolCallId: call.id,
+            content: JSON.stringify({ error: `Unknown tool: ${call.name}` }),
+            isError: true,
+        };
+    }
 
-  return {
-    role: 'tool' as const,
-    toolCallId: call.id,
-    content: runWeatherTool(call.arguments as any),
-  };
+    return {
+        role: 'tool' as const,
+        toolCallId: call.id,
+        content: runWeatherTool(call.arguments as any),
+    };
 });
 
 // Get final response with tool results
 const secondResult = await generate({
-  model,
-  messages: [
-    ...initialMessages,
-    resultToMessage(firstResult),
-    ...toolMessages,
-  ],
-  tools: { get_weather: weatherTool },
+    model,
+    messages: [
+        ...initialMessages,
+        resultToMessage(firstResult),
+        ...toolMessages,
+    ],
+    tools: { get_weather: weatherTool },
 });
 
 console.log('Final response:', secondResult.content);
@@ -119,34 +245,34 @@ Control when and how tools are used:
 ```typescript
 // Let model decide whether to use tools
 const result = await generate({
-  model,
-  messages,
-  tools: { get_weather: weatherTool },
-  toolChoice: 'auto', // Default behavior
+    model,
+    messages,
+    tools: { get_weather: weatherTool },
+    toolChoice: 'auto', // Default behavior
 });
 
 // Force model to use at least one tool
 const result = await generate({
-  model,
-  messages,
-  tools: { get_weather: weatherTool },
-  toolChoice: 'required',
+    model,
+    messages,
+    tools: { get_weather: weatherTool },
+    toolChoice: 'required',
 });
 
 // Disable tool usage
 const result = await generate({
-  model,
-  messages,
-  tools: { get_weather: weatherTool },
-  toolChoice: 'none',
+    model,
+    messages,
+    tools: { get_weather: weatherTool },
+    toolChoice: 'none',
 });
 
 // Force a specific tool
 const result = await generate({
-  model,
-  messages,
-  tools: { get_weather: weatherTool },
-  toolChoice: { type: 'tool', toolName: 'get_weather' },
+    model,
+    messages,
+    tools: { get_weather: weatherTool },
+    toolChoice: { type: 'tool', toolName: 'get_weather' },
 });
 ```
 
@@ -159,141 +285,145 @@ import { defineTool, generate } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherTool = defineTool({
-  name: 'get_weather',
-  description: 'Get current weather information',
-  parameters: z.object({
-    location: z.string(),
-  }),
+    name: 'get_weather',
+    description: 'Get current weather information',
+    parameters: z.object({
+        location: z.string(),
+    }),
 });
 
 const timeTool = defineTool({
-  name: 'get_time',
-  description: 'Get current time in a timezone',
-  parameters: z.object({
-    timezone: z.string().describe('IANA timezone name'),
-  }),
+    name: 'get_time',
+    description: 'Get current time in a timezone',
+    parameters: z.object({
+        timezone: z.string().describe('IANA timezone name'),
+    }),
 });
 
 const searchTool = defineTool({
-  name: 'search_web',
-  description: 'Search the web for information',
-  parameters: z.object({
-    query: z.string(),
-    limit: z.number().default(10),
-  }),
+    name: 'search_web',
+    description: 'Search the web for information',
+    parameters: z.object({
+        query: z.string(),
+        limit: z.number().default(10),
+    }),
 });
 
 const result = await generate({
-  model,
-  messages: [{
-    role: 'user',
-    content: 'What is the weather in London and what time is it there?',
-  }],
-  tools: {
-    get_weather: weatherTool,
-    get_time: timeTool,
-    search_web: searchTool,
-  },
-  toolChoice: 'auto',
+    model,
+    messages: [
+        {
+            role: 'user',
+            content: 'What is the weather in London and what time is it there?',
+        },
+    ],
+    tools: {
+        get_weather: weatherTool,
+        get_time: timeTool,
+        search_web: searchTool,
+    },
+    toolChoice: 'auto',
 });
 
 // Model may call multiple tools
 if (result.finishReason === 'tool-calls') {
-  console.log('Tools called:', result.toolCalls.length);
-  result.toolCalls.forEach((call) => {
-    console.log(`- ${call.name}:`, call.arguments);
-  });
+    console.log('Tools called:', result.toolCalls.length);
+    result.toolCalls.forEach((call) => {
+        console.log(`- ${call.name}:`, call.arguments);
+    });
 }
 ```
 
 ## Handling Tool Calls
 
-Best practices for executing tool calls:
+Validate and execute tool calls the same way for strict and non-strict tools:
 
 ```typescript
 import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherParameters = z.object({
-  location: z.string(),
-  unit: z.enum(['celsius', 'fahrenheit']).default('celsius'),
+    location: z.string(),
+    unit: z.enum(['celsius', 'fahrenheit']).default('celsius'),
 });
 
 const weatherTool = defineTool({
-  name: 'get_weather',
-  description: 'Get weather information',
-  parameters: weatherParameters,
+    name: 'get_weather',
+    description: 'Get weather information',
+    parameters: weatherParameters,
 });
 
 type WeatherArgs = z.infer<typeof weatherParameters>;
 
 function getWeather(args: WeatherArgs): string {
-  // Implement your weather API call here
-  return JSON.stringify({ temperature: 20, condition: 'sunny' });
+    // Implement your weather API call here
+    return JSON.stringify({ temperature: 20, condition: 'sunny' });
 }
 
 const result = await generate({
-  model,
-  messages: [{ role: 'user', content: 'Weather in Paris?' }],
-  tools: { get_weather: weatherTool },
+    model,
+    messages: [{ role: 'user', content: 'Weather in Paris?' }],
+    tools: { get_weather: weatherTool },
 });
 
 if (result.finishReason === 'tool-calls') {
-  const toolMessages = result.toolCalls.map((call) => {
-    // Validate tool name
-    if (call.name !== 'get_weather') {
-      return {
-        role: 'tool' as const,
-        toolCallId: call.id,
-        content: JSON.stringify({ error: `Unknown tool: ${call.name}` }),
-        isError: true,
-      };
-    }
+    const toolMessages = result.toolCalls.map((call) => {
+        // Validate tool name
+        if (call.name !== 'get_weather') {
+            return {
+                role: 'tool' as const,
+                toolCallId: call.id,
+                content: JSON.stringify({
+                    error: `Unknown tool: ${call.name}`,
+                }),
+                isError: true,
+            };
+        }
 
-    // Validate arguments with Zod
-    const parsed = weatherParameters.safeParse(call.arguments);
-    if (!parsed.success) {
-      return {
-        role: 'tool' as const,
-        toolCallId: call.id,
-        content: JSON.stringify({
-          error: 'Invalid arguments',
-          issues: parsed.error.issues,
-        }),
-        isError: true,
-      };
-    }
+        // Validate arguments with Zod
+        const parsed = weatherParameters.safeParse(call.arguments);
+        if (!parsed.success) {
+            return {
+                role: 'tool' as const,
+                toolCallId: call.id,
+                content: JSON.stringify({
+                    error: 'Invalid arguments',
+                    issues: parsed.error.issues,
+                }),
+                isError: true,
+            };
+        }
 
-    // Execute tool with validated arguments
-    try {
-      const result = getWeather(parsed.data);
-      return {
-        role: 'tool' as const,
-        toolCallId: call.id,
-        content: result,
-      };
-    } catch (error) {
-      return {
-        role: 'tool' as const,
-        toolCallId: call.id,
-        content: JSON.stringify({ error: String(error) }),
-        isError: true,
-      };
-    }
-  });
+        // Execute tool with validated arguments
+        try {
+            const result = getWeather(parsed.data);
+            return {
+                role: 'tool' as const,
+                toolCallId: call.id,
+                content: result,
+            };
+        } catch (error) {
+            return {
+                role: 'tool' as const,
+                toolCallId: call.id,
+                content: JSON.stringify({ error: String(error) }),
+                isError: true,
+            };
+        }
+    });
 
-  // Continue conversation with tool results
-  const finalResult = await generate({
-    model,
-    messages: [
-      { role: 'user', content: 'Weather in Paris?' },
-      resultToMessage(result),
-      ...toolMessages,
-    ],
-    tools: { get_weather: weatherTool },
-  });
+    // Continue conversation with tool results
+    const finalResult = await generate({
+        model,
+        messages: [
+            { role: 'user', content: 'Weather in Paris?' },
+            resultToMessage(result),
+            ...toolMessages,
+        ],
+        tools: { get_weather: weatherTool },
+    });
 
-  console.log(finalResult.content);
+    console.log(finalResult.content);
 }
 ```
 
@@ -306,47 +436,47 @@ import { stream, defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const calculatorTool = defineTool({
-  name: 'calculate',
-  description: 'Perform a calculation',
-  parameters: z.object({
-    expression: z.string().describe('Mathematical expression'),
-  }),
+    name: 'calculate',
+    description: 'Perform a calculation',
+    parameters: z.object({
+        expression: z.string().describe('Mathematical expression'),
+    }),
 });
 
 const result = await stream({
-  model,
-  messages: [{ role: 'user', content: 'What is 25 * 17?' }],
-  tools: { calculate: calculatorTool },
+    model,
+    messages: [{ role: 'user', content: 'What is 25 * 17?' }],
+    tools: { calculate: calculatorTool },
 });
 
 const toolCalls: ToolCall[] = [];
 
 for await (const event of result) {
-  switch (event.type) {
-    case 'text-delta':
-      process.stdout.write(event.text);
-      break;
+    switch (event.type) {
+        case 'text-delta':
+            process.stdout.write(event.text);
+            break;
 
-    case 'tool-call-start':
-      console.log(`\nCalling tool: ${event.toolName}`);
-      break;
+        case 'tool-call-start':
+            console.log(`\nCalling tool: ${event.toolName}`);
+            break;
 
-    case 'tool-call-delta':
-      // Tool arguments are being streamed
-      process.stdout.write(event.argumentsDelta);
-      break;
+        case 'tool-call-delta':
+            // Tool arguments are being streamed
+            process.stdout.write(event.argumentsDelta);
+            break;
 
-    case 'tool-call-end':
-      console.log(`\nTool call complete:`, event.toolCall);
-      toolCalls.push(event.toolCall);
-      break;
-  }
+        case 'tool-call-end':
+            console.log(`\nTool call complete:`, event.toolCall);
+            toolCalls.push(event.toolCall);
+            break;
+    }
 }
 
 const response = await result.result;
 
 if (response.finishReason === 'tool-calls') {
-  console.log('Need to execute tools:', toolCalls);
+    console.log('Need to execute tools:', toolCalls);
 }
 ```
 
@@ -375,6 +505,7 @@ if (response.finishReason === 'tool-calls') {
       return JSON.stringify(results);
     }
     ```
+
   </Tab>
   <Tab title="API Call">
     ```typescript
@@ -402,6 +533,7 @@ if (response.finishReason === 'tool-calls') {
       return JSON.stringify(await response.json());
     }
     ```
+
   </Tab>
   <Tab title="File Operations">
     ```typescript
@@ -424,6 +556,7 @@ if (response.finishReason === 'tool-calls') {
       return JSON.stringify({ content });
     }
     ```
+
   </Tab>
 </Tabs>
 
@@ -436,17 +569,22 @@ import type { ToolResultMessage } from '@core-ai/core-ai';
 
 // Success case
 const successMessage: ToolResultMessage = {
-  role: 'tool',
-  toolCallId: call.id,
-  content: JSON.stringify({ result: 'success', data: { /* ... */ } }),
+    role: 'tool',
+    toolCallId: call.id,
+    content: JSON.stringify({
+        result: 'success',
+        data: {
+            /* ... */
+        },
+    }),
 };
 
 // Error case
 const errorMessage: ToolResultMessage = {
-  role: 'tool',
-  toolCallId: call.id,
-  content: JSON.stringify({ error: 'Something went wrong' }),
-  isError: true, // Mark as error
+    role: 'tool',
+    toolCallId: call.id,
+    content: JSON.stringify({ error: 'Something went wrong' }),
+    isError: true, // Mark as error
 };
 ```
 
@@ -460,9 +598,9 @@ import { generate, resultToMessage } from '@core-ai/core-ai';
 const messages = [{ role: 'user', content: 'What is the weather?' }];
 
 const firstResult = await generate({
-  model,
-  messages,
-  tools: { get_weather: weatherTool },
+    model,
+    messages,
+    tools: { get_weather: weatherTool },
 });
 
 // Convert result to assistant message automatically
@@ -472,11 +610,11 @@ messages.push(assistantMessage);
 
 // Add tool results
 if (firstResult.finishReason === 'tool-calls') {
-  const toolResults = executeTools(firstResult.toolCalls);
-  messages.push(...toolResults);
+    const toolResults = executeTools(firstResult.toolCalls);
+    messages.push(...toolResults);
 
-  const secondResult = await generate({ model, messages, tools });
-  console.log(secondResult.content);
+    const secondResult = await generate({ model, messages, tools });
+    console.log(secondResult.content);
 }
 ```
 
@@ -500,6 +638,7 @@ if (firstResult.finishReason === 'tool-calls') {
     // Use parsed.data safely
     const result = executeTool(parsed.data);
     ```
+
   </Accordion>
 
   <Accordion title="Add detailed tool descriptions">
@@ -514,6 +653,7 @@ if (firstResult.finishReason === 'tool-calls') {
       }),
     });
     ```
+
   </Accordion>
 
   <Accordion title="Handle errors gracefully">
@@ -539,6 +679,7 @@ if (firstResult.finishReason === 'tool-calls') {
       };
     }
     ```
+
   </Accordion>
 
   <Accordion title="Limit tool execution time">
@@ -556,22 +697,27 @@ if (firstResult.finishReason === 'tool-calls') {
       return Promise.race([tool(), timeoutPromise]);
     }
     ```
+
   </Accordion>
 </AccordionGroup>
 
 ## Next Steps
 
 <CardGroup cols={2}>
-  <Card title="Chat Completion" icon="message" href="/guides/chat-completion">
-    Learn basic message generation
-  </Card>
-  <Card title="Structured Outputs" icon="brackets-curly" href="/guides/structured-outputs">
-    Combine tools with structured responses
-  </Card>
-  <Card title="Streaming" icon="water" href="/guides/streaming">
-    Stream tool calls in real-time
-  </Card>
-  <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
-    Use tools with image inputs
-  </Card>
+    <Card title="Chat Completion" icon="message" href="/guides/chat-completion">
+        Learn basic message generation
+    </Card>
+    <Card
+        title="Structured Outputs"
+        icon="brackets-curly"
+        href="/guides/structured-outputs"
+    >
+        Combine tools with structured responses
+    </Card>
+    <Card title="Streaming" icon="water" href="/guides/streaming">
+        Stream tool calls in real-time
+    </Card>
+    <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
+        Use tools with image inputs
+    </Card>
 </CardGroup>

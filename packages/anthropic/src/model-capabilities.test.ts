@@ -6,6 +6,7 @@ import {
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
     supportsAnthropicMaxEffort,
+    supportsAnthropicStrictToolSchemas,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
 } from './model-capabilities.js';
@@ -91,6 +92,43 @@ describe('getAnthropicModelCapabilities', () => {
         ]);
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
         expect(getAnthropicThinkingMode('claude-future-5')).toBe('adaptive');
+    });
+
+    it.each([
+        'claude-fable-5',
+        'claude-mythos-5',
+        'claude-mythos-preview',
+        'claude-opus-5',
+        'claude-opus-4-8',
+        'claude-opus-4-7',
+        'claude-opus-4-6',
+        'claude-sonnet-5',
+        'claude-sonnet-4-6',
+        'claude-sonnet-4-5-20250929',
+        'claude-opus-4-5-20251101',
+        'claude-haiku-4-5-20251001',
+        // Unknown/future ids resolve optimistically to supported.
+        'claude-future-6',
+    ])('should support strict tool schemas for %s', (modelId) => {
+        expect(supportsAnthropicStrictToolSchemas(modelId)).toBe(true);
+        expect(
+            getAnthropicModelCapabilities(modelId).tools.strictSchemas
+        ).toEqual({
+            supported: true,
+            maxStrictTools: 20,
+        });
+    });
+
+    it.each([
+        'claude-sonnet-4',
+        'claude-opus-4-1',
+        'claude-sonnet-3-7',
+        'claude-3-5-sonnet-20241022',
+    ])('should not claim strict tool schema support for %s', (modelId) => {
+        expect(supportsAnthropicStrictToolSchemas(modelId)).toBe(false);
+        expect(
+            getAnthropicModelCapabilities(modelId).tools.strictSchemas
+        ).toEqual({ supported: false });
     });
 });
 

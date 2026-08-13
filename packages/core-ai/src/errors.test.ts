@@ -13,6 +13,7 @@ import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
+    ToolSchemaStrictnessError,
     ValidationError,
 } from './errors.ts';
 
@@ -128,6 +129,57 @@ describe('ValidationError', () => {
         expect(error.name).toBe('ValidationError');
         expect(error.provider).toBe('openai');
         expect(error).toBeInstanceOf(CoreAIError);
+    });
+
+    it('should expose strict tool schema validation details', () => {
+        const error = new ToolSchemaStrictnessError({
+            providerId: 'anthropic',
+            modelId: 'claude-sonnet-4-6',
+            toolNames: ['search', 'read'],
+            reason: 'limit-exceeded',
+            maxStrictTools: 1,
+        });
+
+        expect(error).toBeInstanceOf(ValidationError);
+        expect(error.name).toBe('ToolSchemaStrictnessError');
+        expect(error.provider).toBe('anthropic');
+        expect(error.providerId).toBe('anthropic');
+        expect(error.modelId).toBe('claude-sonnet-4-6');
+        expect(error.toolNames).toEqual(['search', 'read']);
+        expect(error.reason).toBe('limit-exceeded');
+        expect(error.maxStrictTools).toBe(1);
+        expect(error.message).toContain('supports at most 1 strict tool');
+    });
+
+    it('should list every schema-contract violation in the message', () => {
+        const error = new ToolSchemaStrictnessError({
+            providerId: 'openai',
+            modelId: 'gpt-4o',
+            toolNames: ['search'],
+            reason: 'invalid-schema',
+            violations: [
+                {
+                    toolName: 'search',
+                    path: 'properties.limit',
+                    message:
+                        '"limit" is optional; use .nullable() instead of .optional()',
+                },
+                {
+                    toolName: 'search',
+                    path: 'properties.query.minLength',
+                    message: 'remove .min()',
+                },
+            ],
+        });
+
+        expect(error.reason).toBe('invalid-schema');
+        expect(error.violations).toHaveLength(2);
+        expect(error.message).toContain(
+            'tool "search" at properties.limit: "limit" is optional'
+        );
+        expect(error.message).toContain(
+            'tool "search" at properties.query.minLength: remove .min()'
+        );
     });
 });
 

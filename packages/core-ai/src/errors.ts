@@ -1,3 +1,5 @@
+import type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
+
 export class CoreAIError extends Error {
     public readonly cause?: unknown;
     public readonly provider?: string;
@@ -14,6 +16,72 @@ export class ValidationError extends CoreAIError {
     constructor(message: string, cause?: unknown, provider?: string) {
         super(message, cause, provider);
         this.name = 'ValidationError';
+    }
+}
+
+export type ToolSchemaStrictnessErrorReason =
+    | 'unsupported'
+    | 'limit-exceeded'
+    | 'invalid-schema';
+
+export type ToolSchemaStrictnessErrorOptions = {
+    providerId: string;
+    modelId: string;
+    toolNames: readonly string[];
+    reason: ToolSchemaStrictnessErrorReason;
+    maxStrictTools?: number;
+    violations?: readonly StrictToolSchemaViolation[];
+};
+
+export class ToolSchemaStrictnessError extends ValidationError {
+    public readonly providerId: string;
+    public readonly modelId: string;
+    public readonly toolNames: readonly string[];
+    public readonly reason: ToolSchemaStrictnessErrorReason;
+    public readonly maxStrictTools?: number;
+    public readonly violations?: readonly StrictToolSchemaViolation[];
+
+    constructor(options: ToolSchemaStrictnessErrorOptions) {
+        super(
+            getToolSchemaStrictnessErrorMessage(options),
+            undefined,
+            options.providerId
+        );
+        this.name = 'ToolSchemaStrictnessError';
+        this.providerId = options.providerId;
+        this.modelId = options.modelId;
+        this.toolNames = options.toolNames;
+        this.reason = options.reason;
+        this.maxStrictTools = options.maxStrictTools;
+        this.violations = options.violations;
+    }
+}
+
+function getToolSchemaStrictnessErrorMessage(
+    options: ToolSchemaStrictnessErrorOptions
+): string {
+    const tools =
+        options.toolNames.length === 0
+            ? '(none)'
+            : options.toolNames.map((name) => `"${name}"`).join(', ');
+
+    switch (options.reason) {
+        case 'limit-exceeded': {
+            const maxStrictTools = options.maxStrictTools ?? 0;
+            const toolWord = maxStrictTools === 1 ? 'tool' : 'tools';
+            return `${options.providerId} model "${options.modelId}" supports at most ${maxStrictTools} strict ${toolWord}, but received ${options.toolNames.length}: ${tools}`;
+        }
+        case 'invalid-schema': {
+            const violations = (options.violations ?? [])
+                .map(
+                    (violation) =>
+                        `tool "${violation.toolName}"${violation.path === '' ? '' : ` at ${violation.path}`}: ${violation.message}`
+                )
+                .join('; ');
+            return `${options.providerId} model "${options.modelId}" received strict tools whose schemas are outside the strict-capable schema contract: ${violations}`;
+        }
+        case 'unsupported':
+            return `${options.providerId} model "${options.modelId}" does not support per-tool strict schemas. Requested by: ${tools}`;
     }
 }
 

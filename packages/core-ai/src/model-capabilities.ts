@@ -3,6 +3,7 @@ import type {
     ChatOutputModality,
     ModelCapabilities,
     ReasoningEffort,
+    ToolSchemaStrictnessCapabilities,
 } from './types.ts';
 
 const EFFORT_RANK: Record<ReasoningEffort, number> = {
@@ -12,6 +13,14 @@ const EFFORT_RANK: Record<ReasoningEffort, number> = {
     high: 3,
     max: 4,
 };
+
+export const UNSUPPORTED_TOOL_SCHEMA_STRICTNESS = Object.freeze({
+    supported: false,
+} as const satisfies ToolSchemaStrictnessCapabilities);
+
+export const SUPPORTED_TOOL_SCHEMA_STRICTNESS = Object.freeze({
+    supported: true,
+} as const satisfies ToolSchemaStrictnessCapabilities);
 
 export function clampReasoningEffort(
     effort: ReasoningEffort,

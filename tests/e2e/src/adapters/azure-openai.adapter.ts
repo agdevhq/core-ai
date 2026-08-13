@@ -1,5 +1,10 @@
 import { createAzureOpenAI } from '../../../../packages/azure-openai/src/index.ts';
-import { getEnvOrDefault, getEnvValue, hasApiKey } from '../env.ts';
+import {
+    getEnvOrDefault,
+    getEnvValue,
+    hasApiKey,
+    isEnvFlagEnabled,
+} from '../env.ts';
 import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const AZURE_OPENAI_API_KEY_ENV = 'AZURE_OPENAI_API_KEY';
@@ -8,6 +13,8 @@ const AZURE_OPENAI_API_VERSION_ENV = 'AZURE_OPENAI_API_VERSION';
 const AZURE_OPENAI_CHAT_DEPLOYMENT_ENV = 'AZURE_OPENAI_E2E_CHAT_DEPLOYMENT';
 const AZURE_OPENAI_REASONING_DEPLOYMENT_ENV =
     'AZURE_OPENAI_E2E_REASONING_DEPLOYMENT';
+const AZURE_OPENAI_STRICT_TOOL_SCHEMAS_ENV =
+    'AZURE_OPENAI_E2E_STRICT_TOOL_SCHEMAS_ENABLED';
 
 export function createAzureOpenAIAdapter(): ProviderE2EAdapter {
     const chatModelId = getEnvOrDefault(
@@ -37,6 +44,8 @@ export function createAzureOpenAIAdapter(): ProviderE2EAdapter {
         isConfigured: () =>
             hasApiKey(AZURE_OPENAI_API_KEY_ENV) &&
             getEnvValue(AZURE_OPENAI_ENDPOINT_ENV) !== undefined,
+        isStrictToolsConfigured: () =>
+            isEnvFlagEnabled(AZURE_OPENAI_STRICT_TOOL_SCHEMAS_ENV),
         createChatModel: () =>
             createAzureOpenAIV1Provider().chatModel(chatModelId),
         createReasoningChatModel: () =>
@@ -73,6 +82,8 @@ export function createAzureOpenAIChatAdapter(): ProviderE2EAdapter {
         isConfigured: () =>
             hasApiKey(AZURE_OPENAI_API_KEY_ENV) &&
             getEnvValue(AZURE_OPENAI_ENDPOINT_ENV) !== undefined,
+        isStrictToolsConfigured: () =>
+            isEnvFlagEnabled(AZURE_OPENAI_STRICT_TOOL_SCHEMAS_ENV),
         createChatModel: () =>
             createAzureOpenAIV1Provider().chat.chatModel(chatModelId),
         createReasoningChatModel: () =>
@@ -109,6 +120,8 @@ export function createAzureOpenAIClassicAdapter(): ProviderE2EAdapter {
         isConfigured: () =>
             hasApiKey(AZURE_OPENAI_API_KEY_ENV) &&
             getEnvValue(AZURE_OPENAI_ENDPOINT_ENV) !== undefined,
+        isStrictToolsConfigured: () =>
+            isEnvFlagEnabled(AZURE_OPENAI_STRICT_TOOL_SCHEMAS_ENV),
         createChatModel: () =>
             createAzureOpenAIClassicProvider().chatModel(chatModelId),
         createReasoningChatModel: () =>

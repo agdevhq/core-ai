@@ -4,6 +4,7 @@ import {
     type ChatModel,
     type EmbeddingModel,
     type ImageModel,
+    type ModelCapabilities,
     type ModelCapabilitiesRegistry,
 } from '@core-ai/core-ai';
 
@@ -70,26 +71,23 @@ export function createOpenAIProvider(
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
             : undefined;
-    const createResponsesModel = (modelId: string) => {
-        const capabilities =
-            getRegisteredModelCapabilities(
-                factoryOptions.modelCapabilities,
-                modelId
-            ) ?? getOpenAIModelCapabilities(modelId);
-
-        return createOpenAIChatModel(
+    const resolveCapabilities = (modelId: string): ModelCapabilities =>
+        getRegisteredModelCapabilities(
+            factoryOptions.modelCapabilities,
+            modelId
+        ) ?? getOpenAIModelCapabilities(modelId);
+    const createResponsesModel = (modelId: string) =>
+        createOpenAIChatModel(
             client,
             modelId,
-            toOpenAIResponsesCapabilities(capabilities),
+            toOpenAIResponsesCapabilities(
+                resolveCapabilities(modelId),
+                modelId
+            ),
             providerId
         );
-    };
     const createChatCompletionsModel = (modelId: string) => {
-        const capabilities =
-            getRegisteredModelCapabilities(
-                factoryOptions.modelCapabilities,
-                modelId
-            ) ?? getOpenAIModelCapabilities(modelId);
+        const capabilities = resolveCapabilities(modelId);
         const compatibility: OpenAIResolvedCompatibilityOptions | undefined =
             factoryOptions.compatibility
                 ? {

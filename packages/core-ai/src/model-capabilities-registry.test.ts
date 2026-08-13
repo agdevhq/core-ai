@@ -6,7 +6,10 @@ import {
     type ModelCapabilitiesRegistry,
 } from './model-capabilities-registry.js';
 import type { ModelCapabilities } from './types.js';
-import { MULTIMODAL_INPUT_MODALITIES } from './model-capabilities.ts';
+import {
+    MULTIMODAL_INPUT_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+} from './model-capabilities.ts';
 
 const KNOWN_CAPABILITIES: ModelCapabilities = {
     reasoning: {
@@ -16,6 +19,7 @@ const KNOWN_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none'],
     },
     modalities: MULTIMODAL_INPUT_MODALITIES,
+    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
 };
 
 const UNKNOWN_CAPABILITIES: ModelCapabilities = {
@@ -26,6 +30,7 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: MULTIMODAL_INPUT_MODALITIES,
+    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
 };
 
 const REGISTRY = {

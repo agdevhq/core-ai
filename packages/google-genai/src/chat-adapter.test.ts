@@ -18,6 +18,7 @@ import {
 import { getGoogleModelCapabilities } from './model-capabilities.js';
 import {
     defineTool,
+    ToolSchemaStrictnessError,
     ValidationError,
     type GenerateOptions,
     type Message,
@@ -377,6 +378,65 @@ describe('convertTools', () => {
             },
         });
     });
+});
+
+describe('strict tool schemas', () => {
+    it('should reject explicit strict tools during request creation', () => {
+        expect(() =>
+            createGenerateRequest(
+                'gemini-2.5-flash',
+                {
+                    messages: [{ role: 'user', content: 'Search' }],
+                    tools: {
+                        search: defineTool({
+                            name: 'search',
+                            description: 'Search the web',
+                            parameters: z.object({ query: z.string() }),
+                            strict: true,
+                        }),
+                    },
+                },
+                'google'
+            )
+        ).toThrowError(ToolSchemaStrictnessError);
+    });
+
+    it.each([
+        ['false', { strict: false }],
+        ['undefined', {}],
+    ] as const)(
+        'should leave request-wide tool choice unchanged when strict is %s',
+        (_label, strictOption) => {
+            const request = createGenerateRequest('gemini-2.5-flash', {
+                messages: [{ role: 'user', content: 'Search' }],
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search the web',
+                        parameters: z.object({ query: z.string() }),
+                        ...strictOption,
+                    }),
+                },
+                toolChoice: 'auto',
+            });
+
+            expect(request.config?.toolConfig).toEqual({
+                functionCallingConfig: {
+                    mode: FunctionCallingConfigMode.AUTO,
+                },
+            });
+            expect(request.config?.tools).toEqual([
+                {
+                    functionDeclarations: [
+                        expect.objectContaining({
+                            name: 'search',
+                            description: 'Search the web',
+                        }),
+                    ],
+                },
+            ]);
+        }
+    );
 });
 
 describe('convertToolChoice', () => {
@@ -1024,7 +1084,6 @@ describe('tool call thought signatures', () => {
             providerMetadata: { google: { thoughtSignature: 'sig_fc' } },
         });
     });
-
 });
 
 function asGenerateContentResponse(

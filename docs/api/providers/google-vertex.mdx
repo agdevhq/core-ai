@@ -159,6 +159,13 @@ request options remain valid, and image input support. See
 [Google GenAI model capabilities](/api/providers/google-genai#model-capabilities)
 for details.
 
+### Strict tool schemas
+
+Vertex-hosted Gemini models report `model.capabilities.tools.strictSchemas` as
+`{ supported: false }`, and `strict: true` throws `ToolSchemaStrictnessError`
+locally. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas).
+
 ## Examples
 
 ### Chat and streaming

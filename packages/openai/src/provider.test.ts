@@ -38,6 +38,22 @@ describe('createOpenAI', () => {
         expect(imageModel.modelId).toBe('gpt-image-1');
     });
 
+    it('should resolve strict function support per API', () => {
+        const provider = createOpenAI({
+            client: createMockClient(),
+        });
+
+        const responsesModel = provider.chatModel('gpt-4o-2024-05-13');
+        const chatModel = provider.chat.chatModel('gpt-4o-2024-05-13');
+
+        expect(responsesModel.capabilities.tools.strictSchemas).toEqual({
+            supported: false,
+        });
+        expect(chatModel.capabilities.tools.strictSchemas).toEqual({
+            supported: true,
+        });
+    });
+
     it('should use a shared client instance across model types', async () => {
         const responsesCreate = vi.fn(async () => ({
             output: [

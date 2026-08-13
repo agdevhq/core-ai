@@ -130,16 +130,17 @@ const model = anthropicVertexEuWest1.chatModel('claude-sonnet-4-6');
 
 ## Provider support
 
-| Feature          | Support |
-| ---------------- | ------- |
-| Chat Completion  | Yes     |
-| Streaming        | Yes     |
-| Function Calling | Yes     |
-| Vision           | Yes     |
-| Reasoning        | Yes     |
-| Prompt Caching   | Yes     |
-| Embeddings       | No      |
-| Image Generation | No      |
+| Feature             | Support              |
+| ------------------- | -------------------- |
+| Chat Completion     | Yes                  |
+| Streaming           | Yes                  |
+| Function Calling    | Yes                  |
+| Strict Tool Schemas | Yes, selected models |
+| Vision              | Yes                  |
+| Reasoning           | Yes                  |
+| Prompt Caching      | Yes                  |
+| Embeddings          | No                   |
+| Image Generation    | No                   |
 
 ## Model capabilities
 
@@ -161,6 +162,25 @@ The capability fields describe reasoning effort, sampling constraints, tool
 choices, and image input for the model ID. See the
 [Anthropic model capabilities](/api/providers/anthropic#model-capabilities)
 section for their semantics.
+
+### Strict tool schemas
+
+Per-tool `strict: true` follows the model capabilities of the underlying
+Anthropic provider: Claude 4.5 and later models report
+`{ supported: true, maxStrictTools: 20 }`. There is no provider-level switch —
+the `strictToolSchemasEnabled` option was removed. See
+[Anthropic strict tool schemas](/api/providers/anthropic#strict-tool-schemas)
+and the [tool-calling guide](/guides/tool-calling#strict-tool-schemas).
+
+<Warning>
+    Vertex AI gates this feature through the Google Cloud organization policy
+    `constraints/vertexai.allowedPartnerModelFeatures`. The policy must allow
+    the `structured_outputs` feature for your project, or Vertex rejects
+    requests containing strict tools with an org-policy violation error naming
+    that constraint. Core-ai cannot detect this account-level state, so
+    `model.capabilities.tools.strictSchemas` reports model support regardless of
+    your organization policy.
+</Warning>
 
 ## Examples
 

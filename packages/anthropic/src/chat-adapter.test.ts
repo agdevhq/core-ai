@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+    ToolSchemaStrictnessError,
     ValidationError,
     defineTool,
     type GenerateOptions,
@@ -232,7 +233,7 @@ describe('convertTools', () => {
 
         expect(result[0]?.name).toBe('search');
         expect(result[0]?.description).toBe('Search the web');
-        expect(result[0]?.strict).toBe(true);
+        expect(result[0]?.strict).toBeUndefined();
         expect(result[0]?.input_schema).toMatchObject({
             type: 'object',
             additionalProperties: false,
@@ -242,21 +243,7 @@ describe('convertTools', () => {
         });
     });
 
-    it('should omit strict mode when strict tool schemas are disabled', () => {
-        const tools: ToolSet = {
-            search: defineTool({
-                name: 'search',
-                description: 'Search the web',
-                parameters: z.object({ query: z.string() }),
-            }),
-        };
-
-        const result = convertTools(tools, false);
-
-        expect(result[0]?.strict).toBeUndefined();
-    });
-
-    it('should honor per-tool strict over the provider default', () => {
+    it('should mark only explicitly strict tools as strict', () => {
         const tools: ToolSet = {
             internal: defineTool({
                 name: 'internal',
@@ -272,32 +259,113 @@ describe('convertTools', () => {
             }),
             unset: defineTool({
                 name: 'unset',
-                description: 'Uses provider default',
+                description: 'No strict flag',
                 parameters: z.object({ value: z.string() }),
             }),
         };
 
-        const withDefaultStrict = convertTools(tools, true);
+        const result = convertTools(tools);
         expect(
-            withDefaultStrict.find((tool) => tool.name === 'internal')?.strict
+            result.find((tool) => tool.name === 'internal')?.strict
         ).toBe(true);
         expect(
-            withDefaultStrict.find((tool) => tool.name === 'external')?.strict
+            result.find((tool) => tool.name === 'external')?.strict
         ).toBeUndefined();
         expect(
-            withDefaultStrict.find((tool) => tool.name === 'unset')?.strict
-        ).toBe(true);
+            result.find((tool) => tool.name === 'unset')?.strict
+        ).toBeUndefined();
+    });
 
-        const withDefaultOff = convertTools(tools, false);
-        expect(
-            withDefaultOff.find((tool) => tool.name === 'internal')?.strict
-        ).toBe(true);
-        expect(
-            withDefaultOff.find((tool) => tool.name === 'external')?.strict
-        ).toBeUndefined();
-        expect(
-            withDefaultOff.find((tool) => tool.name === 'unset')?.strict
-        ).toBeUndefined();
+    it('should keep schema conversion independent of strictness', () => {
+        const tools: ToolSet = {
+            strict: defineTool({
+                name: 'strict',
+                description: 'Strict tool',
+                parameters: z.object({ value: z.string().min(3) }),
+            }),
+            nonStrict: defineTool({
+                name: 'non-strict',
+                description: 'Non-strict tool',
+                parameters: z.object({ value: z.string().min(3) }),
+                strict: false,
+            }),
+        };
+
+        const result = convertTools(tools);
+        const strictSchema = result.find(
+            (tool) => tool.name === 'strict'
+        )?.input_schema;
+        const nonStrictSchema = result.find(
+            (tool) => tool.name === 'non-strict'
+        )?.input_schema;
+
+        expect(strictSchema).not.toHaveProperty('$schema');
+        expect(strictSchema).not.toHaveProperty('properties.value.minLength');
+        expect(nonStrictSchema).not.toHaveProperty('$schema');
+        expect(nonStrictSchema).not.toHaveProperty(
+            'properties.value.minLength'
+        );
+    });
+});
+
+describe('strict tool validation', () => {
+    const messages = [{ role: 'user' as const, content: 'Use a tool' }];
+
+    it('should never mark tools strict without a per-tool opt-in', () => {
+        const tools = createTools(1);
+
+        const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
+            messages,
+            tools,
+        });
+
+        expect(request.tools?.[0]).not.toHaveProperty('strict');
+    });
+
+    it('should reject explicit strictness for known-unsupported models', () => {
+        const tools = createTools(1, true);
+
+        for (const modelId of ['claude-sonnet-4', 'claude-3-5-sonnet']) {
+            expect(() =>
+                createGenerateRequest(modelId, 4096, { messages, tools })
+            ).toThrowError(ToolSchemaStrictnessError);
+        }
+    });
+
+    it('should forward explicit strictness for unknown and future models', () => {
+        const tools = createTools(1, true);
+
+        const request = createGenerateRequest('claude-future-6', 4096, {
+            messages,
+            tools,
+        });
+
+        expect(request.tools?.[0]).toHaveProperty('strict', true);
+    });
+
+    it('should allow 20 strict tools and reject 21', () => {
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4-6', 4096, {
+                messages,
+                tools: createTools(20, true),
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4-6', 4096, {
+                messages,
+                tools: createTools(21, true),
+            })
+        ).toThrowError(/supports at most 20 strict tools/);
+    });
+
+    it('should not count plain tools toward the strict tool limit', () => {
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4-6', 4096, {
+                messages,
+                tools: createTools(25),
+            })
+        ).not.toThrow();
     });
 });
 
@@ -352,7 +420,6 @@ describe('image input', () => {
                 4096,
                 { messages },
                 'anthropic',
-                true,
                 { capabilities: textOnly }
             )
         ).toThrowError(ValidationError);
@@ -380,8 +447,7 @@ describe('image input', () => {
                 'claude-sonnet-4-6',
                 4096,
                 { messages: audioMessages },
-                'anthropic',
-                true
+                'anthropic'
             )
         ).toThrowError(/input modality: audio/);
     });
@@ -1094,6 +1160,23 @@ describe('reasoning support', () => {
         expect(finish?.usage.outputTokenDetails.reasoningTokens).toBe(3);
     });
 });
+
+function createTools(count: number, strict?: boolean): ToolSet {
+    return Object.fromEntries(
+        Array.from({ length: count }, (_, index) => {
+            const name = `tool-${index}`;
+            return [
+                name,
+                defineTool({
+                    name,
+                    description: `Tool ${index}`,
+                    parameters: z.object({ value: z.string() }),
+                    ...(strict === undefined ? {} : { strict }),
+                }),
+            ];
+        })
+    );
+}
 
 function asAnthropicMessage(value: {
     content: unknown[];

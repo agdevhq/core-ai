@@ -39,6 +39,9 @@ describe('createOmnifact', () => {
 
         expect(chatModel.provider).toBe('omnifact');
         expect(chatModel.modelId).toBe('gpt-5-mini');
+        expect(chatModel.capabilities.tools.strictSchemas).toEqual({
+            supported: true,
+        });
     });
 
     it('should call the underlying OpenAI-compatible client', async () => {
