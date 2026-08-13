@@ -10,3 +10,7 @@ export function getEnvValue(envVar: string): string | undefined {
 export function getEnvOrDefault(envVar: string, fallback: string): string {
     return getEnvValue(envVar) ?? fallback;
 }
+
+export function isEnvFlagEnabled(envVar: string): boolean {
+    return getEnvValue(envVar)?.toLowerCase() === 'true';
+}

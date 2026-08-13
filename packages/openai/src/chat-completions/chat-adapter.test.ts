@@ -279,7 +279,11 @@ describe('convertTools', () => {
             }),
         };
 
-        const result = convertTools(tools);
+        const result = convertTools(tools, {
+            capabilities: getOpenAIModelCapabilities('gpt-5-mini'),
+            modelId: 'gpt-5-mini',
+            providerId: 'openai',
+        });
 
         expect(result[0]?.type).toBe('function');
         const firstTool = result[0];
@@ -297,6 +301,82 @@ describe('convertTools', () => {
                 query: { type: 'string' },
             },
         });
+    });
+});
+
+describe('strict tool schemas', () => {
+    const createTool = (strict?: boolean) => ({
+        search: {
+            name: 'search',
+            description: 'Search',
+            parameters: z.object({
+                query: z.string(),
+                limit: z.number().nullable(),
+            }),
+            ...(strict !== undefined ? { strict } : {}),
+        },
+    });
+
+    it('should map strictness inside the Chat Completions function', () => {
+        const strictFunction = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: createTool(true),
+        }).tools?.[0]?.function;
+        const nonStrictFunction = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: createTool(false),
+        }).tools?.[0]?.function;
+        const omittedFunction = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: createTool(),
+        }).tools?.[0]?.function;
+
+        expect(strictFunction).toMatchObject({
+            name: 'search',
+            strict: true,
+            parameters: {
+                required: ['query', 'limit'],
+                additionalProperties: false,
+            },
+        });
+        expect(strictFunction?.parameters).not.toHaveProperty('$schema');
+        // Non-strict tools keep the raw converted schema and omit `strict`.
+        expect(nonStrictFunction).not.toHaveProperty('strict');
+        expect(nonStrictFunction?.parameters).toHaveProperty('$schema');
+        expect(nonStrictFunction?.parameters).not.toHaveProperty(
+            'additionalProperties'
+        );
+        expect(omittedFunction).not.toHaveProperty('strict');
+        expect(omittedFunction?.parameters).toEqual(
+            nonStrictFunction?.parameters
+        );
+    });
+
+    it('should reject strict tools whose schemas violate the contract', () => {
+        expect(() =>
+            createGenerateRequest('gpt-5-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: {
+                    search: {
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({
+                            limit: z.number().optional(),
+                        }),
+                        strict: true,
+                    },
+                },
+            })
+        ).toThrowError(/use \.nullable\(\) instead of \.optional\(\)/);
+    });
+
+    it('should support strict function tools on legacy Chat models', () => {
+        const request = createGenerateRequest('gpt-3.5-turbo', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: createTool(true),
+        });
+
+        expect(request.tools?.[0]?.function).toHaveProperty('strict', true);
     });
 });
 

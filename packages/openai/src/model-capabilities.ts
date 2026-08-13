@@ -1,8 +1,10 @@
 import {
     getRegisteredModelCapabilities,
     MULTIMODAL_INPUT_MODALITIES,
+    SUPPORTED_TOOL_SCHEMA_STRICTNESS,
     stripModelDateSuffix,
     TEXT_ONLY_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
     UNKNOWN_MODEL,
     type ModelCapabilities,
     type ModelCapabilitiesRegistry,
@@ -51,6 +53,7 @@ type CapabilitiesConfig = {
     restrictsSamplingParams: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     modalities?: ModelCapabilities['modalities'];
+    strictToolSchemas?: ModelCapabilities['tools']['strictSchemas'];
 };
 
 function createCapabilities({
@@ -58,6 +61,7 @@ function createCapabilities({
     restrictsSamplingParams,
     maxTokensParameter = 'max_completion_tokens',
     modalities = MULTIMODAL_INPUT_MODALITIES,
+    strictToolSchemas = SUPPORTED_TOOL_SCHEMA_STRICTNESS,
 }: CapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -67,6 +71,9 @@ function createCapabilities({
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        tools: {
+            strictSchemas: strictToolSchemas,
+        },
         chatCompletions: {
             maxTokensParameter,
         },
@@ -77,6 +84,9 @@ const DEFAULT_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
 });
+// Unknown model ids (fine-tunes, brand-new releases) keep strict schemas
+// supported: strict is per-tool opt-in, so an explicit `strict: true` is
+// forwarded optimistically and the API rejects it if genuinely unsupported.
 const UNKNOWN_MODEL_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
@@ -106,11 +116,13 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
 type NoReasoningCapabilitiesConfig = {
     maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     modalities?: ModelCapabilities['modalities'];
+    strictToolSchemas?: ModelCapabilities['tools']['strictSchemas'];
 };
 
 function createNoReasoningCapabilities({
     maxTokensParameter,
     modalities = MULTIMODAL_INPUT_MODALITIES,
+    strictToolSchemas = SUPPORTED_TOOL_SCHEMA_STRICTNESS,
 }: NoReasoningCapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -120,6 +132,9 @@ function createNoReasoningCapabilities({
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        tools: {
+            strictSchemas: strictToolSchemas,
+        },
         chatCompletions: {
             maxTokensParameter,
         },
@@ -141,10 +156,12 @@ const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
 const AUDIO_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_completion_tokens',
     modalities: OPENAI_AUDIO_INPUT_MODALITIES,
+    strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 });
 const GPT_4O_AUDIO_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_tokens',
     modalities: OPENAI_AUDIO_INPUT_MODALITIES,
+    strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 });
 
 const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
@@ -158,6 +175,7 @@ const O_SERIES_TEXT_ONLY_CAPABILITIES = createCapabilities({
 });
 
 export const OPENAI_MODEL_CAPABILITIES = {
+    'gpt-4o-2024-05-13': NO_REASONING_CAPABILITIES,
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
@@ -222,21 +240,48 @@ export function getOpenAIModelCapabilities(
 }
 
 export function toOpenAIResponsesCapabilities(
-    capabilities: ModelCapabilities
+    capabilities: ModelCapabilities,
+    modelId: string
 ): ModelCapabilities {
-    if (!capabilities.modalities.input.includes('audio')) {
+    const restrictStrictTools = !doesResponsesApiSupportStrictTools(modelId);
+    const removeAudioInput = capabilities.modalities.input.includes('audio');
+
+    if (!restrictStrictTools && !removeAudioInput) {
         return capabilities;
     }
 
     return {
         ...capabilities,
-        modalities: {
-            input: capabilities.modalities.input.filter(
-                (modality) => modality !== 'audio'
-            ),
-            output: capabilities.modalities.output,
-        },
+        ...(restrictStrictTools
+            ? {
+                  tools: {
+                      strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                  },
+              }
+            : {}),
+        ...(removeAudioInput
+            ? {
+                  modalities: {
+                      input: capabilities.modalities.input.filter(
+                          (modality) => modality !== 'audio'
+                      ),
+                      output: capabilities.modalities.output,
+                  },
+              }
+            : {}),
     };
+}
+
+function doesResponsesApiSupportStrictTools(modelId: string): boolean {
+    if (modelId === 'gpt-4o-2024-05-13') {
+        return false;
+    }
+
+    const normalizedModelId = normalizeModelId(modelId);
+    return (
+        normalizedModelId !== 'gpt-4-turbo' &&
+        normalizedModelId !== 'gpt-3.5-turbo'
+    );
 }
 
 export function normalizeModelId(modelId: string): string {

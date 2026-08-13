@@ -5,6 +5,7 @@ import {
     supportsInputModality,
     supportsOutputModality,
     TEXT_ONLY_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 } from './model-capabilities.ts';
 import type { ModelCapabilities } from './types.ts';
 
@@ -42,6 +43,7 @@ describe('modality helpers', () => {
         const capabilities: ModelCapabilities = {
             reasoning,
             modalities: MULTIMODAL_INPUT_MODALITIES,
+            tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
         };
 
         expect(supportsInputModality(capabilities, 'text')).toBe(true);
@@ -56,6 +58,7 @@ describe('modality helpers', () => {
         const capabilities: ModelCapabilities = {
             reasoning,
             modalities: TEXT_ONLY_MODALITIES,
+            tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
         };
 
         expect(supportsInputModality(capabilities, 'image')).toBe(false);

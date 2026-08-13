@@ -43,6 +43,13 @@ export type ProviderE2EAdapter = {
     capabilities: ProviderCapabilities;
     isConfigured: () => boolean;
     createChatModel: () => ChatModel;
+    /**
+     * Whether the account/deployment behind this adapter has strict tool
+     * schemas available (e.g. the Vertex org policy or an Azure deployment
+     * with structured outputs). Absent means yes; model capability support is
+     * checked separately.
+     */
+    isStrictToolsConfigured?: () => boolean;
     createReasoningChatModel?: () => ChatModel;
     createEmbeddingModel?: () => EmbeddingModel;
     createImageModel?: () => ImageModel;

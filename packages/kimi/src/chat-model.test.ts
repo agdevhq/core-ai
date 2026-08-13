@@ -175,6 +175,133 @@ describe('generate', () => {
         });
     });
 
+    it('should pass strict tools through with normalized schemas', async () => {
+        const requests: Array<Record<string, unknown>> = [];
+        const create = vi.fn(async (request: unknown) => {
+            requests.push(request as Record<string, unknown>);
+            return asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Done',
+                            refusal: null,
+                        },
+                    },
+                ],
+            });
+        });
+        const model = createKimiModel(createMockClient(create));
+        const createTools = (strict?: boolean) => ({
+            search: {
+                name: 'search',
+                description: 'Search',
+                parameters: z.object({
+                    query: z.string(),
+                    region: z.string().nullable(),
+                }),
+                ...(strict !== undefined ? { strict } : {}),
+            },
+        });
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: createTools(),
+        });
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: createTools(true),
+        });
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: createTools(false),
+        });
+
+        const functions = requests.map(
+            (request) =>
+                (
+                    request['tools'] as Array<{
+                        function: Record<string, unknown>;
+                    }>
+                )[0]?.function
+        );
+        // Only the explicit opt-in is marked strict on the wire.
+        expect(functions[0]).not.toHaveProperty('strict');
+        expect(functions[1]).toHaveProperty('strict', true);
+        expect(functions[2]).not.toHaveProperty('strict');
+        // The strict tool gets the closed, $schema-free schema.
+        expect(functions[1]?.['parameters']).toMatchObject({
+            type: 'object',
+            required: ['query', 'region'],
+            additionalProperties: false,
+        });
+        expect(functions[1]?.['parameters']).not.toHaveProperty('$schema');
+        // Non-strict tools keep the raw converted schema.
+        for (const fn of [functions[0], functions[2]]) {
+            expect(fn?.['parameters']).toHaveProperty(
+                '$schema',
+                'https://json-schema.org/draft/2020-12/schema'
+            );
+            expect(fn?.['parameters']).not.toHaveProperty(
+                'additionalProperties'
+            );
+        }
+    });
+
+    it('should forward schemas without local subset validation', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: 'Done',
+                            refusal: null,
+                        },
+                    },
+                ],
+            })
+        );
+        const model = createKimiModel(createMockClient(create));
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({
+                        query: z.string().min(1),
+                    }),
+                    strict: false,
+                },
+            },
+        });
+
+        expect(create.mock.calls[0]?.[0]).toMatchObject({
+            tools: [
+                {
+                    function: {
+                        parameters: {
+                            properties: {
+                                query: {
+                                    type: 'string',
+                                    minLength: 1,
+                                },
+                            },
+                        },
+                    },
+                },
+            ],
+        });
+    });
+
     it('should reject sampling and forced tool choice for always-on reasoning', async () => {
         const model = createKimiModel(createMockClient());
 

@@ -40,7 +40,6 @@ export type AnthropicChatClient = {
 export type AnthropicChatModelOptions = {
     defaultMaxTokens?: number;
     providerId?: string;
-    useStrictToolSchemas?: boolean;
 };
 
 export function createAnthropicChatModel(
@@ -50,7 +49,6 @@ export function createAnthropicChatModel(
 ): ChatModel {
     const defaultMaxTokens = modelOptions.defaultMaxTokens ?? 4096;
     const provider = modelOptions.providerId ?? DEFAULT_PROVIDER_ID;
-    const useStrictToolSchemas = modelOptions.useStrictToolSchemas ?? true;
     const capabilities = getAnthropicModelCapabilities(modelId);
     const adapterOptions = { capabilities };
 
@@ -83,7 +81,6 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options,
             provider,
-            useStrictToolSchemas,
             adapterOptions
         );
         const response = await callAnthropicMessagesApi<
@@ -98,7 +95,6 @@ export function createAnthropicChatModel(
             defaultMaxTokens,
             options,
             provider,
-            useStrictToolSchemas,
             adapterOptions
         );
         return createChatStream(

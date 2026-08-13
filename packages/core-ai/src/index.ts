@@ -21,6 +21,7 @@ export type {
     ToolChoice,
     ChatInputModality,
     ChatOutputModality,
+    ToolSchemaStrictnessCapabilities,
     ModelCapabilities,
     ChatModel,
     ChatModelMiddleware,
@@ -60,11 +61,14 @@ export type {
     ModelOverloadedErrorOptions,
     ServiceUnavailableErrorOptions,
     UnsupportedInputModalityErrorOptions,
+    ToolSchemaStrictnessErrorOptions,
+    ToolSchemaStrictnessErrorReason,
 } from './errors.ts';
 export {
     CoreAIError,
     ValidationError,
     UnsupportedInputModalityError,
+    ToolSchemaStrictnessError,
     AbortedError,
     StreamAbortedError,
     ProviderError,
@@ -91,17 +95,26 @@ export {
     getRetryAfterSecondsFromError,
 } from './provider-error-utils.ts';
 export { defineTool } from './tool.ts';
-export { zodSchemaToJsonSchema } from './json-schema.ts';
+export {
+    normalizeStrictJsonSchema,
+    zodSchemaToJsonSchema,
+} from './json-schema.ts';
+export { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
+export type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
 export { stripModelDateSuffix } from './model-id.ts';
 export {
     clampReasoningEffort,
     MULTIMODAL_INPUT_MODALITIES,
+    SUPPORTED_TOOL_SCHEMA_STRICTNESS,
     supportsInputModality,
     supportsOutputModality,
     TEXT_ONLY_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 } from './model-capabilities.ts';
 export { validateInputModalities } from './validate-input-modalities.ts';
 export type { ValidateInputModalitiesOptions } from './validate-input-modalities.ts';
+export { validateToolSchemaStrictness } from './validate-tool-schema-strictness.ts';
+export type { ValidateToolSchemaStrictnessOptions } from './validate-tool-schema-strictness.ts';
 export {
     getRegisteredModelCapabilities,
     UNKNOWN_MODEL,

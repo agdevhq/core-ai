@@ -1,7 +1,11 @@
 import type Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { defineTool, ProviderError } from '@core-ai/core-ai';
+import {
+    defineTool,
+    ProviderError,
+    ToolSchemaStrictnessError,
+} from '@core-ai/core-ai';
 
 import { createAnthropic, createAnthropicChatProvider } from './provider.js';
 import type { AnthropicChatClient } from './chat-model.js';
@@ -48,7 +52,7 @@ describe('createAnthropic', () => {
         );
     });
 
-    it('should use strict tool schemas', async () => {
+    it('should mark tools strict only when they opt in', async () => {
         const create = vi.fn(async () => createMockResponse());
         const provider = createAnthropic({
             client: createMockClient(create),
@@ -61,16 +65,51 @@ describe('createAnthropic', () => {
                     name: 'search',
                     description: 'Search the web',
                     parameters: z.object({ query: z.string() }),
+                    strict: true,
+                }),
+                fetch: defineTool({
+                    name: 'fetch',
+                    description: 'Fetch a page',
+                    parameters: z.object({ url: z.string() }),
                 }),
             },
         });
 
         expect(create).toHaveBeenCalledWith(
             expect.objectContaining({
-                tools: [expect.objectContaining({ strict: true })],
+                tools: [
+                    expect.objectContaining({ name: 'search', strict: true }),
+                    expect.not.objectContaining({ strict: expect.anything() }),
+                ],
             }),
             expect.objectContaining({ signal: undefined })
         );
+    });
+
+    it('should reject explicit strictness on unsupported models before the API call', async () => {
+        const create = vi.fn(async () => createMockResponse());
+        const provider = createAnthropic({
+            client: createMockClient(create),
+        });
+
+        const error = await provider
+            .chatModel('claude-sonnet-4')
+            .generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search the web',
+                        parameters: z.object({ query: z.string() }),
+                        strict: true,
+                    }),
+                },
+            })
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(ToolSchemaStrictnessError);
+        expect(error).toMatchObject({ reason: 'unsupported' });
+        expect(create).not.toHaveBeenCalled();
     });
 });
 

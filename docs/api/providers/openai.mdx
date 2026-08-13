@@ -117,16 +117,30 @@ const imageGen = openai.imageModel('gpt-image-1');
     </ul>
   </Accordion>
 
-  <Accordion title="o-Series (Reasoning Models)" icon="brain">
+<Accordion title="o-Series (Reasoning Models)" icon="brain">
     <ul>
-      <li><strong>o4-mini</strong> - Compact reasoning model</li>
-      <li><strong>o3-pro</strong> - o3 model with more compute for harder reasoning tasks</li>
-      <li><strong>o3</strong> - Advanced reasoning capabilities</li>
-      <li><strong>o3-mini</strong> - Efficient reasoning model</li>
-      <li><strong>o1</strong> - First-generation reasoning model</li>
-      <li><strong>o1-mini</strong> - Compact reasoning model with no effort control</li>
+        <li>
+            <strong>o4-mini</strong> - Compact reasoning model
+        </li>
+        <li>
+            <strong>o3-pro</strong> - o3 model with more compute for harder
+            reasoning tasks
+        </li>
+        <li>
+            <strong>o3</strong> - Advanced reasoning capabilities
+        </li>
+        <li>
+            <strong>o3-mini</strong> - Efficient reasoning model
+        </li>
+        <li>
+            <strong>o1</strong> - First-generation reasoning model
+        </li>
+        <li>
+            <strong>o1-mini</strong> - Compact reasoning model with no effort
+            control
+        </li>
     </ul>
-  </Accordion>
+</Accordion>
 
   <Accordion title="Audio Models" icon="waveform">
     <ul>
@@ -230,9 +244,32 @@ Use `@core-ai/openai-compat` if it returns nonstandard compatible fields.
 
 ## Model capabilities
 
-`ChatModel.capabilities` describes the selected model's reasoning constraints.
-The exported `getOpenAIModelCapabilities(modelId)` helper returns the same data
-without constructing a model.
+`ChatModel.capabilities` describes the selected model and API. The exported
+`getOpenAIModelCapabilities(modelId)` helper returns the base Chat Completions
+capabilities. The Responses model factory applies its additional API-specific
+restrictions.
+
+### Strict tool schemas
+
+Tool-capable OpenAI models report `model.capabilities.tools.strictSchemas` as
+`{ supported: true }`. Unrecognized model IDs, including fine-tuned `ft:...`
+models, resolve optimistically to supported and rely on OpenAI to reject
+strict tools when the model lacks support. Two restrictions apply:
+
+- The Responses API does not support strict function tools on
+  `gpt-4o-2024-05-13`, GPT-4 Turbo, or tool-capable GPT-3.5 Turbo models. The
+  Responses model factory reports them as `{ supported: false }`; Chat
+  Completions (`openai.chat.chatModel()`) supports them.
+- Audio models report `{ supported: false }` through both APIs.
+
+OpenAI does not guarantee schema adherence when parallel tool calls are
+enabled. Set `providerOptions.openai.parallelToolCalls: false` on requests
+that combine strict tools with parallel tool calls.
+
+Strict function tools are independent of the JSON Schema response formats used
+by `generateObject()` and `streamObject()`. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
+contract and error reasons.
 
 ### Reasoning support
 

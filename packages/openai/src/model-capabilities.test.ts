@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getOpenAIModelCapabilities,
     normalizeModelId,
+    toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
 
@@ -150,7 +151,55 @@ describe('getOpenAIModelCapabilities', () => {
         expect(capabilities.chatCompletions.maxTokensParameter).toBe(
             'max_tokens'
         );
+        expect(capabilities.tools.strictSchemas).toEqual({ supported: true });
     });
+
+    it.each(['custom-model', 'ft:gpt-4o-2024-08-06:acme::abc123'])(
+        'should optimistically advertise strict tool schemas for unknown model %s',
+        (modelId) => {
+            expect(
+                getOpenAIModelCapabilities(modelId).tools.strictSchemas
+            ).toEqual({ supported: true });
+        }
+    );
+
+    it.each(['gpt-5-mini', 'o3', 'o1-mini', 'gpt-4.1', 'gpt-4o'])(
+        'should advertise strict tool schemas for %s',
+        (modelId) => {
+            expect(
+                getOpenAIModelCapabilities(modelId).tools.strictSchemas
+            ).toEqual({ supported: true });
+        }
+    );
+
+    it.each(['gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-3.5-turbo'])(
+        'should advertise strict function tools for Chat Completions model %s',
+        (modelId) => {
+            expect(
+                getOpenAIModelCapabilities(modelId).tools.strictSchemas
+            ).toEqual({ supported: true });
+        }
+    );
+
+    it.each(['gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-3.5-turbo'])(
+        'should reject strict tools through Responses model %s',
+        (modelId) => {
+            const capabilities = getOpenAIModelCapabilities(modelId);
+            expect(
+                toOpenAIResponsesCapabilities(capabilities, modelId).tools
+                    .strictSchemas
+            ).toEqual({ supported: false });
+        }
+    );
+
+    it.each(['gpt-audio', 'gpt-4o-audio-preview'])(
+        'should reject strict tool schemas for audio model %s',
+        (modelId) => {
+            expect(
+                getOpenAIModelCapabilities(modelId).tools.strictSchemas
+            ).toEqual({ supported: false });
+        }
+    );
 
     it.each(['gpt-5-mini', 'o3', 'o1-mini'])(
         'should require max_completion_tokens for known model %s',

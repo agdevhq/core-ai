@@ -100,16 +100,17 @@ const anthropic = createAnthropic({
 
 ## Provider support
 
-| Feature          | Support |
-| ---------------- | ------- |
-| Chat Completion  | Yes     |
-| Streaming        | Yes     |
-| Function Calling | Yes     |
-| Vision           | Yes     |
-| Reasoning        | Yes     |
-| Prompt Caching   | Yes     |
-| Embeddings       | No      |
-| Image Generation | No      |
+| Feature             | Support              |
+| ------------------- | -------------------- |
+| Chat Completion     | Yes                  |
+| Streaming           | Yes                  |
+| Function Calling    | Yes                  |
+| Strict Tool Schemas | Yes, selected models |
+| Vision              | Yes                  |
+| Reasoning           | Yes                  |
+| Prompt Caching      | Yes                  |
+| Embeddings          | No                   |
+| Image Generation    | No                   |
 
 ## Model capabilities
 
@@ -141,6 +142,25 @@ For registered Claude models:
 - `modalities.input` is `['text', 'image', 'file']` for every Claude model.
   Image sources accept both `base64` and `url`. File parts are PDF-only.
   `modalities.output` is `['text']`.
+- `tools.strictSchemas` reports whether the model supports strict tool schemas.
+  Supported models report `{ supported: true, maxStrictTools: 20 }`.
+
+### Strict tool schemas
+
+Claude 4.5 and later models support per-tool `strict: true` and report
+`{ supported: true, maxStrictTools: 20 }`. The 20-tool limit counts only tools
+that set `strict: true`; exceeding it throws
+[`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror).
+Older models — Claude Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, and Claude 3.x —
+report `{ supported: false }` and reject explicit `strict: true` locally.
+Unrecognized model IDs resolve optimistically to supported, so future Claude
+models work without a registry update.
+
+Anthropic's schema normalization applies to all tools, strict or not. Strict
+tool schemas do not change Anthropic's structured response format for
+`generateObject()` and `streamObject()`. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
+contract, error reasons, and cross-provider behavior.
 
 ## Examples
 

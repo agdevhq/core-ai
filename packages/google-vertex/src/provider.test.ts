@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { ProviderError } from '@core-ai/core-ai';
+import { z } from 'zod';
+import { ProviderError, ToolSchemaStrictnessError } from '@core-ai/core-ai';
 import type { GoogleGenAIClient } from '@core-ai/google-genai';
 
 import { createGoogleVertex } from './provider.js';
@@ -112,6 +113,48 @@ describe('createGoogleVertex', () => {
         expect(provider.imageModel('imagen-4.0-generate-001').provider).toBe(
             'google-vertex'
         );
+    });
+
+    it('should inherit unsupported strict tool schema capabilities', () => {
+        const model = createGoogleVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('gemini-2.5-flash');
+
+        expect(model.capabilities.tools.strictSchemas).toEqual({
+            supported: false,
+        });
+    });
+
+    it('should reject explicit strict tools locally with the Vertex provider id', async () => {
+        const model = createGoogleVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('gemini-2.5-flash');
+
+        const error = await model
+            .generate({
+                messages: [{ role: 'user', content: 'Search' }],
+                tools: {
+                    search: {
+                        name: 'search',
+                        description: 'Search the web',
+                        parameters: z.object({ query: z.string() }),
+                        strict: true,
+                    },
+                },
+            })
+            .catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(ToolSchemaStrictnessError);
+        expect(error).toMatchObject({
+            provider: 'google-vertex',
+            providerId: 'google-vertex',
+            modelId: 'gemini-2.5-flash',
+            toolNames: ['search'],
+            reason: 'unsupported',
+        });
+        expect(generateContent).not.toHaveBeenCalled();
     });
 
     it('should tag errors with provider "google-vertex"', async () => {

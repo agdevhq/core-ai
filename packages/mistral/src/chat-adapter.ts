@@ -31,6 +31,7 @@ import {
     safeParseJsonObject,
     ValidationError,
     validateInputModalities,
+    validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
@@ -301,6 +302,14 @@ function createRequestBase(
         modelId,
         providerId,
     });
+    if (options.tools) {
+        validateToolSchemaStrictness({
+            tools: options.tools,
+            capabilities,
+            providerId,
+            modelId,
+        });
+    }
 
     return {
         model: modelId,

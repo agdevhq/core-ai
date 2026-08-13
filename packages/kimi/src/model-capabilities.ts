@@ -1,5 +1,6 @@
 import {
     MULTIMODAL_INPUT_MODALITIES,
+    SUPPORTED_TOOL_SCHEMA_STRICTNESS,
     TEXT_ONLY_MODALITIES,
     UNKNOWN_MODEL,
     type ModelCapabilities,
@@ -14,6 +15,9 @@ const UNKNOWN_MODEL_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: MULTIMODAL_INPUT_MODALITIES,
+    tools: {
+        strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    },
 };
 
 const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
@@ -24,6 +28,9 @@ const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none'],
     },
     modalities: TEXT_ONLY_MODALITIES,
+    tools: {
+        strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    },
 };
 
 export const KIMI_MODEL_CAPABILITIES = {

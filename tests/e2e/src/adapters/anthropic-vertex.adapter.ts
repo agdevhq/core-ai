@@ -1,6 +1,11 @@
 import { createAnthropicVertex } from '../../../../packages/anthropic-vertex/src/index.ts';
 import { parseGoogleApplicationCredentialsJson } from '../google-credentials.ts';
-import { getEnvOrDefault, getEnvValue, hasApiKey } from '../env.ts';
+import {
+    getEnvOrDefault,
+    getEnvValue,
+    hasApiKey,
+    isEnvFlagEnabled,
+} from '../env.ts';
 import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const GOOGLE_VERTEX_PROJECT_ENV = 'GOOGLE_VERTEX_PROJECT';
@@ -10,6 +15,8 @@ const GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV =
 const ANTHROPIC_VERTEX_CHAT_MODEL_ENV = 'ANTHROPIC_VERTEX_E2E_CHAT_MODEL';
 const ANTHROPIC_VERTEX_REASONING_MODEL_ENV =
     'ANTHROPIC_VERTEX_E2E_REASONING_MODEL';
+const ANTHROPIC_VERTEX_STRICT_TOOL_SCHEMAS_ENV =
+    'ANTHROPIC_VERTEX_E2E_STRICT_TOOL_SCHEMAS_ENABLED';
 
 export function createAnthropicVertexAdapter(): ProviderE2EAdapter {
     const chatModelId = getEnvOrDefault(
@@ -38,6 +45,11 @@ export function createAnthropicVertexAdapter(): ProviderE2EAdapter {
             image: false,
         },
         isConfigured: () => hasApiKey(GOOGLE_VERTEX_PROJECT_ENV),
+        // Strict tool schemas on Vertex require the GCP org policy
+        // `constraints/vertexai.allowedPartnerModelFeatures` to allow
+        // `structured_outputs` for the project.
+        isStrictToolsConfigured: () =>
+            isEnvFlagEnabled(ANTHROPIC_VERTEX_STRICT_TOOL_SCHEMAS_ENV),
         createChatModel: () =>
             createAnthropicVertexProvider().chatModel(chatModelId),
         createReasoningChatModel: () =>

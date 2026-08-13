@@ -83,6 +83,18 @@ For both registered K2.7 Code models:
 An empty effort list does not mean reasoning output is unavailable. It means
 the model chooses its own reasoning effort.
 
+### Strict tool schemas
+
+Kimi models report `model.capabilities.tools.strictSchemas` as
+`{ supported: true }`. Tools with `strict: true` are forwarded per tool with
+`strict: true` and a normalized schema; other tools are sent unchanged. The
+endpoint rejects strict tools it cannot enforce. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
+contract and error reasons.
+
+This tool behavior is separate from structured output. `generateObject()` and
+`streamObject()` use JSON Mode and then validate the returned object with Zod.
+
 ## Examples
 
 ### Basic chat

@@ -11,6 +11,7 @@ import {
     wrapEmbeddingModel,
     wrapImageModel,
     MULTIMODAL_INPUT_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 } from '@core-ai/core-ai';
 import type {
     ChatModel,
@@ -156,6 +157,9 @@ function createMockChatModel(
                 supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             },
             modalities: MULTIMODAL_INPUT_MODALITIES,
+            tools: {
+                strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+            },
         },
         generate:
             overrides?.generate ??

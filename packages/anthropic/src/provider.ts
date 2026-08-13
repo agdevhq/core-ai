@@ -18,17 +18,10 @@ export type AnthropicChatProviderOptions = {
 
 /**
  * Factory options for sibling packages that compose Anthropic chat.
- * Not part of {@link createAnthropic} / {@link AnthropicProviderOptions} —
- * first-party Anthropic defaults to strict tool schemas when a tool omits
- * `strict` on its definition.
+ * Not part of {@link createAnthropic} / {@link AnthropicProviderOptions}.
  */
 export type AnthropicChatProviderFactoryOptions = {
     providerId?: string;
-    /**
-     * Default for tools that omit `ToolDefinition.strict`. Per-tool `strict`
-     * always wins when set. Anthropic caps requests at 20 strict tools.
-     */
-    useStrictToolSchemas?: boolean;
 };
 
 export type AnthropicChatProvider = {
@@ -59,14 +52,12 @@ export function createAnthropicChatProvider(
         });
     const defaultMaxTokens = options.defaultMaxTokens ?? 4096;
     const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
-    const useStrictToolSchemas = factoryOptions.useStrictToolSchemas ?? true;
 
     return {
         chatModel: (modelId) =>
             createAnthropicChatModel(client, modelId, {
                 defaultMaxTokens,
                 providerId,
-                useStrictToolSchemas,
             }),
     };
 }
