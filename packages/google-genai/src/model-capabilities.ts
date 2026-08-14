@@ -53,7 +53,13 @@ const THINKING_LEVEL_CAPABILITIES = createCapabilities({
 });
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
+    'gemini-3.7-flash': THINKING_LEVEL_CAPABILITIES,
+    'gemini-3.6-flash': THINKING_LEVEL_CAPABILITIES,
+    'gemini-3.5-flash': THINKING_LEVEL_CAPABILITIES,
+    'gemini-3.5-flash-lite': THINKING_LEVEL_CAPABILITIES,
     'gemini-3.1-pro': THINKING_LEVEL_CAPABILITIES,
+    'gemini-3.1-pro-preview': THINKING_LEVEL_CAPABILITIES,
+    'gemini-3.1-flash-lite': THINKING_LEVEL_CAPABILITIES,
     'gemini-3.1-flash-lite-preview': THINKING_LEVEL_CAPABILITIES,
     'gemini-3-pro': THINKING_LEVEL_CAPABILITIES,
     'gemini-2.5-pro': REQUIRED_THINKING_BUDGET_CAPABILITIES,
