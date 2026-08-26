@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.21.0
+
+### Minor Changes
+
+- 37c890d: Add optional application-owned `metadata` to `SystemMessage`. Provider adapters ignore it and never serialize it to provider APIs.
+
 ## 0.20.0
 
 ### Minor Changes
