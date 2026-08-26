@@ -59,6 +59,20 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it('should ignore system message metadata', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'You are helpful.',
+                metadata: { classification: 'public' },
+            },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            { role: 'developer', content: 'You are helpful.' },
+        ]);
+    });
+
     it('should convert user text array to input_text parts', () => {
         const messages: Message[] = [
             {

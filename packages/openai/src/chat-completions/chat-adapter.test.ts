@@ -63,6 +63,20 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it('should ignore system message metadata', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'You are helpful.',
+                metadata: { classification: 'public' },
+            },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            { role: 'system', content: 'You are helpful.' },
+        ]);
+    });
+
     it('should convert a simple user message', () => {
         const messages: Message[] = [{ role: 'user', content: 'Hello' }];
 

@@ -51,6 +51,22 @@ describe('convertMessages', () => {
         expect(result.system).toBe('Rule 1.\nRule 2.');
     });
 
+    it('should ignore system message metadata', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'You are helpful.',
+                metadata: { classification: 'public' },
+            },
+            { role: 'user', content: 'Hello' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toBe('You are helpful.');
+        expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+    });
+
     it('should convert user image and pdf content', () => {
         const messages: Message[] = [
             {
