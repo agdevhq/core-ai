@@ -9,6 +9,11 @@ export type Message =
 export type SystemMessage = {
     role: 'system';
     content: string;
+    /**
+     * Application-owned metadata for this message. Provider adapters ignore
+     * this field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type UserMessage = {

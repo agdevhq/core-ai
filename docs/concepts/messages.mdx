@@ -27,6 +27,7 @@ System messages set the context and behavior for the assistant.
 type SystemMessage = {
     role: 'system';
     content: string;
+    metadata?: Record<string, unknown>;
 };
 ```
 
@@ -350,7 +351,7 @@ core-ai has three metadata layers:
 
 - `GenerateOptions.metadata` is call-level context for observability and middleware.
 - `ReasoningPart.providerMetadata` and `ToolCallPart.providerMetadata` are provider-owned data used to round-trip reasoning blocks and tool calls with the same provider.
-- Part `metadata` is application-owned data attached to text parts, reasoning parts, tool calls, and tool results.
+- Part `metadata` is application-owned data attached to system messages, text parts, reasoning parts, tool calls, and tool results.
 
 ## Multi-Turn Conversations
 

@@ -51,6 +51,27 @@ describe('convertMessages', () => {
         expect(result.system).toBe('Rule 1.\nRule 2.');
     });
 
+    it('should never serialize system message metadata to the provider payload', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'You are helpful.',
+                metadata: { privacy: { mode: 'masked-spans' } },
+            },
+            { role: 'user', content: 'Hello' },
+        ];
+
+        const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
+            messages,
+        });
+
+        expect(request.system).toBe('You are helpful.');
+        const serialized = JSON.stringify(request);
+        expect(serialized).not.toContain('metadata');
+        expect(serialized).not.toContain('privacy');
+        expect(serialized).not.toContain('masked-spans');
+    });
+
     it('should convert user image and pdf content', () => {
         const messages: Message[] = [
             {
