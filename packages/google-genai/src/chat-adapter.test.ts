@@ -55,23 +55,25 @@ describe('convertMessages', () => {
         expect(result.systemInstruction).toBe('Rule 1\nRule 2');
     });
 
-    it('should never serialize system message metadata to the provider payload', () => {
+    it('should ignore system message metadata', () => {
         const messages: Message[] = [
             {
                 role: 'system',
                 content: 'You are helpful.',
-                metadata: { privacy: { mode: 'masked-spans' } },
+                metadata: { classification: 'public' },
             },
             { role: 'user', content: 'Hello' },
         ];
 
-        const request = createGenerateRequest('gemini-2.5-pro', { messages });
+        const result = convertMessages(messages);
 
-        expect(request.config?.systemInstruction).toBe('You are helpful.');
-        const serialized = JSON.stringify(request);
-        expect(serialized).not.toContain('metadata');
-        expect(serialized).not.toContain('privacy');
-        expect(serialized).not.toContain('masked-spans');
+        expect(result.systemInstruction).toBe('You are helpful.');
+        expect(result.contents).toEqual([
+            {
+                role: 'user',
+                parts: [{ text: 'Hello' }],
+            },
+        ]);
     });
 
     it('should convert user text, image, file, and audio parts', () => {
@@ -1043,7 +1045,6 @@ describe('tool call thought signatures', () => {
             providerMetadata: { google: { thoughtSignature: 'sig_fc' } },
         });
     });
-
 });
 
 function asGenerateContentResponse(

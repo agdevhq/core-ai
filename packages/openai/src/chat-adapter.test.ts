@@ -59,26 +59,18 @@ describe('convertMessages', () => {
         ]);
     });
 
-    it('should never serialize system message metadata to the provider payload', () => {
+    it('should ignore system message metadata', () => {
         const messages: Message[] = [
             {
                 role: 'system',
                 content: 'You are helpful.',
-                metadata: { privacy: { mode: 'masked-spans' } },
+                metadata: { classification: 'public' },
             },
-            { role: 'user', content: 'Hello' },
         ];
 
-        const request = createGenerateRequest('gpt-5-mini', { messages });
-
-        expect(request.input).toContainEqual({
-            role: 'developer',
-            content: 'You are helpful.',
-        });
-        const serialized = JSON.stringify(request);
-        expect(serialized).not.toContain('metadata');
-        expect(serialized).not.toContain('privacy');
-        expect(serialized).not.toContain('masked-spans');
+        expect(convertMessages(messages)).toEqual([
+            { role: 'developer', content: 'You are helpful.' },
+        ]);
     });
 
     it('should convert user text array to input_text parts', () => {

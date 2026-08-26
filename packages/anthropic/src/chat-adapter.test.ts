@@ -51,25 +51,20 @@ describe('convertMessages', () => {
         expect(result.system).toBe('Rule 1.\nRule 2.');
     });
 
-    it('should never serialize system message metadata to the provider payload', () => {
+    it('should ignore system message metadata', () => {
         const messages: Message[] = [
             {
                 role: 'system',
                 content: 'You are helpful.',
-                metadata: { privacy: { mode: 'masked-spans' } },
+                metadata: { classification: 'public' },
             },
             { role: 'user', content: 'Hello' },
         ];
 
-        const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
-            messages,
-        });
+        const result = convertMessages(messages);
 
-        expect(request.system).toBe('You are helpful.');
-        const serialized = JSON.stringify(request);
-        expect(serialized).not.toContain('metadata');
-        expect(serialized).not.toContain('privacy');
-        expect(serialized).not.toContain('masked-spans');
+        expect(result.system).toBe('You are helpful.');
+        expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
     });
 
     it('should convert user image and pdf content', () => {

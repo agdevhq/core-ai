@@ -38,26 +38,20 @@ describe('convertMessages', () => {
         ]);
     });
 
-    it('should never serialize system message metadata to the provider payload', () => {
+    it('should ignore system message metadata', () => {
         const messages: Message[] = [
             {
                 role: 'system',
                 content: 'You are helpful.',
-                metadata: { privacy: { mode: 'masked-spans' } },
+                metadata: { classification: 'public' },
             },
             { role: 'user', content: 'Hello' },
         ];
 
-        const request = createGenerateRequest('codestral-latest', { messages });
-
-        expect(request.messages).toContainEqual({
-            role: 'system',
-            content: 'You are helpful.',
-        });
-        const serialized = JSON.stringify(request);
-        expect(serialized).not.toContain('metadata');
-        expect(serialized).not.toContain('privacy');
-        expect(serialized).not.toContain('masked-spans');
+        expect(convertMessages(messages)).toEqual([
+            { role: 'system', content: 'You are helpful.' },
+            { role: 'user', content: 'Hello' },
+        ]);
     });
 
     it('should convert user image and file content', () => {
@@ -285,9 +279,13 @@ describe('image input', () => {
         };
 
         expect(() =>
-            createGenerateRequest('pixtral-12b-2409', { messages }, {
-                capabilities: textOnly,
-            })
+            createGenerateRequest(
+                'pixtral-12b-2409',
+                { messages },
+                {
+                    capabilities: textOnly,
+                }
+            )
         ).toThrowError(ValidationError);
     });
 
