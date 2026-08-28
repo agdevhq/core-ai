@@ -32,6 +32,7 @@ const URL_IMAGE_MESSAGES: Message[] = [
             {
                 type: 'image',
                 source: { type: 'url', url: 'https://example.com/cat.jpg' },
+                metadata: { source: 'attachment' },
             },
         ],
     },
@@ -47,6 +48,7 @@ const FILE_MESSAGES: Message[] = [
                 data: 'AAAA',
                 mimeType: 'application/pdf',
                 filename: 'doc.pdf',
+                metadata: { source: 'attachment' },
             },
         ],
     },
@@ -64,6 +66,7 @@ const AUDIO_MESSAGES: Message[] = [
                     mediaType: 'audio/wav',
                     data: 'UklGRg==',
                 },
+                metadata: { source: 'attachment' },
             },
         ],
     },
