@@ -38,6 +38,11 @@ export type ImagePart = {
     source:
         | { type: 'base64'; mediaType: string; data: string }
         | { type: 'url'; url: string };
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type FilePart = {
@@ -45,11 +50,21 @@ export type FilePart = {
     data: string;
     mimeType: string;
     filename?: string;
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type AudioPart = {
     type: 'audio';
     source: { type: 'base64'; mediaType: string; data: string };
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
 };
 
 export type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'max';
