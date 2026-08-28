@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.22.0
+
+### Minor Changes
+
+- 717364e: Allow application-owned metadata on image, file, and audio input parts.
+
 ## 0.21.0
 
 ### Minor Changes
