@@ -1,24 +1,27 @@
 import { startActiveObservation } from '@langfuse/tracing';
 import type { LangfuseEmbedding, LangfuseGeneration } from '@langfuse/tracing';
 import type { z } from 'zod';
-import type {
-    ChatModel,
-    ChatModelMiddleware,
-    ChatUsage,
-    EmbedOptions,
-    EmbeddingModel,
-    EmbeddingModelMiddleware,
-    EmbeddingUsage,
-    GenerateObjectOptions,
-    GenerateObjectResult,
-    GenerateOptions,
-    GenerateResult,
-    ImageGenerateOptions,
-    ImageGenerateResult,
-    ImageModel,
-    ImageModelMiddleware,
-    ObjectStream,
-    StreamObjectOptions,
+import {
+    zodSchemaToJsonSchema,
+    type ChatModel,
+    type ChatModelMiddleware,
+    type ChatUsage,
+    type EmbedOptions,
+    type EmbeddingModel,
+    type EmbeddingModelMiddleware,
+    type EmbeddingUsage,
+    type GenerateObjectOptions,
+    type GenerateObjectResult,
+    type GenerateOptions,
+    type GenerateResult,
+    type ImageGenerateOptions,
+    type ImageGenerateResult,
+    type ImageModel,
+    type ImageModelMiddleware,
+    type ObjectStream,
+    type StreamObjectOptions,
+    type ToolChoice,
+    type ToolSet,
 } from '@core-ai/core-ai';
 
 type TraceObservation = LangfuseGeneration | LangfuseEmbedding;
@@ -36,7 +39,9 @@ function getErrorMessage(error: unknown): string {
     return String(error);
 }
 
-function compactRecord(record: ObservationAttributes): ObservationAttributes | undefined {
+function compactRecord(
+    record: ObservationAttributes
+): ObservationAttributes | undefined {
     const entries = Object.entries(record).filter(
         ([, value]) => value !== undefined && value !== null
     );
@@ -69,7 +74,9 @@ function createObservationAttributes(config: {
 }): ObservationAttributes {
     return {
         model: config.modelId,
-        ...(config.modelParameters ? { modelParameters: config.modelParameters } : {}),
+        ...(config.modelParameters
+            ? { modelParameters: config.modelParameters }
+            : {}),
         ...(config.metadata ? { metadata: config.metadata } : {}),
         ...(config.recordContent && config.input !== undefined
             ? {
@@ -79,13 +86,64 @@ function createObservationAttributes(config: {
     };
 }
 
+function serializeToolChoice(toolChoice: ToolChoice): string {
+    return typeof toolChoice === 'string'
+        ? toolChoice
+        : JSON.stringify(toolChoice);
+}
+
+function createToolDefinitions(tools?: ToolSet):
+    | Array<{
+          type: 'function';
+          name: string;
+          description: string;
+          parameters: Record<string, unknown>;
+      }>
+    | undefined {
+    if (!tools || Object.keys(tools).length === 0) {
+        return undefined;
+    }
+
+    return Object.entries(tools).map(([name, definition]) => ({
+        type: 'function',
+        name,
+        description: definition.description,
+        parameters: zodSchemaToJsonSchema(definition.parameters),
+    }));
+}
+
+function createChatMetadata(config: {
+    metadata?: Record<string, unknown>;
+    tools?: ToolSet;
+    recordContent: boolean;
+}): Record<string, unknown> | undefined {
+    const toolDefinitions = config.recordContent
+        ? createToolDefinitions(config.tools)
+        : undefined;
+
+    if (!config.metadata && !toolDefinitions) {
+        return undefined;
+    }
+
+    return {
+        ...config.metadata,
+        ...(toolDefinitions ? { tools: toolDefinitions } : {}),
+    };
+}
+
 function createModelParameters(
     options: GenerateOptions | GenerateObjectOptions<z.ZodType>
 ): Record<string, unknown> | undefined {
+    const toolChoice =
+        'toolChoice' in options && options.toolChoice !== undefined
+            ? serializeToolChoice(options.toolChoice)
+            : undefined;
+
     return compactRecord({
         temperature: options.temperature,
         maxTokens: options.maxTokens,
         topP: options.topP,
+        toolChoice,
     });
 }
 
@@ -143,7 +201,9 @@ function createChatOutput(result: GenerateResult): ObservationAttributes {
     };
 }
 
-function createImageOutput(result: ImageGenerateResult): ObservationAttributes[] {
+function createImageOutput(
+    result: ImageGenerateResult
+): ObservationAttributes[] {
     return result.images.map((image) => ({
         hasBase64: image.base64 !== undefined,
         ...(image.url ? { url: image.url } : {}),
@@ -182,12 +242,19 @@ function updateObservation(
 function runGeneration<TResult>(config: {
     name: string;
     initialAttributes: ObservationAttributes;
-    createSuccessAttributes: (result: TResult) => ObservationAttributes | undefined;
+    createSuccessAttributes: (
+        result: TResult
+    ) => ObservationAttributes | undefined;
     recordContent: boolean;
     execute: () => Promise<TResult>;
 }): Promise<TResult> {
-    const { name, initialAttributes, createSuccessAttributes, recordContent, execute } =
-        config;
+    const {
+        name,
+        initialAttributes,
+        createSuccessAttributes,
+        recordContent,
+        execute,
+    } = config;
 
     return startActiveObservation(
         name,
@@ -199,7 +266,10 @@ function runGeneration<TResult>(config: {
                 updateObservation(observation, createSuccessAttributes(result));
                 return result;
             } catch (error) {
-                updateObservation(observation, createErrorAttributes(error, recordContent));
+                updateObservation(
+                    observation,
+                    createErrorAttributes(error, recordContent)
+                );
                 throw error;
             }
         },
@@ -210,12 +280,19 @@ function runGeneration<TResult>(config: {
 function runEmbedding<TResult>(config: {
     name: string;
     initialAttributes: ObservationAttributes;
-    createSuccessAttributes: (result: TResult) => ObservationAttributes | undefined;
+    createSuccessAttributes: (
+        result: TResult
+    ) => ObservationAttributes | undefined;
     recordContent: boolean;
     execute: () => Promise<TResult>;
 }): Promise<TResult> {
-    const { name, initialAttributes, createSuccessAttributes, recordContent, execute } =
-        config;
+    const {
+        name,
+        initialAttributes,
+        createSuccessAttributes,
+        recordContent,
+        execute,
+    } = config;
 
     return startActiveObservation(
         name,
@@ -227,7 +304,10 @@ function runEmbedding<TResult>(config: {
                 updateObservation(observation, createSuccessAttributes(result));
                 return result;
             } catch (error) {
-                updateObservation(observation, createErrorAttributes(error, recordContent));
+                updateObservation(
+                    observation,
+                    createErrorAttributes(error, recordContent)
+                );
                 throw error;
             }
         },
@@ -238,7 +318,9 @@ function runEmbedding<TResult>(config: {
 function runGenerationStream<TStream, TResult>(config: {
     name: string;
     initialAttributes: ObservationAttributes;
-    createSuccessAttributes: (result: TResult) => ObservationAttributes | undefined;
+    createSuccessAttributes: (
+        result: TResult
+    ) => ObservationAttributes | undefined;
     recordContent: boolean;
     execute: () => Promise<TStream>;
     getResult: (stream: TStream) => Promise<TResult>;
@@ -262,10 +344,16 @@ function runGenerationStream<TStream, TResult>(config: {
 
                 void getResult(stream)
                     .then((result) => {
-                        updateObservation(observation, createSuccessAttributes(result));
+                        updateObservation(
+                            observation,
+                            createSuccessAttributes(result)
+                        );
                     })
                     .catch((error: unknown) => {
-                        updateObservation(observation, createErrorAttributes(error, recordContent));
+                        updateObservation(
+                            observation,
+                            createErrorAttributes(error, recordContent)
+                        );
                     })
                     .finally(() => {
                         observation.end();
@@ -273,7 +361,10 @@ function runGenerationStream<TStream, TResult>(config: {
 
                 return stream;
             } catch (error) {
-                updateObservation(observation, createErrorAttributes(error, recordContent));
+                updateObservation(
+                    observation,
+                    createErrorAttributes(error, recordContent)
+                );
                 observation.end();
                 throw error;
             }
@@ -294,7 +385,11 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        tools: generateOptions.tools,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -318,7 +413,11 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        tools: generateOptions.tools,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -348,7 +447,10 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -381,7 +483,10 @@ export function createLangfuseMiddleware(
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
                     modelParameters: createModelParameters(generateOptions),
-                    metadata: generateOptions.metadata,
+                    metadata: createChatMetadata({
+                        metadata: generateOptions.metadata,
+                        recordContent,
+                    }),
                     input: generateOptions.messages,
                     recordContent,
                 }),
@@ -408,11 +513,14 @@ export function createLangfuseEmbeddingMiddleware(
 
     return {
         embed: ({ execute, options: embedOptions, model }) =>
-            runEmbedding<ReturnType<typeof execute> extends Promise<infer T> ? T : never>({
+            runEmbedding<
+                ReturnType<typeof execute> extends Promise<infer T> ? T : never
+            >({
                 name: createEmbeddingObservationName(model),
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,
-                    modelParameters: createEmbeddingModelParameters(embedOptions),
+                    modelParameters:
+                        createEmbeddingModelParameters(embedOptions),
                     metadata: embedOptions.metadata,
                     input: embedOptions.input,
                     recordContent,
@@ -434,7 +542,9 @@ export function createLangfuseImageMiddleware(
 
     return {
         generate: ({ execute, options: imageOptions, model }) =>
-            runGeneration<ReturnType<typeof execute> extends Promise<infer T> ? T : never>({
+            runGeneration<
+                ReturnType<typeof execute> extends Promise<infer T> ? T : never
+            >({
                 name: createImageObservationName(model),
                 initialAttributes: createObservationAttributes({
                     modelId: model.modelId,

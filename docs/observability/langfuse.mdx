@@ -21,10 +21,14 @@ yarn add @core-ai/langfuse @langfuse/otel @langfuse/tracing
 ```bash pnpm
 pnpm add @core-ai/langfuse @langfuse/otel @langfuse/tracing
 ```
+
 </CodeGroup>
 
 <Note>
-  `@langfuse/otel` and `@langfuse/tracing` are peer dependencies. You need a Langfuse project configured with the appropriate environment variables (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and optionally `LANGFUSE_BASEURL`).
+    `@langfuse/otel` and `@langfuse/tracing` are peer dependencies. You need a
+    Langfuse project configured with the appropriate environment variables
+    (`LANGFUSE_PUBLIC_KEY`, `LANGFUSE_SECRET_KEY`, and optionally
+    `LANGFUSE_BASEURL`).
 </Note>
 
 ## Usage
@@ -36,13 +40,13 @@ import { wrapChatModel, generate } from '@core-ai/core-ai';
 import { createLangfuseMiddleware } from '@core-ai/langfuse';
 
 const tracedModel = wrapChatModel({
-  model,
-  middleware: createLangfuseMiddleware(),
+    model,
+    middleware: createLangfuseMiddleware(),
 });
 
 const result = await generate({
-  model: tracedModel,
-  messages: [{ role: 'user', content: 'Explain quantum computing.' }],
+    model: tracedModel,
+    messages: [{ role: 'user', content: 'Explain quantum computing.' }],
 });
 ```
 
@@ -55,13 +59,13 @@ import { wrapEmbeddingModel, embed } from '@core-ai/core-ai';
 import { createLangfuseEmbeddingMiddleware } from '@core-ai/langfuse';
 
 const tracedModel = wrapEmbeddingModel({
-  model: embeddingModel,
-  middleware: createLangfuseEmbeddingMiddleware(),
+    model: embeddingModel,
+    middleware: createLangfuseEmbeddingMiddleware(),
 });
 
 const result = await embed({
-  model: tracedModel,
-  input: 'Sample text for embedding',
+    model: tracedModel,
+    input: 'Sample text for embedding',
 });
 ```
 
@@ -72,13 +76,13 @@ import { wrapImageModel, generateImage } from '@core-ai/core-ai';
 import { createLangfuseImageMiddleware } from '@core-ai/langfuse';
 
 const tracedModel = wrapImageModel({
-  model: imageModel,
-  middleware: createLangfuseImageMiddleware(),
+    model: imageModel,
+    middleware: createLangfuseImageMiddleware(),
 });
 
 const result = await generateImage({
-  model: tracedModel,
-  prompt: 'A mountain landscape at sunset',
+    model: tracedModel,
+    prompt: 'A mountain landscape at sunset',
 });
 ```
 
@@ -88,13 +92,13 @@ All three factory functions accept an optional `LangfuseMiddlewareOptions` objec
 
 ```typescript
 type LangfuseMiddlewareOptions = {
-  recordContent?: boolean;
+    recordContent?: boolean;
 };
 ```
 
 ### recordContent
 
-When `true`, input messages and output content are recorded on the Langfuse observation. Defaults to `false` to avoid sending sensitive data.
+When `true`, input messages, available tool definitions, and output content are recorded on the Langfuse observation. Defaults to `false` to avoid sending sensitive data.
 
 ```typescript
 const middleware = createLangfuseMiddleware({ recordContent: true });
@@ -104,14 +108,16 @@ const middleware = createLangfuseMiddleware({ recordContent: true });
 
 The `metadata` field on generation, embed, and image options is forwarded to the Langfuse observation. Use this to attach custom data to your traces.
 
+When `recordContent` is `true` and tools are provided to `generate` / `stream`, available tool definitions are added to observation metadata as `tools` (JSON Schema parameters). Do not put a conflicting `tools` key in your own metadata if you want those definitions preserved.
+
 ```typescript
 const result = await generate({
-  model: tracedModel,
-  messages: [{ role: 'user', content: 'Hello!' }],
-  metadata: {
-    userId: 'user-123',
-    feature: 'onboarding',
-  },
+    model: tracedModel,
+    messages: [{ role: 'user', content: 'Hello!' }],
+    metadata: {
+        userId: 'user-123',
+        feature: 'onboarding',
+    },
 });
 ```
 
@@ -119,13 +125,13 @@ const result = await generate({
 
 Each Langfuse observation includes:
 
-| Attribute | Description |
-| --- | --- |
-| `model` | Model ID |
-| `modelParameters` | Temperature, max tokens, top-p (when set) |
-| `input` | Input messages (when `recordContent` is `true`) |
-| `output` | Response content (when `recordContent` is `true`) |
-| `usageDetails` | Input tokens, output tokens, cache tokens, reasoning tokens |
-| `metadata` | Custom metadata from the options |
-| `level` | Set to `ERROR` on failures |
-| `statusMessage` | Error message on failures |
+| Attribute         | Description                                                                             |
+| ----------------- | --------------------------------------------------------------------------------------- |
+| `model`           | Model ID                                                                                |
+| `modelParameters` | Temperature, max tokens, top-p, tool choice (when set)                                  |
+| `input`           | Input messages (when `recordContent` is `true`)                                         |
+| `output`          | Response content (when `recordContent` is `true`)                                       |
+| `usageDetails`    | Input tokens, output tokens, cache tokens, reasoning tokens                             |
+| `metadata`        | Custom metadata from the options, plus available `tools` when `recordContent` is `true` |
+| `level`           | Set to `ERROR` on failures                                                              |
+| `statusMessage`   | Error message on failures                                                               |
