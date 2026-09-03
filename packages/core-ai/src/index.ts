@@ -113,6 +113,7 @@ export { generateObject } from './generate-object.ts';
 export { stream } from './stream-chat.ts';
 export { streamObject, createObjectStream } from './stream-object.ts';
 export { createChatStream } from './stream.ts';
+export type { CreateChatStreamOptions } from './stream.ts';
 export { wrapChatModel } from './wrap-chat-model.ts';
 export { wrapEmbeddingModel } from './wrap-embedding-model.ts';
 export { wrapImageModel } from './wrap-image-model.ts';

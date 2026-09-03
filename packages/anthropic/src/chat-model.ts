@@ -18,7 +18,6 @@ import {
     StructuredOutputValidationError,
     createObjectStream,
     createChatStream,
-    mapStreamErrors,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -105,18 +104,18 @@ export function createAnthropicChatModel(
         return createChatStream(
             async () =>
                 transformStream(
-                    mapStreamErrors(
-                        await callAnthropicMessagesApi<
-                            AsyncIterable<RawMessageStreamEvent>
-                        >(
-                            request,
-                            getAnthropicRequestBetas(modelId, options),
-                            options.signal
-                        ),
-                        (error) => wrapAnthropicError(error, provider)
+                    await callAnthropicMessagesApi<
+                        AsyncIterable<RawMessageStreamEvent>
+                    >(
+                        request,
+                        getAnthropicRequestBetas(modelId, options),
+                        options.signal
                     )
                 ),
-            { signal: options.signal }
+            {
+                signal: options.signal,
+                mapError: (error) => wrapAnthropicError(error, provider),
+            }
         );
     }
 
