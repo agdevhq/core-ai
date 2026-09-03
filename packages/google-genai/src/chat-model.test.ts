@@ -795,6 +795,7 @@ describe('stream', () => {
                         message: 'Resource exhausted',
                     },
                 }),
+                status: 429,
             })
         );
 
