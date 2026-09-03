@@ -184,6 +184,38 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
     });
 
+    it('should map in-band api_error without status to ServiceUnavailableError', () => {
+        const error = new APIError(
+            undefined,
+            { type: 'error', error: { type: 'api_error', message: 'Internal' } },
+            undefined,
+            new Headers(),
+            'api_error'
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ServiceUnavailableError).code).toBe('api_error');
+    });
+
+    it('should map in-band timeout_error without status to ServiceUnavailableError', () => {
+        const error = new APIError(
+            undefined,
+            {
+                type: 'error',
+                error: { type: 'timeout_error', message: 'Timed out' },
+            },
+            undefined,
+            new Headers(),
+            'timeout_error'
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ServiceUnavailableError).code).toBe('timeout_error');
+    });
+
     it('should map single-level Vertex RESOURCE_EXHAUSTED to RateLimitError', () => {
         const error = {
             error: {
