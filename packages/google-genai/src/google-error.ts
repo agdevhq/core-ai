@@ -48,8 +48,6 @@ export function wrapGoogleError(
     const body = tryParseGoogleApiErrorBody(message);
     const effectiveHttp = statusCode ?? toNumericHttpCode(body);
     const status = body?.status?.toUpperCase();
-    // Google's gRPC status (`RESOURCE_EXHAUSTED`, `INVALID_ARGUMENT`, ...) is
-    // the closest thing to a provider error code.
     const options = { statusCode: effectiveHttp, code: status, cause: error };
     const combinedText = `${body?.message ?? ''} ${message}`;
 
