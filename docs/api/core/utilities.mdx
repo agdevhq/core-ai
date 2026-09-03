@@ -137,7 +137,18 @@ async function* generate() {
 const chatStream = createChatStream(generate());
 ```
 
-The `source` parameter accepts an `AsyncIterable<StreamEvent>` or a `() => Promise<AsyncIterable<StreamEvent>>` factory function. Pass `{ signal }` to abort the stream. Pass `{ mapError }` so in-band source failures become the same typed errors as a failed initial request. `mapError` must return a `CoreAIError`. Already-typed core-ai errors pass through unchanged.
+The `source` parameter accepts an `AsyncIterable<StreamEvent>` or a `() => Promise<AsyncIterable<StreamEvent>>` factory function.
+
+### Options
+
+```typescript
+type CreateChatStreamOptions = {
+    signal?: AbortSignal;
+    mapError?: (error: unknown) => CoreAIError;
+};
+```
+
+Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged.
 
 ## createObjectStream()
 
