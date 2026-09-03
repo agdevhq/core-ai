@@ -17,6 +17,7 @@ import {
     StructuredOutputValidationError,
     createObjectStream,
     createChatStream,
+    mapStreamErrors,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -79,7 +80,12 @@ export function createGoogleGenAIChatModel(
         );
         return createChatStream(
             async () =>
-                transformStream(await callGenerateContentStreamApi(request)),
+                transformStream(
+                    mapStreamErrors(
+                        await callGenerateContentStreamApi(request),
+                        (error) => wrapGoogleError(error, provider)
+                    )
+                ),
             { signal: options.signal }
         );
     }

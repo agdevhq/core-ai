@@ -14,7 +14,11 @@ import type {
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
-import { createObjectStream, createChatStream } from '@core-ai/core-ai';
+import {
+    createObjectStream,
+    createChatStream,
+    mapStreamErrors,
+} from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
@@ -99,9 +103,12 @@ export function createOpenAIChatCompletionsModel(
         return createChatStream(
             async () =>
                 transformStream(
-                    await callOpenAIChatCompletionsApi<
-                        AsyncIterable<ChatCompletionChunk>
-                    >(request, options.signal),
+                    mapStreamErrors(
+                        await callOpenAIChatCompletionsApi<
+                            AsyncIterable<ChatCompletionChunk>
+                        >(request, options.signal),
+                        (error) => wrapOpenAIError(error, provider)
+                    ),
                     adapterOptions
                 ),
             { signal: options.signal }

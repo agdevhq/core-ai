@@ -146,6 +146,25 @@ describe('wrapOpenAIError', () => {
             expect(wrapped).not.toBeInstanceOf(RateLimitError);
             expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
             expect((wrapped as ProviderError).statusCode).toBe(429);
+            expect((wrapped as ProviderError).code).toBe('insufficient_quota');
+        });
+
+        it('should map credit_balance_exhausted on 429 to non-retryable ProviderError', () => {
+            const error = {
+                status: 429,
+                code: 'credit_balance_exhausted',
+                error: {
+                    message: 'Your credit balance is too low',
+                    code: 'credit_balance_exhausted',
+                },
+            };
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+            expect((wrapped as ProviderError).code).toBe(
+                'credit_balance_exhausted'
+            );
         });
 
         it('should map Azure NoCapacity on 429 to ModelOverloadedError', () => {
@@ -256,6 +275,96 @@ describe('wrapOpenAIError', () => {
         });
     });
 
+    describe('in-band stream errors (no HTTP status)', () => {
+        it('should map rate_limit_exceeded to RateLimitError', () => {
+            const error = new APIError(
+                undefined,
+                { code: 'rate_limit_exceeded', message: 'exceeded rate limit' },
+                'exceeded rate limit',
+                undefined
+            );
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+            expect(wrapped).toBeInstanceOf(RateLimitError);
+            expect((wrapped as RateLimitError).code).toBe(
+                'rate_limit_exceeded'
+            );
+        });
+
+        it('should map context_length_exceeded to ContextLengthExceededError', () => {
+            const error = new APIError(
+                undefined,
+                { code: 'context_length_exceeded', message: 'too long' },
+                'too long',
+                undefined
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+            expect((wrapped as ContextLengthExceededError).code).toBe(
+                'context_length_exceeded'
+            );
+        });
+
+        it('should map server_error to ServiceUnavailableError', () => {
+            const error = new APIError(
+                undefined,
+                { code: 'server_error', message: 'The server had an error' },
+                'The server had an error',
+                undefined
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect((wrapped as ServiceUnavailableError).code).toBe(
+                'server_error'
+            );
+        });
+    });
+
+    describe('provider code', () => {
+        it('should expose the provider error code', () => {
+            const error = APIError.generate(
+                429,
+                {
+                    error: {
+                        message: 'You exceeded your current quota',
+                        type: 'insufficient_quota',
+                        code: 'insufficient_quota',
+                        param: null,
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect((wrapped as ProviderError).code).toBe('insufficient_quota');
+        });
+
+        it('should fall back to the provider error type when no code is set', () => {
+            const error = APIError.generate(
+                400,
+                {
+                    error: {
+                        message: 'Invalid value for parameter',
+                        type: 'invalid_request_error',
+                        code: null,
+                        param: 'temperature',
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error);
+            expect((wrapped as ProviderError).code).toBe(
+                'invalid_request_error'
+            );
+        });
+    });
+
     it('should map opaque errors to ProviderError', () => {
         const error = new Error('something broke');
         const wrapped = wrapOpenAIError(error);
@@ -263,5 +372,6 @@ describe('wrapOpenAIError', () => {
         expect(wrapped).toBeInstanceOf(ProviderError);
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
         expect(wrapped.message).toBe('something broke');
+        expect((wrapped as ProviderError).code).toBeUndefined();
     });
 });

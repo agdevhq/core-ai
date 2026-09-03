@@ -45,7 +45,7 @@ export function wrapAnthropicError(
             : getHttpStatusCode(error, ['status']);
     const providerMessage = getAnthropicErrorMessage(error);
     const errorType = getAnthropicErrorType(error);
-    const options = { statusCode, cause: error };
+    const options = { statusCode, code: errorType, cause: error };
 
     const contextLength = getContextLengthDetails(providerMessage, errorType);
     if (contextLength) {

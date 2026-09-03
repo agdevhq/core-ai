@@ -18,6 +18,7 @@ import {
     StructuredOutputValidationError,
     createObjectStream,
     createChatStream,
+    mapStreamErrors,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -67,11 +68,14 @@ export function createMistralChatModel(
         return createChatStream(
             async () =>
                 transformStream(
-                    (await callMistralChatApi(() =>
-                        client.chat.stream(request, {
-                            signal: options.signal,
-                        })
-                    )) as unknown as AsyncIterable<CompletionEvent>
+                    mapStreamErrors(
+                        (await callMistralChatApi(() =>
+                            client.chat.stream(request, {
+                                signal: options.signal,
+                            })
+                        )) as unknown as AsyncIterable<CompletionEvent>,
+                        wrapMistralError
+                    )
                 ),
             { signal: options.signal }
         );
