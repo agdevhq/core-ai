@@ -1,5 +1,16 @@
 # @core-ai/mistral
 
+## 0.23.0
+
+### Minor Changes
+
+- a4d08b7: Wrap in-band stream errors as typed provider errors and expose the Mistral error type as `ProviderError.code`.
+
+### Patch Changes
+
+- Updated dependencies [a4d08b7]
+    - @core-ai/core-ai@0.23.0
+
 ## 0.22.0
 
 ### Patch Changes

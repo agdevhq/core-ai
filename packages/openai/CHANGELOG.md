@@ -1,5 +1,17 @@
 # @core-ai/openai
 
+## 0.23.0
+
+### Minor Changes
+
+- a4d08b7: Wrap in-band stream errors as typed provider errors and expose the OpenAI error `code` (including `insufficient_quota` and `credit_balance_exhausted`) on the thrown instance.
+
+### Patch Changes
+
+- a4d08b7: Classify Azure OpenAI context-window responses without a machine-readable error code as `ContextLengthExceededError`.
+- Updated dependencies [a4d08b7]
+    - @core-ai/core-ai@0.23.0
+
 ## 0.22.0
 
 ### Patch Changes
