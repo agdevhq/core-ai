@@ -85,6 +85,30 @@ describe('wrapOpenAIError', () => {
             expect(classified.actualTokens).toBe(313691);
         });
 
+        it('should map Azure context-window wording when code is null', () => {
+            const error = APIError.generate(
+                400,
+                {
+                    error: {
+                        message:
+                            'Your input exceeds the context window of this model. Please adjust your input and try again.',
+                        type: 'invalid_request_error',
+                        code: null,
+                        param: null,
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+            expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+            const classified = wrapped as ContextLengthExceededError;
+            expect(classified.provider).toBe('azure-openai');
+            expect(classified.maxTokens).toBeUndefined();
+            expect(classified.actualTokens).toBeUndefined();
+        });
+
         it('should map known context_length_exceeded code without a parseable token pattern', () => {
             const error = {
                 code: 'context_length_exceeded',

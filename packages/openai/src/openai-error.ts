@@ -27,6 +27,8 @@ const TOKEN_LIMIT_PATTERNS = [
     /configured limit of (\d+) tokens.*resulted in (\d+) tokens/i,
 ];
 
+const CONTEXT_LENGTH_MESSAGE_PATTERN = /\binput exceeds the context window\b/i;
+
 /**
  * OpenAI / Azure capacity wording. Only apply on 5xx (not ordinary 4xx / 429).
  */
@@ -172,11 +174,14 @@ function getContextLengthDetails(
         return tokenCounts;
     }
 
-    if (!isKnownContextLengthCode) {
+    if (
+        !isKnownContextLengthCode &&
+        !CONTEXT_LENGTH_MESSAGE_PATTERN.test(providerMessage)
+    ) {
         return undefined;
     }
 
-    // Known context-length / string-max codes without parseable token counts.
+    // Known context-length code or wording without parseable token counts.
     return {};
 }
 
