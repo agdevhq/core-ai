@@ -73,7 +73,10 @@ export function createMistralChatModel(
                         })
                     )) as unknown as AsyncIterable<CompletionEvent>
                 ),
-            { signal: options.signal }
+            {
+                signal: options.signal,
+                mapError: wrapMistralError,
+            }
         );
     }
 

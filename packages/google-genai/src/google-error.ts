@@ -47,8 +47,8 @@ export function wrapGoogleError(
             : getHttpStatusCode(error, ['status']);
     const body = tryParseGoogleApiErrorBody(message);
     const effectiveHttp = statusCode ?? toNumericHttpCode(body);
-    const options = { statusCode: effectiveHttp, cause: error };
     const status = body?.status?.toUpperCase();
+    const options = { statusCode: effectiveHttp, code: status, cause: error };
     const combinedText = `${body?.message ?? ''} ${message}`;
 
     const contextLength = getContextLengthDetails(combinedText);

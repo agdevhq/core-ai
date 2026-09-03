@@ -1,17 +1,19 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import {
+    ApiError,
     FinishReason as GoogleFinishReason,
     type GenerateContentResponse,
     type GoogleGenAI,
 } from '@google/genai';
 import {
     ProviderError,
+    RateLimitError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.js';
 import { getGoogleModelCapabilities } from './model-capabilities.js';
-import { toAsyncIterable } from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createGoogleGenAIChatModel', () => {
     it('should create model metadata', () => {
@@ -759,7 +761,62 @@ describe('stream', () => {
             })
         );
     });
+
+    it('should wrap in-band stream errors as typed provider errors', async () => {
+        const source = createPushableAsyncIterable<GenerateContentResponse>();
+        const generateContentStream = vi.fn(async () => source.iterable);
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        const resultRejection = expect(chatStream.result).rejects.toMatchObject(
+            {
+                name: 'RateLimitError',
+                provider: 'google',
+                code: 'RESOURCE_EXHAUSTED',
+            }
+        );
+
+        source.push(
+            asGenerateContentResponse({
+                text: 'partial',
+                candidates: [],
+            })
+        );
+        source.fail(
+            new ApiError({
+                message: JSON.stringify({
+                    error: {
+                        status: 'RESOURCE_EXHAUSTED',
+                        message: 'Resource exhausted',
+                    },
+                }),
+                status: 429,
+            })
+        );
+
+        await expect(collectStreamEvents(chatStream)).rejects.toBeInstanceOf(
+            RateLimitError
+        );
+        await resultRejection;
+        await expect(chatStream.events).resolves.toEqual([
+            { type: 'text-start' },
+            { type: 'text-delta', text: 'partial' },
+        ]);
+    });
 });
+
+async function collectStreamEvents(
+    stream: AsyncIterable<unknown>
+): Promise<void> {
+    for await (const _event of stream) {
+        // Consume the stream until completion or failure.
+    }
+}
 
 function createMockClient(overrides?: {
     generateContent?: (options: unknown) => Promise<unknown>;

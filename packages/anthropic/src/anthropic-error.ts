@@ -45,7 +45,7 @@ export function wrapAnthropicError(
             : getHttpStatusCode(error, ['status']);
     const providerMessage = getAnthropicErrorMessage(error);
     const errorType = getAnthropicErrorType(error);
-    const options = { statusCode, cause: error };
+    const options = { statusCode, code: errorType, cause: error };
 
     const contextLength = getContextLengthDetails(providerMessage, errorType);
     if (contextLength) {
@@ -70,12 +70,21 @@ export function wrapAnthropicError(
 
     if (
         isUnavailableStatus(error) ||
-        isTransientUnavailableStatus(statusCode)
+        isTransientUnavailableStatus(statusCode) ||
+        isAnthropicServerError(errorType)
     ) {
         return new ServiceUnavailableError(message, provider, options);
     }
 
     return new ProviderError(message, provider, options);
+}
+
+/**
+ * Server-side failure signalled by error type rather than HTTP status. Streams
+ * that are accepted (HTTP 200) and then fail in-band carry only the type.
+ */
+function isAnthropicServerError(errorType: string | undefined): boolean {
+    return errorType === 'api_error' || errorType === 'timeout_error';
 }
 
 function isAnthropicAbortError(error: unknown): boolean {

@@ -80,7 +80,10 @@ export function createGoogleGenAIChatModel(
         return createChatStream(
             async () =>
                 transformStream(await callGenerateContentStreamApi(request)),
-            { signal: options.signal }
+            {
+                signal: options.signal,
+                mapError: (error) => wrapGoogleError(error, provider),
+            }
         );
     }
 

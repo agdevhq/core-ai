@@ -14,7 +14,10 @@ import type {
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
-import { createObjectStream, createChatStream } from '@core-ai/core-ai';
+import {
+    createObjectStream,
+    createChatStream,
+} from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
@@ -104,7 +107,10 @@ export function createOpenAIChatCompletionsModel(
                     >(request, options.signal),
                     adapterOptions
                 ),
-            { signal: options.signal }
+            {
+                signal: options.signal,
+                mapError: (error) => wrapOpenAIError(error, provider),
+            }
         );
     }
 

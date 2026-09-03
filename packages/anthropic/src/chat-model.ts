@@ -112,7 +112,10 @@ export function createAnthropicChatModel(
                         options.signal
                     )
                 ),
-            { signal: options.signal }
+            {
+                signal: options.signal,
+                mapError: (error) => wrapAnthropicError(error, provider),
+            }
         );
     }
 

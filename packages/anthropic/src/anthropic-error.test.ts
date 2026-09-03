@@ -76,6 +76,24 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
         expect((wrapped as ModelOverloadedError).statusCode).toBe(529);
+        expect((wrapped as ModelOverloadedError).code).toBe('overloaded_error');
+    });
+
+    it('should expose the Anthropic error type as provider code', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'billing_error',
+                message: 'Your credit balance is too low',
+            },
+            'Your credit balance is too low',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ProviderError).code).toBe('billing_error');
     });
 
     it('should map rate_limit_error with retry-after to RateLimitError', () => {
@@ -90,6 +108,8 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).toBeInstanceOf(RateLimitError);
         const classified = wrapped as RateLimitError;
         expect(classified.retryAfterSeconds).toBe(12);
+        expect(classified.code).toBe('rate_limit_error');
+        expect(classified.statusCode).toBe(429);
     });
 
     it('should map Vertex RESOURCE_EXHAUSTED to RateLimitError', () => {
@@ -162,6 +182,38 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+    });
+
+    it('should map in-band api_error without status to ServiceUnavailableError', () => {
+        const error = new APIError(
+            undefined,
+            { type: 'error', error: { type: 'api_error', message: 'Internal' } },
+            undefined,
+            new Headers(),
+            'api_error'
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ServiceUnavailableError).code).toBe('api_error');
+    });
+
+    it('should map in-band timeout_error without status to ServiceUnavailableError', () => {
+        const error = new APIError(
+            undefined,
+            {
+                type: 'error',
+                error: { type: 'timeout_error', message: 'Timed out' },
+            },
+            undefined,
+            new Headers(),
+            'timeout_error'
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ServiceUnavailableError).code).toBe('timeout_error');
     });
 
     it('should map single-level Vertex RESOURCE_EXHAUSTED to RateLimitError', () => {

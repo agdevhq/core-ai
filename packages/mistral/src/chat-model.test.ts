@@ -9,11 +9,12 @@ import { RequestAbortedError } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
     ProviderError,
+    RateLimitError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.js';
 import { getMistralModelCapabilities } from './model-capabilities.js';
-import { toAsyncIterable } from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createMistralChatModel', () => {
     it('should create model metadata', () => {
@@ -765,7 +766,63 @@ describe('stream', () => {
         const response = await chatStream.result;
         expect(response.reasoning).toBe('reason ');
     });
+
+    it('should wrap in-band stream errors as typed provider errors', async () => {
+        const source = createPushableAsyncIterable<CompletionEvent>();
+        const stream = vi.fn(async () => source.iterable);
+        const model = createMistralChatModel(
+            createMockClient({ stream }),
+            'mistral-large-latest'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        const resultRejection = expect(chatStream.result).rejects.toMatchObject(
+            {
+                name: 'RateLimitError',
+                provider: 'mistral',
+                code: 'rate_limit_error',
+            }
+        );
+
+        source.push(
+            asCompletionEvent({
+                choices: [
+                    {
+                        index: 0,
+                        finishReason: null,
+                        delta: { content: 'partial' },
+                    },
+                ],
+            })
+        );
+        source.fail({
+            body: JSON.stringify({
+                type: 'rate_limit_error',
+                message: 'Rate limited',
+            }),
+            message: 'Rate limited',
+        });
+
+        await expect(collectStreamEvents(chatStream)).rejects.toBeInstanceOf(
+            RateLimitError
+        );
+        await resultRejection;
+        await expect(chatStream.events).resolves.toEqual([
+            { type: 'text-start' },
+            { type: 'text-delta', text: 'partial' },
+        ]);
+    });
 });
+
+async function collectStreamEvents(
+    stream: AsyncIterable<unknown>
+): Promise<void> {
+    for await (const _event of stream) {
+        // Consume the stream until completion or failure.
+    }
+}
 
 function createMockClient(overrides?: {
     complete?: (options: unknown, requestOptions?: unknown) => Promise<unknown>;

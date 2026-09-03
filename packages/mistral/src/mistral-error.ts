@@ -49,7 +49,7 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
             ? error.statusCode
             : getHttpStatusCode(error, ['statusCode', 'status']);
     const body = parseErrorBody(error);
-    const options = { statusCode, cause: error };
+    const options = { statusCode, code: body?.type, cause: error };
 
     const contextLength = getContextLengthDetails(body, message);
     if (contextLength) {
