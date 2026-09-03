@@ -18,7 +18,9 @@ async function* failAfter<T>(items: T[], error: unknown): AsyncIterable<T> {
 
 describe('mapStreamErrors', () => {
     it('passes events through untouched', async () => {
-        const mapError = vi.fn();
+        const mapError = vi.fn(
+            (_error: unknown) => new ProviderError('unused', 'openai')
+        );
 
         await expect(
             collect(mapStreamErrors(toAsyncIterable([1, 2, 3]), mapError))
@@ -67,7 +69,9 @@ describe('mapStreamErrors', () => {
         new SyntaxError('unexpected token'),
         new ReferenceError('x is not defined'),
     ])('does not map $name', async (programmingError) => {
-        const mapError = vi.fn();
+        const mapError = vi.fn(
+            (_error: unknown) => new ProviderError('unused', 'openai')
+        );
 
         await expect(
             collect(mapStreamErrors(failAfter([], programmingError), mapError))

@@ -15,7 +15,7 @@ import { CoreAIError } from './errors.ts';
  */
 export async function* mapStreamErrors<TEvent>(
     source: AsyncIterable<TEvent>,
-    mapError: (error: unknown) => unknown
+    mapError: (error: unknown) => CoreAIError
 ): AsyncIterable<TEvent> {
     try {
         for await (const event of source) {
