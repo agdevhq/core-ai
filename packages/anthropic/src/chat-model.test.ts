@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { APIUserAbortError } from '@anthropic-ai/sdk';
+import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import type Anthropic from '@anthropic-ai/sdk';
 import type {
     Message,
@@ -9,12 +9,13 @@ import type {
 import {
     AbortedError,
     ProviderError,
+    RateLimitError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createAnthropicChatModel } from './chat-model.js';
 import { getAnthropicModelCapabilities } from './model-capabilities.js';
-import { toAsyncIterable } from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createAnthropicChatModel', () => {
     it('should expose provider metadata', () => {
@@ -913,7 +914,73 @@ describe('stream', () => {
         expect(response.reasoning).toBe('reasoning text ');
         expect(response.usage.outputTokenDetails.reasoningTokens).toBe(1);
     });
+
+    it('should wrap in-band stream errors as typed provider errors', async () => {
+        const source = createPushableAsyncIterable<RawMessageStreamEvent>();
+        const create = vi.fn(async () => source.iterable);
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4',
+            {
+                defaultMaxTokens: 4096,
+            }
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        const resultRejection = expect(chatStream.result).rejects.toMatchObject(
+            {
+                name: 'RateLimitError',
+                provider: 'anthropic',
+                code: 'rate_limit_error',
+            }
+        );
+
+        source.push({
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+                type: 'text',
+                text: '',
+                citations: null,
+            },
+        });
+        source.push({
+            type: 'content_block_delta',
+            index: 0,
+            delta: {
+                type: 'text_delta',
+                text: 'partial',
+            },
+        });
+        source.fail(
+            new APIError(
+                undefined,
+                { type: 'rate_limit_error', message: 'Rate limited' },
+                'Rate limited',
+                undefined
+            )
+        );
+
+        await expect(collectStreamEvents(chatStream)).rejects.toBeInstanceOf(
+            RateLimitError
+        );
+        await resultRejection;
+        await expect(chatStream.events).resolves.toEqual([
+            { type: 'text-start' },
+            { type: 'text-delta', text: 'partial' },
+        ]);
+    });
 });
+
+async function collectStreamEvents(
+    stream: AsyncIterable<unknown>
+): Promise<void> {
+    for await (const _event of stream) {
+        // Consume the stream until completion or failure.
+    }
+}
 
 function createMockClient(
     create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>
