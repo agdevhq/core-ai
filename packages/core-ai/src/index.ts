@@ -88,7 +88,6 @@ export {
     parseRetryAfterSeconds,
     getRetryAfterSecondsFromError,
 } from './provider-error-utils.ts';
-export { mapStreamErrors } from './map-stream-errors.ts';
 export { defineTool } from './tool.ts';
 export { zodSchemaToJsonSchema } from './json-schema.ts';
 export { stripModelDateSuffix } from './model-id.ts';
