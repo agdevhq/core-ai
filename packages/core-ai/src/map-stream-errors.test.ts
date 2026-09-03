@@ -60,4 +60,18 @@ describe('mapStreamErrors', () => {
         ).rejects.toBe(typed);
         expect(mapError).not.toHaveBeenCalled();
     });
+
+    it.each([
+        new TypeError('cannot read property of undefined'),
+        new RangeError('invalid length'),
+        new SyntaxError('unexpected token'),
+        new ReferenceError('x is not defined'),
+    ])('does not map $name', async (programmingError) => {
+        const mapError = vi.fn();
+
+        await expect(
+            collect(mapStreamErrors(failAfter([], programmingError), mapError))
+        ).rejects.toBe(programmingError);
+        expect(mapError).not.toHaveBeenCalled();
+    });
 });

@@ -876,4 +876,23 @@ describe('createChatStream mapError', () => {
             cause: sdkError,
         });
     });
+
+    it('does not map TypeError from the source as a provider error', async () => {
+        const mappingBug = new TypeError('cannot read property of undefined');
+        const mapError = vi.fn(
+            (error: unknown) =>
+                new RateLimitError('should not wrap mapping bugs', 'openai', {
+                    cause: error,
+                })
+        );
+        const chatStream = createChatStream(
+            async () => {
+                throw mappingBug;
+            },
+            { mapError }
+        );
+
+        await expect(chatStream.result).rejects.toBe(mappingBug);
+        expect(mapError).not.toHaveBeenCalled();
+    });
 });

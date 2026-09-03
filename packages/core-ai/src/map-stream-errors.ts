@@ -9,6 +9,9 @@ import { CoreAIError } from './errors.ts';
  * errors as failures of the initial request.
  *
  * Errors that already are {@link CoreAIError} instances pass through untouched.
+ * Language errors (`TypeError`, `RangeError`, `SyntaxError`,
+ * `ReferenceError`) also pass through so a bug in event mapping is not
+ * disguised as a provider failure.
  */
 export async function* mapStreamErrors<TEvent>(
     source: AsyncIterable<TEvent>,
@@ -19,9 +22,18 @@ export async function* mapStreamErrors<TEvent>(
             yield event;
         }
     } catch (error) {
-        if (error instanceof CoreAIError) {
+        if (error instanceof CoreAIError || isLanguageError(error)) {
             throw error;
         }
         throw mapError(error);
     }
+}
+
+function isLanguageError(error: unknown): boolean {
+    return (
+        error instanceof TypeError ||
+        error instanceof RangeError ||
+        error instanceof SyntaxError ||
+        error instanceof ReferenceError
+    );
 }
