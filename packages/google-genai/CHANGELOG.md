@@ -1,5 +1,30 @@
 # @core-ai/google-genai
 
+## 0.23.0
+
+### Minor Changes
+
+- a4d08b7: Wrap in-band stream errors as typed provider errors and expose Google's gRPC status (e.g. `RESOURCE_EXHAUSTED`) as `ProviderError.code`.
+
+### Patch Changes
+
+- Updated dependencies [a4d08b7]
+    - @core-ai/core-ai@0.23.0
+
+## 0.22.0
+
+### Patch Changes
+
+- Updated dependencies [717364e]
+    - @core-ai/core-ai@0.22.0
+
+## 0.21.0
+
+### Patch Changes
+
+- Updated dependencies [37c890d]
+    - @core-ai/core-ai@0.21.0
+
 ## 0.20.0
 
 ### Minor Changes

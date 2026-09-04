@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { APIUserAbortError } from 'openai';
+import { APIError, APIUserAbortError } from 'openai';
 import type OpenAI from 'openai';
 import type {
     ChatCompletion,
@@ -9,6 +9,7 @@ import type {
 import {
     AbortedError,
     ProviderError,
+    RateLimitError,
     StreamAbortedError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
@@ -803,6 +804,59 @@ describe('stream', () => {
                 type: 'text-delta',
                 text: 'partial',
             },
+        ]);
+    });
+
+    it('should wrap in-band stream errors as typed provider errors', async () => {
+        const source = createPushableAsyncIterable<ChatCompletionChunk>();
+        const create = vi.fn(async () => source.iterable);
+        const model = createOpenAIChatCompletionsModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        const resultRejection = expect(chatStream.result).rejects.toMatchObject(
+            {
+                name: 'RateLimitError',
+                provider: 'openai',
+                code: 'rate_limit_exceeded',
+            }
+        );
+
+        source.push(
+            asChunk({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: null,
+                        delta: { content: 'partial' },
+                    },
+                ],
+                usage: null,
+            })
+        );
+        source.fail(
+            new APIError(
+                undefined,
+                {
+                    code: 'rate_limit_exceeded',
+                    message: 'Your requests have exceeded rate limit.',
+                },
+                'Your requests have exceeded rate limit.',
+                undefined
+            )
+        );
+
+        await expect(collectObjectEvents(chatStream)).rejects.toBeInstanceOf(
+            RateLimitError
+        );
+        await resultRejection;
+        await expect(chatStream.events).resolves.toEqual([
+            { type: 'text-start' },
+            { type: 'text-delta', text: 'partial' },
         ]);
     });
 

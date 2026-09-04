@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
-import { StreamAbortedError } from './errors.ts';
+import { RateLimitError, StreamAbortedError } from './errors.ts';
 import { createStream } from './base-stream.ts';
 import { createChatStream } from './stream.ts';
 import type { StreamEvent } from './types.ts';
@@ -823,5 +823,76 @@ describe('createChatStream', () => {
             chatStream[Symbol.asyncIterator]().next()
         ).rejects.toBeInstanceOf(StreamAbortedError);
         expect(next).not.toHaveBeenCalled();
+    });
+});
+
+describe('createChatStream mapError', () => {
+    it('maps in-band source errors after yielding earlier events', async () => {
+        const sdkError = Object.assign(new Error('rate limited'), {
+            code: 'rate_limit_exceeded',
+        });
+        const source = createPushableAsyncIterable<StreamEvent>();
+        const chatStream = createChatStream(source.iterable, {
+            mapError: (error) =>
+                new RateLimitError('rate limited', 'openai', { cause: error }),
+        });
+
+        source.push({ type: 'text-delta', text: 'partial' });
+        source.fail(sdkError);
+
+        await expect(
+            (async () => {
+                const collected: StreamEvent[] = [];
+                for await (const event of chatStream) {
+                    collected.push(event);
+                }
+                return collected;
+            })()
+        ).rejects.toMatchObject({
+            name: 'RateLimitError',
+            cause: sdkError,
+        });
+        await expect(chatStream.events).resolves.toEqual([
+            { type: 'text-delta', text: 'partial' },
+        ]);
+    });
+
+    it('maps errors thrown by a source factory', async () => {
+        const sdkError = new Error('failed to open stream');
+        const chatStream = createChatStream(
+            async () => {
+                throw sdkError;
+            },
+            {
+                mapError: (error) =>
+                    new RateLimitError('failed to open stream', 'openai', {
+                        cause: error,
+                    }),
+            }
+        );
+
+        await expect(chatStream.result).rejects.toMatchObject({
+            name: 'RateLimitError',
+            cause: sdkError,
+        });
+    });
+
+    it('does not map TypeError from the source as a provider error', async () => {
+        const mappingBug = new TypeError('cannot read property of undefined');
+        const mapError = vi.fn(
+            (error: unknown) =>
+                new RateLimitError('should not wrap mapping bugs', 'openai', {
+                    cause: error,
+                })
+        );
+        const chatStream = createChatStream(
+            async () => {
+                throw mappingBug;
+            },
+            { mapError }
+        );
+
+        await expect(chatStream.result).rejects.toBe(mappingBug);
+        expect(mapError).not.toHaveBeenCalled();
     });
 });

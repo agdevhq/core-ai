@@ -38,6 +38,22 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it('should ignore system message metadata', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'You are helpful.',
+                metadata: { classification: 'public' },
+            },
+            { role: 'user', content: 'Hello' },
+        ];
+
+        expect(convertMessages(messages)).toEqual([
+            { role: 'system', content: 'You are helpful.' },
+            { role: 'user', content: 'Hello' },
+        ]);
+    });
+
     it('should convert user image and file content', () => {
         const messages: Message[] = [
             {
@@ -263,9 +279,13 @@ describe('image input', () => {
         };
 
         expect(() =>
-            createGenerateRequest('pixtral-12b-2409', { messages }, {
-                capabilities: textOnly,
-            })
+            createGenerateRequest(
+                'pixtral-12b-2409',
+                { messages },
+                {
+                    capabilities: textOnly,
+                }
+            )
         ).toThrowError(ValidationError);
     });
 

@@ -28,6 +28,7 @@ type Message =
 type SystemMessage = {
     role: 'system';
     content: string;
+    metadata?: Record<string, unknown>;
 };
 ```
 

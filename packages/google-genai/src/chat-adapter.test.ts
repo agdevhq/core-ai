@@ -55,6 +55,27 @@ describe('convertMessages', () => {
         expect(result.systemInstruction).toBe('Rule 1\nRule 2');
     });
 
+    it('should ignore system message metadata', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'You are helpful.',
+                metadata: { classification: 'public' },
+            },
+            { role: 'user', content: 'Hello' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.systemInstruction).toBe('You are helpful.');
+        expect(result.contents).toEqual([
+            {
+                role: 'user',
+                parts: [{ text: 'Hello' }],
+            },
+        ]);
+    });
+
     it('should convert user text, image, file, and audio parts', () => {
         const messages: Message[] = [
             {
@@ -1024,7 +1045,6 @@ describe('tool call thought signatures', () => {
             providerMetadata: { google: { thoughtSignature: 'sig_fc' } },
         });
     });
-
 });
 
 function asGenerateContentResponse(

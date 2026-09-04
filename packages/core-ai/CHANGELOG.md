@@ -1,5 +1,23 @@
 # @core-ai/core-ai
 
+## 0.23.0
+
+### Minor Changes
+
+- a4d08b7: Add `ProviderError.code` so adapters can lift the provider's machine-readable error identifier, and `createChatStream({ mapError })` so in-band stream failures use the same typed errors as the initial request.
+
+## 0.22.0
+
+### Minor Changes
+
+- 717364e: Allow application-owned metadata on image, file, and audio input parts.
+
+## 0.21.0
+
+### Minor Changes
+
+- 37c890d: Add optional application-owned `metadata` to `SystemMessage`. Provider adapters ignore it and never serialize it to provider APIs.
+
 ## 0.20.0
 
 ### Minor Changes

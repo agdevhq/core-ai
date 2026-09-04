@@ -80,6 +80,8 @@ describe('wrapGoogleError', () => {
         expect(wrapped).toBeInstanceOf(RateLimitError);
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
         expect((wrapped as RateLimitError).retryAfterSeconds).toBe(8);
+        expect((wrapped as RateLimitError).code).toBe('RESOURCE_EXHAUSTED');
+        expect((wrapped as RateLimitError).statusCode).toBe(429);
     });
 
     it('should map high-demand messages to ModelOverloadedError', () => {

@@ -4,23 +4,36 @@ import type {
     StreamEvent,
     ChatStream,
 } from './types.ts';
+import type { CoreAIError } from './errors.ts';
 import { createStream } from './base-stream.ts';
+import { mapStreamErrors } from './map-stream-errors.ts';
+
+export type CreateChatStreamOptions = {
+    signal?: AbortSignal;
+    /**
+     * Maps errors raised while opening or iterating the source — including
+     * in-band SDK failures after HTTP 200 — onto a {@link CoreAIError}.
+     * Already-typed core-ai errors pass through unchanged.
+     */
+    mapError?: (error: unknown) => CoreAIError;
+};
 
 export function createChatStream(
     source:
         | AsyncIterable<StreamEvent>
         | (() => Promise<AsyncIterable<StreamEvent>>),
-    options: {
-        signal?: AbortSignal;
-    } = {}
+    options: CreateChatStreamOptions = {}
 ): ChatStream {
-    const { signal } = options;
+    const { signal, mapError } = options;
     const resolvedSource: AsyncIterable<StreamEvent> =
         typeof source === 'function'
             ? (async function* () {
                   yield* await source();
               })()
             : source;
+    const sourceWithMappedErrors = mapError
+        ? mapStreamErrors(resolvedSource, mapError)
+        : resolvedSource;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
     let textMetadata: Record<string, unknown> | undefined;
@@ -179,7 +192,7 @@ export function createChatStream(
     };
 
     return createStream({
-        source: resolvedSource,
+        source: sourceWithMappedErrors,
         signal,
         reduceEvent(event) {
             switch (event.type) {

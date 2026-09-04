@@ -27,6 +27,8 @@ const TOKEN_LIMIT_PATTERNS = [
     /configured limit of (\d+) tokens.*resulted in (\d+) tokens/i,
 ];
 
+const CONTEXT_LENGTH_MESSAGE_PATTERN = /\binput exceeds the context window\b/i;
+
 /**
  * OpenAI / Azure capacity wording. Only apply on 5xx (not ordinary 4xx / 429).
  */
@@ -54,7 +56,11 @@ export function wrapOpenAIError(
         error instanceof APIError
             ? error.status
             : getHttpStatusCode(error, ['status']);
-    const options = { statusCode, cause: error };
+    const options = {
+        statusCode,
+        code: getProviderErrorCode(error) ?? getProviderErrorType(error),
+        cause: error,
+    };
 
     const contextLength = getContextLengthDetails(error, message);
     if (contextLength) {
@@ -87,11 +93,28 @@ export function wrapOpenAIError(
         });
     }
 
-    if (isTransientUnavailableStatus(statusCode)) {
+    if (
+        isTransientUnavailableStatus(statusCode) ||
+        isOpenAIServerError(error)
+    ) {
         return new ServiceUnavailableError(message, provider, options);
     }
 
     return new ProviderError(message, provider, options);
+}
+
+/**
+ * Server-side failure signalled by code/type rather than HTTP status. Streams
+ * that are accepted (HTTP 200) and then fail in-band carry only the code.
+ */
+function isOpenAIServerError(error: unknown): boolean {
+    const code = getProviderErrorCode(error);
+    const type = getProviderErrorType(error);
+    return (
+        code === 'server_error' ||
+        code === 'service_unavailable' ||
+        type === 'server_error'
+    );
 }
 
 function isOpenAIAbortError(error: unknown): error is Error {
@@ -151,11 +174,14 @@ function getContextLengthDetails(
         return tokenCounts;
     }
 
-    if (!isKnownContextLengthCode) {
+    if (
+        !isKnownContextLengthCode &&
+        !CONTEXT_LENGTH_MESSAGE_PATTERN.test(providerMessage)
+    ) {
         return undefined;
     }
 
-    // Known context-length / string-max codes without parseable token counts.
+    // Known context-length code or wording without parseable token counts.
     return {};
 }
 
@@ -194,11 +220,19 @@ function isAzureOpenAIBackendCapacityError(error: unknown): boolean {
     );
 }
 
-/** Billing / plan quota — HTTP 429 but not retryable. */
+/**
+ * Billing / plan quota — HTTP 429 but not retryable. OpenAI uses
+ * `insufficient_quota`; some OpenAI-compatible endpoints report
+ * `credit_balance_exhausted`.
+ */
 function isOpenAIInsufficientQuota(error: unknown): boolean {
     const code = getProviderErrorCode(error);
     const type = getProviderErrorType(error);
-    return code === 'insufficient_quota' || type === 'insufficient_quota';
+    return (
+        code === 'insufficient_quota' ||
+        type === 'insufficient_quota' ||
+        code === 'credit_balance_exhausted'
+    );
 }
 
 /** Azure system capacity on 429 — overload, not org rate limit. */

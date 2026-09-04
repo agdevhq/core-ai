@@ -72,16 +72,24 @@ export class StreamAbortedError extends AbortedError {
 
 export type ProviderErrorOptions = {
     statusCode?: number;
+    /**
+     * Provider-specific error code or type as reported by the API, e.g.
+     * `insufficient_quota`, `invalid_request_error`, `RESOURCE_EXHAUSTED`.
+     * Stable machine-readable identifier for logging and classification
+     * where the message itself cannot be recorded.
+     */
+    code?: string;
     cause?: unknown;
 };
 
 export class ProviderError extends CoreAIError {
     public readonly statusCode?: number;
+    public readonly code?: string;
 
     /**
      * @param message Human-readable error message (may include provider text).
      * @param provider Provider id (e.g. `'openai'`, `'anthropic'`).
-     * @param options Optional HTTP status and underlying cause.
+     * @param options Optional HTTP status, provider code, and underlying cause.
      */
     constructor(
         message: string,
@@ -91,6 +99,7 @@ export class ProviderError extends CoreAIError {
         super(message, options.cause, provider);
         this.name = 'ProviderError';
         this.statusCode = options.statusCode;
+        this.code = options.code;
     }
 }
 
@@ -126,6 +135,7 @@ export class ContextLengthExceededError extends ProviderError {
     ) {
         super(message, provider, {
             statusCode: options.statusCode,
+            code: options.code,
             cause: options.cause,
         });
         this.name = 'ContextLengthExceededError';
@@ -148,6 +158,7 @@ export class RateLimitError extends RetryableProviderError {
     ) {
         super(message, provider, {
             statusCode: options.statusCode ?? 429,
+            code: options.code,
             cause: options.cause,
         });
         this.name = 'RateLimitError';

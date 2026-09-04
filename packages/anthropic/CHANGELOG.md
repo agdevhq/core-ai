@@ -1,5 +1,30 @@
 # @core-ai/anthropic
 
+## 0.23.0
+
+### Minor Changes
+
+- a4d08b7: Wrap in-band stream errors as typed provider errors and expose the Anthropic error type as `ProviderError.code`. In-band `api_error` and `timeout_error`, which arrive without an HTTP status, now become a retryable `ServiceUnavailableError`.
+
+### Patch Changes
+
+- Updated dependencies [a4d08b7]
+    - @core-ai/core-ai@0.23.0
+
+## 0.22.0
+
+### Patch Changes
+
+- Updated dependencies [717364e]
+    - @core-ai/core-ai@0.22.0
+
+## 0.21.0
+
+### Patch Changes
+
+- Updated dependencies [37c890d]
+    - @core-ai/core-ai@0.21.0
+
 ## 0.20.0
 
 ### Patch Changes

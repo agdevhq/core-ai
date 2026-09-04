@@ -47,19 +47,22 @@ describe('ProviderError', () => {
 
         expect(error.provider).toBe('openai');
         expect(error.statusCode).toBe(429);
+        expect(error.code).toBeUndefined();
         expect(error).toBeInstanceOf(CoreAIError);
         expect(error).toBeInstanceOf(Error);
         expect(error).not.toBeInstanceOf(RetryableProviderError);
     });
 
-    it('should accept cause in options', () => {
+    it('should accept cause and provider code in options', () => {
         const cause = new Error('sdk');
         const error = new ProviderError('failed', 'anthropic', {
-            statusCode: 500,
+            statusCode: 400,
+            code: 'invalid_request_error',
             cause,
         });
 
-        expect(error.statusCode).toBe(500);
+        expect(error.statusCode).toBe(400);
+        expect(error.code).toBe('invalid_request_error');
         expect(error.cause).toBe(cause);
     });
 });
