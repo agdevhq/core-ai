@@ -5,6 +5,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     RetryableProviderError,
     ServiceUnavailableError,
@@ -79,7 +80,7 @@ describe('wrapAnthropicError', () => {
         expect((wrapped as ModelOverloadedError).code).toBe('overloaded_error');
     });
 
-    it('should expose the Anthropic error type as provider code', () => {
+    it('should map billing_error to ProviderQuotaExceededError', () => {
         const error = new APIError(
             400,
             {
@@ -91,9 +92,28 @@ describe('wrapAnthropicError', () => {
         );
 
         const wrapped = wrapAnthropicError(error);
-        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
-        expect((wrapped as ProviderError).code).toBe('billing_error');
+        expect((wrapped as ProviderQuotaExceededError).code).toBe(
+            'billing_error'
+        );
+    });
+
+    it('should map HTTP 402 to ProviderQuotaExceededError', () => {
+        const error = new APIError(
+            402,
+            {
+                type: 'payment_required_error',
+                message: 'Payment required',
+            },
+            'Payment required',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ProviderQuotaExceededError).statusCode).toBe(402);
     });
 
     it('should map rate_limit_error with retry-after to RateLimitError', () => {
@@ -187,7 +207,10 @@ describe('wrapAnthropicError', () => {
     it('should map in-band api_error without status to ServiceUnavailableError', () => {
         const error = new APIError(
             undefined,
-            { type: 'error', error: { type: 'api_error', message: 'Internal' } },
+            {
+                type: 'error',
+                error: { type: 'api_error', message: 'Internal' },
+            },
             undefined,
             new Headers(),
             'api_error'

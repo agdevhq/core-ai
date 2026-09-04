@@ -55,6 +55,7 @@ export type {
 export type {
     ProviderErrorOptions,
     ContextLengthExceededErrorOptions,
+    ProviderQuotaExceededErrorOptions,
     RateLimitErrorOptions,
     ModelOverloadedErrorOptions,
     ServiceUnavailableErrorOptions,
@@ -69,6 +70,7 @@ export {
     ProviderError,
     RetryableProviderError,
     ContextLengthExceededError,
+    ProviderQuotaExceededError,
     RateLimitError,
     ModelOverloadedError,
     ServiceUnavailableError,

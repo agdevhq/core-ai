@@ -5,6 +5,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     RetryableProviderError,
     ServiceUnavailableError,
@@ -57,6 +58,18 @@ describe('wrapGoogleError', () => {
         const classified = wrapped as ContextLengthExceededError;
         expect(classified.maxTokens).toBeUndefined();
         expect(classified.actualTokens).toBeUndefined();
+    });
+
+    it('should map HTTP 402 to ProviderQuotaExceededError', () => {
+        const error = new ApiError({
+            message: 'Payment required',
+            status: 402,
+        });
+
+        const wrapped = wrapGoogleError(error);
+        expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ProviderQuotaExceededError).statusCode).toBe(402);
     });
 
     it('should map 429 RESOURCE_EXHAUSTED with retry-after to RateLimitError', () => {
