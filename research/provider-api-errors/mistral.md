@@ -114,7 +114,7 @@ Do not treat generic 400/422 as context length.
 
 | Gap                                                                      | Status                                                                                                 |
 | ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `service tier capacity exceeded`                                         | **Behavior OK** — lands in `ServiceUnavailableError` if no “overloaded”; **add explicit test**         |
+| `service tier capacity exceeded`                                         | **Closed** — `ServiceUnavailableError` on 503 and in-band (no status); not rate limit or overload      |
 | Alternate context wording (`exceeds the model's maximum context length`) | **Open** — only `too large for model` matched                                                          |
 | `RequestTimeoutError`                                                    | **Open** — falls through to `ProviderError`; decide product semantics                                  |
 | 422 `message` hardening                                                  | **Open** — `getString()` drops non-string; stringified JSON in `message` not parsed for `type`/content |
