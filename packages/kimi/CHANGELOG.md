@@ -1,5 +1,12 @@
 # @core-ai/kimi
 
+## 0.24.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.24.0
+- @core-ai/openai@0.24.0
+
 ## 0.23.0
 
 ### Patch Changes

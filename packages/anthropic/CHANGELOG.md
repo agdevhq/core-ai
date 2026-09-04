@@ -1,5 +1,11 @@
 # @core-ai/anthropic
 
+## 0.24.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Minor Changes
