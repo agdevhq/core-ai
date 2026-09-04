@@ -99,6 +99,25 @@ describe('wrapAnthropicError', () => {
         );
     });
 
+    it('should fall back to ProviderError for unmapped Anthropic error types', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'Invalid request',
+            },
+            'Invalid request',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        const classified = wrapped as ProviderError;
+        expect(classified.constructor).toBe(ProviderError);
+        expect(classified.code).toBe('invalid_request_error');
+        expect(classified.statusCode).toBe(400);
+    });
+
     it('should map HTTP 402 to ProviderQuotaExceededError', () => {
         const error = new APIError(
             402,
