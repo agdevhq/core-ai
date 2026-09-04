@@ -1,5 +1,13 @@
 # @core-ai/anthropic
 
+## 0.24.0
+
+### Patch Changes
+
+- d65aa5a: Add `ProviderQuotaExceededError` and normalize non-retryable provider billing and exhausted-credit failures.
+- Updated dependencies [d65aa5a]
+    - @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Minor Changes

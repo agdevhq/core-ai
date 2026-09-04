@@ -1,5 +1,17 @@
 # @core-ai/google-genai
 
+## 0.24.0
+
+### Minor Changes
+
+- 5524a95: Add model capability support for gemini-3.8-flash, gemini-3.7-flash, gemini-3.6-flash, gemini-3.5-flash, gemini-3.5-flash-lite, and the gemini-3.1-pro-preview / gemini-3.1-flash-lite IDs.
+
+### Patch Changes
+
+- d65aa5a: Add `ProviderQuotaExceededError` and normalize non-retryable provider billing and exhausted-credit failures.
+- Updated dependencies [d65aa5a]
+    - @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Minor Changes
