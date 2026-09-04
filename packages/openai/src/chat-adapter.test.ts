@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import type {
     Response,
     ResponseStreamEvent,
@@ -420,6 +421,109 @@ describe('createGenerateRequest', () => {
                 providerOptions: invalidProviderOptions,
             })
         ).toThrowError(/expected object, received null/);
+    });
+
+    it('should map strict tools to the Responses top-level field', () => {
+        const createTool = (strict?: boolean) => ({
+            search: {
+                name: 'search',
+                description: 'Search',
+                parameters: z.object({
+                    query: z.string(),
+                    limit: z.number().nullable(),
+                }),
+                ...(strict !== undefined ? { strict } : {}),
+            },
+        });
+
+        const requestTool = (strict?: boolean) =>
+            createGenerateRequest('gpt-5-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: createTool(strict),
+            }).tools?.[0] as Record<string, unknown> | undefined;
+
+        const strictTool = requestTool(true);
+        const nonStrictTool = requestTool(false);
+        const omittedTool = requestTool();
+
+        expect(strictTool).toMatchObject({
+            type: 'function',
+            name: 'search',
+            strict: true,
+            parameters: {
+                type: 'object',
+                required: ['query', 'limit'],
+                additionalProperties: false,
+            },
+        });
+        expect(strictTool).not.toHaveProperty('function');
+        expect(strictTool?.parameters).not.toHaveProperty('$schema');
+        // Non-strict tools keep the raw converted schema and omit `strict`.
+        expect(nonStrictTool).not.toHaveProperty('strict');
+        expect(nonStrictTool?.parameters).toHaveProperty('$schema');
+        expect(nonStrictTool?.parameters).not.toHaveProperty(
+            'additionalProperties'
+        );
+        expect(omittedTool).not.toHaveProperty('strict');
+        expect(omittedTool?.parameters).toEqual(nonStrictTool?.parameters);
+    });
+
+    it('should close nested objects in strict tool schemas', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({
+                        filter: z.object({ field: z.string() }),
+                    }),
+                    strict: true,
+                },
+            },
+        });
+
+        const tool = request.tools?.[0] as
+            | { parameters: { properties: { filter: Record<string, unknown> } } }
+            | undefined;
+        const parameters = tool?.parameters;
+        expect(parameters?.properties.filter).toMatchObject({
+            additionalProperties: false,
+        });
+    });
+
+    it('should reject strict tools whose schemas violate the contract', () => {
+        expect(() =>
+            createGenerateRequest('gpt-5-mini', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: {
+                    search: {
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({
+                            limit: z.number().optional(),
+                        }),
+                        strict: true,
+                    },
+                },
+            })
+        ).toThrowError(/use \.nullable\(\) instead of \.optional\(\)/);
+    });
+
+    it('should reject explicit strict tools on legacy Responses models', () => {
+        expect(() =>
+            createGenerateRequest('gpt-4-turbo', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: {
+                    search: {
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({ query: z.string() }),
+                        strict: true,
+                    },
+                },
+            })
+        ).toThrowError(/does not support per-tool strict schemas/);
     });
 
     it('should include reasoning summary and encrypted reasoning include', () => {

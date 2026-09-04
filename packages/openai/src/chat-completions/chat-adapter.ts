@@ -290,7 +290,13 @@ function createRequestBase(
         model: modelId,
         messages: convertMessages(options.messages, adapterOptions),
         ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
+            ? {
+                  tools: convertTools(options.tools, {
+                      capabilities: adapterOptions.capabilities,
+                      modelId,
+                      providerId: adapterOptions.providerId,
+                  }),
+              }
             : {}),
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }

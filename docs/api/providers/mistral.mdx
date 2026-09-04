@@ -125,6 +125,14 @@ reports the capabilities of that version rather than of `-latest`:
 | Magistral      | Magistral 1.2 (`-2509`) | `-2506`, `-2507`                    |
 | Ministral      | Ministral 3 (`-2512`)   | `-2410`                             |
 
+### Strict tool schemas
+
+Mistral's API accepts a `strict` flag but does not document enforcement, so
+every model reports `model.capabilities.tools.strictSchemas` as
+`{ supported: false }` and `strict: true` throws `ToolSchemaStrictnessError`
+locally. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas).
+
 ## Examples
 
 ### Basic chat

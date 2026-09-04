@@ -1,5 +1,6 @@
 import {
     stripModelDateSuffix,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
     type ModelCapabilities,
     type ReasoningEffort,
 } from '@core-ai/core-ai';
@@ -36,6 +37,9 @@ function createCapabilities(config: {
             thinkingParam: config.thinkingParam,
         },
         modalities: GOOGLE_INPUT_MODALITIES,
+        tools: {
+            strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        },
     };
 }
 

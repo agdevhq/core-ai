@@ -164,12 +164,18 @@ type ToolResultMessage = {
 ### ToolDefinition
 
 ```typescript
-type ToolDefinition = {
+type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
     name: string;
     description: string;
-    parameters: z.ZodType;
+    parameters: TParameters;
+    strict?: boolean;
 };
 ```
+
+`strict: true` opts the tool into provider-enforced adherence to its parameter
+schema; the schema must fit the strict-capable contract described in the
+[tool-calling guide](/guides/tool-calling#strict-tool-schemas). Omitted or
+`false` keeps the tool non-strict on every provider.
 
 ### ToolSet
 
@@ -244,17 +250,24 @@ type ModelCapabilities = {
          */
         output: readonly ChatOutputModality[];
     };
+    tools: {
+        strictSchemas:
+            | { supported: false }
+            | { supported: true; maxStrictTools?: number };
+    };
 };
 ```
 
-| Field                               | Meaning                                                              |
-| ----------------------------------- | -------------------------------------------------------------------- |
-| `reasoning.mode`                    | Whether reasoning control is unsupported, optional, or always active |
-| `reasoning.supportedEfforts`        | Effort values the adapter accepts (empty when unsupported)           |
-| `reasoning.restrictsSamplingParams` | Whether reasoning changes the accepted sampling parameters or values |
-| `reasoning.supportedToolChoices`    | Tool choice modes supported while reasoning is enabled               |
-| `modalities.input`                  | Modalities accepted in user messages                                 |
-| `modalities.output`                 | Modalities the model can emit as assistant content                   |
+| Field                                | Meaning                                                              |
+| ------------------------------------ | -------------------------------------------------------------------- |
+| `reasoning.mode`                     | Whether reasoning control is unsupported, optional, or always active |
+| `reasoning.supportedEfforts`         | Effort values the adapter accepts (empty when unsupported)           |
+| `reasoning.restrictsSamplingParams`  | Whether reasoning changes the accepted sampling parameters or values |
+| `reasoning.supportedToolChoices`     | Tool choice modes supported while reasoning is enabled               |
+| `modalities.input`                   | Modalities accepted in user messages                                 |
+| `modalities.output`                  | Modalities the model can emit as assistant content                   |
+| `tools.strictSchemas.supported`      | Whether `strict: true` is available for tool schemas                 |
+| `tools.strictSchemas.maxStrictTools` | Optional per-request limit on the number of strict tools             |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
 option. The model may still return reasoning output. `optional` means callers
@@ -287,8 +300,18 @@ pass a known registry model ID when you need accurate capability data.
 `modalities.output` currently always includes `'text'`. Dedicated image
 generation uses `ImageModel` / `generateImage`, not chat `output`.
 
-Provider packages also export `get*ModelCapabilities(modelId)` helpers that
-return the same data without constructing a `ChatModel`. Kimi exposes this data
+Check `model.capabilities.tools.strictSchemas` before setting `strict: true`.
+Setting it on a model that reports `{ supported: false }` throws
+`ToolSchemaStrictnessError` before the provider request. Unknown and future
+model IDs resolve optimistically to `{ supported: true }`, so explicit strict
+tools are forwarded and the provider rejects them if the model genuinely lacks
+support. Strict tool schemas only govern tool arguments. They are separate
+from the response formats used by `generateObject()` and `streamObject()`.
+
+Provider packages also export `get*ModelCapabilities(modelId)` helpers for
+registry data without constructing a `ChatModel`. A model factory can apply
+API- or endpoint-specific gates afterward; for example, OpenAI Responses has
+narrower legacy-model support than Chat Completions. Kimi exposes this data
 through `ChatModel.capabilities` only.
 
 ### EmbeddingModel

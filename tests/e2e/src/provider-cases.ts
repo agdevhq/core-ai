@@ -8,12 +8,15 @@ import {
     resultToMessage,
     stream,
     StreamAbortedError,
+    ToolSchemaStrictnessError,
 } from '../../../packages/core-ai/src/index.ts';
 import type { ProviderCapabilities } from './adapters/provider-adapter.ts';
 import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
 
 export type ProviderContractCaseId =
     | 'chatGenerate'
+    | 'chatStrictTools'
+    | 'chatStrictToolsUnsupported'
     | 'chatStream'
     | 'chatStreamAbort'
     | 'chatGenerateReasoning'
@@ -64,6 +67,70 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.content?.trim().length ?? 0).toBeGreaterThan(0);
             expect(Array.isArray(result.toolCalls)).toBe(true);
             assertChatUsage(result.usage);
+        },
+    },
+    {
+        id: 'chatStrictTools',
+        name: 'strict tool calls satisfy the declared schema',
+        requiredCapability: 'chat',
+        run: async ({ adapter }) => {
+            const model = adapter.createChatModel();
+            expect(model.capabilities.tools.strictSchemas.supported).toBe(true);
+
+            const parameters = z.object({
+                count: z.number().int(),
+                mode: z.enum(['fast', 'safe']),
+            });
+            const result = await generate({
+                model,
+                messages: [
+                    {
+                        role: 'user',
+                        content:
+                            'Call configure_run with count 3 and mode safe.',
+                    },
+                ],
+                tools: {
+                    configure_run: {
+                        name: 'configure_run',
+                        description: 'Configure a test run',
+                        parameters,
+                        strict: true,
+                    },
+                },
+                toolChoice: {
+                    type: 'tool',
+                    toolName: 'configure_run',
+                },
+            });
+
+            expect(result.toolCalls).toHaveLength(1);
+            expect(result.toolCalls[0]?.name).toBe('configure_run');
+            expect(
+                parameters.safeParse(result.toolCalls[0]?.arguments).success
+            ).toBe(true);
+        },
+    },
+    {
+        id: 'chatStrictToolsUnsupported',
+        name: 'unsupported strict tools fail before provider I/O',
+        requiredCapability: 'chat',
+        run: async ({ adapter }) => {
+            const model = adapter.createChatModel();
+            await expect(
+                generate({
+                    model,
+                    messages: [{ role: 'user', content: 'Use the test tool.' }],
+                    tools: {
+                        test_tool: {
+                            name: 'test_tool',
+                            description: 'Test local strict validation',
+                            parameters: z.object({ value: z.string() }),
+                            strict: true,
+                        },
+                    },
+                })
+            ).rejects.toBeInstanceOf(ToolSchemaStrictnessError);
         },
     },
     {
@@ -187,7 +254,8 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.content?.trim().length ?? 0).toBeGreaterThan(0);
             expect(
                 result.parts.some((part) => part.type === 'reasoning') ||
-                    result.usage.outputTokenDetails.reasoningTokens !== undefined
+                    result.usage.outputTokenDetails.reasoningTokens !==
+                        undefined
             ).toBe(true);
             assertChatUsage(result.usage);
         },

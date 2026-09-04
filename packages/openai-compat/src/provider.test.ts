@@ -175,6 +175,50 @@ describe('createOpenAICompat', () => {
         );
         expect(create.mock.calls[0]?.[0]).not.toHaveProperty('tools');
     });
+
+    it('should forward strict tools optimistically', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            createChatCompletion({ content: 'answer' })
+        );
+        const model = createOpenAICompat({
+            client: createMockClient(create),
+        }).chatModel('custom-model');
+
+        expect(model.capabilities.tools.strictSchemas).toEqual({
+            supported: true,
+        });
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({
+                        query: z.string(),
+                        limit: z.number().nullable(),
+                    }),
+                    strict: true,
+                },
+            },
+        });
+
+        expect(create.mock.calls[0]?.[0]).toMatchObject({
+            tools: [
+                {
+                    type: 'function',
+                    function: {
+                        name: 'search',
+                        strict: true,
+                        parameters: {
+                            required: ['query', 'limit'],
+                            additionalProperties: false,
+                        },
+                    },
+                },
+            ],
+        });
+    });
 });
 
 function createMockClient(

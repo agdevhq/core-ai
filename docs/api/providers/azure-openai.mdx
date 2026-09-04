@@ -166,6 +166,15 @@ For recognized OpenAI model IDs, see
 [OpenAI model capabilities](/api/providers/openai#model-capabilities) for the
 reasoning, image input, and Chat Completions fields.
 
+### Strict tool schemas
+
+Per-tool `strict: true` works on the v1 (Responses) endpoint and on classic
+deployments with `api-version` `2024-08-01-preview` or later. Older classic
+API versions do not support strict function tools; Azure rejects those
+requests server-side, and core-ai does not pre-validate the version. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
+contract, error reasons, and the parallel-tool-calls caveat.
+
 ## Reasoning metadata
 
 On Azure v1 Responses, encrypted reasoning is stored under the `azure-openai`

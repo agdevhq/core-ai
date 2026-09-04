@@ -13,6 +13,7 @@ core-ai provides a hierarchy of error classes for handling different types of fa
 ```
 CoreAIError
 ├── ValidationError
+│   ├── ToolSchemaStrictnessError
 │   └── UnsupportedInputModalityError
 ├── AbortedError
 │   └── StreamAbortedError
@@ -94,6 +95,93 @@ try {
     }
 }
 ```
+
+## ToolSchemaStrictnessError
+
+Thrown before the provider request when a `strict: true` tool is unsupported,
+exceeds a provider limit, or has a schema outside the strict-capable contract.
+Extends `ValidationError`.
+
+```typescript
+type ToolSchemaStrictnessErrorReason =
+    | 'unsupported'
+    | 'limit-exceeded'
+    | 'invalid-schema';
+
+type StrictToolSchemaViolation = {
+    toolName: string;
+    path: string;
+    message: string;
+};
+
+class ToolSchemaStrictnessError extends ValidationError {
+    readonly providerId: string;
+    readonly modelId: string;
+    readonly toolNames: readonly string[];
+    readonly reason: ToolSchemaStrictnessErrorReason;
+    readonly maxStrictTools?: number;
+    readonly violations?: readonly StrictToolSchemaViolation[];
+}
+```
+
+### Properties
+
+<ParamField path="providerId" type="string">
+    Provider that rejected the local configuration.
+</ParamField>
+
+<ParamField path="modelId" type="string">
+    Model ID used for capability resolution.
+</ParamField>
+
+<ParamField path="toolNames" type="readonly string[]">
+    Tools that requested strict enforcement.
+</ParamField>
+
+<ParamField path="reason" type="ToolSchemaStrictnessErrorReason">
+    Machine-readable failure category. `unsupported` means the model does not
+    support strict tool schemas. `limit-exceeded` means the request contains
+    more strict tools than the provider allows. `invalid-schema` means a strict
+    tool's schema is outside the strict-capable contract.
+</ParamField>
+
+<ParamField path="maxStrictTools" type="number | undefined">
+    Provider limit when `reason` is `limit-exceeded`.
+</ParamField>
+
+<ParamField
+    path="violations"
+    type="readonly StrictToolSchemaViolation[] | undefined"
+>
+    When `reason` is `invalid-schema`, one entry per offending schema path with
+    a fix hint. Also available directly through the exported
+    `getStrictToolSchemaViolations()` helper.
+</ParamField>
+
+### Example
+
+```typescript
+import { generate, ToolSchemaStrictnessError } from '@core-ai/core-ai';
+
+try {
+    await generate({ model, messages, tools });
+} catch (error) {
+    if (error instanceof ToolSchemaStrictnessError) {
+        console.error(error.reason, error.toolNames);
+        for (const violation of error.violations ?? []) {
+            console.error(violation.toolName, violation.path);
+            console.error(violation.message);
+        }
+    }
+}
+```
+
+See [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the
+strict-capable schema contract and provider support.
+
+This error validates request configuration. It does not report invalid
+arguments returned by a model. Continue to validate `ToolCall.arguments` with
+the tool's Zod schema before execution.
 
 ## UnsupportedInputModalityError
 

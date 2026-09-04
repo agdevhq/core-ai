@@ -116,6 +116,15 @@ are forwarded to the endpoint rather than rejected locally.
 The `reasoning` provider option controls extraction of nonstandard response
 fields; it does not change `model.capabilities`.
 
+### Strict tool schemas
+
+Tools with `strict: true` are forwarded per tool with `strict: true` and a
+normalized schema; other tools are sent unchanged. Endpoints that do not
+implement OpenAI strict function tools reject or ignore the field, so opt
+tools in only when the target endpoint supports the OpenAI contract. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
+contract and error reasons.
+
 ## Compatibility behavior
 
 The provider follows the standard Chat Completions request and response shapes,

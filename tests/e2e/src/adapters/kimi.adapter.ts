@@ -8,10 +8,7 @@ const KIMI_CHAT_MODEL_ENV = 'KIMI_E2E_CHAT_MODEL';
 const KIMI_REASONING_MODEL_ENV = 'KIMI_E2E_REASONING_MODEL';
 
 export function createKimiAdapter(): ProviderE2EAdapter {
-    const chatModelId = getEnvOrDefault(
-        KIMI_CHAT_MODEL_ENV,
-        'kimi-k2.7-code'
-    );
+    const chatModelId = getEnvOrDefault(KIMI_CHAT_MODEL_ENV, 'kimi-k2.7-code');
     const reasoningModelId = getEnvOrDefault(
         KIMI_REASONING_MODEL_ENV,
         'kimi-k2.7-code'

@@ -27,6 +27,7 @@ import type {
 import {
     getProviderMetadata,
     validateInputModalities,
+    validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
@@ -364,6 +365,14 @@ export function createGenerateRequest(
         modelId,
         providerId: provider,
     });
+    if (options.tools) {
+        validateToolSchemaStrictness({
+            tools: options.tools,
+            capabilities,
+            providerId: provider,
+            modelId,
+        });
+    }
     const convertedMessages = convertMessages(options.messages);
     const requestConfig = {
         ...(convertedMessages.systemInstruction

@@ -11,38 +11,59 @@ The `defineTool()` function defines tools (functions) that language models can c
 ## Function signature
 
 ```typescript
-export function defineTool(
-    options: ToolDefinition
-): ToolDefinition
+export function defineTool<TParameters extends z.ZodType>(
+    options: ToolDefinition<TParameters>
+): ToolDefinition<TParameters>;
 
-type ToolDefinition = {
+type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
     name: string;
     description: string;
-    parameters: z.ZodType;
+    parameters: TParameters;
+    strict?: boolean;
 };
 ```
 
 ## Parameters
 
 <ParamField path="name" type="string" required>
-  The unique name of the tool. This is what the model uses to identify and call the tool.
-  
-  Should be descriptive and follow snake_case convention (e.g., `get_weather`, `search_database`).
+    The unique name of the tool. This is what the model uses to identify and
+    call the tool. Should be descriptive and follow snake_case convention (e.g.,
+    `get_weather`, `search_database`).
 </ParamField>
 
 <ParamField path="description" type="string" required>
-  A clear description of what the tool does. This helps the model understand when and how to use it.
-  
-  Should explain the tool's purpose, expected inputs, and what it returns.
+    A clear description of what the tool does. This helps the model understand
+    when and how to use it. Should explain the tool's purpose, expected inputs,
+    and what it returns.
 </ParamField>
 
 <ParamField path="parameters" type="z.ZodType" required>
-  Zod schema defining the tool's input parameters. The model will generate arguments matching this schema.
+    Zod schema defining the tool's input parameters. The model will generate
+    arguments matching this schema.
+</ParamField>
+
+<ParamField path="strict" type="boolean" optional>
+    Opts this tool into provider-enforced adherence to its parameter schema.
+    Omitted or `false` keeps the tool non-strict on every provider.
 </ParamField>
 
 ## Return value
 
 Returns the same `ToolDefinition` object that was passed in. This is a type-safe helper that provides IDE autocompletion and validation.
+
+## Strict schema enforcement
+
+`strict: true` opts a single tool into provider-enforced schema adherence. The
+tool's schema must fit the strict-capable subset (closed objects, every key
+required — use `.nullable()` instead of `.optional()`), which core-ai
+validates locally before the provider request. Check
+`model.capabilities.tools.strictSchemas` before opting tools in.
+
+Strict enforcement does not replace runtime validation. Validate every returned
+`ToolCall.arguments` value with the same Zod schema before executing the tool.
+See [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) in the
+tool-calling guide for the schema contract, error reasons, and provider
+support.
 
 ## Examples
 
@@ -53,11 +74,12 @@ import { defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherTool = defineTool({
-  name: 'get_weather',
-  description: 'Get the current weather for a location',
-  parameters: z.object({
-    location: z.string().describe('City name or zip code')
-  })
+    name: 'get_weather',
+    description: 'Get the current weather for a location',
+    strict: true,
+    parameters: z.object({
+        location: z.string().describe('City name or zip code'),
+    }),
 });
 ```
 
@@ -65,14 +87,18 @@ const weatherTool = defineTool({
 
 ```typescript
 const searchTool = defineTool({
-  name: 'search_database',
-  description: 'Search the product database with filters',
-  parameters: z.object({
-    query: z.string().describe('Search query'),
-    category: z.string().optional().describe('Product category filter'),
-    maxResults: z.number().min(1).max(100).default(10)
-      .describe('Maximum number of results to return')
-  })
+    name: 'search_database',
+    description: 'Search the product database with filters',
+    parameters: z.object({
+        query: z.string().describe('Search query'),
+        category: z.string().optional().describe('Product category filter'),
+        maxResults: z
+            .number()
+            .min(1)
+            .max(100)
+            .default(10)
+            .describe('Maximum number of results to return'),
+    }),
 });
 ```
 
@@ -87,28 +113,26 @@ const openai = createOpenAI();
 const model = openai.chatModel('gpt-5-mini');
 
 const calculatorTool = defineTool({
-  name: 'calculate',
-  description: 'Perform mathematical calculations',
-  parameters: z.object({
-    expression: z.string().describe('Math expression to evaluate')
-  })
+    name: 'calculate',
+    description: 'Perform mathematical calculations',
+    parameters: z.object({
+        expression: z.string().describe('Math expression to evaluate'),
+    }),
 });
 
 const result = await generate({
-  model,
-  messages: [
-    { role: 'user', content: 'What is 142 * 89?' }
-  ],
-  tools: {
-    calculate: calculatorTool
-  }
+    model,
+    messages: [{ role: 'user', content: 'What is 142 * 89?' }],
+    tools: {
+        calculate: calculatorTool,
+    },
 });
 
 if (result.toolCalls.length > 0) {
-  const toolCall = result.toolCalls[0];
-  console.log('Tool:', toolCall.name);
-  console.log('Arguments:', toolCall.arguments);
-  // Output: { expression: '142 * 89' }
+    const toolCall = result.toolCalls[0];
+    console.log('Tool:', toolCall.name);
+    console.log('Arguments:', toolCall.arguments);
+    // Output: { expression: '142 * 89' }
 }
 ```
 
@@ -116,69 +140,70 @@ if (result.toolCalls.length > 0) {
 
 ```typescript
 const tools = {
-  get_weather: defineTool({
-    name: 'get_weather',
-    description: 'Get weather for a location',
-    parameters: z.object({
-      location: z.string()
-    })
-  }),
-  get_time: defineTool({
-    name: 'get_time',
-    description: 'Get current time in a timezone',
-    parameters: z.object({
-      timezone: z.string().describe('IANA timezone name')
-    })
-  })
+    get_weather: defineTool({
+        name: 'get_weather',
+        description: 'Get weather for a location',
+        parameters: z.object({
+            location: z.string(),
+        }),
+    }),
+    get_time: defineTool({
+        name: 'get_time',
+        description: 'Get current time in a timezone',
+        parameters: z.object({
+            timezone: z.string().describe('IANA timezone name'),
+        }),
+    }),
 };
 
 // Implement tool handlers
 const toolHandlers = {
-  get_weather: async (args: { location: string }) => {
-    // Call weather API
-    return `The weather in ${args.location} is sunny, 72°F`;
-  },
-  get_time: async (args: { timezone: string }) => {
-    const time = new Date().toLocaleString('en-US', { 
-      timeZone: args.timezone 
-    });
-    return `Current time in ${args.timezone}: ${time}`;
-  }
+    get_weather: async (args: { location: string }) => {
+        // Call weather API
+        return `The weather in ${args.location} is sunny, 72°F`;
+    },
+    get_time: async (args: { timezone: string }) => {
+        const time = new Date().toLocaleString('en-US', {
+            timeZone: args.timezone,
+        });
+        return `Current time in ${args.timezone}: ${time}`;
+    },
 };
 
 const messages = [
-  { role: 'user' as const, content: 'What\'s the weather in Tokyo?' }
+    { role: 'user' as const, content: "What's the weather in Tokyo?" },
 ];
 
 let result = await generate({
-  model: model,
-  messages,
-  tools
+    model: model,
+    messages,
+    tools,
 });
 
 // Execute tools and continue conversation
 while (result.toolCalls.length > 0) {
-  messages.push({
-    role: 'assistant',
-    parts: result.parts
-  });
-
-  for (const toolCall of result.toolCalls) {
-    const handler = toolHandlers[toolCall.name as keyof typeof toolHandlers];
-    const toolResult = await handler(toolCall.arguments as any);
-
     messages.push({
-      role: 'tool',
-      toolCallId: toolCall.id,
-      content: toolResult
+        role: 'assistant',
+        parts: result.parts,
     });
-  }
-  
-  result = await generate({
-    model: model,
-    messages,
-    tools
-  });
+
+    for (const toolCall of result.toolCalls) {
+        const handler =
+            toolHandlers[toolCall.name as keyof typeof toolHandlers];
+        const toolResult = await handler(toolCall.arguments as any);
+
+        messages.push({
+            role: 'tool',
+            toolCallId: toolCall.id,
+            content: toolResult,
+        });
+    }
+
+    result = await generate({
+        model: model,
+        messages,
+        tools,
+    });
 }
 
 console.log(result.content);
@@ -189,25 +214,33 @@ console.log(result.content);
 
 ```typescript
 const createEventTool = defineTool({
-  name: 'create_calendar_event',
-  description: 'Create a new calendar event',
-  parameters: z.object({
-    title: z.string().describe('Event title'),
-    startTime: z.string().datetime().describe('ISO 8601 start time'),
-    endTime: z.string().datetime().describe('ISO 8601 end time'),
-    attendees: z.array(
-      z.object({
-        name: z.string(),
-        email: z.string().email()
-      })
-    ).optional().describe('List of attendees'),
-    location: z.string().optional(),
-    reminders: z.object({
-      email: z.boolean().default(true),
-      popup: z.number().min(0).optional()
-        .describe('Minutes before event for popup')
-    }).optional()
-  })
+    name: 'create_calendar_event',
+    description: 'Create a new calendar event',
+    parameters: z.object({
+        title: z.string().describe('Event title'),
+        startTime: z.string().datetime().describe('ISO 8601 start time'),
+        endTime: z.string().datetime().describe('ISO 8601 end time'),
+        attendees: z
+            .array(
+                z.object({
+                    name: z.string(),
+                    email: z.string().email(),
+                })
+            )
+            .optional()
+            .describe('List of attendees'),
+        location: z.string().optional(),
+        reminders: z
+            .object({
+                email: z.boolean().default(true),
+                popup: z
+                    .number()
+                    .min(0)
+                    .optional()
+                    .describe('Minutes before event for popup'),
+            })
+            .optional(),
+    }),
 });
 ```
 
@@ -215,17 +248,19 @@ const createEventTool = defineTool({
 
 ```typescript
 const analyzeSentimentTool = defineTool({
-  name: 'analyze_sentiment',
-  description: 'Analyze the sentiment of text',
-  parameters: z.object({
-    text: z.string().describe('Text to analyze'),
-    language: z.enum(['en', 'es', 'fr', 'de'])
-      .default('en')
-      .describe('Language of the text'),
-    includeScore: z.boolean()
-      .default(false)
-      .describe('Include numerical sentiment score')
-  })
+    name: 'analyze_sentiment',
+    description: 'Analyze the sentiment of text',
+    parameters: z.object({
+        text: z.string().describe('Text to analyze'),
+        language: z
+            .enum(['en', 'es', 'fr', 'de'])
+            .default('en')
+            .describe('Language of the text'),
+        includeScore: z
+            .boolean()
+            .default(false)
+            .describe('Include numerical sentiment score'),
+    }),
 });
 ```
 
@@ -233,39 +268,39 @@ const analyzeSentimentTool = defineTool({
 
 ```typescript
 const tools = {
-  search_web: defineTool({
-    name: 'search_web',
-    description: 'Search the web for information',
-    parameters: z.object({
-      query: z.string()
-    })
-  }),
-  
-  get_stock_price: defineTool({
-    name: 'get_stock_price',
-    description: 'Get current stock price',
-    parameters: z.object({
-      symbol: z.string().describe('Stock ticker symbol')
-    })
-  }),
-  
-  convert_currency: defineTool({
-    name: 'convert_currency',
-    description: 'Convert between currencies',
-    parameters: z.object({
-      amount: z.number(),
-      from: z.string().describe('Source currency code'),
-      to: z.string().describe('Target currency code')
-    })
-  })
+    search_web: defineTool({
+        name: 'search_web',
+        description: 'Search the web for information',
+        parameters: z.object({
+            query: z.string(),
+        }),
+    }),
+
+    get_stock_price: defineTool({
+        name: 'get_stock_price',
+        description: 'Get current stock price',
+        parameters: z.object({
+            symbol: z.string().describe('Stock ticker symbol'),
+        }),
+    }),
+
+    convert_currency: defineTool({
+        name: 'convert_currency',
+        description: 'Convert between currencies',
+        parameters: z.object({
+            amount: z.number(),
+            from: z.string().describe('Source currency code'),
+            to: z.string().describe('Target currency code'),
+        }),
+    }),
 };
 
 const result = await generate({
-  model: model,
-  messages: [
-    { role: 'user', content: 'What\'s Tesla\'s stock price in euros?' }
-  ],
-  tools
+    model: model,
+    messages: [
+        { role: 'user', content: "What's Tesla's stock price in euros?" },
+    ],
+    tools,
 });
 
 // Model might call get_stock_price then convert_currency
@@ -276,37 +311,37 @@ const result = await generate({
 ```typescript
 // Auto: Model decides whether to use tools
 const result1 = await generate({
-  model: model,
-  messages: [{ role: 'user', content: 'Hello' }],
-  tools: { get_weather: weatherTool },
-  toolChoice: 'auto' // Default
+    model: model,
+    messages: [{ role: 'user', content: 'Hello' }],
+    tools: { get_weather: weatherTool },
+    toolChoice: 'auto', // Default
 });
 
 // Required: Model must use a tool
 const result2 = await generate({
-  model: model,
-  messages: [{ role: 'user', content: 'Get weather' }],
-  tools: { get_weather: weatherTool },
-  toolChoice: 'required'
+    model: model,
+    messages: [{ role: 'user', content: 'Get weather' }],
+    tools: { get_weather: weatherTool },
+    toolChoice: 'required',
 });
 
 // Force specific tool
 const result3 = await generate({
-  model: model,
-  messages: [{ role: 'user', content: 'Get weather' }],
-  tools: { 
-    get_weather: weatherTool,
-    get_time: timeTool
-  },
-  toolChoice: { type: 'tool', toolName: 'get_weather' }
+    model: model,
+    messages: [{ role: 'user', content: 'Get weather' }],
+    tools: {
+        get_weather: weatherTool,
+        get_time: timeTool,
+    },
+    toolChoice: { type: 'tool', toolName: 'get_weather' },
 });
 
 // None: Disable tools
 const result4 = await generate({
-  model: model,
-  messages: [{ role: 'user', content: 'Hello' }],
-  tools: { get_weather: weatherTool },
-  toolChoice: 'none'
+    model: model,
+    messages: [{ role: 'user', content: 'Hello' }],
+    tools: { get_weather: weatherTool },
+    toolChoice: 'none',
 });
 ```
 
@@ -316,12 +351,12 @@ The tool definition is fully type-safe:
 
 ```typescript
 const userTool = defineTool({
-  name: 'get_user',
-  description: 'Get user information',
-  parameters: z.object({
-    userId: z.number(),
-    includeProfile: z.boolean().optional()
-  })
+    name: 'get_user',
+    description: 'Get user information',
+    parameters: z.object({
+        userId: z.number(),
+        includeProfile: z.boolean().optional(),
+    }),
 });
 
 // TypeScript knows the parameter types
@@ -329,28 +364,32 @@ type ToolParams = z.infer<typeof userTool.parameters>;
 // { userId: number; includeProfile?: boolean | undefined }
 
 const handler = async (args: ToolParams) => {
-  const userId: number = args.userId; // Type-safe
-  const include: boolean | undefined = args.includeProfile; // Type-safe
-  // Fetch and return user data
+    const userId: number = args.userId; // Type-safe
+    const include: boolean | undefined = args.includeProfile; // Type-safe
+    // Fetch and return user data
 };
 ```
 
 ## Best Practices
 
 <Tip>
-  Use descriptive tool names that clearly indicate their purpose. Follow the `snake_case` convention.
+    Use descriptive tool names that clearly indicate their purpose. Follow the
+    `snake_case` convention.
 </Tip>
 
 <Tip>
-  Write clear descriptions that explain what the tool does, when to use it, and what it returns. Good descriptions improve model accuracy.
+    Write clear descriptions that explain what the tool does, when to use it,
+    and what it returns. Good descriptions improve model accuracy.
 </Tip>
 
 <Tip>
-  Use Zod's `.describe()` method on parameters to provide additional context to the model.
+    Use Zod's `.describe()` method on parameters to provide additional context
+    to the model.
 </Tip>
 
 <Warning>
-  Always validate tool results before passing them back to the model. Handle errors gracefully.
+    Always validate tool results before passing them back to the model. Handle
+    errors gracefully.
 </Warning>
 
 ## Common Patterns
@@ -359,12 +398,12 @@ const handler = async (args: ToolParams) => {
 
 ```typescript
 const queryTool = defineTool({
-  name: 'query_database',
-  description: 'Query the database for records',
-  parameters: z.object({
-    table: z.enum(['users', 'products', 'orders']),
-    filters: z.record(z.unknown()).optional()
-  })
+    name: 'query_database',
+    description: 'Query the database for records',
+    parameters: z.object({
+        table: z.enum(['users', 'products', 'orders']),
+        filters: z.record(z.unknown()).optional(),
+    }),
 });
 ```
 
@@ -372,13 +411,13 @@ const queryTool = defineTool({
 
 ```typescript
 const apiTool = defineTool({
-  name: 'call_api',
-  description: 'Make an HTTP API request',
-  parameters: z.object({
-    endpoint: z.string(),
-    method: z.enum(['GET', 'POST', 'PUT', 'DELETE']),
-    body: z.record(z.unknown()).optional()
-  })
+    name: 'call_api',
+    description: 'Make an HTTP API request',
+    parameters: z.object({
+        endpoint: z.string(),
+        method: z.enum(['GET', 'POST', 'PUT', 'DELETE']),
+        body: z.record(z.unknown()).optional(),
+    }),
 });
 ```
 
@@ -386,11 +425,11 @@ const apiTool = defineTool({
 
 ```typescript
 const fileTool = defineTool({
-  name: 'read_file',
-  description: 'Read contents of a file',
-  parameters: z.object({
-    path: z.string(),
-    encoding: z.enum(['utf8', 'base64']).default('utf8')
-  })
+    name: 'read_file',
+    description: 'Read contents of a file',
+    parameters: z.object({
+        path: z.string(),
+        encoding: z.enum(['utf8', 'base64']).default('utf8'),
+    }),
 });
 ```

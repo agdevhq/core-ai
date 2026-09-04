@@ -1,17 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import type {
-    ChatCompletionResponse,
-    CompletionEvent,
+import {
+    type ChatCompletionResponse,
+    type CompletionEvent,
 } from '@mistralai/mistralai/models/components';
 import {
     defineTool,
+    ToolSchemaStrictnessError,
     ValidationError,
     type GenerateOptions,
     type Message,
     type ToolSet,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
+import { toAsyncIterable } from '@core-ai/testing';
+
 import {
     createGenerateRequest,
     createStructuredOutputOptions,
@@ -23,7 +26,6 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { getMistralModelCapabilities } from './model-capabilities.js';
-import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
     it('should convert system and user text messages', () => {
@@ -181,6 +183,112 @@ describe('convertTools', () => {
             },
         });
     });
+
+    it('should never serialize a strict field on the Mistral wire', () => {
+        const parameters = z.object({ query: z.string() });
+        const tools: ToolSet = {
+            provider_default: defineTool({
+                name: 'provider_default',
+                description: 'Use the provider default',
+                parameters,
+            }),
+            standard: defineTool({
+                name: 'standard',
+                description: 'Explicitly non-strict',
+                parameters,
+                strict: false,
+            }),
+        };
+
+        expect(convertTools(tools)).toEqual([
+            {
+                type: 'function',
+                function: {
+                    name: 'provider_default',
+                    description: 'Use the provider default',
+                    parameters: {
+                        $schema: 'https://json-schema.org/draft/2020-12/schema',
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string' },
+                        },
+                        required: ['query'],
+                    },
+                },
+            },
+            {
+                type: 'function',
+                function: {
+                    name: 'standard',
+                    description: 'Explicitly non-strict',
+                    parameters: {
+                        $schema: 'https://json-schema.org/draft/2020-12/schema',
+                        type: 'object',
+                        properties: {
+                            query: { type: 'string' },
+                        },
+                        required: ['query'],
+                    },
+                },
+            },
+        ]);
+    });
+
+    it.each([
+        'mistral-small-latest',
+        'mistral-large-latest',
+        'mistral-medium-latest',
+        'codestral-latest',
+        'self-hosted-model',
+    ])('should reject explicit strict mode for unverified %s', (modelId) => {
+        try {
+            createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Search' }],
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search',
+                        strict: true,
+                        parameters: z.object({
+                            query: z.string(),
+                        }),
+                    }),
+                },
+            });
+            expect.unreachable('expected strict tool validation to fail');
+        } catch (error) {
+            expect(error).toBeInstanceOf(ToolSchemaStrictnessError);
+            expect(error).toMatchObject({
+                providerId: 'mistral',
+                modelId,
+                toolNames: ['search'],
+                reason: 'unsupported',
+            });
+        }
+    });
+
+    it('should accept explicitly non-strict tools for any model', () => {
+        const request = createGenerateRequest('mistral-large-latest', {
+            messages: [{ role: 'user', content: 'Search' }],
+            tools: {
+                search: defineTool({
+                    name: 'search',
+                    description: 'Search',
+                    strict: false,
+                    parameters: z.object({
+                        query: z.string(),
+                    }),
+                }),
+            },
+        });
+
+        const tool = request.tools?.[0];
+        expect(tool?.type).toBe('function');
+        if (!tool || tool.type !== 'function') {
+            throw new Error('expected a function tool');
+        }
+        expect(tool.function).not.toHaveProperty('strict');
+    });
 });
 
 describe('convertToolChoice', () => {
@@ -228,6 +336,15 @@ describe('structured output helpers', () => {
                 description: 'Structured weather output',
             },
         });
+
+        const request = createGenerateRequest('mistral-small-latest', result);
+        const structuredTool = request.tools?.[0];
+        expect(structuredTool?.type).toBe('function');
+        if (!structuredTool || structuredTool.type !== 'function') {
+            throw new Error('expected a function tool');
+        }
+        expect(structuredTool.function).not.toHaveProperty('strict');
+        expect(structuredTool.function.parameters).toHaveProperty('$schema');
     });
 
     it('should derive default structured output tool name', () => {

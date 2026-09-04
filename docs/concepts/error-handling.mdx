@@ -13,6 +13,7 @@ core-ai provides a hierarchy of error types that help you handle failures gracef
 Error
 └── CoreAIError
     ├── ValidationError
+    │   ├── ToolSchemaStrictnessError
     │   └── UnsupportedInputModalityError
     ├── AbortedError
     │   └── StreamAbortedError
@@ -82,7 +83,16 @@ class ValidationError extends CoreAIError {
 - Empty input for embeddings
 - Empty prompt for image generation
 - Unsupported input modalities in user messages (`UnsupportedInputModalityError`)
+- Unsupported, excessive, or non-strict-capable strict tool schemas
+  (`ToolSchemaStrictnessError`)
 - Invalid local request configuration
+
+`ToolSchemaStrictnessError` includes typed `providerId`, `modelId`,
+`toolNames`, `reason`, and optional `maxStrictTools` and `violations` fields.
+Its `reason` is one of `'unsupported'`, `'limit-exceeded'`, or
+`'invalid-schema'`. Core-ai throws it before the provider request. See the
+[errors reference](/api/core/errors#toolschemastrictnesserror) for the complete
+shape.
 
 ## AbortedError
 

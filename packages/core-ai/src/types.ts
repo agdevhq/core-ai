@@ -158,10 +158,19 @@ export type ToolResultMessage = {
     metadata?: Record<string, unknown>;
 };
 
-export type ToolDefinition = {
+export type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
     name: string;
     description: string;
-    parameters: z.ZodType;
+    parameters: TParameters;
+    /**
+     * `true` opts this tool into provider-enforced schema adherence. The
+     * schema must then satisfy the strict-capable schema contract (closed
+     * objects, every key required — use `.nullable()` instead of
+     * `.optional()` — and the shared keyword subset). Omitted or `false`
+     * means non-strict on every provider. Check
+     * `model.capabilities.tools.strictSchemas` before opting in.
+     */
+    strict?: boolean;
 };
 
 export type ToolSet = Record<string, ToolDefinition>;
@@ -180,12 +189,7 @@ export type ToolChoiceMode = 'auto' | 'none' | 'required' | 'tool';
  * `file` covers document attachments such as PDFs. `video` is reserved for a
  * future input part.
  */
-export type ChatInputModality =
-    | 'text'
-    | 'image'
-    | 'file'
-    | 'audio'
-    | 'video';
+export type ChatInputModality = 'text' | 'image' | 'file' | 'audio' | 'video';
 
 /**
  * Modalities a chat model can emit as assistant content.
@@ -195,6 +199,10 @@ export type ChatInputModality =
  * from `generate` / `stream`, not those dedicated APIs.
  */
 export type ChatOutputModality = 'text' | 'image' | 'audio' | 'video';
+
+export type ToolSchemaStrictnessCapabilities =
+    | { supported: false }
+    | { supported: true; maxStrictTools?: number };
 
 export type ModelCapabilities = {
     reasoning: {
@@ -215,6 +223,9 @@ export type ModelCapabilities = {
          * `'text'`. Does not describe dedicated `ImageModel` generation.
          */
         output: readonly ChatOutputModality[];
+    };
+    tools: {
+        strictSchemas: ToolSchemaStrictnessCapabilities;
     };
 };
 

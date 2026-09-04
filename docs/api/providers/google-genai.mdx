@@ -257,6 +257,13 @@ MB. Use base64 data only; core-ai does not upload audio through the Files API.
 `modalities.output` is `['text']` for chat models. Native image generation uses
 `imageModel()`.
 
+### Strict tool schemas
+
+Gemini has no strict tool mode: every model reports
+`model.capabilities.tools.strictSchemas` as `{ supported: false }`, and
+`strict: true` throws `ToolSchemaStrictnessError` locally. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas).
+
 ### Thinking modes
 
 Gemini models use either thinking levels or token budgets. Models whose
@@ -291,7 +298,9 @@ import type { GoogleReasoningMetadata } from '@core-ai/google-genai';
 const result = await generate({
     model: google.chatModel('gemini-3.1-pro'),
     messages: [{ role: 'user', content: 'Search for something.' }],
-    tools: { /* ... */ },
+    tools: {
+        /* ... */
+    },
 });
 
 for (const part of result.parts) {
