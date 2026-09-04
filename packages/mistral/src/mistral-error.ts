@@ -75,7 +75,10 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
         });
     }
 
-    if (isTransientUnavailableStatus(statusCode)) {
+    if (
+        isTransientUnavailableStatus(statusCode) ||
+        indicatesMistralCapacityExceeded(message, statusCode)
+    ) {
         return new ServiceUnavailableError(message, 'mistral', options);
     }
 
@@ -109,6 +112,24 @@ function indicatesMistralOverload(text: string, statusCode?: number): boolean {
     }
 
     return /\boverloaded\b/i.test(text);
+}
+
+/**
+ * Backend capacity — not user RPM/TPM. HTTP 503 already maps via status;
+ * in-band stream errors carry the phrase with no status.
+ */
+function indicatesMistralCapacityExceeded(
+    text: string,
+    statusCode?: number
+): boolean {
+    if (
+        statusCode !== undefined &&
+        !OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES.has(statusCode)
+    ) {
+        return false;
+    }
+
+    return /service tier capacity exceeded/i.test(text);
 }
 
 function getContextLengthDetails(

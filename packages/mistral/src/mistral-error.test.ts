@@ -118,6 +118,18 @@ describe('wrapMistralError', () => {
         expect(wrapped).not.toBeInstanceOf(ModelOverloadedError);
     });
 
+    it('should map in-band service tier capacity exceeded without status to ServiceUnavailableError', () => {
+        const error = {
+            message: 'service tier capacity exceeded',
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect(wrapped).not.toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ModelOverloadedError);
+    });
+
     it('should map 503 to ServiceUnavailableError', () => {
         const error = {
             message: 'Unavailable',

@@ -40,7 +40,7 @@ Compiled from official docs, SDK source, and user-reported payloads (forums, Git
 | Capacity on 429 (`No capacity available…`) | Google       | Keep as rate limit; don't overload-match on 429                  | **Correct**                                                       |
 | Alternate Google context template          | Google       | Add `Unable to submit request because the input token count is…` | **Closed**                                                        |
 | Streaming prefix / `throttled` on 5xx      | Google       | Strip `got status:` prefixes; match Vertex 500 throttled wording | **Closed**                                                        |
-| `"service tier capacity exceeded"`         | Mistral      | `ServiceUnavailableError`; do **not** map to rate limit          | **Closed** — explicit regression test                             |
+| `"service tier capacity exceeded"`         | Mistral      | `ServiceUnavailableError`; do **not** map to rate limit          | **Closed** — 503 and in-band (no status)                          |
 
 ## Confidence legend
 
