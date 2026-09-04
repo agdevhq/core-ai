@@ -8,6 +8,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     ServiceUnavailableError,
     asRecord,
@@ -57,6 +58,10 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
             ...options,
             ...contextLength,
         });
+    }
+
+    if (statusCode === 402) {
+        return new ProviderQuotaExceededError(message, 'mistral', options);
     }
 
     if (indicatesMistralOverload(message, statusCode)) {

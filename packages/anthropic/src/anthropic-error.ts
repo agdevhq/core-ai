@@ -4,6 +4,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     ServiceUnavailableError,
     asRecord,
@@ -61,6 +62,10 @@ export function wrapAnthropicError(
         return new ModelOverloadedError(message, provider, options);
     }
 
+    if (isAnthropicQuotaExceeded(errorType, statusCode)) {
+        return new ProviderQuotaExceededError(message, provider, options);
+    }
+
     if (isAnthropicRateLimit(error, statusCode, errorType)) {
         return new RateLimitError(message, provider, {
             ...options,
@@ -105,6 +110,13 @@ function isAnthropicOverloaded(
             statusCode
         )
     );
+}
+
+function isAnthropicQuotaExceeded(
+    errorType: string | undefined,
+    statusCode: number | undefined
+): boolean {
+    return statusCode === 402 || errorType === 'billing_error';
 }
 
 /**
