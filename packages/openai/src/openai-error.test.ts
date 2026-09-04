@@ -344,6 +344,34 @@ describe('wrapOpenAIError', () => {
                 'server_error'
             );
         });
+
+        it('should map Azure no_capacity to ModelOverloadedError', () => {
+            const error = new APIError(
+                undefined,
+                { code: 'no_capacity', message: '' },
+                '',
+                undefined
+            );
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+            expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect((wrapped as ModelOverloadedError).code).toBe('no_capacity');
+            expect(wrapped.provider).toBe('azure-openai');
+        });
+
+        it('should map Azure NoCapacity without status to ModelOverloadedError', () => {
+            const error = new APIError(
+                undefined,
+                { code: 'NoCapacity', message: 'high demand' },
+                'high demand',
+                undefined
+            );
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+            expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+            expect((wrapped as ModelOverloadedError).code).toBe('NoCapacity');
+        });
     });
 
     describe('provider code', () => {

@@ -235,9 +235,10 @@ function isOpenAIInsufficientQuota(error: unknown): boolean {
     );
 }
 
-/** Azure system capacity on 429 — overload, not org rate limit. */
+/** Azure system capacity — overload, not org rate limit. HTTP 429 uses `NoCapacity`; in-band stream errors use `no_capacity`. */
 function isAzureOpenAINoCapacity(error: unknown): boolean {
-    return getProviderErrorCode(error) === 'NoCapacity';
+    const code = getProviderErrorCode(error);
+    return code === 'NoCapacity' || code === 'no_capacity';
 }
 
 function getProviderMessage(error: unknown): string | undefined {
