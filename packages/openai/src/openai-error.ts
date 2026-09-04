@@ -4,6 +4,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     ServiceUnavailableError,
     asRecord,
@@ -74,8 +75,8 @@ export function wrapOpenAIError(
         return new ServiceUnavailableError(message, provider, options);
     }
 
-    if (isOpenAIInsufficientQuota(error)) {
-        return new ProviderError(message, provider, options);
+    if (isOpenAIQuotaExceeded(error, statusCode)) {
+        return new ProviderQuotaExceededError(message, provider, options);
     }
 
     if (isAzureOpenAINoCapacity(error)) {
@@ -225,10 +226,14 @@ function isAzureOpenAIBackendCapacityError(error: unknown): boolean {
  * `insufficient_quota`; some OpenAI-compatible endpoints report
  * `credit_balance_exhausted`.
  */
-function isOpenAIInsufficientQuota(error: unknown): boolean {
+function isOpenAIQuotaExceeded(
+    error: unknown,
+    statusCode: number | undefined
+): boolean {
     const code = getProviderErrorCode(error);
     const type = getProviderErrorType(error);
     return (
+        statusCode === 402 ||
         code === 'insufficient_quota' ||
         type === 'insufficient_quota' ||
         code === 'credit_balance_exhausted'

@@ -5,6 +5,7 @@ import {
     CoreAIError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     RetryableProviderError,
     ServiceUnavailableError,
@@ -84,6 +85,23 @@ describe('classified ProviderError subclasses', () => {
         expect(error.name).toBe('ContextLengthExceededError');
         expect(error.maxTokens).toBe(8192);
         expect(error.actualTokens).toBe(10000);
+    });
+
+    it('should create ProviderQuotaExceededError as non-retryable', () => {
+        const error = new ProviderQuotaExceededError(
+            'credit balance exhausted',
+            'openai',
+            {
+                statusCode: 429,
+                code: 'insufficient_quota',
+            }
+        );
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error).not.toBeInstanceOf(RetryableProviderError);
+        expect(error.name).toBe('ProviderQuotaExceededError');
+        expect(error.statusCode).toBe(429);
+        expect(error.code).toBe('insufficient_quota');
     });
 
     it('should create RateLimitError as retryable with retry-after', () => {

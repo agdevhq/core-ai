@@ -4,6 +4,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     ServiceUnavailableError,
     getErrorMessage,
@@ -57,6 +58,10 @@ export function wrapGoogleError(
             ...options,
             ...contextLength,
         });
+    }
+
+    if (effectiveHttp === 402) {
+        return new ProviderQuotaExceededError(message, provider, options);
     }
 
     if (indicatesGoogleOverload(combinedText, effectiveHttp)) {
