@@ -144,6 +144,24 @@ export class ContextLengthExceededError extends ProviderError {
     }
 }
 
+export type ProviderQuotaExceededErrorOptions = ProviderErrorOptions;
+
+/**
+ * The provider account cannot accept requests because its billing quota or
+ * credit balance is exhausted. This is not retryable until the account
+ * configuration changes.
+ */
+export class ProviderQuotaExceededError extends ProviderError {
+    constructor(
+        message: string,
+        provider: string,
+        options: ProviderQuotaExceededErrorOptions = {}
+    ) {
+        super(message, provider, options);
+        this.name = 'ProviderQuotaExceededError';
+    }
+}
+
 export type RateLimitErrorOptions = ProviderErrorOptions & {
     retryAfterSeconds?: number;
 };

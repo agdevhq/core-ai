@@ -5,6 +5,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     RetryableProviderError,
     ServiceUnavailableError,
@@ -81,6 +82,18 @@ describe('wrapMistralError', () => {
 
         const wrapped = wrapMistralError(error);
         expect(wrapped).toBeInstanceOf(RateLimitError);
+    });
+
+    it('should map HTTP 402 to ProviderQuotaExceededError', () => {
+        const error = {
+            message: 'Payment required',
+            statusCode: 402,
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        expect((wrapped as ProviderQuotaExceededError).statusCode).toBe(402);
     });
 
     it('should map overload copy on 503 to ModelOverloadedError', () => {

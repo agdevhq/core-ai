@@ -5,6 +5,7 @@ import {
     ContextLengthExceededError,
     ModelOverloadedError,
     ProviderError,
+    ProviderQuotaExceededError,
     RateLimitError,
     RetryableProviderError,
     ServiceUnavailableError,
@@ -149,7 +150,7 @@ describe('wrapOpenAIError', () => {
             expect(classified.retryAfterSeconds).toBe(60);
         });
 
-        it('should map insufficient_quota on 429 to non-retryable ProviderError', () => {
+        it('should map insufficient_quota on 429 to ProviderQuotaExceededError', () => {
             const error = APIError.generate(
                 429,
                 {
@@ -166,14 +167,18 @@ describe('wrapOpenAIError', () => {
             );
 
             const wrapped = wrapOpenAIError(error);
-            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
             expect(wrapped).not.toBeInstanceOf(RateLimitError);
             expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
-            expect((wrapped as ProviderError).statusCode).toBe(429);
-            expect((wrapped as ProviderError).code).toBe('insufficient_quota');
+            expect((wrapped as ProviderQuotaExceededError).statusCode).toBe(
+                429
+            );
+            expect((wrapped as ProviderQuotaExceededError).code).toBe(
+                'insufficient_quota'
+            );
         });
 
-        it('should map credit_balance_exhausted on 429 to non-retryable ProviderError', () => {
+        it('should map credit_balance_exhausted on 429 to ProviderQuotaExceededError', () => {
             const error = {
                 status: 429,
                 code: 'credit_balance_exhausted',
@@ -184,10 +189,24 @@ describe('wrapOpenAIError', () => {
             };
 
             const wrapped = wrapOpenAIError(error);
-            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
             expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
-            expect((wrapped as ProviderError).code).toBe(
+            expect((wrapped as ProviderQuotaExceededError).code).toBe(
                 'credit_balance_exhausted'
+            );
+        });
+
+        it('should map HTTP 402 to ProviderQuotaExceededError', () => {
+            const error = {
+                status: 402,
+                message: 'Payment required',
+            };
+
+            const wrapped = wrapOpenAIError(error);
+            expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+            expect((wrapped as ProviderQuotaExceededError).statusCode).toBe(
+                402
             );
         });
 
@@ -220,7 +239,7 @@ describe('wrapOpenAIError', () => {
             };
 
             const wrapped = wrapOpenAIError(error);
-            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).toBeInstanceOf(ProviderQuotaExceededError);
             expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
         });
 

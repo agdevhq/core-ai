@@ -29,6 +29,24 @@ describe('getGoogleModelCapabilities', () => {
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
     });
 
+    it.each([
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-pro',
+        'gemini-3.1-pro-preview',
+        'gemini-3.1-flash-lite',
+        'gemini-3.1-flash-lite-preview',
+        'gemini-3-pro',
+    ])('should resolve thinking-level capabilities for %s', (modelId) => {
+        const capabilities = getGoogleModelCapabilities(modelId);
+        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
+        expect(capabilities.reasoning.mode).toBe('always-on');
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
+    });
+
     it('should resolve required thinking-budget capabilities for gemini-2.5-pro', () => {
         const capabilities = getGoogleModelCapabilities('gemini-2.5-pro');
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingBudget');
