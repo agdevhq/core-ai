@@ -1,3 +1,4 @@
+import { APIError } from 'openai';
 import type {
     Response,
     ResponseCreateParamsNonStreaming,
@@ -467,6 +468,14 @@ export function mapGenerateResponse(
     response: Response,
     adapterOptions: ResponsesReasoningAdapterOptions = {}
 ): GenerateResult {
+    if (response.status === 'failed') {
+        throw createInBandStreamError(
+            response.error ?? {
+                message: 'Response failed without error details',
+            }
+        );
+    }
+
     const providerId = adapterOptions.providerId ?? DEFAULT_PROVIDER_ID;
     const parts: AssistantContentPart[] = [];
 
@@ -770,6 +779,18 @@ export async function* transformStream(
     };
 
     for await (const event of stream) {
+        if (event.type === 'error') {
+            throw createInBandStreamError(event);
+        }
+
+        if (event.type === 'response.failed') {
+            throw createInBandStreamError(
+                event.response.error ?? {
+                    message: 'Response failed without error details',
+                }
+            );
+        }
+
         if (event.type === 'response.reasoning_summary_text.delta') {
             const summaryPart = {
                 itemId: event.item_id,
@@ -934,7 +955,10 @@ export async function* transformStream(
                 }
 
                 const reasoningEndEvent = getNextReasoningEndEvent(
-                    createReasoningProviderMetadata(providerId, encryptedContent)
+                    createReasoningProviderMetadata(
+                        providerId,
+                        encryptedContent
+                    )
                 );
                 if (reasoningEndEvent) {
                     yield reasoningEndEvent;
@@ -976,7 +1000,10 @@ export async function* transformStream(
             continue;
         }
 
-        if (event.type === 'response.completed') {
+        if (
+            event.type === 'response.completed' ||
+            event.type === 'response.incomplete'
+        ) {
             latestResponse = event.response;
 
             yield* closeText();
@@ -1034,6 +1061,24 @@ export async function* transformStream(
         finishReason,
         usage,
     };
+}
+
+type InBandStreamErrorBody = {
+    code?: string | null;
+    message: string;
+    param?: string | null;
+};
+
+/**
+ * The Responses API delivers failures after the request was accepted
+ * (HTTP 200) as `error` / `response.failed` events or a unary
+ * `status: 'failed'` body. `openai-node` only throws for payloads with a
+ * nested `error` field, so these shapes reach the adapter as ordinary
+ * results. Raise them the same way the SDK does for nested in-band errors
+ * so `wrapOpenAIError` classifies them from `code` / `message`.
+ */
+function createInBandStreamError(body: InBandStreamErrorBody): APIError {
+    return new APIError(undefined, body, body.message, undefined);
 }
 
 function mapReasoningToRequestFields(

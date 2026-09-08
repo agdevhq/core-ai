@@ -25,22 +25,23 @@ Compiled from official docs, SDK source, and user-reported payloads (forums, Git
 
 ## Gaps vs current wrappers (high priority)
 
-| Gap                                        | Provider     | Research recommendation                                          | Status                                                            |
-| ------------------------------------------ | ------------ | ---------------------------------------------------------------- | ----------------------------------------------------------------- |
-| `insufficient_quota` on 429                | OpenAI       | Non-retryable `ProviderError` (or dedicated billing error)       | **Closed** — plain `ProviderError`                                |
-| Azure `NoCapacity`                         | OpenAI/Azure | `ModelOverloadedError`                                           | **Closed**                                                        |
-| Azure `retry-after-ms`                     | OpenAI/Azure | Parse ms header                                                  | **Closed** — shared `parseRetryAfterSeconds`                      |
-| Responses streaming nested `error`         | OpenAI       | Normalize nested event shape                                     | **Closed** for thrown/nested body extraction (no adapter rewrite) |
-| Azure `"Backend error."`                   | OpenAI/Azure | `ServiceUnavailableError`                                        | **Closed**                                                        |
-| OpenAI overload phrases                    | OpenAI       | —                                                                | **Closed** — `/\boverloaded\b/`                                   |
-| Streaming SSE overload (status lost)       | Anthropic    | Prefer `APIError.type`                                           | **Closed** — prefer `APIError.type`                               |
-| `rate_limit_error` + “prompt is too long”  | Anthropic    | Exclude `rate_limit_error` before context match                  | **Closed**                                                        |
-| Vertex single-level Google envelope        | Anthropic    | Handle `{error:{code,status}}`                                   | **Closed**                                                        |
-| 499 CANCELLED as abort                     | Google       | Do **not** treat all 499 as abort                                | **Closed** — stays `ProviderError` (by design)                    |
-| Capacity on 429 (`No capacity available…`) | Google       | Keep as rate limit; don't overload-match on 429                  | **Correct**                                                       |
-| Alternate Google context template          | Google       | Add `Unable to submit request because the input token count is…` | **Closed**                                                        |
-| Streaming prefix / `throttled` on 5xx      | Google       | Strip `got status:` prefixes; match Vertex 500 throttled wording | **Closed**                                                        |
-| `"service tier capacity exceeded"`         | Mistral      | `ServiceUnavailableError`; do **not** map to rate limit          | **Closed** — explicit regression test                             |
+| Gap                                        | Provider     | Research recommendation                                          | Status                                                                                               |
+| ------------------------------------------ | ------------ | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `insufficient_quota` on 429                | OpenAI       | Non-retryable `ProviderError` (or dedicated billing error)       | **Closed** — plain `ProviderError`                                                                   |
+| Azure `NoCapacity`                         | OpenAI/Azure | `ModelOverloadedError`                                           | **Closed**                                                                                           |
+| Azure `retry-after-ms`                     | OpenAI/Azure | Parse ms header                                                  | **Closed** — shared `parseRetryAfterSeconds`                                                         |
+| Responses streaming nested `error`         | OpenAI       | Normalize nested event shape                                     | **Closed** for thrown/nested body extraction (no adapter rewrite)                                    |
+| Responses flat `error` / `response.failed` | OpenAI       | SDK never throws these; adapter must raise them                  | **Closed** — adapter raises `APIError`; was silent `unknown` finish                                  |
+| Azure `"Backend error."`                   | OpenAI/Azure | `ServiceUnavailableError`                                        | **Closed**                                                                                           |
+| OpenAI overload phrases                    | OpenAI       | —                                                                | **Closed** — `/\boverloaded\b/`                                                                      |
+| Streaming SSE overload (status lost)       | Anthropic    | Prefer `APIError.type`                                           | **Closed** — prefer `APIError.type`                                                                  |
+| `rate_limit_error` + “prompt is too long”  | Anthropic    | Exclude `rate_limit_error` before context match                  | **Closed**                                                                                           |
+| Vertex single-level Google envelope        | Anthropic    | Handle `{error:{code,status}}`                                   | **Closed**                                                                                           |
+| 499 CANCELLED as abort                     | Google       | Do **not** treat all 499 as abort                                | **Closed** — stays `ProviderError` (by design)                                                       |
+| Capacity on 429 (`No capacity available…`) | Google       | Keep as rate limit; don't overload-match on 429                  | **Correct**                                                                                          |
+| Alternate Google context template          | Google       | Add `Unable to submit request because the input token count is…` | **Closed**                                                                                           |
+| Streaming prefix / `throttled` on 5xx      | Google       | Strip `got status:` prefixes; match Vertex 500 throttled wording | **Closed**                                                                                           |
+| `"service tier capacity exceeded"`         | Mistral      | Backend capacity; do **not** map to rate limit                   | **Closed** — `ModelOverloadedError` on 5xx and in-band (no status), same class as Azure `NoCapacity` |
 
 ## Confidence legend
 

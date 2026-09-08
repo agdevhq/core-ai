@@ -100,6 +100,11 @@ function isMistralRateLimit(
     return isRateLimitStatus(statusCode) || errorType === 'rate_limit_error';
 }
 
+/**
+ * Backend capacity, not user RPM/TPM — the same condition as Azure
+ * `NoCapacity`. `service tier capacity exceeded` arrives on HTTP 503 or as an
+ * in-band stream error with no status.
+ */
 function indicatesMistralOverload(text: string, statusCode?: number): boolean {
     if (
         statusCode !== undefined &&
@@ -108,7 +113,10 @@ function indicatesMistralOverload(text: string, statusCode?: number): boolean {
         return false;
     }
 
-    return /\boverloaded\b/i.test(text);
+    return (
+        /\boverloaded\b/i.test(text) ||
+        /service tier capacity exceeded/i.test(text)
+    );
 }
 
 function getContextLengthDetails(

@@ -106,15 +106,38 @@ describe('wrapMistralError', () => {
         expect(wrapped).toBeInstanceOf(ModelOverloadedError);
     });
 
-    it('should map service tier capacity exceeded on 503 to ServiceUnavailableError', () => {
+    it('should map service tier capacity exceeded on 503 to ModelOverloadedError', () => {
         const error = {
             message: 'service tier capacity exceeded',
             statusCode: 503,
         };
 
         const wrapped = wrapMistralError(error);
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(ModelOverloadedError);
         expect(wrapped).not.toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should map in-band service tier capacity exceeded without status to ModelOverloadedError', () => {
+        const error = {
+            message: 'service tier capacity exceeded',
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect(wrapped).not.toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should not treat service tier capacity exceeded on 429 as overload', () => {
+        const error = {
+            message: 'service tier capacity exceeded',
+            statusCode: 429,
+        };
+
+        const wrapped = wrapMistralError(error);
+        expect(wrapped).toBeInstanceOf(RateLimitError);
         expect(wrapped).not.toBeInstanceOf(ModelOverloadedError);
     });
 
