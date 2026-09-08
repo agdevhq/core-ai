@@ -66,13 +66,13 @@ Do not treat generic 400/422 as context length.
 
 ### Overload / capacity
 
-| Status | Signal                                                    | Confidence                                                                              |
-| ------ | --------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| 503    | Official: temporarily **overloaded** or under maintenance | High (status); Low (exact body)                                                         |
-| 503    | `service tier capacity exceeded`                          | High — map to **ServiceUnavailable**, not rate limit or overload-unless-message-matches |
-| 503    | `unreachable_backend - Internal server error`             | Medium                                                                                  |
-| 5xx    | `\boverloaded\b` in message                               | Medium — reasonable heuristic; not a documented body string                             |
-| 529    | Third-party only (e.g. prism-php mapping)                 | **Low** — ignore unless confirmed; glossary/SDK HTTPStatus enum have no 529             |
+| Status | Signal                                                    | Confidence                                                                                    |
+| ------ | --------------------------------------------------------- | --------------------------------------------------------------------------------------------- |
+| 503    | Official: temporarily **overloaded** or under maintenance | High (status); Low (exact body)                                                               |
+| 503    | `service tier capacity exceeded`                          | High — backend capacity; map to **ModelOverloaded** (like Azure `NoCapacity`), not rate limit |
+| 503    | `unreachable_backend - Internal server error`             | Medium                                                                                        |
+| 5xx    | `\boverloaded\b` in message                               | Medium — reasonable heuristic; not a documented body string                                   |
+| 529    | Third-party only (e.g. prism-php mapping)                 | **Low** — ignore unless confirmed; glossary/SDK HTTPStatus enum have no 529                   |
 
 ### Service unavailable / 5xx
 
@@ -105,20 +105,21 @@ Do not treat generic 400/422 as context length.
 
 1. **AbortedError** — `RequestAbortedError` / `AbortError` (not `RequestTimeoutError`)
 2. **ContextLengthExceededError** — `/too large for model/i` + type in `{invalid_request_error, invalid_request_invalid_args, undefined}` on ~400
-3. **ModelOverloadedError** — 5xx + `\boverloaded\b` only; **exclude 429**
+3. **ModelOverloadedError** — 5xx or no status + `\boverloaded\b` / `service tier capacity exceeded`; **exclude 429**
 4. **RateLimitError** — `429` or `type === 'rate_limit_error'`; attach `Retry-After`
-5. **ServiceUnavailableError** — remaining 5xx (including `service tier capacity exceeded` without “overloaded”)
+5. **ServiceUnavailableError** — remaining 5xx
 6. **ProviderError** — else (including undecided `RequestTimeoutError` semantics)
 
 ## Gaps vs current `wrapMistralError`
 
-| Gap                                                                      | Status                                                                                                 |
-| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| `service tier capacity exceeded`                                         | **Closed** — `ServiceUnavailableError` on 503 and in-band (no status); not rate limit or overload      |
-| Alternate context wording (`exceeds the model's maximum context length`) | **Open** — only `too large for model` matched                                                          |
-| `RequestTimeoutError`                                                    | **Open** — falls through to `ProviderError`; decide product semantics                                  |
-| 422 `message` hardening                                                  | **Open** — `getString()` drops non-string; stringified JSON in `message` not parsed for `type`/content |
-| HTTP-date `Retry-After`                                                  | **Open** in core-ai helper — SDK parses dates; `parseRetryAfterSeconds` only handles integer seconds   |
+| Gap                                                                      | Status                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `service tier capacity exceeded`                                         | **Closed** — `ModelOverloadedError` on 5xx and in-band (no status); not rate limit. Same class as Azure `NoCapacity` / Anthropic `overloaded_error`                                                                                                                                                                                      |
+| In-band error transport shape                                            | **Verify** — `client.chat.stream` parses every `data:` payload through the `CompletionChunk` zod schema (`id`, `model`, `choices` required); a non-chunk error body would surface as a `ZodError` whose message is the issue list, not the provider phrase. Capture a real mid-stream payload to confirm what reaches `wrapMistralError` |
+| Alternate context wording (`exceeds the model's maximum context length`) | **Open** — only `too large for model` matched                                                                                                                                                                                                                                                                                            |
+| `RequestTimeoutError`                                                    | **Open** — falls through to `ProviderError`; decide product semantics                                                                                                                                                                                                                                                                    |
+| 422 `message` hardening                                                  | **Open** — `getString()` drops non-string; stringified JSON in `message` not parsed for `type`/content                                                                                                                                                                                                                                   |
+| HTTP-date `Retry-After`                                                  | **Open** in core-ai helper — SDK parses dates; `parseRetryAfterSeconds` only handles integer seconds                                                                                                                                                                                                                                     |
 
 ## Sources
 

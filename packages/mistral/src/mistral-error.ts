@@ -75,10 +75,7 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
         });
     }
 
-    if (
-        isTransientUnavailableStatus(statusCode) ||
-        indicatesMistralCapacityExceeded(message, statusCode)
-    ) {
+    if (isTransientUnavailableStatus(statusCode)) {
         return new ServiceUnavailableError(message, 'mistral', options);
     }
 
@@ -103,6 +100,11 @@ function isMistralRateLimit(
     return isRateLimitStatus(statusCode) || errorType === 'rate_limit_error';
 }
 
+/**
+ * Backend capacity, not user RPM/TPM — the same condition as Azure
+ * `NoCapacity`. `service tier capacity exceeded` arrives on HTTP 503 or as an
+ * in-band stream error with no status.
+ */
 function indicatesMistralOverload(text: string, statusCode?: number): boolean {
     if (
         statusCode !== undefined &&
@@ -111,25 +113,10 @@ function indicatesMistralOverload(text: string, statusCode?: number): boolean {
         return false;
     }
 
-    return /\boverloaded\b/i.test(text);
-}
-
-/**
- * Backend capacity — not user RPM/TPM. HTTP 503 already maps via status;
- * in-band stream errors carry the phrase with no status.
- */
-function indicatesMistralCapacityExceeded(
-    text: string,
-    statusCode?: number
-): boolean {
-    if (
-        statusCode !== undefined &&
-        !OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES.has(statusCode)
-    ) {
-        return false;
-    }
-
-    return /service tier capacity exceeded/i.test(text);
+    return (
+        /\boverloaded\b/i.test(text) ||
+        /service tier capacity exceeded/i.test(text)
+    );
 }
 
 function getContextLengthDetails(

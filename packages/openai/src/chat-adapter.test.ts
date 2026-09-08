@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
+import { APIError } from 'openai';
 import type {
     Response,
     ResponseStreamEvent,
 } from 'openai/resources/responses/responses';
 import {
+    RateLimitError,
+    ServiceUnavailableError,
     UnsupportedInputModalityError,
     ValidationError,
     type GenerateOptions,
     type Message,
+    type StreamEvent,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import {
@@ -18,6 +22,7 @@ import {
     validateOpenAIReasoningConfig,
 } from './chat-adapter.js';
 import { getOpenAIModelCapabilities } from './model-capabilities.js';
+import { wrapOpenAIError } from './openai-error.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
 const IMAGE_MESSAGES: Message[] = [
@@ -1449,7 +1454,106 @@ describe('transformStream', () => {
         });
         expect(JSON.stringify(events)).not.toContain('"openai"');
     });
+
+    it('should throw on response.failed so the error is classified instead of finishing as unknown', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.output_text.delta',
+                delta: 'partial',
+            }),
+            asStreamEvent({
+                type: 'response.failed',
+                response: asResponse({
+                    status: 'failed',
+                    error: {
+                        code: 'server_error',
+                        message: 'The server had an error.',
+                    },
+                }),
+            }),
+        ]);
+
+        const events: StreamEvent[] = [];
+        const error = await collectUntilError(transformStream(stream), events);
+
+        expect(events).toEqual([
+            { type: 'text-start' },
+            { type: 'text-delta', text: 'partial' },
+        ]);
+        expect(error).toBeInstanceOf(APIError);
+        expect((error as APIError).status).toBeUndefined();
+        expect((error as APIError).code).toBe('server_error');
+        expect(wrapOpenAIError(error)).toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should throw on flat error events (no nested error field)', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'error',
+                code: 'rate_limit_exceeded',
+                message: 'Rate limit reached',
+                param: null,
+                sequence_number: 1,
+            }),
+        ]);
+
+        const error = await collectUntilError(transformStream(stream), []);
+
+        expect(error).toBeInstanceOf(APIError);
+        expect((error as APIError).code).toBe('rate_limit_exceeded');
+        expect((error as APIError).message).toBe('Rate limit reached');
+        expect(wrapOpenAIError(error)).toBeInstanceOf(RateLimitError);
+    });
+
+    it('should finish with the incomplete reason on response.incomplete', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.output_text.delta',
+                delta: 'trunc',
+            }),
+            asStreamEvent({
+                type: 'response.incomplete',
+                response: asResponse({
+                    output: [],
+                    status: 'incomplete',
+                    incomplete_details: { reason: 'max_output_tokens' },
+                    usage: {
+                        input_tokens: 3,
+                        output_tokens: 8,
+                        input_tokens_details: { cached_tokens: 0 },
+                        output_tokens_details: { reasoning_tokens: 0 },
+                        total_tokens: 11,
+                    },
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events.at(-1)).toMatchObject({
+            type: 'finish',
+            finishReason: 'length',
+            usage: { inputTokens: 3, outputTokens: 8 },
+        });
+    });
 });
+
+async function collectUntilError(
+    stream: AsyncIterable<StreamEvent>,
+    events: StreamEvent[]
+): Promise<unknown> {
+    try {
+        for await (const event of stream) {
+            events.push(event);
+        }
+    } catch (error) {
+        return error;
+    }
+    throw new Error('expected stream to throw');
+}
 
 describe('validateOpenAIReasoningConfig', () => {
     it('should reject temperature/topP for restricted models', () => {

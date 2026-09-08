@@ -36,8 +36,7 @@ Official Azure quota docs describe four 429 scenarios: rate limit exceeded, syst
 
 Docs show flat `{ type, code, message, param, sequence_number }`. Live service often nests Chat-Completions-shaped `error` ([openai-dotnet#881](https://github.com/openai/openai-dotnet/issues/881)).
 
-Responses `response.failed` uses a different shape (`ResponseError.code` enum including `server_error`, `rate_limit_exceeded`) than Chat Completions `error.type` / `error.code`. `wrapOpenAIError` only runs on thrown HTTP/SDK errors — not on streaming SSE event normalization inside adapters.
-
+Responses `response.failed` uses a different shape (`ResponseError.code` enum including `server_error`, `rate_limit_exceeded`) than Chat Completions `error.type` / `error.code`. `wrapOpenAIError` only runs on thrown HTTP/SDK errors. `openai-node` (`core/streaming.ts`) throws mid-stream only when the SSE payload has a top-level `data.error`; the flat `error` event and `response.failed` (error nested under `response.error`) are yielded as ordinary events, so the Responses adapter converts them to `APIError` itself before classification.
 **Non-HTTP SDK classes:**
 
 | Class                       | Default message        | Notes                                        |
@@ -146,14 +145,16 @@ Priority for `wrapOpenAIError`:
 
 ## Gaps vs current `wrapOpenAIError`
 
-| Gap                                            | Status                                                                 |
-| ---------------------------------------------- | ---------------------------------------------------------------------- |
-| `insufficient_quota` → RateLimitError          | **Open** — any 429 → `RateLimitError` before code inspection           |
-| Azure `NoCapacity`                             | **Open** — 429 → `RateLimitError`; overload heuristics exclude 429     |
-| Only parse `retry-after`, not `retry-after-ms` | **Open** — `parseRetryAfterSeconds` reads `retry-after` only           |
-| Responses nested streaming errors              | **Open** — no streaming event normalizer; wrap\* only on thrown errors |
-| Azure `"Backend error."`                       | **Closed** — maps to `ServiceUnavailableError`                         |
-| Overload phrases (“That model…”, “engine…”)    | **Closed** — `/\boverloaded\b/` already matches both                   |
+| Gap                                            | Status                                                                                                                                                                   |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `insufficient_quota` → RateLimitError          | **Closed** — `ProviderQuotaExceededError` before status inspection                                                                                                       |
+| Azure `NoCapacity`                             | **Closed** — `ModelOverloadedError`; in-band `no_capacity` too                                                                                                           |
+| Only parse `retry-after`, not `retry-after-ms` | **Closed** — shared `parseRetryAfterSeconds`                                                                                                                             |
+| Responses nested streaming errors              | **Closed** — SDK throws on nested `data.error`; wrapper reads nested `code` / `type`                                                                                     |
+| Responses flat `error` / `response.failed`     | **Closed** — SDK does **not** throw (no `data.error`); adapter now raises both as `APIError` so `wrapOpenAIError` classifies `server_error` / `rate_limit_exceeded` etc. |
+| Responses `response.incomplete`                | **Closed** — adapter previously ignored it (`finishReason: 'unknown'`); now terminal with `length` / `content-filter`                                                    |
+| Azure `"Backend error."`                       | **Closed** — maps to `ServiceUnavailableError`                                                                                                                           |
+| Overload phrases (“That model…”, “engine…”)    | **Closed** — `/\boverloaded\b/` already matches both                                                                                                                     |
 
 ## Sources
 
