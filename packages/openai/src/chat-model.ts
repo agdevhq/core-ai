@@ -16,10 +16,7 @@ import type {
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
-import {
-    createObjectStream,
-    createChatStream,
-} from '@core-ai/core-ai';
+import { createObjectStream, createChatStream } from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
@@ -72,7 +69,11 @@ export function createOpenAIChatModel(
             request,
             options.signal
         );
-        return mapGenerateResponse(response, { providerId: provider });
+        try {
+            return mapGenerateResponse(response, { providerId: provider });
+        } catch (error) {
+            throw wrapOpenAIError(error, provider);
+        }
     }
 
     async function streamChat(

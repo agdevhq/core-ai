@@ -5,6 +5,7 @@ import type {
     ResponseStreamEvent,
 } from 'openai/resources/responses/responses';
 import {
+    ModelOverloadedError,
     RateLimitError,
     ServiceUnavailableError,
     UnsupportedInputModalityError,
@@ -780,10 +781,53 @@ describe('mapGenerateResponse', () => {
         );
     });
 
-    it('should return finishReason unknown for non-completed status', () => {
+    it('should throw on status failed so the error is classified instead of finishing as unknown', () => {
         const response = asResponse({
             output: [],
             status: 'failed',
+            error: {
+                code: 'server_error',
+                message: 'The server had an error.',
+            },
+        });
+
+        try {
+            mapGenerateResponse(response);
+            throw new Error('expected mapGenerateResponse to throw');
+        } catch (error) {
+            expect(error).toBeInstanceOf(APIError);
+            expect((error as APIError).code).toBe('server_error');
+            expect(wrapOpenAIError(error)).toBeInstanceOf(
+                ServiceUnavailableError
+            );
+        }
+    });
+
+    it('should throw ModelOverloadedError for Azure no_capacity on a failed response', () => {
+        const response = asResponse({
+            output: [],
+            status: 'failed',
+            error: {
+                code: 'no_capacity',
+                message: '',
+            },
+        });
+
+        try {
+            mapGenerateResponse(response);
+            throw new Error('expected mapGenerateResponse to throw');
+        } catch (error) {
+            expect(error).toBeInstanceOf(APIError);
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+            expect(wrapped).toBeInstanceOf(ModelOverloadedError);
+            expect(wrapped.provider).toBe('azure-openai');
+        }
+    });
+
+    it('should return finishReason unknown for non-completed non-failed status', () => {
+        const response = asResponse({
+            output: [],
+            status: 'cancelled',
         });
 
         expect(mapGenerateResponse(response).finishReason).toBe('unknown');

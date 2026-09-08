@@ -468,6 +468,14 @@ export function mapGenerateResponse(
     response: Response,
     adapterOptions: ResponsesReasoningAdapterOptions = {}
 ): GenerateResult {
+    if (response.status === 'failed') {
+        throw createInBandStreamError(
+            response.error ?? {
+                message: 'Response failed without error details',
+            }
+        );
+    }
+
     const providerId = adapterOptions.providerId ?? DEFAULT_PROVIDER_ID;
     const parts: AssistantContentPart[] = [];
 
@@ -947,7 +955,10 @@ export async function* transformStream(
                 }
 
                 const reasoningEndEvent = getNextReasoningEndEvent(
-                    createReasoningProviderMetadata(providerId, encryptedContent)
+                    createReasoningProviderMetadata(
+                        providerId,
+                        encryptedContent
+                    )
                 );
                 if (reasoningEndEvent) {
                     yield reasoningEndEvent;
@@ -1060,10 +1071,11 @@ type InBandStreamErrorBody = {
 
 /**
  * The Responses API delivers failures after the request was accepted
- * (HTTP 200) as `error` / `response.failed` events. `openai-node` only throws
- * for payloads with a nested `error` field, so both shapes reach the adapter
- * as ordinary events. Raise them the same way the SDK does for nested in-band
- * errors so `wrapOpenAIError` classifies them from `code` / `message`.
+ * (HTTP 200) as `error` / `response.failed` events or a unary
+ * `status: 'failed'` body. `openai-node` only throws for payloads with a
+ * nested `error` field, so these shapes reach the adapter as ordinary
+ * results. Raise them the same way the SDK does for nested in-band errors
+ * so `wrapOpenAIError` classifies them from `code` / `message`.
  */
 function createInBandStreamError(body: InBandStreamErrorBody): APIError {
     return new APIError(undefined, body, body.message, undefined);
