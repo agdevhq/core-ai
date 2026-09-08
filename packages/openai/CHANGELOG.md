@@ -1,5 +1,18 @@
 # @core-ai/openai
 
+## 0.24.0
+
+### Minor Changes
+
+- 7792a13: Raise Responses API failures (`error` / `response.failed` stream events, and generate `status: 'failed'`) as provider errors instead of a successful result with `finishReason: 'unknown'`, so in-band failures such as `server_error` or `rate_limit_exceeded` reach the typed error classes. `response.incomplete` now ends the stream with the reported finish reason (`length` / `content-filter`) and usage.
+
+### Patch Changes
+
+- 7792a13: Map in-band Azure `no_capacity` stream errors to `ModelOverloadedError`, matching HTTP 429 `NoCapacity`.
+- d65aa5a: Add `ProviderQuotaExceededError` and normalize non-retryable provider billing and exhausted-credit failures.
+- Updated dependencies [d65aa5a]
+    - @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Minor Changes

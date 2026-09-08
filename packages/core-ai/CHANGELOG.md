@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.24.0
+
+### Minor Changes
+
+- d65aa5a: Add `ProviderQuotaExceededError` and normalize non-retryable provider billing and exhausted-credit failures.
+
 ## 0.23.0
 
 ### Minor Changes
