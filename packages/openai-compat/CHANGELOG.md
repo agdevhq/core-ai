@@ -1,5 +1,15 @@
 # @core-ai/openai-compat
 
+## 0.24.0
+
+### Patch Changes
+
+- Updated dependencies [7792a13]
+- Updated dependencies [7792a13]
+- Updated dependencies [d65aa5a]
+    - @core-ai/openai@0.24.0
+    - @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @core-ai/google-vertex
 
+## 0.24.0
+
+### Patch Changes
+
+- Updated dependencies [5524a95]
+- Updated dependencies [d65aa5a]
+    - @core-ai/google-genai@0.24.0
+    - @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Patch Changes

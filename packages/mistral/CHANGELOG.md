@@ -1,5 +1,14 @@
 # @core-ai/mistral
 
+## 0.24.0
+
+### Patch Changes
+
+- 7792a13: Map Mistral `service tier capacity exceeded` errors to `ModelOverloadedError` on 5xx and in-band (no HTTP status), aligning backend-capacity errors with Azure `NoCapacity` and Anthropic `overloaded_error`. Previously they landed on `ServiceUnavailableError`.
+- d65aa5a: Add `ProviderQuotaExceededError` and normalize non-retryable provider billing and exhausted-credit failures.
+- Updated dependencies [d65aa5a]
+    - @core-ai/core-ai@0.24.0
+
 ## 0.23.0
 
 ### Minor Changes
