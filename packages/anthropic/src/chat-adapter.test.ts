@@ -281,15 +281,45 @@ describe('convertTools', () => {
         };
 
         const result = convertTools(tools);
-        expect(
-            result.find((tool) => tool.name === 'internal')?.strict
-        ).toBe(true);
+        expect(result.find((tool) => tool.name === 'internal')?.strict).toBe(
+            true
+        );
         expect(
             result.find((tool) => tool.name === 'external')?.strict
         ).toBeUndefined();
         expect(
             result.find((tool) => tool.name === 'unset')?.strict
         ).toBeUndefined();
+    });
+
+    it('should rewrite discriminated unions from oneOf to anyOf', () => {
+        const tools: ToolSet = {
+            act: defineTool({
+                name: 'act',
+                description: 'Perform an action',
+                parameters: z.object({
+                    action: z.discriminatedUnion('kind', [
+                        z.object({ kind: z.literal('open'), path: z.string() }),
+                        z.object({ kind: z.literal('close') }),
+                    ]),
+                }),
+                strict: true,
+            }),
+        };
+
+        const action = (
+            convertTools(tools)[0]?.input_schema as {
+                properties: { action: Record<string, unknown> };
+            }
+        ).properties.action;
+
+        expect(action).not.toHaveProperty('oneOf');
+        expect(action['anyOf']).toHaveLength(2);
+        for (const branch of action['anyOf'] as Array<
+            Record<string, unknown>
+        >) {
+            expect(branch).toMatchObject({ additionalProperties: false });
+        }
     });
 
     it('should keep schema conversion independent of strictness', () => {

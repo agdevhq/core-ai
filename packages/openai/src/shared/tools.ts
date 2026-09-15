@@ -16,6 +16,11 @@ export type ConvertToolsOptions = {
     providerId: string;
 };
 
+/**
+ * Chat Completions tools. The API is non-strict when `strict` is omitted, so
+ * the field is only sent for opted-in tools — this also keeps the wire format
+ * unchanged for OpenAI-compatible gateways that predate the field.
+ */
 export function convertTools(tools: ToolSet, options: ConvertToolsOptions) {
     validateTools(tools, options);
 
@@ -30,6 +35,11 @@ export function convertTools(tools: ToolSet, options: ConvertToolsOptions) {
     }));
 }
 
+/**
+ * Responses API tools. Unlike Chat Completions, the Responses API tries to
+ * normalize a tool into strict mode when `strict` is omitted, so an explicit
+ * boolean is always sent to keep "omitted or false means non-strict" true.
+ */
 export function convertResponseTools(
     tools: ToolSet,
     options: ConvertToolsOptions
@@ -41,7 +51,7 @@ export function convertResponseTools(
         name: tool.name,
         description: tool.description,
         parameters: convertToolParameters(tool),
-        ...(tool.strict === true ? { strict: true } : {}),
+        strict: tool.strict === true,
     }));
 }
 
@@ -50,9 +60,7 @@ export function convertResponseTools(
  * strict mode requires closed objects and rejects `$schema`); non-strict
  * tools keep the raw converted schema.
  */
-function convertToolParameters(
-    tool: ToolDefinition
-): Record<string, unknown> {
+function convertToolParameters(tool: ToolDefinition): Record<string, unknown> {
     const schema = zodSchemaToJsonSchema(tool.parameters);
     return tool.strict === true ? normalizeStrictJsonSchema(schema) : schema;
 }

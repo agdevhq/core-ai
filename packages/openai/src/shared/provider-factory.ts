@@ -80,10 +80,7 @@ export function createOpenAIProvider(
         createOpenAIChatModel(
             client,
             modelId,
-            toOpenAIResponsesCapabilities(
-                resolveCapabilities(modelId),
-                modelId
-            ),
+            toOpenAIResponsesCapabilities(resolveCapabilities(modelId)),
             providerId
         );
     const createChatCompletionsModel = (modelId: string) => {

@@ -28,10 +28,14 @@ export type ToolSchemaStrictnessErrorOptions = {
     providerId: string;
     modelId: string;
     toolNames: readonly string[];
-    reason: ToolSchemaStrictnessErrorReason;
-    maxStrictTools?: number;
-    violations?: readonly StrictToolSchemaViolation[];
-};
+} & (
+    | { reason: 'unsupported' }
+    | { reason: 'limit-exceeded'; maxStrictTools: number }
+    | {
+          reason: 'invalid-schema';
+          violations: readonly StrictToolSchemaViolation[];
+      }
+);
 
 export class ToolSchemaStrictnessError extends ValidationError {
     public readonly providerId: string;
@@ -52,8 +56,12 @@ export class ToolSchemaStrictnessError extends ValidationError {
         this.modelId = options.modelId;
         this.toolNames = options.toolNames;
         this.reason = options.reason;
-        this.maxStrictTools = options.maxStrictTools;
-        this.violations = options.violations;
+        if (options.reason === 'limit-exceeded') {
+            this.maxStrictTools = options.maxStrictTools;
+        }
+        if (options.reason === 'invalid-schema') {
+            this.violations = options.violations;
+        }
     }
 }
 
@@ -67,12 +75,11 @@ function getToolSchemaStrictnessErrorMessage(
 
     switch (options.reason) {
         case 'limit-exceeded': {
-            const maxStrictTools = options.maxStrictTools ?? 0;
-            const toolWord = maxStrictTools === 1 ? 'tool' : 'tools';
-            return `${options.providerId} model "${options.modelId}" supports at most ${maxStrictTools} strict ${toolWord}, but received ${options.toolNames.length}: ${tools}`;
+            const toolWord = options.maxStrictTools === 1 ? 'tool' : 'tools';
+            return `${options.providerId} model "${options.modelId}" supports at most ${options.maxStrictTools} strict ${toolWord}, but received ${options.toolNames.length}: ${tools}`;
         }
         case 'invalid-schema': {
-            const violations = (options.violations ?? [])
+            const violations = options.violations
                 .map(
                     (violation) =>
                         `tool "${violation.toolName}"${violation.path === '' ? '' : ` at ${violation.path}`}: ${violation.message}`

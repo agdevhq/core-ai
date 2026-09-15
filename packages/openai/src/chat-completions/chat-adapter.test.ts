@@ -370,14 +370,17 @@ describe('strict tool schemas', () => {
         ).toThrowError(/use \.nullable\(\) instead of \.optional\(\)/);
     });
 
-    it('should support strict function tools on legacy Chat models', () => {
-        const request = createGenerateRequest('gpt-3.5-turbo', {
-            messages: [{ role: 'user', content: 'Hi' }],
-            tools: createTool(true),
-        });
-
-        expect(request.tools?.[0]?.function).toHaveProperty('strict', true);
-    });
+    it.each(['gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4o-2024-05-13'])(
+        'should reject strict function tools on legacy Chat model %s',
+        (modelId) => {
+            expect(() =>
+                createGenerateRequest(modelId, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    tools: createTool(true),
+                })
+            ).toThrowError(/does not support per-tool strict schemas/);
+        }
+    );
 });
 
 describe('convertToolChoice', () => {

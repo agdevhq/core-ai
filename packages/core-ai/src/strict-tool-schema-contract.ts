@@ -1,5 +1,6 @@
 import {
     getChildSchemaNodeEntries,
+    getSchemaDefinitionEntries,
     isImplicitSafeIntegerBounds,
     isObjectSchemaNode,
     isPlainObject,
@@ -19,6 +20,12 @@ export type StrictToolSchemaViolation = {
 
 const MAX_SCHEMA_DEPTH = 64;
 
+/**
+ * Keywords every strict-capable provider accepts — the intersection of the
+ * OpenAI and Anthropic strict subsets, not the union. `minimum` / `maximum`
+ * are listed because Zod stamps an implicit safe-integer pair onto every
+ * `z.int()`; {@link validateBounds} rejects every other use of them.
+ */
 const ALLOWED_KEYWORDS = new Set([
     '$schema',
     '$ref',
@@ -32,7 +39,7 @@ const ALLOWED_KEYWORDS = new Set([
     'enum',
     'const',
     'anyOf',
-    'allOf',
+    'oneOf',
     'format',
     'pattern',
     'title',
@@ -63,7 +70,6 @@ const ALLOWED_STRING_FORMATS = new Set([
     'ipv4',
     'ipv6',
     'uuid',
-    'uri',
 ]);
 
 const KEYWORD_HINTS: Record<string, string> = {
@@ -89,7 +95,7 @@ const KEYWORD_HINTS: Record<string, string> = {
         'array uniqueness constraints are outside the strict-capable subset; validate after parsing instead',
     prefixItems:
         'tuples (z.tuple) are not strict-capable; use a uniform z.array() or an object instead',
-    oneOf: 'oneOf is not strict-capable; use a union (anyOf via z.union/z.discriminatedUnion) instead',
+    allOf: 'intersections (z.intersection()/.and(), serialized as allOf) are not strict-capable; flatten the members into a single z.object() instead',
     not: 'negated schemas (not) are not strict-capable',
     patternProperties:
         'pattern properties are not strict-capable; declare explicit keys with z.object()',
@@ -112,24 +118,19 @@ export function getStrictToolSchemaViolations(
     const violations: StrictToolSchemaViolation[] = [];
     const refEdges = new Map<string, Set<string>>();
 
+    if (schema.type !== 'object') {
+        violations.push({
+            toolName,
+            path: 'type',
+            message:
+                'tool parameters must be an object at the root; wrap the schema in z.object()',
+        });
+    }
+
     walkNode(schema, '', 'root', 0, toolName, violations, refEdges);
 
-    for (const [containerName, definitions] of getDefinitionContainers(
-        schema
-    )) {
-        for (const [definitionName, definitionNode] of Object.entries(
-            definitions
-        )) {
-            walkNode(
-                definitionNode,
-                `${containerName}.${definitionName}`,
-                `${containerName}.${definitionName}`,
-                0,
-                toolName,
-                violations,
-                refEdges
-            );
-        }
+    for (const { segment, child } of getSchemaDefinitionEntries(schema)) {
+        walkNode(child, segment, segment, 0, toolName, violations, refEdges);
     }
 
     for (const region of findCyclicRegions(refEdges)) {
@@ -258,7 +259,7 @@ function validateFormat(
         violations.push({
             toolName,
             path: joinPath(path, 'format'),
-            message: `format "${node.format}" is outside the strict-capable subset; remove the format refinement and validate after parsing instead`,
+            message: `format "${node.format}" is outside the strict-capable subset (${[...ALLOWED_STRING_FORMATS].join(', ')}); remove the format refinement (for URLs, use z.string() instead of z.url()) and validate after parsing instead`,
         });
     }
 }
@@ -290,10 +291,7 @@ function validateObjectShape(
         }
     }
 
-    if (
-        'additionalProperties' in node &&
-        node.additionalProperties !== false
-    ) {
+    if ('additionalProperties' in node && node.additionalProperties !== false) {
         violations.push({
             toolName,
             path: joinPath(path, 'additionalProperties'),
@@ -327,19 +325,6 @@ function validateRef(
     const edges = refEdges.get(region) ?? new Set<string>();
     edges.add(target);
     refEdges.set(region, edges);
-}
-
-function getDefinitionContainers(
-    schema: Record<string, unknown>
-): Array<[string, Record<string, unknown>]> {
-    const containers: Array<[string, Record<string, unknown>]> = [];
-    for (const name of ['$defs', 'definitions'] as const) {
-        const value = schema[name];
-        if (isPlainObject(value)) {
-            containers.push([name, value]);
-        }
-    }
-    return containers;
 }
 
 function findCyclicRegions(refEdges: Map<string, Set<string>>): string[] {

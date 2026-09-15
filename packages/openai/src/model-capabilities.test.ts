@@ -172,22 +172,20 @@ describe('getOpenAIModelCapabilities', () => {
         }
     );
 
-    it.each(['gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-3.5-turbo'])(
-        'should advertise strict function tools for Chat Completions model %s',
-        (modelId) => {
-            expect(
-                getOpenAIModelCapabilities(modelId).tools.strictSchemas
-            ).toEqual({ supported: true });
-        }
-    );
-
-    it.each(['gpt-4o-2024-05-13', 'gpt-4-turbo', 'gpt-3.5-turbo'])(
-        'should reject strict tools through Responses model %s',
+    it.each([
+        'gpt-4o-2024-05-13',
+        'gpt-4-turbo',
+        'gpt-4-turbo-2024-04-09',
+        'gpt-3.5-turbo',
+    ])(
+        'should reject strict tool schemas for pre-Structured-Outputs model %s through both APIs',
         (modelId) => {
             const capabilities = getOpenAIModelCapabilities(modelId);
+            expect(capabilities.tools.strictSchemas).toEqual({
+                supported: false,
+            });
             expect(
-                toOpenAIResponsesCapabilities(capabilities, modelId).tools
-                    .strictSchemas
+                toOpenAIResponsesCapabilities(capabilities).tools.strictSchemas
             ).toEqual({ supported: false });
         }
     );

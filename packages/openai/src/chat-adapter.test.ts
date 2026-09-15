@@ -464,13 +464,14 @@ describe('createGenerateRequest', () => {
         });
         expect(strictTool).not.toHaveProperty('function');
         expect(strictTool?.parameters).not.toHaveProperty('$schema');
-        // Non-strict tools keep the raw converted schema and omit `strict`.
-        expect(nonStrictTool).not.toHaveProperty('strict');
+        // Non-strict tools keep the raw converted schema. The Responses API
+        // auto-stricts tools whose `strict` is omitted, so `false` is explicit.
+        expect(nonStrictTool).toHaveProperty('strict', false);
         expect(nonStrictTool?.parameters).toHaveProperty('$schema');
         expect(nonStrictTool?.parameters).not.toHaveProperty(
             'additionalProperties'
         );
-        expect(omittedTool).not.toHaveProperty('strict');
+        expect(omittedTool).toHaveProperty('strict', false);
         expect(omittedTool?.parameters).toEqual(nonStrictTool?.parameters);
     });
 
@@ -490,7 +491,11 @@ describe('createGenerateRequest', () => {
         });
 
         const tool = request.tools?.[0] as
-            | { parameters: { properties: { filter: Record<string, unknown> } } }
+            | {
+                  parameters: {
+                      properties: { filter: Record<string, unknown> };
+                  };
+              }
             | undefined;
         const parameters = tool?.parameters;
         expect(parameters?.properties.filter).toMatchObject({

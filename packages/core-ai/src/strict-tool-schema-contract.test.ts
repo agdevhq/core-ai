@@ -5,10 +5,7 @@ import { zodSchemaToJsonSchema } from './json-schema.ts';
 import { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
 
 function violationsFor(schema: z.ZodType) {
-    return getStrictToolSchemaViolations(
-        'tool',
-        zodSchemaToJsonSchema(schema)
-    );
+    return getStrictToolSchemaViolations('tool', zodSchemaToJsonSchema(schema));
 }
 
 describe('getStrictToolSchemaViolations', () => {
@@ -41,6 +38,52 @@ describe('getStrictToolSchemaViolations', () => {
         ).toEqual([]);
     });
 
+    it('accepts discriminated unions (serialized as oneOf)', () => {
+        expect(
+            violationsFor(
+                z.object({
+                    action: z.discriminatedUnion('kind', [
+                        z.object({ kind: z.literal('open'), path: z.string() }),
+                        z.object({
+                            kind: z.literal('close'),
+                            force: z.boolean(),
+                        }),
+                    ]),
+                })
+            )
+        ).toEqual([]);
+    });
+
+    it('rejects intersections (serialized as allOf) with a flatten hint', () => {
+        const violations = violationsFor(
+            z.object({
+                item: z
+                    .object({ id: z.string() })
+                    .and(z.object({ name: z.string() })),
+            })
+        );
+        expect(violations.map((v) => v.path)).toEqual([
+            'properties.item.allOf',
+        ]);
+        expect(violations[0]?.message).toContain('z.intersection()');
+        expect(violations[0]?.message).toContain('single z.object()');
+    });
+
+    it('rejects a non-object root', () => {
+        for (const schema of [
+            z.string(),
+            z.array(z.object({ id: z.string() })),
+            z.union([
+                z.object({ kind: z.literal('a') }),
+                z.object({ kind: z.literal('b') }),
+            ]),
+        ]) {
+            const violations = violationsFor(schema);
+            expect(violations[0]?.path).toBe('type');
+            expect(violations[0]?.message).toContain('z.object()');
+        }
+    });
+
     it('accepts supported string formats', () => {
         expect(
             violationsFor(
@@ -68,9 +111,7 @@ describe('getStrictToolSchemaViolations', () => {
 
     it('rejects open objects from z.looseObject and z.record', () => {
         const loose = violationsFor(z.looseObject({ value: z.string() }));
-        expect(loose.some((v) => v.path === 'additionalProperties')).toBe(
-            true
-        );
+        expect(loose.some((v) => v.path === 'additionalProperties')).toBe(true);
 
         const record = violationsFor(z.record(z.string(), z.number()));
         expect(record.length).toBeGreaterThan(0);
@@ -116,14 +157,22 @@ describe('getStrictToolSchemaViolations', () => {
         const violations = violationsFor(
             z.object({ pair: z.tuple([z.string(), z.number()]) })
         );
-        expect(
-            violations.some((v) => v.message.includes('z.tuple'))
-        ).toBe(true);
+        expect(violations.some((v) => v.message.includes('z.tuple'))).toBe(
+            true
+        );
     });
 
     it('rejects unsupported string formats', () => {
         const violations = violationsFor(z.object({ site: z.emoji() }));
         expect(violations.some((v) => v.path.endsWith('format'))).toBe(true);
+    });
+
+    it('rejects URLs (format: uri) with a z.string() hint', () => {
+        const violations = violationsFor(z.object({ site: z.url() }));
+        expect(violations.map((v) => v.path)).toEqual([
+            'properties.site.format',
+        ]);
+        expect(violations[0]?.message).toContain('z.url()');
     });
 
     it('rejects recursive schemas', () => {
@@ -135,16 +184,16 @@ describe('getStrictToolSchemaViolations', () => {
             })
         );
         const violations = violationsFor(z.object({ root: node }));
-        expect(
-            violations.some((v) => v.message.includes('recursive'))
-        ).toBe(true);
+        expect(violations.some((v) => v.message.includes('recursive'))).toBe(
+            true
+        );
     });
 
     it('accepts non-recursive shared definitions', () => {
         const point = z.object({ x: z.number(), y: z.number() });
-        expect(
-            violationsFor(z.object({ start: point, end: point }))
-        ).toEqual([]);
+        expect(violationsFor(z.object({ start: point, end: point }))).toEqual(
+            []
+        );
     });
 
     it('reports deep paths', () => {

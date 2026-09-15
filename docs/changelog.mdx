@@ -3,48 +3,30 @@ title: Releases
 description: Release history for all core-ai packages.
 ---
 
-<Update label="0.15.0" description="Vertex providers, strict tool schemas, and OpenAI Responses default" tags={["improvement"]}>
+<Update label="0.25.0" description="Per-tool strict tool schemas" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add per-tool strict tool schemas: `defineTool({ strict: true })` opts a single tool into provider-enforced schema adherence, `ModelCapabilities.tools.strictSchemas` reports model support, and strict tools are validated locally against the strict-capable schema contract (object root, closed objects, every key required, and the keyword subset every strict-capable provider accepts). Violations throw `ToolSchemaStrictnessError` with a `violations` list naming each offending schema path and a fix hint.
+
   ### @core-ai/anthropic
 
-  - Support per-tool `strict: true` on Claude 4.5 and later models, with local validation of model support and the 20-strict-tool limit. Only explicitly strict tools count toward the limit.
+  - Strict tool schemas are now per-tool opt-in on Claude 4.5 and later models; previous releases marked every tool strict. The 20-strict-tool limit counts only opted-in tools, and discriminated unions (`oneOf`) are rewritten to `anyOf`. The internal `strictToolSchemasEnabled` factory option was removed.
 
   ### @core-ai/anthropic-vertex
 
-  - Add a first-party Anthropic Vertex AI provider for Claude models. Authenticates with Application Default Credentials or an explicit service account key.
-  - Strict tool schemas follow the underlying model capabilities; the `useStrictToolSchemas` and `strictToolSchemasEnabled` provider options were removed. Vertex enforces the `structured_outputs` partner-model feature through your GCP organization policy.
-
-  ### @core-ai/google-vertex
-
-  - Add a first-party Google Vertex AI provider for Gemini, embedding, and Imagen models with Application Default Credentials or explicit service-account authentication.
-  - Report per-tool strict schemas as unsupported. Google's request-wide `ANY` function-calling mode remains available through tool choice.
-
-  ### @core-ai/openai-compat
-
-  - Add a standalone Chat Completions provider for OpenAI-compatible gateways. Configure nonstandard reasoning extraction and structured output transport independently with `reasoning` and `structuredOutputMode`.
-  - Select the Chat Completions token-limit parameter automatically for known OpenAI models while keeping `max_tokens` as the compatibility default for unknown models.
-  - Forward per-tool `strict: true` function tools with normalized schemas to gateways that implement OpenAI strict function tools; the `strictToolSchemas` endpoint assertion was removed.
+  - **Breaking:** the `useStrictToolSchemas` option was removed. Strict tool schemas follow the per-tool opt-in and the underlying model capabilities. Vertex enforces the `structured_outputs` partner-model feature through your GCP organization policy.
 
   ### @core-ai/openai
 
-  - Root `createOpenAI()` uses the Responses API by default. Strict Chat Completions are available at `openai.chat.chatModel()`. Object generation prefers native strict JSON Schema output.
-  - Map `maxTokens` to `max_completion_tokens` for known GPT-5 and o-series models when using strict Chat Completions.
-  - Support per-tool `strict: true` function tools across Responses and Chat Completions. Strict tools are sent with normalized schemas (`$schema` stripped, `additionalProperties: false` added recursively); non-strict tools are sent unchanged. Unknown model IDs, including fine-tuned `ft:...` models, resolve optimistically to supported.
+  - Support per-tool `strict: true` on the Responses and Chat Completions APIs. Strict tools are sent with a normalized schema (`$schema` stripped, `additionalProperties: false` added recursively, `oneOf` rewritten to `anyOf`); non-strict tools keep the raw schema and carry an explicit `strict: false` on the Responses API. Models that predate Structured Outputs report strict schemas as unsupported through both APIs; unknown model IDs, including fine-tuned `ft:...` models, resolve optimistically to supported. The `strictToolSchemas`, `strictToolSchemasUnsupportedReason/Details`, and `disableParallelToolCallsWithStrictTools` factory options were removed.
 
   ### @core-ai/azure-openai
 
-  - Azure OpenAI v1 uses the Responses API by default. Strict Chat Completions are available at `azure.chat.chatModel()`. Classic API access is unchanged.
-  - Select `max_completion_tokens` automatically for known OpenAI model IDs used with Azure Chat Completions while keeping `max_tokens` for unknown deployment names.
   - Support per-tool `strict: true` on the v1 (Responses) endpoint and on classic deployments with API version `2024-08-01-preview` or later; the `strictToolSchemasEnabled` deployment assertion was removed.
 
-  ### @core-ai/google-genai
+  ### @core-ai/openai-compat
 
-  - Support Gemini native image models through `imageModel()` while preserving the existing Imagen generation path.
-  - Expose a reusable provider factory with configurable provider attribution for Google GenAI clients.
-  - Report per-tool strict schemas as unsupported and reject explicit `strict: true` locally.
-
-  ### @core-ai/mistral
-
-  - Report strict tool schemas as unsupported until a live Mistral contract can be verified.
+  - Forward per-tool `strict: true` function tools with normalized schemas to gateways that implement OpenAI strict function tools; the `strictToolSchemas` endpoint assertion was removed.
 
   ### @core-ai/kimi
 
@@ -52,15 +34,51 @@ description: Release history for all core-ai packages.
 
   ### @core-ai/omnifact
 
+  - Report strict tool schemas as supported and forward per-tool `strict: true` to the gateway with normalized schemas.
+
+  ### @core-ai/google-genai, @core-ai/google-vertex, @core-ai/mistral
+
+  - Report per-tool strict schemas as unsupported; a tool with `strict: true` throws `ToolSchemaStrictnessError` before any provider I/O.
+</Update>
+
+<Update label="0.15.0" description="Vertex providers, OpenAI Responses default, and openai-compat" tags={["improvement"]}>
+  ### @core-ai/anthropic-vertex
+
+  - Add a first-party Anthropic Vertex AI provider for Claude models. Authenticates with Application Default Credentials or an explicit service account key.
+  - Allow disabling strict tool schemas with the `useStrictToolSchemas` provider option.
+
+  ### @core-ai/google-vertex
+
+  - Add a first-party Google Vertex AI provider for Gemini, embedding, and Imagen models with Application Default Credentials or explicit service-account authentication.
+
+  ### @core-ai/openai-compat
+
+  - Add a standalone Chat Completions provider for OpenAI-compatible gateways. Configure nonstandard reasoning extraction and structured output transport independently with `reasoning` and `structuredOutputMode`.
+  - Select the Chat Completions token-limit parameter automatically for known OpenAI models while keeping `max_tokens` as the compatibility default for unknown models.
+
+  ### @core-ai/openai
+
+  - Root `createOpenAI()` uses the Responses API by default. Strict Chat Completions are available at `openai.chat.chatModel()`. Object generation prefers native strict JSON Schema output.
+  - Map `maxTokens` to `max_completion_tokens` for known GPT-5 and o-series models when using strict Chat Completions.
+
+  ### @core-ai/azure-openai
+
+  - Azure OpenAI v1 uses the Responses API by default. Strict Chat Completions are available at `azure.chat.chatModel()`. Classic API access is unchanged.
+  - Select `max_completion_tokens` automatically for known OpenAI model IDs used with Azure Chat Completions while keeping `max_tokens` for unknown deployment names.
+
+  ### @core-ai/google-genai
+
+  - Support Gemini native image models through `imageModel()` while preserving the existing Imagen generation path.
+  - Expose a reusable provider factory with configurable provider attribution for Google GenAI clients.
+
+  ### @core-ai/omnifact
+
   - Use the shared OpenAI compatibility layer for nonstandard reasoning response fields.
   - Always map `maxTokens` to `max_completion_tokens` for Omnifact Chat Completions requests.
-  - Forward per-tool `strict: true` function tools to the routed backend with normalized schemas.
 
   ### @core-ai/core-ai
 
   - Normalize dated Vertex model IDs for capability detection.
-  - Add `ToolDefinition.strict` as a per-tool opt-in for provider-enforced schema adherence, with `model.capabilities.tools.strictSchemas` reporting support and limits per model.
-  - Validate strict tools locally against the strict-capable schema contract before any API call. `ToolSchemaStrictnessError` reports `'unsupported'`, `'limit-exceeded'`, or `'invalid-schema'` with a `violations` array naming each offending schema path. Export `getStrictToolSchemaViolations`, `normalizeStrictJsonSchema`, and the `StrictToolSchemaViolation` type.
 </Update>
 
 <Update label="0.14.0" description="Application part metadata and text boundary events" tags={["improvement"]}>

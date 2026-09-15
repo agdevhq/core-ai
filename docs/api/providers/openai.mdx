@@ -254,13 +254,15 @@ restrictions.
 Tool-capable OpenAI models report `model.capabilities.tools.strictSchemas` as
 `{ supported: true }`. Unrecognized model IDs, including fine-tuned `ft:...`
 models, resolve optimistically to supported and rely on OpenAI to reject
-strict tools when the model lacks support. Two restrictions apply:
+strict tools when the model lacks support. Two restrictions apply through
+both the Responses and Chat Completions APIs:
 
-- The Responses API does not support strict function tools on
-  `gpt-4o-2024-05-13`, GPT-4 Turbo, or tool-capable GPT-3.5 Turbo models. The
-  Responses model factory reports them as `{ supported: false }`; Chat
-  Completions (`openai.chat.chatModel()`) supports them.
-- Audio models report `{ supported: false }` through both APIs.
+- Models that predate Structured Outputs — `gpt-4o-2024-05-13`, GPT-4 Turbo,
+  and GPT-3.5 Turbo — report `{ supported: false }`.
+- Audio models report `{ supported: false }`.
+
+Non-strict tools are sent to the Responses API with an explicit `strict: false`
+so the API does not normalize them into strict mode on its own.
 
 OpenAI does not guarantee schema adherence when parallel tool calls are
 enabled. Set `providerOptions.openai.parallelToolCalls: false` on requests

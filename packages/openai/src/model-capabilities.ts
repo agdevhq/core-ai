@@ -144,10 +144,6 @@ function createNoReasoningCapabilities({
 const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_tokens',
 });
-const NO_REASONING_TEXT_ONLY_CAPABILITIES = createNoReasoningCapabilities({
-    maxTokensParameter: 'max_tokens',
-    modalities: TEXT_ONLY_MODALITIES,
-});
 const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
     createNoReasoningCapabilities({
         maxTokensParameter: 'max_completion_tokens',
@@ -174,8 +170,21 @@ const O_SERIES_TEXT_ONLY_CAPABILITIES = createCapabilities({
     modalities: TEXT_ONLY_MODALITIES,
 });
 
+// Models that predate Structured Outputs: OpenAI rejects strict function
+// tools on them through both the Responses and Chat Completions APIs.
+const LEGACY_NO_STRICT_TOOLS_CAPABILITIES = createNoReasoningCapabilities({
+    maxTokensParameter: 'max_tokens',
+    strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+});
+const LEGACY_NO_STRICT_TOOLS_TEXT_ONLY_CAPABILITIES =
+    createNoReasoningCapabilities({
+        maxTokensParameter: 'max_tokens',
+        modalities: TEXT_ONLY_MODALITIES,
+        strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    });
+
 export const OPENAI_MODEL_CAPABILITIES = {
-    'gpt-4o-2024-05-13': NO_REASONING_CAPABILITIES,
+    'gpt-4o-2024-05-13': LEGACY_NO_STRICT_TOOLS_CAPABILITIES,
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
@@ -209,8 +218,8 @@ export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-4.1-nano': NO_REASONING_CAPABILITIES,
     'gpt-4o': NO_REASONING_CAPABILITIES,
     'gpt-4o-mini': NO_REASONING_CAPABILITIES,
-    'gpt-4-turbo': NO_REASONING_CAPABILITIES,
-    'gpt-3.5-turbo': NO_REASONING_TEXT_ONLY_CAPABILITIES,
+    'gpt-4-turbo': LEGACY_NO_STRICT_TOOLS_CAPABILITIES,
+    'gpt-3.5-turbo': LEGACY_NO_STRICT_TOOLS_TEXT_ONLY_CAPABILITIES,
     'gpt-audio-1.5': AUDIO_CAPABILITIES,
     'gpt-audio': AUDIO_CAPABILITIES,
     'gpt-audio-mini': AUDIO_CAPABILITIES,
@@ -240,48 +249,21 @@ export function getOpenAIModelCapabilities(
 }
 
 export function toOpenAIResponsesCapabilities(
-    capabilities: ModelCapabilities,
-    modelId: string
+    capabilities: ModelCapabilities
 ): ModelCapabilities {
-    const restrictStrictTools = !doesResponsesApiSupportStrictTools(modelId);
-    const removeAudioInput = capabilities.modalities.input.includes('audio');
-
-    if (!restrictStrictTools && !removeAudioInput) {
+    if (!capabilities.modalities.input.includes('audio')) {
         return capabilities;
     }
 
     return {
         ...capabilities,
-        ...(restrictStrictTools
-            ? {
-                  tools: {
-                      strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
-                  },
-              }
-            : {}),
-        ...(removeAudioInput
-            ? {
-                  modalities: {
-                      input: capabilities.modalities.input.filter(
-                          (modality) => modality !== 'audio'
-                      ),
-                      output: capabilities.modalities.output,
-                  },
-              }
-            : {}),
+        modalities: {
+            input: capabilities.modalities.input.filter(
+                (modality) => modality !== 'audio'
+            ),
+            output: capabilities.modalities.output,
+        },
     };
-}
-
-function doesResponsesApiSupportStrictTools(modelId: string): boolean {
-    if (modelId === 'gpt-4o-2024-05-13') {
-        return false;
-    }
-
-    const normalizedModelId = normalizeModelId(modelId);
-    return (
-        normalizedModelId !== 'gpt-4-turbo' &&
-        normalizedModelId !== 'gpt-3.5-turbo'
-    );
 }
 
 export function normalizeModelId(modelId: string): string {

@@ -45,30 +45,36 @@ export type ChildSchemaNodeEntry = {
     child: unknown;
 };
 
+/** Keywords whose value is a map of named child schemas. */
+const NESTED_MAP_KEYWORDS = ['properties'] as const;
+/** Keywords whose value is a list of child schemas. */
+const NESTED_LIST_KEYWORDS = ['anyOf', 'oneOf', 'allOf'] as const;
+/** Keywords whose value is a single child schema. */
+const NESTED_SINGLE_KEYWORDS = ['items'] as const;
+/** Root-level containers of named, `$ref`-addressable definitions. */
+const DEFINITION_KEYWORDS = ['$defs', 'definitions'] as const;
+
 /**
  * Enumerates the nested schema nodes of a JSON Schema node: `properties.*`,
- * `items`, `anyOf[*]`, and `allOf[*]`. Root-level `$defs` / `definitions`
- * containers are handled separately by every consumer.
+ * `items`, `anyOf[*]`, `oneOf[*]`, and `allOf[*]`. Definition containers are
+ * enumerated separately by {@link getSchemaDefinitionEntries}.
  *
- * The strict-schema contract validator traverses through this function, and
- * {@link normalizeStrictJsonSchema} recurses over the identical key set —
- * shared fixtures in the tests pin the two together so a schema node cannot
- * be validated but left untransformed, or vice versa.
+ * Both the strict-schema contract validator and
+ * {@link normalizeStrictJsonSchema} traverse through this function (the
+ * normalizer via {@link mapChildSchemaNodes}), so a schema node cannot be
+ * validated but left untransformed, or vice versa.
  */
 export function getChildSchemaNodeEntries(
     node: Record<string, unknown>
 ): ChildSchemaNodeEntry[] {
-    const entries: ChildSchemaNodeEntry[] = [];
+    const entries = getNamedChildEntries(node, NESTED_MAP_KEYWORDS);
 
-    if (isPlainObject(node.properties)) {
-        for (const [key, child] of Object.entries(node.properties)) {
-            entries.push({ segment: `properties.${key}`, child });
+    for (const keyword of NESTED_SINGLE_KEYWORDS) {
+        if (node[keyword] !== undefined) {
+            entries.push({ segment: keyword, child: node[keyword] });
         }
     }
-    if (node.items !== undefined) {
-        entries.push({ segment: 'items', child: node.items });
-    }
-    for (const keyword of ['anyOf', 'allOf'] as const) {
+    for (const keyword of NESTED_LIST_KEYWORDS) {
         const value = node[keyword];
         if (Array.isArray(value)) {
             value.forEach((child, index) => {
@@ -81,6 +87,68 @@ export function getChildSchemaNodeEntries(
 }
 
 /**
+ * Enumerates the named definitions of a node's `$defs` / `definitions`
+ * containers, with segments like `$defs.Point`.
+ */
+export function getSchemaDefinitionEntries(
+    node: Record<string, unknown>
+): ChildSchemaNodeEntry[] {
+    return getNamedChildEntries(node, DEFINITION_KEYWORDS);
+}
+
+function getNamedChildEntries(
+    node: Record<string, unknown>,
+    keywords: readonly string[]
+): ChildSchemaNodeEntry[] {
+    const entries: ChildSchemaNodeEntry[] = [];
+
+    for (const keyword of keywords) {
+        const value = node[keyword];
+        if (isPlainObject(value)) {
+            for (const [key, child] of Object.entries(value)) {
+                entries.push({ segment: `${keyword}.${key}`, child });
+            }
+        }
+    }
+
+    return entries;
+}
+
+/**
+ * Returns a shallow copy of `node` with every nested schema node (the same set
+ * {@link getChildSchemaNodeEntries} and {@link getSchemaDefinitionEntries}
+ * enumerate) replaced by `map(child)`.
+ */
+export function mapChildSchemaNodes(
+    node: Record<string, unknown>,
+    map: (child: unknown) => unknown
+): Record<string, unknown> {
+    const result: Record<string, unknown> = { ...node };
+
+    for (const keyword of [...NESTED_MAP_KEYWORDS, ...DEFINITION_KEYWORDS]) {
+        const value = result[keyword];
+        if (isPlainObject(value)) {
+            result[keyword] = Object.fromEntries(
+                Object.entries(value).map(([key, child]) => [key, map(child)])
+            );
+        }
+    }
+    for (const keyword of NESTED_SINGLE_KEYWORDS) {
+        if (result[keyword] !== undefined) {
+            result[keyword] = map(result[keyword]);
+        }
+    }
+    for (const keyword of NESTED_LIST_KEYWORDS) {
+        const value = result[keyword];
+        if (Array.isArray(value)) {
+            result[keyword] = value.map((child) => map(child));
+        }
+    }
+
+    return result;
+}
+
+/**
  * Normalizes the JSON Schema of a strict tool for providers whose strict mode
  * requires closed objects (OpenAI-style APIs). The transform is semantics
  * preserving with respect to the tool's Zod schema:
@@ -89,7 +157,11 @@ export function getChildSchemaNodeEntries(
  * - sets `additionalProperties: false` on object nodes where absent, which
  *   matches `z.object()` semantics (unknown keys are stripped at parse time),
  * - drops Zod's implicit safe-integer bounds pair on integer nodes (see
- *   {@link isImplicitSafeIntegerBounds}).
+ *   {@link isImplicitSafeIntegerBounds}),
+ * - rewrites `oneOf` to `anyOf`. Zod emits `oneOf` only for
+ *   `z.discriminatedUnion()`, whose branches are disjoint by construction, so
+ *   the two keywords accept the same values there — and strict-capable
+ *   providers accept `anyOf` only.
  *
  * It never widens or narrows what the user's Zod schema accepts; schemas that
  * cannot be expressed in the strict subset are rejected by the contract
@@ -108,7 +180,7 @@ function normalizeNode(node: unknown): unknown {
     }
 
     const dropImplicitBounds = isImplicitSafeIntegerBounds(node);
-    const result: Record<string, unknown> = {};
+    const stripped: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(node)) {
         if (key === '$schema') {
@@ -117,39 +189,20 @@ function normalizeNode(node: unknown): unknown {
         if (dropImplicitBounds && (key === 'minimum' || key === 'maximum')) {
             continue;
         }
-        result[key] = value;
+        stripped[key] = value;
     }
 
-    if (isPlainObject(result.properties)) {
-        result.properties = Object.fromEntries(
-            Object.entries(result.properties).map(([key, child]) => [
-                key,
-                normalizeNode(child),
-            ])
-        );
-    }
-    if (result.items !== undefined) {
-        result.items = normalizeNode(result.items);
-    }
-    for (const keyword of ['anyOf', 'allOf'] as const) {
-        const value = result[keyword];
-        if (Array.isArray(value)) {
-            result[keyword] = value.map((child) => normalizeNode(child));
-        }
-    }
-    for (const container of ['$defs', 'definitions'] as const) {
-        const value = result[container];
-        if (isPlainObject(value)) {
-            result[container] = Object.fromEntries(
-                Object.entries(value).map(([key, child]) => [
-                    key,
-                    normalizeNode(child),
-                ])
-            );
-        }
+    const result = mapChildSchemaNodes(stripped, normalizeNode);
+
+    if (Array.isArray(result.oneOf) && result.anyOf === undefined) {
+        result.anyOf = result.oneOf;
+        delete result.oneOf;
     }
 
-    if (isObjectSchemaNode(result) && result.additionalProperties === undefined) {
+    if (
+        isObjectSchemaNode(result) &&
+        result.additionalProperties === undefined
+    ) {
         result.additionalProperties = false;
     }
 

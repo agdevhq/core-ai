@@ -357,6 +357,14 @@ function normalizeAnthropicJsonValue(value: unknown): unknown {
         normalized[key] = normalizeAnthropicJsonValue(child);
     }
 
+    // Zod emits `oneOf` only for z.discriminatedUnion(), whose branches are
+    // disjoint by construction, so `anyOf` accepts the same values and is the
+    // composition keyword Anthropic's schema subset supports.
+    if (Array.isArray(normalized.oneOf) && normalized.anyOf === undefined) {
+        normalized.anyOf = normalized.oneOf;
+        delete normalized.oneOf;
+    }
+
     if (isObjectSchema(normalized)) {
         normalized.additionalProperties = false;
     }

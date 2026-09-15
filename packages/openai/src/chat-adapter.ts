@@ -77,10 +77,7 @@ function resolveAdapterOptions(
         // lookup applies them here.
         capabilities:
             adapterOptions.capabilities ??
-            toOpenAIResponsesCapabilities(
-                getOpenAIModelCapabilities(modelId),
-                modelId
-            ),
+            toOpenAIResponsesCapabilities(getOpenAIModelCapabilities(modelId)),
         // Also the ownership key for encrypted reasoning metadata — Azure
         // (`azure-openai`) must not share the `openai` namespace.
         providerId: adapterOptions.providerId ?? DEFAULT_PROVIDER_ID,
