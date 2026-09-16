@@ -283,12 +283,43 @@ Gemini 3.x models use HIGH/LOW thinking control. Mapping: `minimal`/`low`/`mediu
 
 ### Thinking budget (Gemini 2.5)
 
-Token budgets: `minimal` -> 1,024, `low` -> 4,096, `medium` -> 16,384, `high`/`max` -> 32,768.
+Each model accepts its own range of thinking budgets, so the top two efforts
+are derived from the model's own maximum rather than a fixed number. Lower
+efforts are the same everywhere: `minimal` -> 1,024, `low` -> 4,096,
+`medium` -> 16,384.
+
+| Model                   | Budget range | `high` | `max`  |
+| ----------------------- | ------------ | ------ | ------ |
+| `gemini-2.5-pro`        | 128–32,768   | 24,576 | 32,768 |
+| `gemini-2.5-flash`      | 0–24,576     | 18,432 | 24,576 |
+| `gemini-2.5-flash-lite` | 512–24,576   | 18,432 | 24,576 |
 
 <Note>
     `gemini-2.5-flash` and `gemini-2.5-flash-lite` can skip thinking by omitting
     the reasoning parameter.
 </Note>
+
+### How reasoning and maxTokens interact
+
+Gemini counts thought tokens against `maxOutputTokens`. A limit at or below the
+thinking budget ends the response with `MAX_TOKENS` and no visible answer,
+while still billing for the thoughts, so the provider resolves the two
+together.
+
+Omit `maxTokens` and the request uses the model's full output limit of 65,536
+tokens, leaving room for both thoughts and the answer. Set `maxTokens` and it
+stays a hard limit: a limit that cannot hold the thinking budget raises a
+`ValidationError` rather than returning an empty answer.
+
+```typescript
+// Rejected: `max` spends all 32,768 tokens on thinking.
+await generate({
+    model: google.chatModel('gemini-2.5-pro'),
+    messages: [{ role: 'user', content: 'Analyze this carefully.' }],
+    reasoning: { effort: 'max' },
+    maxTokens: 32_768,
+});
+```
 
 ### Thought signatures
 

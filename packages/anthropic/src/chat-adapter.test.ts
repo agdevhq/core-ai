@@ -638,7 +638,7 @@ describe('reasoning support', () => {
         ]);
     });
 
-    it('should map adaptive and manual reasoning fields within maxTokens', () => {
+    it('should map adaptive and manual reasoning fields', () => {
         const adaptiveOptions = {
             messages: [{ role: 'user', content: 'Hi' }],
             tools: {
@@ -677,9 +677,11 @@ describe('reasoning support', () => {
         expect(manual).toMatchObject({
             thinking: {
                 type: 'enabled',
-                budget_tokens: 4095,
+                budget_tokens: 8192,
                 display: 'summarized',
             },
+            // 8192 of thinking on top of the 4096 completion allowance.
+            max_tokens: 12_288,
         });
         expect(manual).not.toHaveProperty('betas');
         expect(
@@ -692,7 +694,208 @@ describe('reasoning support', () => {
         });
         expect(clamped).toHaveProperty('output_config.effort', 'high');
     });
+});
 
+describe('reasoning output budgets', () => {
+    const reasoningOptions = (
+        effort: 'medium' | 'high' | 'max',
+        maxTokens?: number
+    ) =>
+        ({
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort },
+            ...(maxTokens === undefined ? {} : { maxTokens }),
+        }) satisfies GenerateOptions;
+
+    it('should size an omitted limit from the thinking budget', () => {
+        const request = createGenerateRequest(
+            'claude-sonnet-4-5',
+            4096,
+            reasoningOptions('high')
+        );
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+            max_tokens: 36_864,
+        });
+    });
+
+    it('should cap an omitted limit at the model output ceiling', () => {
+        const request = createGenerateRequest(
+            'claude-sonnet-4-5',
+            64_000,
+            reasoningOptions('high')
+        );
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+            max_tokens: 64_000,
+        });
+    });
+
+    it('should reject an explicit limit that cannot hold the thinking budget', () => {
+        expect(() =>
+            createGenerateRequest(
+                'claude-sonnet-4-5',
+                4096,
+                reasoningOptions('high', 32_000)
+            )
+        ).toThrowError(
+            /needs maxTokens above the 32768-token thinking budget of reasoning effort "high", but maxTokens is 32000/
+        );
+        expect(() =>
+            createGenerateRequest(
+                'claude-sonnet-4-5',
+                4096,
+                reasoningOptions('high', 32_000)
+            )
+        ).toThrowError(ValidationError);
+    });
+
+    it('should keep an explicit limit that can hold the thinking budget', () => {
+        const request = createGenerateRequest(
+            'claude-sonnet-4-5',
+            4096,
+            reasoningOptions('high', 40_000)
+        );
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+            max_tokens: 40_000,
+        });
+    });
+
+    it('should clamp manual max effort to what the ceiling allows', () => {
+        // `max` needs 65536 thinking tokens, which never fits under the
+        // 64000-token ceiling, so the effort degrades to `high`.
+        const request = createGenerateRequest(
+            'claude-sonnet-4-5',
+            4096,
+            reasoningOptions('max')
+        );
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+        });
+    });
+
+    it('should honour manual max effort when the ceiling has room', () => {
+        const capabilities = {
+            ...getAnthropicModelCapabilities('claude-sonnet-4-5'),
+            output: { maxTokens: 128_000 },
+            reasoning: {
+                ...getAnthropicModelCapabilities('claude-sonnet-4-5').reasoning,
+                supportedEfforts: ['medium', 'high', 'max'] as const,
+            },
+        };
+
+        const request = createGenerateRequest(
+            'claude-sonnet-4-5',
+            4096,
+            reasoningOptions('max'),
+            'anthropic',
+            { capabilities }
+        );
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 65_536 },
+            max_tokens: 69_632,
+        });
+    });
+
+    it('should reject an effort the model output ceiling cannot honour', () => {
+        const base = getAnthropicModelCapabilities('claude-sonnet-4-5');
+        const capabilities = {
+            ...base,
+            output: { maxTokens: 2000 },
+            reasoning: {
+                ...base.reasoning,
+                supportedEfforts: ['high'] as const,
+            },
+        };
+
+        expect(() =>
+            createGenerateRequest(
+                'claude-sonnet-4-5',
+                4096,
+                reasoningOptions('high'),
+                'anthropic',
+                { capabilities }
+            )
+        ).toThrowError(
+            /cannot run reasoning effort "high": a 32768-token thinking budget does not fit under its 2000-token output ceiling/
+        );
+    });
+
+    it('should give adaptive max effort the full model output range', () => {
+        const request = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('max')
+        );
+
+        expect(request).toMatchObject({
+            output_config: { effort: 'max' },
+            max_tokens: 128_000,
+        });
+    });
+
+    it('should leave lower adaptive efforts on the default allowance', () => {
+        const request = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('high')
+        );
+
+        expect(request).toMatchObject({
+            output_config: { effort: 'high' },
+            max_tokens: 4096,
+        });
+    });
+
+    it('should respect an explicit limit for adaptive thinking', () => {
+        const request = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('max', 8192)
+        );
+
+        expect(request).toMatchObject({
+            output_config: { effort: 'max' },
+            max_tokens: 8192,
+        });
+    });
+
+    it('should size stream requests the same way', () => {
+        const request = createStreamRequest(
+            'claude-sonnet-4-5',
+            4096,
+            reasoningOptions('high')
+        );
+
+        expect(request).toMatchObject({
+            stream: true,
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+            max_tokens: 36_864,
+        });
+    });
+
+    it('should leave non-reasoning requests on the caller limits', () => {
+        const messages = [{ role: 'user', content: 'Hi' }] satisfies Message[];
+
+        expect(
+            createGenerateRequest('claude-sonnet-4-5', 4096, { messages })
+        ).toMatchObject({ max_tokens: 4096 });
+        expect(
+            createGenerateRequest('claude-sonnet-4-5', 4096, {
+                messages,
+                maxTokens: 512,
+            })
+        ).toMatchObject({ max_tokens: 512 });
+    });
+});
+
+describe('reasoning support', () => {
     it('should include cache_control when cacheControl provider option is set', () => {
         const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
             messages: [{ role: 'user', content: 'Hello' }],
@@ -819,12 +1022,22 @@ describe('reasoning support', () => {
             })
         ).toThrowError(ValidationError);
 
+        // An explicit limit that leaves no room beyond the smallest thinking
+        // budget is rejected; the same limit as a default is sized up instead.
+        expect(() =>
+            createGenerateRequest('claude-sonnet-4-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'minimal' },
+                maxTokens: 1024,
+            })
+        ).toThrowError(ValidationError);
+
         expect(() =>
             createGenerateRequest('claude-sonnet-4-5', 1024, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'minimal' },
             })
-        ).toThrowError(ValidationError);
+        ).not.toThrow();
     });
 
     it('should attribute validation errors to a custom provider id', () => {

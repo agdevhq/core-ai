@@ -159,6 +159,13 @@ request options remain valid, and image input support. See
 [Google GenAI model capabilities](/api/providers/google-genai#model-capabilities)
 for details.
 
+Thinking budgets and output limits resolve exactly as they do on Google GenAI:
+Gemini 2.5 budgets come from each model's documented range, an omitted
+`maxTokens` uses the model's full output limit so thoughts and answer both fit,
+and a `maxTokens` that cannot hold the thinking budget raises a
+`ValidationError`. See
+[How reasoning and maxTokens interact](/api/providers/google-genai#how-reasoning-and-maxtokens-interact).
+
 ### Strict tool schemas
 
 Vertex-hosted Gemini models report `model.capabilities.tools.strictSchemas` as

@@ -25,7 +25,9 @@ import type {
     UserContentPart,
 } from '@core-ai/core-ai';
 import {
+    clampReasoningEffort,
     getProviderMetadata,
+    ValidationError,
     validateInputModalities,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
@@ -385,7 +387,7 @@ export function createGenerateRequest(
             ? { toolConfig: convertToolChoice(options.toolChoice) }
             : {}),
         ...mapSamplingToConfig(options),
-        ...mapReasoningToConfig(options, capabilities),
+        ...mapReasoningToConfig(options, capabilities, modelId, provider),
         ...mapGoogleProviderOptionsToConfig(googleOptions),
         ...(options.signal ? { abortSignal: options.signal } : {}),
     };
@@ -657,26 +659,60 @@ export async function* transformStream(
     };
 }
 
+/**
+ * Gemini spends thought tokens out of `maxOutputTokens`, so a limit at or
+ * below the thinking budget yields `MAX_TOKENS` with an empty answer while
+ * still billing for the thoughts. An explicit limit therefore has to be
+ * rejected rather than worked around, and an omitted one is set to the
+ * model's verified ceiling so thoughts and answer both have room.
+ */
 function mapReasoningToConfig(
     options: GenerateOptions,
-    capabilities: GoogleModelCapabilities
+    capabilities: GoogleModelCapabilities,
+    modelId: string,
+    provider: string
 ): Record<string, unknown> {
     if (!options.reasoning) {
         return {};
     }
 
+    const effort = clampReasoningEffort(
+        options.reasoning.effort,
+        capabilities.reasoning.supportedEfforts
+    );
+
     if (capabilities.reasoning.thinkingParam === 'thinkingLevel') {
         return {
             thinkingConfig: {
-                thinkingLevel: toGoogleThinkingLevel(options.reasoning.effort),
+                thinkingLevel: toGoogleThinkingLevel(effort),
                 includeThoughts: true,
             },
         };
     }
 
+    const thinkingBudget = toGoogleThinkingBudget(
+        effort,
+        capabilities.reasoning.thinkingBudgetRange
+    );
+    const modelMaxTokens = capabilities.output?.maxTokens;
+
+    if (
+        options.maxTokens !== undefined &&
+        options.maxTokens <= thinkingBudget
+    ) {
+        throw new ValidationError(
+            `Google model "${modelId}" needs maxTokens above the ${thinkingBudget}-token thinking budget of reasoning effort "${effort}", but maxTokens is ${options.maxTokens}. Raise maxTokens, lower the effort, or omit maxTokens to use the model's output limit.`,
+            undefined,
+            provider
+        );
+    }
+
     return {
+        ...(options.maxTokens === undefined && modelMaxTokens !== undefined
+            ? { maxOutputTokens: modelMaxTokens }
+            : {}),
         thinkingConfig: {
-            thinkingBudget: toGoogleThinkingBudget(options.reasoning.effort),
+            thinkingBudget,
             includeThoughts: true,
         },
     };

@@ -200,7 +200,6 @@ const result = await generate({
     reasoning: {
         effort: 'max',
     },
-    maxTokens: 8192,
 });
 
 if (result.reasoning) {
@@ -311,9 +310,12 @@ const result = await generate({
 ### Manual thinking budget (Claude 4.5 and earlier)
 
 Token budgets: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192, `high` -> 32,768, `max` -> 65,536.
-The adapter caps the selected budget at `maxTokens - 1` because Anthropic
-requires the thinking budget to be lower than the total output limit.
-`maxTokens` must be greater than 1,024.
+
+Anthropic spends thinking tokens out of `max_tokens` and requires the budget to
+stay below it, so `supportedEfforts` only lists the efforts whose budget fits
+under the model's output limit. `claude-opus-4-5`, `claude-sonnet-4-5`, and
+`claude-haiku-4-5` cap out at `high`, and `claude-opus-4-1` at `medium`. A
+higher requested effort is clamped down to the highest one the model can run.
 
 ```typescript
 const result = await generate({
@@ -322,6 +324,33 @@ const result = await generate({
     reasoning: {
         effort: 'high',
     },
+});
+```
+
+### How reasoning and maxTokens interact
+
+Reasoning shares the output allowance with the visible answer, so the provider
+resolves the two together.
+
+Omit `maxTokens` and the request is sized for the effort you asked for: the
+thinking budget plus the provider's `defaultMaxTokens` as the answer
+allowance, capped at the model's output limit. Adaptive `max` effort gets the
+model's full output limit, since adaptive thinking has no separate budget to
+reserve.
+
+Set `maxTokens` and it stays a hard limit. A limit that cannot hold the
+requested thinking budget raises a `ValidationError` instead of silently
+reducing the budget, so a request for deep reasoning never quietly turns into
+a shallow one. Raise `maxTokens`, lower the effort, or omit `maxTokens`
+entirely.
+
+```typescript
+// Rejected: `high` needs 32,768 thinking tokens and nothing is left over.
+await generate({
+    model: anthropic.chatModel('claude-sonnet-4-5'),
+    messages: [{ role: 'user', content: 'Complex reasoning task...' }],
+    reasoning: { effort: 'high' },
+    maxTokens: 32_000,
 });
 ```
 

@@ -28,9 +28,13 @@ const MAX_EFFORTS = [
 
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
-    supportsStrictToolSchemas: boolean
+    supportsStrictToolSchemas: boolean,
+    maxOutputTokens: number | undefined
 ): AnthropicModelCapabilities {
     return {
+        ...(maxOutputTokens === undefined
+            ? {}
+            : { output: { maxTokens: maxOutputTokens } }),
         reasoning: {
             mode: 'optional',
             supportedEfforts,
@@ -135,9 +139,38 @@ const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
     max: 65536,
 };
 
+/**
+ * Verified synchronous Messages API `max_tokens` ceilings.
+ *
+ * Anthropic documents these in decimal thousands rather than powers of two: a
+ * "32k" model rejects 32768 with `max_tokens: 32768 > 32000`. Ids absent from
+ * this map have no verified ceiling and must be treated as unknown rather than
+ * capped at a guess.
+ */
+const ANTHROPIC_MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
+    'claude-fable-5': 128_000,
+    'claude-mythos-5': 128_000,
+    'claude-mythos-preview': 128_000,
+    'claude-opus-5': 128_000,
+    'claude-opus-4-8': 128_000,
+    'claude-opus-4-7': 128_000,
+    'claude-opus-4-6': 128_000,
+    'claude-sonnet-5': 128_000,
+    'claude-sonnet-4-6': 128_000,
+    'claude-opus-4-5': 64_000,
+    'claude-sonnet-4-5': 64_000,
+    'claude-haiku-4-5': 64_000,
+    'claude-sonnet-4': 64_000,
+    'claude-sonnet-3-7': 64_000,
+    'claude-3-7-sonnet': 64_000,
+    'claude-opus-4-1': 32_000,
+    'claude-opus-4': 32_000,
+};
+
 export function getAnthropicModelCapabilities(
     modelId: string
 ): AnthropicModelCapabilities {
+    const maxOutputTokens = getAnthropicModelMaxOutputTokens(modelId);
     const supportedEfforts =
         supportsAnthropicMaxEffort(modelId) ||
         getAnthropicThinkingMode(modelId) === 'manual'
@@ -145,9 +178,40 @@ export function getAnthropicModelCapabilities(
             : STANDARD_EFFORTS;
 
     return createCapabilities(
-        supportedEfforts,
-        supportsAnthropicStrictToolSchemas(modelId)
+        getAnthropicThinkingMode(modelId) === 'manual'
+            ? withinManualOutputCeiling(supportedEfforts, maxOutputTokens)
+            : supportedEfforts,
+        supportsAnthropicStrictToolSchemas(modelId),
+        maxOutputTokens
     );
+}
+
+/**
+ * Manual thinking spends `budget_tokens` out of `max_tokens` and Anthropic
+ * requires the budget to stay below it, so an effort whose budget reaches the
+ * model's ceiling cannot be expressed at all — Claude Haiku 4.5 cannot honour
+ * `max` (65536) within its 64000 ceiling. Dropping those efforts from the
+ * advertised list lets `clampReasoningEffort` degrade the request to the
+ * highest effort the model can actually run, instead of sending something the
+ * API rejects.
+ */
+function withinManualOutputCeiling(
+    supportedEfforts: readonly ReasoningEffort[],
+    maxOutputTokens: number | undefined
+): readonly ReasoningEffort[] {
+    if (maxOutputTokens === undefined) {
+        return supportedEfforts;
+    }
+
+    return supportedEfforts.filter(
+        (effort) => ANTHROPIC_MANUAL_BUDGET_MAP[effort] < maxOutputTokens
+    );
+}
+
+export function getAnthropicModelMaxOutputTokens(
+    modelId: string
+): number | undefined {
+    return ANTHROPIC_MODEL_MAX_OUTPUT_TOKENS[normalizeModelId(modelId)];
 }
 
 export function normalizeModelId(modelId: string): string {
@@ -192,12 +256,6 @@ export function toAnthropicAdaptiveEffort(
     return ANTHROPIC_ADAPTIVE_EFFORT_MAP[effort];
 }
 
-export function toAnthropicManualBudget(
-    effort: ReasoningEffort,
-    maxTokens?: number
-): number {
-    const targetBudget = ANTHROPIC_MANUAL_BUDGET_MAP[effort];
-    return maxTokens === undefined
-        ? targetBudget
-        : Math.min(targetBudget, maxTokens - 1);
+export function toAnthropicManualBudget(effort: ReasoningEffort): number {
+    return ANTHROPIC_MANUAL_BUDGET_MAP[effort];
 }

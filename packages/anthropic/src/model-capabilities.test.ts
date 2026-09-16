@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     getAnthropicModelCapabilities,
+    getAnthropicModelMaxOutputTokens,
     getAnthropicThinkingMode,
     normalizeModelId,
     requiresAnthropicInterleavedThinkingBeta,
@@ -49,7 +50,8 @@ describe('getAnthropicModelCapabilities', () => {
         const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
         expect(capabilities.reasoning).toEqual({
             mode: 'optional',
-            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
+            // `max` (65536) does not fit under the model's 64000 ceiling.
+            supportedEfforts: ['minimal', 'low', 'medium', 'high'],
             restrictsSamplingParams: true,
             supportedToolChoices: ['auto', 'none'],
         });
@@ -140,10 +142,64 @@ describe('effort mapping', () => {
         expect(toAnthropicAdaptiveEffort('max', false)).toBe('high');
     });
 
-    it('should map manual budgets', () => {
+    it('should map manual budgets without regard to the output ceiling', () => {
         expect(toAnthropicManualBudget('minimal')).toBe(1024);
+        expect(toAnthropicManualBudget('medium')).toBe(8192);
         expect(toAnthropicManualBudget('max')).toBe(65536);
-        expect(toAnthropicManualBudget('medium', 4096)).toBe(4095);
+    });
+});
+
+describe('output limits', () => {
+    it.each([
+        ['claude-opus-5', 128_000],
+        ['claude-sonnet-5', 128_000],
+        ['claude-sonnet-4-6', 128_000],
+        ['claude-opus-4-5', 64_000],
+        ['claude-sonnet-4-5', 64_000],
+        ['claude-haiku-4-5', 64_000],
+        ['claude-opus-4-1', 32_000],
+    ])('should report the verified output ceiling for %s', (modelId, limit) => {
+        expect(getAnthropicModelMaxOutputTokens(modelId)).toBe(limit);
+        expect(getAnthropicModelCapabilities(modelId).output).toEqual({
+            maxTokens: limit,
+        });
+    });
+
+    it('should resolve dated model IDs to the same ceiling', () => {
+        expect(
+            getAnthropicModelMaxOutputTokens('claude-haiku-4-5@20251001')
+        ).toBe(64_000);
+    });
+
+    it('should leave the ceiling unknown for unverified models', () => {
+        expect(getAnthropicModelMaxOutputTokens('claude-future-5')).toBe(
+            undefined
+        );
+        expect(
+            getAnthropicModelCapabilities('claude-future-5').output
+        ).toBeUndefined();
+    });
+
+    it('should hide manual efforts whose budget cannot fit under the ceiling', () => {
+        // Manual thinking requires budget_tokens < max_tokens, so Opus 4.1's
+        // 32000 ceiling rules out `high` (32768) as well as `max` (65536).
+        expect(
+            getAnthropicModelCapabilities('claude-opus-4-1').reasoning
+                .supportedEfforts
+        ).toEqual(['minimal', 'low', 'medium']);
+        expect(
+            getAnthropicModelCapabilities('claude-haiku-4-5').reasoning
+                .supportedEfforts
+        ).toEqual(['minimal', 'low', 'medium', 'high']);
+    });
+
+    it('should keep every adaptive effort regardless of the ceiling', () => {
+        // Adaptive thinking has no numeric budget to fit, so a smaller
+        // ceiling does not remove efforts.
+        expect(
+            getAnthropicModelCapabilities('claude-sonnet-4-6').reasoning
+                .supportedEfforts
+        ).toEqual(['minimal', 'low', 'medium', 'high', 'max']);
     });
 });
 

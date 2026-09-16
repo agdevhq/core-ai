@@ -624,6 +624,109 @@ describe('reasoning support', () => {
         });
     });
 
+    it.each([
+        ['gemini-2.5-pro', 32_768],
+        ['gemini-2.5-flash', 24_576],
+        ['gemini-2.5-flash-lite', 24_576],
+    ])(
+        'should keep max effort inside the %s budget range',
+        (modelId, thinkingBudget) => {
+            const request = createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            });
+
+            expect(request.config).toMatchObject({
+                thinkingConfig: { thinkingBudget, includeThoughts: true },
+                // Thoughts and answer share the ceiling, so an omitted limit
+                // opens up the model's full output range.
+                maxOutputTokens: 65_536,
+            });
+        }
+    );
+
+    it('should separate max effort from high effort', () => {
+        const high = createGenerateRequest('gemini-2.5-flash', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(high.config).toMatchObject({
+            thinkingConfig: { thinkingBudget: 18_432 },
+        });
+    });
+
+    it('should reject an explicit limit that cannot hold the thinking budget', () => {
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+                maxTokens: 32_768,
+            })
+        ).toThrowError(
+            /needs maxTokens above the 32768-token thinking budget of reasoning effort "max", but maxTokens is 32768/
+        );
+    });
+
+    it('should keep an explicit limit that can hold the thinking budget', () => {
+        const request = createGenerateRequest('gemini-2.5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+            maxTokens: 40_000,
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingBudget: 32_768 },
+            maxOutputTokens: 40_000,
+        });
+    });
+
+    it('should leave the output limit unset for unknown thinking-budget models', () => {
+        const request = createGenerateRequest('gemini-custom', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingBudget: 32_768 },
+        });
+        expect(request.config).not.toHaveProperty('maxOutputTokens');
+    });
+
+    it('should leave the output limit unset without reasoning', () => {
+        const request = createGenerateRequest('gemini-2.5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(request.config).not.toHaveProperty('maxOutputTokens');
+        expect(request.config).not.toHaveProperty('thinkingConfig');
+    });
+
+    it('should clamp an unsupported effort before mapping a level', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-3-pro');
+        const request = createGenerateRequest(
+            'gemini-3-pro',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            'google',
+            {
+                capabilities: {
+                    ...capabilities,
+                    reasoning: {
+                        ...capabilities.reasoning,
+                        supportedEfforts: ['minimal', 'low'],
+                    },
+                },
+            }
+        );
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingLevel: 'LOW' },
+        });
+    });
+
     it('should not allow provider reasoning config overrides', () => {
         const request = createGenerateRequest('gemini-3-pro', {
             messages: [{ role: 'user', content: 'Hi' }],

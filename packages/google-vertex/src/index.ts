@@ -19,4 +19,5 @@ export type {
     GoogleModelCapabilities,
     GoogleModelProviderOptions,
     GoogleReasoningMetadata,
+    GoogleThinkingBudgetRange,
 } from '@core-ai/google-genai';
