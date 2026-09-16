@@ -1,5 +1,18 @@
 # @core-ai/openai-compat
 
+## 0.25.0
+
+### Minor Changes
+
+- d98a0cb: Forward per-tool `strict: true` optimistically with normalized schemas. The `strictToolSchemas` opt-in option was removed — capabilities report strict schemas as supported, and endpoints that lack the feature surface their own error.
+
+### Patch Changes
+
+- Updated dependencies [d98a0cb]
+- Updated dependencies [d98a0cb]
+    - @core-ai/core-ai@0.25.0
+    - @core-ai/openai@0.25.0
+
 ## 0.24.0
 
 ### Patch Changes

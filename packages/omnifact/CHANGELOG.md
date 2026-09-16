@@ -1,5 +1,18 @@
 # @core-ai/omnifact
 
+## 0.25.0
+
+### Minor Changes
+
+- d98a0cb: Report strict tool schemas as supported and forward per-tool `strict: true` to the gateway with normalized schemas instead of rejecting locally.
+
+### Patch Changes
+
+- Updated dependencies [d98a0cb]
+- Updated dependencies [d98a0cb]
+    - @core-ai/core-ai@0.25.0
+    - @core-ai/openai@0.25.0
+
 ## 0.24.0
 
 ### Patch Changes

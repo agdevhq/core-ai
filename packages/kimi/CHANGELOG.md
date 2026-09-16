@@ -1,5 +1,18 @@
 # @core-ai/kimi
 
+## 0.25.0
+
+### Minor Changes
+
+- d98a0cb: Forward per-tool `strict: true` with normalized schemas; tools that do not opt in are no longer sent with an explicit `strict: false`.
+
+### Patch Changes
+
+- Updated dependencies [d98a0cb]
+- Updated dependencies [d98a0cb]
+    - @core-ai/core-ai@0.25.0
+    - @core-ai/openai@0.25.0
+
 ## 0.24.0
 
 ### Patch Changes
