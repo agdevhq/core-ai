@@ -266,15 +266,24 @@ function convertUserContentPart(part: UserContentPart): ContentBlockParam {
     };
 }
 
+/**
+ * Strict tools get Anthropic's semantics-preserving normalization (the strict
+ * grammar rejects `$schema`, open objects, numeric/length constraints, and
+ * `oneOf`); non-strict tools are sent with their raw JSON Schema so declared
+ * constraints reach the model as hints, matching the other providers.
+ */
 export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
-        const schema = toAnthropicJsonSchema(tool.parameters);
+        const strict = tool.strict === true;
+        const schema = strict
+            ? toAnthropicJsonSchema(tool.parameters)
+            : zodSchemaToJsonSchema(tool.parameters);
 
         return {
             name: tool.name,
             description: tool.description,
             input_schema: schema as Tool['input_schema'],
-            ...(tool.strict === true ? { strict: true } : {}),
+            ...(strict ? { strict: true } : {}),
         };
     });
 }

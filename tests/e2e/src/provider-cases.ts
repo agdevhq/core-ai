@@ -77,9 +77,23 @@ export const providerCases: ProviderContractCase[] = [
             const model = adapter.createChatModel();
             expect(model.capabilities.tools.strictSchemas.supported).toBe(true);
 
+            // Covers every construct the strict normalizers rewrite before the
+            // schema reaches the provider: z.int() (implicit bounds dropped),
+            // nested objects (closed with additionalProperties: false),
+            // .nullable() (anyOf with null), and z.discriminatedUnion()
+            // (oneOf rewritten to anyOf).
             const parameters = z.object({
-                count: z.number().int(),
+                count: z.int(),
                 mode: z.enum(['fast', 'safe']),
+                label: z.string().nullable(),
+                retry: z.object({
+                    attempts: z.int(),
+                    backoff: z.enum(['linear', 'exponential']),
+                }),
+                target: z.discriminatedUnion('kind', [
+                    z.object({ kind: z.literal('branch'), name: z.string() }),
+                    z.object({ kind: z.literal('commit'), sha: z.string() }),
+                ]),
             });
             const result = await generate({
                 model,
@@ -87,7 +101,8 @@ export const providerCases: ProviderContractCase[] = [
                     {
                         role: 'user',
                         content:
-                            'Call configure_run with count 3 and mode safe.',
+                            'Call configure_run with count 3, mode safe, no label, ' +
+                            '2 linear retry attempts, targeting the branch named main.',
                     },
                 ],
                 tools: {

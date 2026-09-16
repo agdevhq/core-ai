@@ -100,6 +100,14 @@ describe('getStrictToolSchemaViolations', () => {
         expect(getStrictToolSchemaViolations('tool', schema)).toEqual([]);
     });
 
+    it('reports only the user-declared bound of z.int().min()', () => {
+        const violations = violationsFor(z.object({ count: z.int().min(0) }));
+        expect(violations.map((v) => v.path)).toEqual([
+            'properties.count.minimum',
+        ]);
+        expect(violations[0]?.message).toContain('.min()');
+    });
+
     it('rejects optional keys with a .nullable() hint', () => {
         const violations = violationsFor(
             z.object({ limit: z.number().optional() })
@@ -187,6 +195,25 @@ describe('getStrictToolSchemaViolations', () => {
         expect(violations.some((v) => v.message.includes('recursive'))).toBe(
             true
         );
+    });
+
+    it('rejects schemas that reference themselves at the root', () => {
+        type Category = { name: string; children: Category[] };
+        const category: z.ZodType<Category> = z.lazy(() =>
+            z.object({
+                name: z.string(),
+                children: z.array(category),
+            })
+        );
+        // Zod serializes the self-reference as `$ref: "#"`, not via $defs.
+        expect(zodSchemaToJsonSchema(category)).toMatchObject({
+            properties: { children: { items: { $ref: '#' } } },
+        });
+
+        const violations = violationsFor(category);
+        expect(violations).toHaveLength(1);
+        expect(violations[0]?.path).toBe('');
+        expect(violations[0]?.message).toContain('recursive');
     });
 
     it('accepts non-recursive shared definitions', () => {

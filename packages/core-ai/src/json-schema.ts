@@ -26,17 +26,21 @@ export function isObjectSchemaNode(node: Record<string, unknown>): boolean {
 
 /**
  * Zod stamps `minimum: -(2^53 - 1)` / `maximum: 2^53 - 1` onto every integer
- * schema (`z.int()`, `z.number().int()`). That exact pair is a serialization
- * artifact rather than a user-declared range constraint.
+ * schema (`z.int()`, `z.number().int()`). Each half is checked on its own
+ * because a user bound replaces only one of them: `z.int().min(0)` keeps the
+ * implicit `maximum`, which is still a serialization artifact rather than a
+ * user-declared constraint.
  */
-export function isImplicitSafeIntegerBounds(
-    node: Record<string, unknown>
+export function isImplicitSafeIntegerBound(
+    node: Record<string, unknown>,
+    key: 'minimum' | 'maximum'
 ): boolean {
-    return (
-        node.type === 'integer' &&
-        node.minimum === -MAX_SAFE_INTEGER_BOUND &&
-        node.maximum === MAX_SAFE_INTEGER_BOUND
-    );
+    if (node.type !== 'integer') {
+        return false;
+    }
+    return key === 'minimum'
+        ? node.minimum === -MAX_SAFE_INTEGER_BOUND
+        : node.maximum === MAX_SAFE_INTEGER_BOUND;
 }
 
 export type ChildSchemaNodeEntry = {
@@ -156,8 +160,8 @@ export function mapChildSchemaNodes(
  * - drops `$schema` (metadata, not a constraint),
  * - sets `additionalProperties: false` on object nodes where absent, which
  *   matches `z.object()` semantics (unknown keys are stripped at parse time),
- * - drops Zod's implicit safe-integer bounds pair on integer nodes (see
- *   {@link isImplicitSafeIntegerBounds}),
+ * - drops Zod's implicit safe-integer bounds on integer nodes (see
+ *   {@link isImplicitSafeIntegerBound}),
  * - rewrites `oneOf` to `anyOf`. Zod emits `oneOf` only for
  *   `z.discriminatedUnion()`, whose branches are disjoint by construction, so
  *   the two keywords accept the same values there — and strict-capable
@@ -170,23 +174,26 @@ export function mapChildSchemaNodes(
 export function normalizeStrictJsonSchema(
     schema: Record<string, unknown>
 ): Record<string, unknown> {
-    const normalized = normalizeNode(schema);
-    return isPlainObject(normalized) ? normalized : schema;
+    return normalizeObjectNode(schema);
 }
 
 function normalizeNode(node: unknown): unknown {
-    if (!isPlainObject(node)) {
-        return node;
-    }
+    return isPlainObject(node) ? normalizeObjectNode(node) : node;
+}
 
-    const dropImplicitBounds = isImplicitSafeIntegerBounds(node);
+function normalizeObjectNode(
+    node: Record<string, unknown>
+): Record<string, unknown> {
     const stripped: Record<string, unknown> = {};
 
     for (const [key, value] of Object.entries(node)) {
         if (key === '$schema') {
             continue;
         }
-        if (dropImplicitBounds && (key === 'minimum' || key === 'maximum')) {
+        if (
+            (key === 'minimum' || key === 'maximum') &&
+            isImplicitSafeIntegerBound(node, key)
+        ) {
             continue;
         }
         stripped[key] = value;

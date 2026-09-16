@@ -252,11 +252,13 @@ describe('convertTools', () => {
         expect(result[0]?.strict).toBeUndefined();
         expect(result[0]?.input_schema).toMatchObject({
             type: 'object',
-            additionalProperties: false,
             properties: {
                 query: { type: 'string' },
             },
         });
+        expect(result[0]?.input_schema).not.toHaveProperty(
+            'additionalProperties'
+        );
     });
 
     it('should mark only explicitly strict tools as strict', () => {
@@ -322,17 +324,22 @@ describe('convertTools', () => {
         }
     });
 
-    it('should keep schema conversion independent of strictness', () => {
+    it('should normalize strict tool schemas and leave non-strict ones raw', () => {
+        const parameters = z.object({
+            value: z.string().min(3),
+            count: z.int().max(10),
+        });
         const tools: ToolSet = {
             strict: defineTool({
                 name: 'strict',
                 description: 'Strict tool',
-                parameters: z.object({ value: z.string().min(3) }),
+                parameters,
+                strict: true,
             }),
             nonStrict: defineTool({
                 name: 'non-strict',
                 description: 'Non-strict tool',
-                parameters: z.object({ value: z.string().min(3) }),
+                parameters,
                 strict: false,
             }),
         };
@@ -346,11 +353,14 @@ describe('convertTools', () => {
         )?.input_schema;
 
         expect(strictSchema).not.toHaveProperty('$schema');
+        expect(strictSchema).toHaveProperty('additionalProperties', false);
         expect(strictSchema).not.toHaveProperty('properties.value.minLength');
-        expect(nonStrictSchema).not.toHaveProperty('$schema');
-        expect(nonStrictSchema).not.toHaveProperty(
-            'properties.value.minLength'
-        );
+        expect(strictSchema).not.toHaveProperty('properties.count.maximum');
+
+        expect(nonStrictSchema).toHaveProperty('$schema');
+        expect(nonStrictSchema).not.toHaveProperty('additionalProperties');
+        expect(nonStrictSchema).toHaveProperty('properties.value.minLength', 3);
+        expect(nonStrictSchema).toHaveProperty('properties.count.maximum', 10);
     });
 });
 

@@ -144,7 +144,9 @@ rewritten to `anyOf` — all semantics-preserving). Non-strict tools are sent
 with the raw converted schema. On the Responses API they carry an explicit
 `strict: false`, because that API otherwise tries to normalize tools into
 strict mode on its own; on Chat Completions, which is non-strict by default,
-the field is omitted.
+the field is omitted. Anthropic follows the same split: strict tools get the
+provider's normalization (which also drops the numeric and length constraints
+its strict grammar rejects), non-strict tools are sent raw.
 
 <Warning>
     Strict generation reduces invalid arguments but does not make tool execution

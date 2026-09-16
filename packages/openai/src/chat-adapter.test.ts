@@ -464,8 +464,6 @@ describe('createGenerateRequest', () => {
         });
         expect(strictTool).not.toHaveProperty('function');
         expect(strictTool?.parameters).not.toHaveProperty('$schema');
-        // Non-strict tools keep the raw converted schema. The Responses API
-        // auto-stricts tools whose `strict` is omitted, so `false` is explicit.
         expect(nonStrictTool).toHaveProperty('strict', false);
         expect(nonStrictTool?.parameters).toHaveProperty('$schema');
         expect(nonStrictTool?.parameters).not.toHaveProperty(

@@ -22,7 +22,7 @@ export type ConvertToolsOptions = {
  * unchanged for OpenAI-compatible gateways that predate the field.
  */
 export function convertTools(tools: ToolSet, options: ConvertToolsOptions) {
-    validateTools(tools, options);
+    validateToolSchemaStrictness({ tools, ...options });
 
     return Object.values(tools).map((tool) => ({
         type: 'function' as const,
@@ -44,7 +44,7 @@ export function convertResponseTools(
     tools: ToolSet,
     options: ConvertToolsOptions
 ) {
-    validateTools(tools, options);
+    validateToolSchemaStrictness({ tools, ...options });
 
     return Object.values(tools).map((tool) => ({
         type: 'function' as const,
@@ -63,15 +63,6 @@ export function convertResponseTools(
 function convertToolParameters(tool: ToolDefinition): Record<string, unknown> {
     const schema = zodSchemaToJsonSchema(tool.parameters);
     return tool.strict === true ? normalizeStrictJsonSchema(schema) : schema;
-}
-
-function validateTools(tools: ToolSet, options: ConvertToolsOptions): void {
-    validateToolSchemaStrictness({
-        tools,
-        capabilities: options.capabilities,
-        providerId: options.providerId,
-        modelId: options.modelId,
-    });
 }
 
 export function convertToolChoice(choice: ToolChoice) {

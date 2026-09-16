@@ -137,6 +137,18 @@ describe('normalizeStrictJsonSchema', () => {
         expect(count).not.toHaveProperty('maximum');
     });
 
+    it('drops an implicit safe-integer bound independently of its pair', () => {
+        const normalized = normalizeStrictJsonSchema(
+            zodSchemaToJsonSchema(z.object({ count: z.int().min(0) }))
+        );
+
+        const count = (
+            normalized.properties as Record<string, Record<string, unknown>>
+        )['count'];
+        expect(count).toMatchObject({ type: 'integer', minimum: 0 });
+        expect(count).not.toHaveProperty('maximum');
+    });
+
     it('rewrites oneOf from z.discriminatedUnion to anyOf at every depth', () => {
         const normalized = normalizeStrictJsonSchema(
             zodSchemaToJsonSchema(

@@ -340,7 +340,6 @@ describe('strict tool schemas', () => {
             },
         });
         expect(strictFunction?.parameters).not.toHaveProperty('$schema');
-        // Non-strict tools keep the raw converted schema and omit `strict`.
         expect(nonStrictFunction).not.toHaveProperty('strict');
         expect(nonStrictFunction?.parameters).toHaveProperty('$schema');
         expect(nonStrictFunction?.parameters).not.toHaveProperty(

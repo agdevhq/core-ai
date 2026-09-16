@@ -1,7 +1,39 @@
+import type { z } from 'zod';
+
 import { ToolSchemaStrictnessError } from './errors.ts';
 import { zodSchemaToJsonSchema } from './json-schema.ts';
-import { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
-import type { ModelCapabilities, ToolSet } from './types.ts';
+import {
+    getStrictToolSchemaViolations,
+    type StrictToolSchemaViolation,
+} from './strict-tool-schema-contract.ts';
+import type { ModelCapabilities, ToolDefinition, ToolSet } from './types.ts';
+
+type ContractViolation = Omit<StrictToolSchemaViolation, 'toolName'>;
+
+/**
+ * Contract results per Zod schema instance. Zod schemas are immutable and the
+ * contract depends on nothing but the serialized schema, so a tool definition
+ * reused across requests is serialized and walked once instead of on every
+ * call. Keyed by the schema rather than the tool so the tool name can differ.
+ */
+const contractViolationCache = new WeakMap<
+    z.ZodType,
+    readonly ContractViolation[]
+>();
+
+function getContractViolations(
+    tool: ToolDefinition
+): StrictToolSchemaViolation[] {
+    let cached = contractViolationCache.get(tool.parameters);
+    if (cached === undefined) {
+        cached = getStrictToolSchemaViolations(
+            tool.name,
+            zodSchemaToJsonSchema(tool.parameters)
+        ).map(({ path, message }) => ({ path, message }));
+        contractViolationCache.set(tool.parameters, cached);
+    }
+    return cached.map((violation) => ({ toolName: tool.name, ...violation }));
+}
 
 export type ValidateToolSchemaStrictnessOptions = {
     tools: ToolSet;
@@ -55,12 +87,7 @@ export function validateToolSchemaStrictness({
         });
     }
 
-    const violations = strictTools.flatMap((tool) =>
-        getStrictToolSchemaViolations(
-            tool.name,
-            zodSchemaToJsonSchema(tool.parameters)
-        )
-    );
+    const violations = strictTools.flatMap(getContractViolations);
     if (violations.length > 0) {
         throw new ToolSchemaStrictnessError({
             providerId,

@@ -1,7 +1,7 @@
 import {
     getChildSchemaNodeEntries,
     getSchemaDefinitionEntries,
-    isImplicitSafeIntegerBounds,
+    isImplicitSafeIntegerBound,
     isObjectSchemaNode,
     isPlainObject,
 } from './json-schema.ts';
@@ -72,15 +72,19 @@ const ALLOWED_STRING_FORMATS = new Set([
     'uuid',
 ]);
 
-const KEYWORD_HINTS: Record<string, string> = {
-    minLength:
-        'remove .min()/.length() — string length constraints are outside the strict-capable subset; validate lengths after parsing instead',
-    maxLength:
-        'remove .max()/.length() — string length constraints are outside the strict-capable subset; validate lengths after parsing instead',
+const BOUND_HINTS = {
     minimum:
         'remove numeric bounds (.min()/.gt()/.gte()) — numeric range constraints are outside the strict-capable subset; validate ranges after parsing instead',
     maximum:
         'remove numeric bounds (.max()/.lt()/.lte()) — numeric range constraints are outside the strict-capable subset; validate ranges after parsing instead',
+} as const;
+
+const KEYWORD_HINTS: Record<string, string> = {
+    ...BOUND_HINTS,
+    minLength:
+        'remove .min()/.length() — string length constraints are outside the strict-capable subset; validate lengths after parsing instead',
+    maxLength:
+        'remove .max()/.length() — string length constraints are outside the strict-capable subset; validate lengths after parsing instead',
     exclusiveMinimum:
         'remove .gt() — numeric range constraints are outside the strict-capable subset; validate ranges after parsing instead',
     exclusiveMaximum:
@@ -206,20 +210,15 @@ function validateBounds(
     toolName: string,
     violations: StrictToolSchemaViolation[]
 ): void {
-    if (!('minimum' in node) && !('maximum' in node)) {
-        return;
-    }
-    // Zod stamps implicit safe-integer bounds onto every z.int(); that pair is
-    // an artifact of serialization, not a user constraint, and is exempt.
-    if (isImplicitSafeIntegerBounds(node)) {
-        return;
-    }
+    // Zod stamps implicit safe-integer bounds onto every z.int(); those are
+    // serialization artifacts, not user constraints, and are exempt one bound
+    // at a time so `z.int().min(0)` is reported for `minimum` only.
     for (const key of ['minimum', 'maximum'] as const) {
-        if (key in node) {
+        if (key in node && !isImplicitSafeIntegerBound(node, key)) {
             violations.push({
                 toolName,
                 path: joinPath(path, key),
-                message: KEYWORD_HINTS[key] ?? '',
+                message: BOUND_HINTS[key],
             });
         }
     }
@@ -312,6 +311,12 @@ function validateRef(
     if (typeof node.$ref !== 'string') {
         return;
     }
+    // Zod serializes a schema that references itself at the root as `$ref: "#"`
+    // (the canonical `z.lazy` example); that is an edge back to the root region.
+    if (node.$ref === '#') {
+        addRefEdge(refEdges, region, 'root');
+        return;
+    }
     const match = /^#\/(\$defs|definitions)\/([^/]+)$/.exec(node.$ref);
     if (!match) {
         violations.push({
@@ -321,10 +326,17 @@ function validateRef(
         });
         return;
     }
-    const target = `${match[1]}.${match[2]}`;
-    const edges = refEdges.get(region) ?? new Set<string>();
-    edges.add(target);
-    refEdges.set(region, edges);
+    addRefEdge(refEdges, region, `${match[1]}.${match[2]}`);
+}
+
+function addRefEdge(
+    refEdges: Map<string, Set<string>>,
+    from: string,
+    to: string
+): void {
+    const edges = refEdges.get(from) ?? new Set<string>();
+    edges.add(to);
+    refEdges.set(from, edges);
 }
 
 function findCyclicRegions(refEdges: Map<string, Set<string>>): string[] {

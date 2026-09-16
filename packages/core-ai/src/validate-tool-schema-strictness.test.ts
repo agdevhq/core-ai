@@ -187,6 +187,44 @@ describe('validateToolSchemaStrictness', () => {
         }
     });
 
+    it('attributes cached violations to each tool that shares a schema', () => {
+        const parameters = z.object({ limit: z.number().optional() });
+        const tools: ToolSet = {
+            first: {
+                name: 'first',
+                description: 'First',
+                parameters,
+                strict: true,
+            },
+            second: {
+                name: 'second',
+                description: 'Second',
+                parameters,
+                strict: true,
+            },
+        };
+
+        try {
+            validateToolSchemaStrictness({
+                tools,
+                capabilities: createCapabilities(
+                    SUPPORTED_TOOL_SCHEMA_STRICTNESS
+                ),
+                providerId: 'openai',
+                modelId: 'gpt-4o',
+            });
+            expect.unreachable();
+        } catch (error) {
+            expect(error).toBeInstanceOf(ToolSchemaStrictnessError);
+            const strictnessError = error as ToolSchemaStrictnessError;
+            expect(strictnessError.toolNames).toEqual(['first', 'second']);
+            expect(strictnessError.violations?.map((v) => v.toolName)).toEqual([
+                'first',
+                'second',
+            ]);
+        }
+    });
+
     it('ignores contract violations on non-strict tools', () => {
         const tools: ToolSet = {
             loose: {

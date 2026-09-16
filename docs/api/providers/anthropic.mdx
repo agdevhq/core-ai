@@ -150,15 +150,21 @@ For registered Claude models:
 Claude 4.5 and later models support per-tool `strict: true` and report
 `{ supported: true, maxStrictTools: 20 }`. The 20-tool limit counts only tools
 that set `strict: true`; exceeding it throws
-[`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror).
+[`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror)
+locally. The limit is enforced by the Anthropic API (which rejects larger
+requests with "The maximum number of strict tools supported is 20") but is not
+listed on Anthropic's documentation pages.
 Older models — Claude Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, and Claude 3.x —
 report `{ supported: false }` and reject explicit `strict: true` locally.
 Unrecognized model IDs resolve optimistically to supported, so future Claude
 models work without a registry update.
 
-Anthropic's schema normalization applies to all tools, strict or not. Strict
-tool schemas do not change Anthropic's structured response format for
-`generateObject()` and `streamObject()`. See
+Only strict tools and structured-output schemas go through Anthropic's schema
+normalization (`$schema` stripped, `additionalProperties: false` added,
+numeric and length constraints removed, `oneOf` rewritten to `anyOf`).
+Non-strict tools are sent with their raw JSON Schema, so declared constraints
+reach the model as hints. Strict tool schemas do not change Anthropic's
+structured response format for `generateObject()` and `streamObject()`. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
 contract, error reasons, and cross-provider behavior.
 

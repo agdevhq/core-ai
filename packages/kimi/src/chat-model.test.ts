@@ -228,18 +228,15 @@ describe('generate', () => {
                     }>
                 )[0]?.function
         );
-        // Only the explicit opt-in is marked strict on the wire.
         expect(functions[0]).not.toHaveProperty('strict');
         expect(functions[1]).toHaveProperty('strict', true);
         expect(functions[2]).not.toHaveProperty('strict');
-        // The strict tool gets the closed, $schema-free schema.
         expect(functions[1]?.['parameters']).toMatchObject({
             type: 'object',
             required: ['query', 'region'],
             additionalProperties: false,
         });
         expect(functions[1]?.['parameters']).not.toHaveProperty('$schema');
-        // Non-strict tools keep the raw converted schema.
         for (const fn of [functions[0], functions[2]]) {
             expect(fn?.['parameters']).toHaveProperty(
                 '$schema',
