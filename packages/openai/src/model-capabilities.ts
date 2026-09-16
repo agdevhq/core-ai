@@ -84,9 +84,10 @@ const DEFAULT_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
 });
-// Unknown model ids (fine-tunes, brand-new releases) keep strict schemas
-// supported: strict is per-tool opt-in, so an explicit `strict: true` is
-// forwarded optimistically and the API rejects it if genuinely unsupported.
+// Unknown model ids (brand-new releases, fine-tunes of unregistered bases)
+// keep strict schemas supported: strict is per-tool opt-in, so an explicit
+// `strict: true` is forwarded optimistically and the API rejects it if
+// genuinely unsupported.
 const UNKNOWN_MODEL_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
@@ -243,9 +244,21 @@ export function getOpenAIModelCapabilities(
     modelId: string
 ): OpenAIModelCapabilities {
     return (
-        getRegisteredModelCapabilities(OPENAI_MODEL_CAPABILITIES, modelId) ??
-        UNKNOWN_MODEL_CAPABILITIES
+        getRegisteredModelCapabilities(
+            OPENAI_MODEL_CAPABILITIES,
+            getFineTuneBaseModelId(modelId) ?? modelId
+        ) ?? UNKNOWN_MODEL_CAPABILITIES
     );
+}
+
+const FINE_TUNE_MODEL_ID_PATTERN = /^ft:([^:]+):/;
+
+/**
+ * Fine-tuned models are named `ft:<base-model>:<org>:<suffix>:<id>` and share
+ * the base model's capabilities, including its strict tool schema support.
+ */
+export function getFineTuneBaseModelId(modelId: string): string | undefined {
+    return FINE_TUNE_MODEL_ID_PATTERN.exec(modelId)?.[1];
 }
 
 export function toOpenAIResponsesCapabilities(

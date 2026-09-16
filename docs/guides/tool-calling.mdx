@@ -92,9 +92,9 @@ if (strictSchemas.supported) {
 
 Unknown and future model IDs resolve optimistically to `{ supported: true }`:
 core-ai forwards the explicit `strict: true` and lets the provider reject the
-request if the model genuinely lacks support. This keeps fine-tuned `ft:...`
-OpenAI models and newly released Claude models usable without a registry
-update.
+request if the model genuinely lacks support. This keeps newly released
+models usable without a registry update. Fine-tuned OpenAI `ft:<base>:...`
+models inherit their base model's capabilities instead.
 
 ### Errors
 

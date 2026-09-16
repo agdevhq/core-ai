@@ -124,6 +124,8 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-1',
         'claude-sonnet-3-7',
         'claude-3-5-sonnet-20241022',
+        'claude-2.1',
+        'claude-instant-1.2',
     ])('should not claim strict tool schema support for %s', (modelId) => {
         expect(supportsAnthropicStrictToolSchemas(modelId)).toBe(false);
         expect(

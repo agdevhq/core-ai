@@ -154,7 +154,7 @@ describe('getOpenAIModelCapabilities', () => {
         expect(capabilities.tools.strictSchemas).toEqual({ supported: true });
     });
 
-    it.each(['custom-model', 'ft:gpt-4o-2024-08-06:acme::abc123'])(
+    it.each(['custom-model', 'ft:custom-base:acme::abc123'])(
         'should optimistically advertise strict tool schemas for unknown model %s',
         (modelId) => {
             expect(
@@ -162,6 +162,26 @@ describe('getOpenAIModelCapabilities', () => {
             ).toEqual({ supported: true });
         }
     );
+
+    it('should resolve fine-tuned models through their base model', () => {
+        const fineTunedLegacy = getOpenAIModelCapabilities(
+            'ft:gpt-3.5-turbo:acme::abc123'
+        );
+        expect(fineTunedLegacy.tools.strictSchemas).toEqual({
+            supported: false,
+        });
+        expect(fineTunedLegacy.modalities.input).toEqual(['text']);
+
+        const fineTunedCurrent = getOpenAIModelCapabilities(
+            'ft:gpt-4o-2024-08-06:acme::abc123'
+        );
+        expect(fineTunedCurrent.tools.strictSchemas).toEqual({
+            supported: true,
+        });
+        expect(fineTunedCurrent.chatCompletions.maxTokensParameter).toBe(
+            'max_tokens'
+        );
+    });
 
     it.each(['gpt-5-mini', 'o3', 'o1-mini', 'gpt-4.1', 'gpt-4o'])(
         'should advertise strict tool schemas for %s',

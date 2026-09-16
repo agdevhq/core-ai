@@ -82,6 +82,11 @@ const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
     'claude-3-opus',
     'claude-3-sonnet',
     'claude-3-haiku',
+    'claude-2.1',
+    'claude-2.0',
+    'claude-2',
+    'claude-instant-1.2',
+    'claude-instant-1',
 ]);
 
 const MANUAL_THINKING_MODELS = new Set([

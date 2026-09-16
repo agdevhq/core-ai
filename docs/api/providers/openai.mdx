@@ -252,10 +252,11 @@ restrictions.
 ### Strict tool schemas
 
 Tool-capable OpenAI models report `model.capabilities.tools.strictSchemas` as
-`{ supported: true }`. Unrecognized model IDs, including fine-tuned `ft:...`
-models, resolve optimistically to supported and rely on OpenAI to reject
-strict tools when the model lacks support. Two restrictions apply through
-both the Responses and Chat Completions APIs:
+`{ supported: true }`. Fine-tuned `ft:<base>:...` models inherit the base
+model's capabilities. Unrecognized model IDs resolve optimistically to
+supported and rely on OpenAI to reject strict tools when the model lacks
+support. Two restrictions apply through both the Responses and Chat
+Completions APIs:
 
 - Models that predate Structured Outputs — `gpt-4o-2024-05-13`, GPT-4 Turbo,
   and GPT-3.5 Turbo — report `{ supported: false }`.
