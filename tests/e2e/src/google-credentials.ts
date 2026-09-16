@@ -5,11 +5,7 @@ export function parseGoogleApplicationCredentialsJson(
     const trimmed = rawValue.trim();
     const parsed = parseCredentialsPayload(trimmed, envVar);
 
-    if (
-        typeof parsed !== 'object' ||
-        parsed === null ||
-        Array.isArray(parsed)
-    ) {
+    if (!isRecord(parsed)) {
         throw new Error(`${envVar} must decode to a JSON object`);
     }
 
@@ -29,6 +25,10 @@ function parseCredentialsPayload(trimmed: string, envVar: string): unknown {
             );
         }
     }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function decodeBase64Utf8(value: string, envVar: string): string {

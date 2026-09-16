@@ -4,6 +4,7 @@ import {
     stripModelDateSuffix,
     TEXT_ONLY_MODALITIES,
     UNKNOWN_MODEL,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
     type ModelCapabilities,
     type ModelCapabilitiesRegistry,
 } from '@core-ai/core-ai';
@@ -24,6 +25,12 @@ function createCapabilities(
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        tools: {
+            // Mistral's SDK exposes a `strict` field on functions, but the API
+            // does not document grammar-enforced adherence — keep unsupported
+            // until enforcement is verified (follow-up candidate).
+            strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        },
     };
 }
 

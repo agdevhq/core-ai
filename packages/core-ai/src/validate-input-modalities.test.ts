@@ -3,6 +3,7 @@ import { UnsupportedInputModalityError } from './errors.ts';
 import {
     MULTIMODAL_INPUT_MODALITIES,
     TEXT_ONLY_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 } from './model-capabilities.ts';
 import type { Message, ModelCapabilities } from './types.ts';
 import { validateInputModalities } from './validate-input-modalities.ts';
@@ -17,11 +18,13 @@ const REASONING: ModelCapabilities['reasoning'] = {
 const MULTIMODAL: ModelCapabilities = {
     reasoning: REASONING,
     modalities: MULTIMODAL_INPUT_MODALITIES,
+    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
 };
 
 const TEXT_ONLY: ModelCapabilities = {
     reasoning: REASONING,
     modalities: TEXT_ONLY_MODALITIES,
+    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
 };
 
 const URL_IMAGE_MESSAGES: Message[] = [
@@ -113,6 +116,7 @@ describe('validateInputModalities', () => {
                 input: ['text', 'audio'],
                 output: ['text'],
             },
+            tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
         };
 
         expect(() =>

@@ -17,6 +17,7 @@ import {
     ValidationError,
     safeParseJsonObject,
     validateInputModalities,
+    validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
@@ -265,18 +266,24 @@ function convertUserContentPart(part: UserContentPart): ContentBlockParam {
     };
 }
 
-export function convertTools(
-    tools: ToolSet,
-    useStrictToolSchemas = true
-): Tool[] {
+/**
+ * Strict tools get Anthropic's semantics-preserving normalization (the strict
+ * grammar rejects `$schema`, open objects, numeric/length constraints, and
+ * `oneOf`); non-strict tools are sent with their raw JSON Schema so declared
+ * constraints reach the model as hints, matching the other providers.
+ */
+export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
-        const schema = toAnthropicJsonSchema(tool.parameters);
+        const strict = tool.strict === true;
+        const schema = strict
+            ? toAnthropicJsonSchema(tool.parameters)
+            : zodSchemaToJsonSchema(tool.parameters);
 
         return {
             name: tool.name,
             description: tool.description,
             input_schema: schema as Tool['input_schema'],
-            ...(useStrictToolSchemas ? { strict: true } : {}),
+            ...(strict ? { strict: true } : {}),
         };
     });
 }
@@ -359,6 +366,14 @@ function normalizeAnthropicJsonValue(value: unknown): unknown {
         normalized[key] = normalizeAnthropicJsonValue(child);
     }
 
+    // Zod emits `oneOf` only for z.discriminatedUnion(), whose branches are
+    // disjoint by construction, so `anyOf` accepts the same values and is the
+    // composition keyword Anthropic's schema subset supports.
+    if (Array.isArray(normalized.oneOf) && normalized.anyOf === undefined) {
+        normalized.anyOf = normalized.oneOf;
+        delete normalized.oneOf;
+    }
+
     if (isObjectSchema(normalized)) {
         normalized.additionalProperties = false;
     }
@@ -391,7 +406,6 @@ export function createGenerateRequest(
     defaultMaxTokens: number,
     options: GenerateOptions,
     provider = DEFAULT_PROVIDER_ID,
-    useStrictToolSchemas = true,
     adapterOptions: AnthropicAdapterOptions = {}
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
@@ -403,7 +417,6 @@ export function createGenerateRequest(
         options,
         anthropicOptions,
         provider,
-        useStrictToolSchemas,
         adapterOptions
     );
     return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
@@ -414,7 +427,6 @@ export function createStreamRequest(
     defaultMaxTokens: number,
     options: GenerateOptions,
     provider = DEFAULT_PROVIDER_ID,
-    useStrictToolSchemas = true,
     adapterOptions: AnthropicAdapterOptions = {}
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
@@ -427,7 +439,6 @@ export function createStreamRequest(
             options,
             anthropicOptions,
             provider,
-            useStrictToolSchemas,
             adapterOptions
         ),
         stream: true as const,
@@ -441,7 +452,6 @@ function createRequestBase(
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
     provider: string,
-    useStrictToolSchemas: boolean,
     adapterOptions: AnthropicAdapterOptions
 ) {
     const maxTokens = options.maxTokens ?? defaultMaxTokens;
@@ -468,6 +478,14 @@ function createRequestBase(
         options,
         capabilities
     );
+    if (options.tools) {
+        validateToolSchemaStrictness({
+            tools: options.tools,
+            capabilities,
+            providerId: provider,
+            modelId,
+        });
+    }
 
     return {
         model: modelId,
@@ -475,7 +493,7 @@ function createRequestBase(
         max_tokens: maxTokens,
         ...(converted.system ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools, useStrictToolSchemas) }
+            ? { tools: convertTools(options.tools) }
             : {}),
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }

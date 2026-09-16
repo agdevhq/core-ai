@@ -20,7 +20,6 @@ import type {
     ModelCapabilities,
     StreamEvent,
     ToolCall,
-    ToolSet,
     UserContentPart,
 } from '@core-ai/core-ai';
 import {
@@ -35,7 +34,7 @@ import {
     toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.js';
-import { convertToolChoice, convertTools } from './shared/tools.js';
+import { convertResponseTools, convertToolChoice } from './shared/tools.js';
 import type { OpenAIRequestOptions } from './shared/structured-output.js';
 import {
     safeParseJsonObject,
@@ -72,11 +71,13 @@ function resolveAdapterOptions(
     modelId: string,
     adapterOptions: OpenAIResponsesAdapterOptions
 ): ResolvedAdapterOptions {
-    const capabilities =
-        adapterOptions.capabilities ?? getOpenAIModelCapabilities(modelId);
-
     return {
-        capabilities: toOpenAIResponsesCapabilities(capabilities),
+        // Callers that pass capabilities (the provider factory) have already
+        // applied the Responses-specific restrictions; only the fallback
+        // lookup applies them here.
+        capabilities:
+            adapterOptions.capabilities ??
+            toOpenAIResponsesCapabilities(getOpenAIModelCapabilities(modelId)),
         // Also the ownership key for encrypted reasoning metadata — Azure
         // (`azure-openai`) must not share the `openai` namespace.
         providerId: adapterOptions.providerId ?? DEFAULT_PROVIDER_ID,
@@ -367,7 +368,13 @@ function createRequestBase(
             providerId,
         }),
         ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertResponseTools(options.tools) }
+            ? {
+                  tools: convertResponseTools(options.tools, {
+                      capabilities,
+                      modelId,
+                      providerId,
+                  }),
+              }
             : {}),
         ...(options.toolChoice
             ? { tool_choice: convertResponseToolChoice(options.toolChoice) }
@@ -391,15 +398,6 @@ function validateResponsesInputModalities(
         }
         throw error;
     }
-}
-
-function convertResponseTools(tools: ToolSet) {
-    return convertTools(tools).map((tool) => ({
-        type: 'function' as const,
-        name: tool.function.name,
-        description: tool.function.description,
-        parameters: tool.function.parameters,
-    }));
 }
 
 function convertResponseToolChoice(

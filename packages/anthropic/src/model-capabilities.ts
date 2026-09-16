@@ -1,5 +1,7 @@
 import {
     MULTIMODAL_INPUT_MODALITIES,
+    SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
@@ -25,7 +27,8 @@ const MAX_EFFORTS = [
 ] as const satisfies readonly ReasoningEffort[];
 
 function createCapabilities(
-    supportedEfforts: readonly ReasoningEffort[]
+    supportedEfforts: readonly ReasoningEffort[],
+    supportsStrictToolSchemas: boolean
 ): AnthropicModelCapabilities {
     return {
         reasoning: {
@@ -35,11 +38,20 @@ function createCapabilities(
             supportedToolChoices: ['auto', 'none'],
         },
         modalities: MULTIMODAL_INPUT_MODALITIES,
+        tools: {
+            // The cap is enforced by the API but absent from Anthropic's docs
+            // pages; the rejection reads: 'Too many strict tools (22). The
+            // maximum number of strict tools supported is 20. Try reducing
+            // the number of tools marked as strict.'
+            strictSchemas: supportsStrictToolSchemas
+                ? {
+                      ...SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                      maxStrictTools: 20,
+                  }
+                : UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        },
     };
 }
-
-const STANDARD_CAPABILITIES = createCapabilities(STANDARD_EFFORTS);
-const MAX_EFFORT_CAPABILITIES = createCapabilities(MAX_EFFORTS);
 
 const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
     'claude-fable-5',
@@ -51,6 +63,30 @@ const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
     'claude-opus-4-6',
     'claude-sonnet-5',
     'claude-sonnet-4-6',
+]);
+
+/**
+ * Models known NOT to support strict tool schemas (pre-4.5 generations, per
+ * Anthropic's structured-outputs docs). Unknown and future model ids resolve
+ * to supported: strict is per-tool opt-in, so an explicit `strict: true` is
+ * forwarded optimistically and the API rejects it if genuinely unsupported.
+ */
+const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
+    'claude-opus-4-1',
+    'claude-opus-4',
+    'claude-sonnet-4',
+    'claude-sonnet-3-7',
+    'claude-3-7-sonnet',
+    'claude-3-5-sonnet',
+    'claude-3-5-haiku',
+    'claude-3-opus',
+    'claude-3-sonnet',
+    'claude-3-haiku',
+    'claude-2.1',
+    'claude-2.0',
+    'claude-2',
+    'claude-instant-1.2',
+    'claude-instant-1',
 ]);
 
 const MANUAL_THINKING_MODELS = new Set([
@@ -102,14 +138,16 @@ const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
 export function getAnthropicModelCapabilities(
     modelId: string
 ): AnthropicModelCapabilities {
-    if (
+    const supportedEfforts =
         supportsAnthropicMaxEffort(modelId) ||
         getAnthropicThinkingMode(modelId) === 'manual'
-    ) {
-        return MAX_EFFORT_CAPABILITIES;
-    }
+            ? MAX_EFFORTS
+            : STANDARD_EFFORTS;
 
-    return STANDARD_CAPABILITIES;
+    return createCapabilities(
+        supportedEfforts,
+        supportsAnthropicStrictToolSchemas(modelId)
+    );
 }
 
 export function normalizeModelId(modelId: string): string {
@@ -126,6 +164,10 @@ export function getAnthropicThinkingMode(
 
 export function supportsAnthropicMaxEffort(modelId: string): boolean {
     return ADAPTIVE_MAX_EFFORT_MODELS.has(normalizeModelId(modelId));
+}
+
+export function supportsAnthropicStrictToolSchemas(modelId: string): boolean {
+    return !NON_STRICT_TOOL_SCHEMA_MODELS.has(normalizeModelId(modelId));
 }
 
 export function requiresAnthropicInterleavedThinkingBeta(

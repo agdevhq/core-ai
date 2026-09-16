@@ -11,7 +11,9 @@ export function registerProviderSuite(adapter: ProviderE2EAdapter): void {
 
     describeSuite(`${adapter.displayName} provider e2e`, () => {
         for (const contractCase of providerCases) {
-            const shouldRunCase = isContractCaseRunnable(adapter, contractCase);
+            const shouldRunCase =
+                shouldRunProviderSuite &&
+                isContractCaseRunnable(adapter, contractCase);
 
             if (shouldRunCase) {
                 it(
@@ -60,6 +62,21 @@ function isContractCaseRunnable(
         !adapter.createReasoningChatModel
     ) {
         return false;
+    }
+
+    if (contractCase.id === 'chatStrictTools') {
+        return (
+            adapter.createChatModel().capabilities.tools.strictSchemas
+                .supported === true &&
+            (adapter.isStrictToolsConfigured?.() ?? true)
+        );
+    }
+
+    if (contractCase.id === 'chatStrictToolsUnsupported') {
+        return (
+            adapter.createChatModel().capabilities.tools.strictSchemas
+                .supported === false
+        );
     }
 
     return true;

@@ -1,8 +1,10 @@
 import {
     getRegisteredModelCapabilities,
     MULTIMODAL_INPUT_MODALITIES,
+    SUPPORTED_TOOL_SCHEMA_STRICTNESS,
     stripModelDateSuffix,
     TEXT_ONLY_MODALITIES,
+    UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
     UNKNOWN_MODEL,
     type ModelCapabilities,
     type ModelCapabilitiesRegistry,
@@ -51,6 +53,7 @@ type CapabilitiesConfig = {
     restrictsSamplingParams: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     modalities?: ModelCapabilities['modalities'];
+    strictToolSchemas?: ModelCapabilities['tools']['strictSchemas'];
 };
 
 function createCapabilities({
@@ -58,6 +61,7 @@ function createCapabilities({
     restrictsSamplingParams,
     maxTokensParameter = 'max_completion_tokens',
     modalities = MULTIMODAL_INPUT_MODALITIES,
+    strictToolSchemas = SUPPORTED_TOOL_SCHEMA_STRICTNESS,
 }: CapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -67,6 +71,9 @@ function createCapabilities({
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        tools: {
+            strictSchemas: strictToolSchemas,
+        },
         chatCompletions: {
             maxTokensParameter,
         },
@@ -77,6 +84,10 @@ const DEFAULT_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
 });
+// Unknown model ids (brand-new releases, fine-tunes of unregistered bases)
+// keep strict schemas supported: strict is per-tool opt-in, so an explicit
+// `strict: true` is forwarded optimistically and the API rejects it if
+// genuinely unsupported.
 const UNKNOWN_MODEL_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: false,
@@ -106,11 +117,13 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
 type NoReasoningCapabilitiesConfig = {
     maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     modalities?: ModelCapabilities['modalities'];
+    strictToolSchemas?: ModelCapabilities['tools']['strictSchemas'];
 };
 
 function createNoReasoningCapabilities({
     maxTokensParameter,
     modalities = MULTIMODAL_INPUT_MODALITIES,
+    strictToolSchemas = SUPPORTED_TOOL_SCHEMA_STRICTNESS,
 }: NoReasoningCapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -120,6 +133,9 @@ function createNoReasoningCapabilities({
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        tools: {
+            strictSchemas: strictToolSchemas,
+        },
         chatCompletions: {
             maxTokensParameter,
         },
@@ -129,10 +145,6 @@ function createNoReasoningCapabilities({
 const NO_REASONING_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_tokens',
 });
-const NO_REASONING_TEXT_ONLY_CAPABILITIES = createNoReasoningCapabilities({
-    maxTokensParameter: 'max_tokens',
-    modalities: TEXT_ONLY_MODALITIES,
-});
 const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
     createNoReasoningCapabilities({
         maxTokensParameter: 'max_completion_tokens',
@@ -141,10 +153,12 @@ const NO_REASONING_EFFORT_TEXT_ONLY_CAPABILITIES =
 const AUDIO_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_completion_tokens',
     modalities: OPENAI_AUDIO_INPUT_MODALITIES,
+    strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 });
 const GPT_4O_AUDIO_CAPABILITIES = createNoReasoningCapabilities({
     maxTokensParameter: 'max_tokens',
     modalities: OPENAI_AUDIO_INPUT_MODALITIES,
+    strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 });
 
 const O_SERIES_MAX_REASONING_CAPABILITIES = createCapabilities({
@@ -157,7 +171,21 @@ const O_SERIES_TEXT_ONLY_CAPABILITIES = createCapabilities({
     modalities: TEXT_ONLY_MODALITIES,
 });
 
+// Models that predate Structured Outputs: OpenAI rejects strict function
+// tools on them through both the Responses and Chat Completions APIs.
+const LEGACY_NO_STRICT_TOOLS_CAPABILITIES = createNoReasoningCapabilities({
+    maxTokensParameter: 'max_tokens',
+    strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+});
+const LEGACY_NO_STRICT_TOOLS_TEXT_ONLY_CAPABILITIES =
+    createNoReasoningCapabilities({
+        maxTokensParameter: 'max_tokens',
+        modalities: TEXT_ONLY_MODALITIES,
+        strictToolSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    });
+
 export const OPENAI_MODEL_CAPABILITIES = {
+    'gpt-4o-2024-05-13': LEGACY_NO_STRICT_TOOLS_CAPABILITIES,
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
@@ -191,8 +219,8 @@ export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-4.1-nano': NO_REASONING_CAPABILITIES,
     'gpt-4o': NO_REASONING_CAPABILITIES,
     'gpt-4o-mini': NO_REASONING_CAPABILITIES,
-    'gpt-4-turbo': NO_REASONING_CAPABILITIES,
-    'gpt-3.5-turbo': NO_REASONING_TEXT_ONLY_CAPABILITIES,
+    'gpt-4-turbo': LEGACY_NO_STRICT_TOOLS_CAPABILITIES,
+    'gpt-3.5-turbo': LEGACY_NO_STRICT_TOOLS_TEXT_ONLY_CAPABILITIES,
     'gpt-audio-1.5': AUDIO_CAPABILITIES,
     'gpt-audio': AUDIO_CAPABILITIES,
     'gpt-audio-mini': AUDIO_CAPABILITIES,
@@ -216,9 +244,21 @@ export function getOpenAIModelCapabilities(
     modelId: string
 ): OpenAIModelCapabilities {
     return (
-        getRegisteredModelCapabilities(OPENAI_MODEL_CAPABILITIES, modelId) ??
-        UNKNOWN_MODEL_CAPABILITIES
+        getRegisteredModelCapabilities(
+            OPENAI_MODEL_CAPABILITIES,
+            getFineTuneBaseModelId(modelId) ?? modelId
+        ) ?? UNKNOWN_MODEL_CAPABILITIES
     );
+}
+
+const FINE_TUNE_MODEL_ID_PATTERN = /^ft:([^:]+):/;
+
+/**
+ * Fine-tuned models are named `ft:<base-model>:<org>:<suffix>:<id>` and share
+ * the base model's capabilities, including its strict tool schema support.
+ */
+export function getFineTuneBaseModelId(modelId: string): string | undefined {
+    return FINE_TUNE_MODEL_ID_PATTERN.exec(modelId)?.[1];
 }
 
 export function toOpenAIResponsesCapabilities(

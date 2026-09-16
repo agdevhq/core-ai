@@ -3,6 +3,44 @@ title: Releases
 description: Release history for all core-ai packages.
 ---
 
+<Update label="0.25.0" description="Per-tool strict tool schemas" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add per-tool strict tool schemas: `defineTool({ strict: true })` opts a single tool into provider-enforced schema adherence, `ModelCapabilities.tools.strictSchemas` reports model support, and strict tools are validated locally against the strict-capable schema contract (object root, closed objects, every key required, and the keyword subset every strict-capable provider accepts). Violations throw `ToolSchemaStrictnessError` with a `violations` list naming each offending schema path and a fix hint.
+
+  ### @core-ai/anthropic
+
+  - Strict tool schemas are now per-tool opt-in on Claude 4.5 and later models; previous releases marked every tool strict. The 20-strict-tool limit counts only opted-in tools, and discriminated unions (`oneOf`) are rewritten to `anyOf`. The internal `strictToolSchemasEnabled` factory option was removed.
+
+  ### @core-ai/anthropic-vertex
+
+  - **Breaking:** the `useStrictToolSchemas` option was removed. Strict tool schemas follow the per-tool opt-in and the underlying model capabilities. Vertex enforces the `structured_outputs` partner-model feature through your GCP organization policy.
+
+  ### @core-ai/openai
+
+  - Support per-tool `strict: true` on the Responses and Chat Completions APIs. Strict tools are sent with a normalized schema (`$schema` stripped, `additionalProperties: false` added recursively, `oneOf` rewritten to `anyOf`); non-strict tools keep the raw schema and carry an explicit `strict: false` on the Responses API. Models that predate Structured Outputs report strict schemas as unsupported through both APIs; unknown model IDs, including fine-tuned `ft:...` models, resolve optimistically to supported. The `strictToolSchemas`, `strictToolSchemasUnsupportedReason/Details`, and `disableParallelToolCallsWithStrictTools` factory options were removed.
+
+  ### @core-ai/azure-openai
+
+  - Support per-tool `strict: true` on the v1 (Responses) endpoint and on classic deployments with API version `2024-08-01-preview` or later; the `strictToolSchemasEnabled` deployment assertion was removed.
+
+  ### @core-ai/openai-compat
+
+  - Forward per-tool `strict: true` function tools with normalized schemas to gateways that implement OpenAI strict function tools; the `strictToolSchemas` endpoint assertion was removed.
+
+  ### @core-ai/kimi
+
+  - Forward per-tool `strict: true` function tools with normalized schemas.
+
+  ### @core-ai/omnifact
+
+  - Report strict tool schemas as supported and forward per-tool `strict: true` to the gateway with normalized schemas.
+
+  ### @core-ai/google-genai, @core-ai/google-vertex, @core-ai/mistral
+
+  - Report per-tool strict schemas as unsupported; a tool with `strict: true` throws `ToolSchemaStrictnessError` before any provider I/O.
+</Update>
+
 <Update label="0.15.0" description="Vertex providers, OpenAI Responses default, and openai-compat" tags={["improvement"]}>
   ### @core-ai/anthropic-vertex
 

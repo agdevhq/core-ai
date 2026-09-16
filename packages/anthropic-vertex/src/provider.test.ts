@@ -1,6 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import { defineTool, ProviderError } from '@core-ai/core-ai';
+import {
+    defineTool,
+    ProviderError,
+    ToolSchemaStrictnessError,
+} from '@core-ai/core-ai';
 import type { AnthropicChatClient } from '@core-ai/anthropic';
 
 import { createAnthropicVertex } from './provider.js';
@@ -130,21 +134,32 @@ describe('createAnthropicVertex', () => {
         );
     });
 
-    it('should omit strict mode when strict tool schemas are disabled', async () => {
+    it('should forward per-tool strictness and expose model capabilities', async () => {
         messagesCreate.mockResolvedValue(createMessageResponse());
         const provider = createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
-            useStrictToolSchemas: false,
+        });
+        const model = provider.chatModel('claude-sonnet-4-6');
+
+        expect(model.capabilities.tools.strictSchemas).toEqual({
+            supported: true,
+            maxStrictTools: 20,
         });
 
-        await provider.chatModel('claude-sonnet-4-6').generate({
+        await model.generate({
             messages: [{ role: 'user', content: 'hello' }],
             tools: {
                 search: defineTool({
                     name: 'search',
                     description: 'Search the web',
                     parameters: z.object({ query: z.string() }),
+                    strict: true,
+                }),
+                fetch: defineTool({
+                    name: 'fetch',
+                    description: 'Fetch a page',
+                    parameters: z.object({ url: z.string() }),
                 }),
             },
         });
@@ -152,39 +167,41 @@ describe('createAnthropicVertex', () => {
         expect(messagesCreate).toHaveBeenCalledWith(
             expect.objectContaining({
                 tools: [
-                    expect.not.objectContaining({
-                        strict: expect.anything(),
-                    }),
+                    expect.objectContaining({ name: 'search', strict: true }),
+                    expect.not.objectContaining({ strict: expect.anything() }),
                 ],
             }),
             expect.objectContaining({ signal: undefined })
         );
     });
 
-    it('should enable strict tool schemas by default', async () => {
-        messagesCreate.mockResolvedValue(createMessageResponse());
+    it('should reject explicit strictness for known-unsupported models', async () => {
         const provider = createAnthropicVertex({
             projectId: 'my-project',
             region: 'europe-west1',
         });
 
-        await provider.chatModel('claude-sonnet-4-6').generate({
-            messages: [{ role: 'user', content: 'hello' }],
-            tools: {
-                search: defineTool({
-                    name: 'search',
-                    description: 'Search the web',
-                    parameters: z.object({ query: z.string() }),
-                }),
-            },
-        });
+        const error = await provider
+            .chatModel('claude-sonnet-4')
+            .generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search the web',
+                        parameters: z.object({ query: z.string() }),
+                        strict: true,
+                    }),
+                },
+            })
+            .catch((caught: unknown) => caught);
 
-        expect(messagesCreate).toHaveBeenCalledWith(
-            expect.objectContaining({
-                tools: [expect.objectContaining({ strict: true })],
-            }),
-            expect.objectContaining({ signal: undefined })
-        );
+        expect(error).toBeInstanceOf(ToolSchemaStrictnessError);
+        expect(error).toMatchObject({
+            provider: 'anthropic-vertex',
+            reason: 'unsupported',
+        });
+        expect(messagesCreate).not.toHaveBeenCalled();
     });
 
     it('should tag errors with provider "anthropic-vertex"', async () => {
