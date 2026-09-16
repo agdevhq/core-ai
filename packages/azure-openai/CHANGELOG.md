@@ -1,5 +1,18 @@
 # @core-ai/azure-openai
 
+## 0.25.0
+
+### Minor Changes
+
+- d98a0cb: Support per-tool `strict: true` without provider-level gates: the `strictToolSchemasEnabled` option and the classic API-version assertion were removed. Strict tools are forwarded with normalized schemas on both the v1 and classic endpoints; classic deployments need `api-version` 2024-08-01-preview or later, and deployments without structured outputs surface Azure's own error.
+
+### Patch Changes
+
+- Updated dependencies [d98a0cb]
+- Updated dependencies [d98a0cb]
+    - @core-ai/core-ai@0.25.0
+    - @core-ai/openai@0.25.0
+
 ## 0.24.0
 
 ### Patch Changes

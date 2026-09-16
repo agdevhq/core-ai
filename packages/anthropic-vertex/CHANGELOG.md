@@ -1,5 +1,18 @@
 # @core-ai/anthropic-vertex
 
+## 0.25.0
+
+### Minor Changes
+
+- d98a0cb: **Breaking:** the `useStrictToolSchemas` option was removed without a replacement. Strict tool schemas are now per-tool opt-in (`defineTool({ strict: true })`) and follow the model's capabilities. Note that Vertex AI only accepts strict tools when the GCP organization policy `constraints/vertexai.allowedPartnerModelFeatures` allows the `structured_outputs` feature — without it, Vertex rejects the request with an org-policy violation error.
+
+### Patch Changes
+
+- Updated dependencies [d98a0cb]
+- Updated dependencies [d98a0cb]
+    - @core-ai/anthropic@0.25.0
+    - @core-ai/core-ai@0.25.0
+
 ## 0.24.0
 
 ### Patch Changes

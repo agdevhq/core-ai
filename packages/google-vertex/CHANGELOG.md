@@ -1,5 +1,15 @@
 # @core-ai/google-vertex
 
+## 0.25.0
+
+### Patch Changes
+
+- d98a0cb: Report per-tool strict schemas as unsupported in model capabilities; a tool with `strict: true` throws `ToolSchemaStrictnessError` before any provider I/O.
+- Updated dependencies [d98a0cb]
+- Updated dependencies [d98a0cb]
+    - @core-ai/core-ai@0.25.0
+    - @core-ai/google-genai@0.25.0
+
 ## 0.24.0
 
 ### Patch Changes
