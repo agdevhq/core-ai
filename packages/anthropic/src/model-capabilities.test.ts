@@ -50,8 +50,7 @@ describe('getAnthropicModelCapabilities', () => {
         const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
         expect(capabilities.reasoning).toEqual({
             mode: 'optional',
-            // `max` (65536) does not fit under the model's 64000 ceiling.
-            supportedEfforts: ['minimal', 'low', 'medium', 'high'],
+            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
             restrictsSamplingParams: true,
             supportedToolChoices: ['auto', 'none'],
         });
@@ -180,13 +179,16 @@ describe('output limits', () => {
         ).toBeUndefined();
     });
 
-    it('should hide manual efforts whose budget cannot fit under the ceiling', () => {
-        // Manual thinking requires budget_tokens < max_tokens, so Opus 4.1's
-        // 32000 ceiling rules out `high` (32768) as well as `max` (65536).
+    it('should keep interleaved efforts independent of request limits', () => {
+        // Interleaved thinking can use a cumulative budget above max_tokens,
+        // so the request options determine whether an effort is valid.
         expect(
             getAnthropicModelCapabilities('claude-opus-4-1').reasoning
                 .supportedEfforts
-        ).toEqual(['minimal', 'low', 'medium']);
+        ).toEqual(['minimal', 'low', 'medium', 'high', 'max']);
+    });
+
+    it('should hide impossible efforts without interleaved thinking', () => {
         expect(
             getAnthropicModelCapabilities('claude-haiku-4-5').reasoning
                 .supportedEfforts

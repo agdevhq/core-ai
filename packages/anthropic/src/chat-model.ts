@@ -13,6 +13,8 @@ import type {
     ChatStream,
 } from '@core-ai/core-ai';
 import {
+    AbortedError,
+    StreamAbortedError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
@@ -41,6 +43,11 @@ export type AnthropicChatModelOptions = {
     defaultMaxTokens?: number;
     providerId?: string;
 };
+
+// The Anthropic SDK rejects non-streaming requests above model-specific
+// thresholds. The lowest threshold is 8,192 tokens, so larger generate calls
+// use the streaming transport and aggregate the result internally.
+const MAX_SAFE_NON_STREAMING_TOKENS = 8_192;
 
 export function createAnthropicChatModel(
     client: AnthropicChatClient,
@@ -83,6 +90,17 @@ export function createAnthropicChatModel(
             provider,
             adapterOptions
         );
+        if (request.max_tokens > MAX_SAFE_NON_STREAMING_TOKENS) {
+            const stream = await streamChat(options);
+            try {
+                return await stream.result;
+            } catch (error) {
+                if (error instanceof StreamAbortedError) {
+                    throw new AbortedError(error, provider);
+                }
+                throw error;
+            }
+        }
         const response = await callAnthropicMessagesApi<
             Parameters<typeof mapGenerateResponse>[0]
         >(request, getAnthropicRequestBetas(modelId, options), options.signal);

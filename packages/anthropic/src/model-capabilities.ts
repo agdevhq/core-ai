@@ -171,14 +171,15 @@ export function getAnthropicModelCapabilities(
     modelId: string
 ): AnthropicModelCapabilities {
     const maxOutputTokens = getAnthropicModelMaxOutputTokens(modelId);
+    const thinkingMode = getAnthropicThinkingMode(modelId);
     const supportedEfforts =
-        supportsAnthropicMaxEffort(modelId) ||
-        getAnthropicThinkingMode(modelId) === 'manual'
+        supportsAnthropicMaxEffort(modelId) || thinkingMode === 'manual'
             ? MAX_EFFORTS
             : STANDARD_EFFORTS;
 
     return createCapabilities(
-        getAnthropicThinkingMode(modelId) === 'manual'
+        thinkingMode === 'manual' &&
+            !requiresAnthropicInterleavedThinkingBeta(modelId)
             ? withinManualOutputCeiling(supportedEfforts, maxOutputTokens)
             : supportedEfforts,
         supportsAnthropicStrictToolSchemas(modelId),
@@ -187,13 +188,10 @@ export function getAnthropicModelCapabilities(
 }
 
 /**
- * Manual thinking spends `budget_tokens` out of `max_tokens` and Anthropic
- * requires the budget to stay below it, so an effort whose budget reaches the
- * model's ceiling cannot be expressed at all — Claude Haiku 4.5 cannot honour
- * `max` (65536) within its 64000 ceiling. Dropping those efforts from the
- * advertised list lets `clampReasoningEffort` degrade the request to the
- * highest effort the model can actually run, instead of sending something the
- * API rejects.
+ * Models without interleaved thinking always require `budget_tokens` to stay
+ * below `max_tokens`. Interleaved-capable models keep all efforts because the
+ * validity of a cumulative budget depends on whether the request includes
+ * tools.
  */
 function withinManualOutputCeiling(
     supportedEfforts: readonly ReasoningEffort[],

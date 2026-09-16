@@ -521,10 +521,11 @@ type AnthropicRequestBudget = {
  * Anthropic pays for reasoning out of `max_tokens`, so the completion ceiling
  * and the thinking budget have to be chosen together.
  *
- * An explicit `maxTokens` stays a hard caller limit: a limit that cannot hold
- * the requested thinking budget is rejected rather than quietly downgraded to
- * a smaller budget, which used to leave callers believing they had asked for
- * deep reasoning. When `maxTokens` is omitted, the ceiling is sized from the
+ * An explicit `maxTokens` stays a hard caller limit. Outside interleaved
+ * thinking, a limit that cannot hold the requested thinking budget is rejected
+ * rather than quietly downgraded. Interleaved thinking is the exception:
+ * Anthropic allows its cumulative budget to exceed the per-response limit.
+ * When `maxTokens` is omitted outside that mode, the ceiling is sized from the
  * budget plus the configured completion allowance and capped by the model's
  * verified maximum.
  */
@@ -549,6 +550,10 @@ function resolveAnthropicRequestBudget(args: {
         options.reasoning.effort,
         capabilities.reasoning.supportedEfforts
     );
+    const usesInterleavedThinking = shouldUseAnthropicInterleavedThinking(
+        modelId,
+        options
+    );
 
     if (getAnthropicThinkingMode(modelId) === 'adaptive') {
         // Adaptive thinking has no numeric budget, but it still shares the
@@ -567,7 +572,7 @@ function resolveAnthropicRequestBudget(args: {
     const thinking = { mode: 'manual', effort, budgetTokens } as const;
 
     if (options.maxTokens !== undefined) {
-        if (options.maxTokens <= budgetTokens) {
+        if (!usesInterleavedThinking && options.maxTokens <= budgetTokens) {
             throw new ValidationError(
                 `Anthropic model "${modelId}" needs maxTokens above the ${budgetTokens}-token thinking budget of reasoning effort "${effort}", but maxTokens is ${options.maxTokens}. Raise maxTokens, lower the effort, or omit maxTokens to size the request from the model's limits.`,
                 undefined,
@@ -576,6 +581,16 @@ function resolveAnthropicRequestBudget(args: {
         }
 
         return { maxTokens: options.maxTokens, thinking };
+    }
+
+    if (usesInterleavedThinking) {
+        return {
+            maxTokens:
+                modelMaxTokens === undefined
+                    ? defaultMaxTokens
+                    : Math.min(defaultMaxTokens, modelMaxTokens),
+            thinking,
+        };
     }
 
     const preferredMaxTokens = budgetTokens + defaultMaxTokens;
@@ -736,10 +751,7 @@ export function getAnthropicRequestBetas(
     );
     const configuredBetas = providerOptions?.betas ?? [];
     const shouldEnableInterleavedThinking =
-        options.reasoning !== undefined &&
-        options.tools !== undefined &&
-        Object.keys(options.tools).length > 0 &&
-        requiresAnthropicInterleavedThinkingBeta(modelId);
+        shouldUseAnthropicInterleavedThinking(modelId, options);
 
     return uniqueStrings([
         ...configuredBetas,
@@ -747,6 +759,18 @@ export function getAnthropicRequestBetas(
             ? ['interleaved-thinking-2025-05-14']
             : []),
     ]);
+}
+
+function shouldUseAnthropicInterleavedThinking(
+    modelId: string,
+    options: GenerateOptions
+): boolean {
+    return (
+        options.reasoning !== undefined &&
+        options.tools !== undefined &&
+        Object.keys(options.tools).length > 0 &&
+        requiresAnthropicInterleavedThinkingBeta(modelId)
+    );
 }
 
 function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
@@ -892,6 +916,7 @@ export async function* transformStream(
     const emittedToolCalls = new Set<number>();
     const contentBlockTypeByIndex = new Map<number, string>();
     const reasoningSignatureByIndex = new Map<number, string>();
+    const redactedThinkingDataByIndex = new Map<number, string>();
 
     for await (const event of stream) {
         if (event.type === 'message_start') {
@@ -920,6 +945,18 @@ export async function* transformStream(
         if (event.type === 'content_block_start') {
             contentBlockTypeByIndex.set(event.index, event.content_block.type);
             if (event.content_block.type === 'thinking') {
+                yield {
+                    type: 'reasoning-start',
+                };
+                continue;
+            }
+            if (event.content_block.type === 'redacted_thinking') {
+                if (typeof event.content_block.data === 'string') {
+                    redactedThinkingDataByIndex.set(
+                        event.index,
+                        event.content_block.data
+                    );
+                }
                 yield {
                     type: 'reasoning-start',
                 };
@@ -1027,6 +1064,25 @@ export async function* transformStream(
                     type: 'reasoning-end',
                     providerMetadata: {
                         anthropic: { ...(signature ? { signature } : {}) },
+                    },
+                };
+                continue;
+            }
+
+            if (
+                contentBlockTypeByIndex.get(event.index) === 'redacted_thinking'
+            ) {
+                const redactedData = redactedThinkingDataByIndex.get(
+                    event.index
+                );
+                redactedThinkingDataByIndex.delete(event.index);
+                contentBlockTypeByIndex.delete(event.index);
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: {
+                        anthropic: {
+                            ...(redactedData ? { redactedData } : {}),
+                        },
                     },
                 };
                 continue;

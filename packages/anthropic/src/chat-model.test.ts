@@ -447,6 +447,77 @@ describe('generate', () => {
         );
     });
 
+    it.each([
+        ['claude-sonnet-4-5', 'high', 36_864],
+        ['claude-opus-4-6', 'max', 128_000],
+    ] as const)(
+        'should internally stream oversized %s generate requests',
+        async (modelId, effort, maxTokens) => {
+            const create = vi.fn(async (request: unknown) => {
+                expect(request).toMatchObject({
+                    max_tokens: maxTokens,
+                    stream: true,
+                });
+                return toAsyncIterable(createTextStreamEvents('deep answer'));
+            });
+            const model = createAnthropicChatModel(
+                createMockClient(create),
+                modelId,
+                {
+                    defaultMaxTokens: 4096,
+                }
+            );
+
+            const result = await model.generate({
+                messages: [{ role: 'user', content: 'Think deeply' }],
+                reasoning: { effort },
+            });
+
+            expect(result.content).toBe('deep answer');
+            expect(result.finishReason).toBe('stop');
+            expect(result.parts).toContainEqual({
+                type: 'reasoning',
+                text: '',
+                providerMetadata: {
+                    anthropic: { redactedData: 'redacted_payload' },
+                },
+            });
+            expect(create).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it.each(['anthropic', 'anthropic-vertex'])(
+        'should preserve generate abort semantics for %s when streaming internally',
+        async (providerId) => {
+            const create = vi.fn(async () =>
+                toAsyncIterable<RawMessageStreamEvent>([])
+            );
+            const model = createAnthropicChatModel(
+                createMockClient(create),
+                'claude-opus-4-6',
+                {
+                    defaultMaxTokens: 4096,
+                    providerId,
+                }
+            );
+            const controller = new AbortController();
+            controller.abort();
+
+            const request = model.generate({
+                messages: [{ role: 'user', content: 'Think deeply' }],
+                reasoning: { effort: 'max' },
+                signal: controller.signal,
+            });
+
+            await expect(request).rejects.toBeInstanceOf(AbortedError);
+            await expect(request).rejects.toMatchObject({
+                name: 'AbortedError',
+                provider: providerId,
+            });
+            expect(create).not.toHaveBeenCalled();
+        }
+    );
+
     it('should send reasoning betas as headers instead of request fields', async () => {
         const create = vi.fn(
             async (_body: unknown, _requestOptions?: unknown) =>
@@ -980,6 +1051,75 @@ async function collectStreamEvents(
     for await (const _event of stream) {
         // Consume the stream until completion or failure.
     }
+}
+
+function createTextStreamEvents(text: string): RawMessageStreamEvent[] {
+    return [
+        {
+            type: 'message_start',
+            message: asMessage({
+                content: [],
+                stop_reason: null,
+                usage: {
+                    input_tokens: 10,
+                    output_tokens: 0,
+                },
+            }),
+        },
+        {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+                type: 'redacted_thinking',
+                data: 'redacted_payload',
+            },
+        },
+        {
+            type: 'content_block_stop',
+            index: 0,
+        },
+        {
+            type: 'content_block_start',
+            index: 1,
+            content_block: {
+                type: 'text',
+                text: '',
+                citations: null,
+            },
+        },
+        {
+            type: 'content_block_delta',
+            index: 1,
+            delta: {
+                type: 'text_delta',
+                text,
+            },
+        },
+        {
+            type: 'content_block_stop',
+            index: 1,
+        },
+        {
+            type: 'message_delta',
+            delta: {
+                stop_reason: 'end_turn',
+                stop_sequence: null,
+                container: null,
+                stop_details: null,
+            },
+            usage: {
+                input_tokens: 10,
+                output_tokens: 2,
+                cache_creation_input_tokens: null,
+                cache_read_input_tokens: null,
+                output_tokens_details: null,
+                server_tool_use: null,
+            },
+        },
+        {
+            type: 'message_stop',
+        },
+    ];
 }
 
 function createMockClient(

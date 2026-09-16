@@ -680,8 +680,9 @@ describe('reasoning support', () => {
                 budget_tokens: 8192,
                 display: 'summarized',
             },
-            // 8192 of thinking on top of the 4096 completion allowance.
-            max_tokens: 12_288,
+            // Interleaved thinking can spend its cumulative budget across
+            // multiple blocks without increasing the per-response allowance.
+            max_tokens: 4096,
         });
         expect(manual).not.toHaveProperty('betas');
         expect(
@@ -765,18 +766,16 @@ describe('reasoning output budgets', () => {
         });
     });
 
-    it('should clamp manual max effort to what the ceiling allows', () => {
-        // `max` needs 65536 thinking tokens, which never fits under the
-        // 64000-token ceiling, so the effort degrades to `high`.
-        const request = createGenerateRequest(
-            'claude-sonnet-4-5',
-            4096,
-            reasoningOptions('max')
+    it('should reject manual effort that cannot fit under the ceiling', () => {
+        expect(() =>
+            createGenerateRequest(
+                'claude-sonnet-4-5',
+                4096,
+                reasoningOptions('max')
+            )
+        ).toThrowError(
+            /cannot run reasoning effort "max": a 65536-token thinking budget does not fit under its 64000-token output ceiling/
         );
-
-        expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
-        });
     });
 
     it('should honour manual max effort when the ceiling has room', () => {
@@ -824,6 +823,62 @@ describe('reasoning output budgets', () => {
             )
         ).toThrowError(
             /cannot run reasoning effort "high": a 32768-token thinking budget does not fit under its 2000-token output ceiling/
+        );
+    });
+
+    it('should allow interleaved thinking budget above an explicit limit', () => {
+        const request = createGenerateRequest('claude-sonnet-4-5', 4096, {
+            ...reasoningOptions('high', 4096),
+            tools: {
+                tool: defineTool({
+                    name: 'tool',
+                    description: 'Test tool',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+            max_tokens: 4096,
+        });
+    });
+
+    it('should preserve interleaved max effort above the model output ceiling', () => {
+        const request = createGenerateRequest('claude-sonnet-4-5', 4096, {
+            ...reasoningOptions('max'),
+            tools: {
+                tool: defineTool({
+                    name: 'tool',
+                    description: 'Test tool',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 65_536 },
+            max_tokens: 4096,
+        });
+    });
+
+    it('should enforce the limit when tools do not enable interleaving', () => {
+        const options = {
+            ...reasoningOptions('high', 4096),
+            tools: {
+                tool: defineTool({
+                    name: 'tool',
+                    description: 'Test tool',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        } satisfies GenerateOptions;
+
+        expect(() =>
+            createGenerateRequest('claude-haiku-4-5', 4096, options)
+        ).toThrowError(/needs maxTokens above the 32768-token thinking budget/);
+        expect(getAnthropicRequestBetas('claude-haiku-4-5', options)).toEqual(
+            []
         );
     });
 
@@ -1236,6 +1291,41 @@ describe('reasoning support', () => {
                 anthropic: { signature: 'sig_1' },
             },
         });
+    });
+
+    it('should preserve redacted thinking data in streams', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<RawMessageStreamEvent>([
+                {
+                    type: 'content_block_start',
+                    index: 0,
+                    content_block: {
+                        type: 'redacted_thinking',
+                        data: 'redacted_payload',
+                    },
+                },
+                {
+                    type: 'content_block_stop',
+                    index: 0,
+                },
+                {
+                    type: 'message_stop',
+                },
+            ])
+        )) {
+            events.push(event);
+        }
+
+        expect(events.slice(0, 2)).toEqual([
+            { type: 'reasoning-start' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    anthropic: { redactedData: 'redacted_payload' },
+                },
+            },
+        ]);
     });
 
     it('should emit reasoning-end before tool-call events in stream', async () => {
