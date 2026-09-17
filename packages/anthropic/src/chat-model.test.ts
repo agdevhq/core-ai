@@ -433,6 +433,7 @@ describe('generate', () => {
         const result = await model.generate({
             messages: [{ role: 'user', content: 'Explain this' }],
             reasoning: { effort: 'high' },
+            maxTokens: 8192,
         });
 
         expect(result.reasoning).toBe('internal chain');
@@ -470,13 +471,6 @@ describe('generate', () => {
 
         expect(result.content).toBe('deep answer');
         expect(result.finishReason).toBe('stop');
-        expect(result.parts).toContainEqual({
-            type: 'reasoning',
-            text: '',
-            providerMetadata: {
-                anthropic: { redactedData: 'redacted_payload' },
-            },
-        });
         expect(create).toHaveBeenCalledTimes(1);
     });
 
@@ -1089,18 +1083,6 @@ function createTextStreamEvents(text: string): RawMessageStreamEvent[] {
             type: 'content_block_start',
             index: 0,
             content_block: {
-                type: 'redacted_thinking',
-                data: 'redacted_payload',
-            },
-        },
-        {
-            type: 'content_block_stop',
-            index: 0,
-        },
-        {
-            type: 'content_block_start',
-            index: 1,
-            content_block: {
                 type: 'text',
                 text: '',
                 citations: null,
@@ -1108,7 +1090,7 @@ function createTextStreamEvents(text: string): RawMessageStreamEvent[] {
         },
         {
             type: 'content_block_delta',
-            index: 1,
+            index: 0,
             delta: {
                 type: 'text_delta',
                 text,
@@ -1116,7 +1098,7 @@ function createTextStreamEvents(text: string): RawMessageStreamEvent[] {
         },
         {
             type: 'content_block_stop',
-            index: 1,
+            index: 0,
         },
         {
             type: 'message_delta',

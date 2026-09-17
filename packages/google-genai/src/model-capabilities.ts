@@ -64,8 +64,8 @@ function createCapabilities(config: {
     };
 }
 
-/** Documented `thinkingBudget` ranges and output ceilings for Gemini 2.5. */
-const GEMINI_25_MAX_OUTPUT_TOKENS = 65_536;
+/** Documented output ceiling for the supported Gemini 2.5 and 3 models. */
+const GEMINI_MAX_OUTPUT_TOKENS = 65_536;
 
 const DEFAULT_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingBudget',
@@ -75,23 +75,24 @@ const GEMINI_25_PRO_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingBudget',
     mode: 'always-on',
     thinkingBudgetRange: { min: 128, max: 32_768 },
-    maxOutputTokens: GEMINI_25_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
 const GEMINI_25_FLASH_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingBudget',
     mode: 'optional',
     thinkingBudgetRange: { min: 0, max: 24_576 },
-    maxOutputTokens: GEMINI_25_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
 const GEMINI_25_FLASH_LITE_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingBudget',
     mode: 'optional',
     thinkingBudgetRange: { min: 512, max: 24_576 },
-    maxOutputTokens: GEMINI_25_MAX_OUTPUT_TOKENS,
+    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
 const THINKING_LEVEL_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingLevel',
     mode: 'always-on',
+    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {

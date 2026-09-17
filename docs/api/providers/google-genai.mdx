@@ -308,15 +308,15 @@ Gemini counts thought tokens against `maxOutputTokens`. A limit at or below the
 thinking budget ends the response with `MAX_TOKENS` and no visible answer,
 while still billing for the thoughts.
 
-On Gemini 2.5, pass `reasoning` and omit `maxTokens` to use the model's
-verified output limit of 65,536 (`capabilities.output.maxTokens`). That leaves
-room for both thoughts and the answer. Set `maxTokens` and it stays a hard
-limit: a limit that cannot hold the thinking budget raises a `ValidationError`
-rather than returning an empty answer.
+On known Gemini 2.5 and Gemini 3 models, pass `reasoning` and omit `maxTokens`
+to use the model's verified output limit of 65,536
+(`capabilities.output.maxTokens`). Effort controls how much of that allowance
+the model spends. Set `maxTokens` and it stays a hard limit. On Gemini 2.5, a
+limit that cannot hold the thinking budget raises a `ValidationError` rather
+than returning an empty answer.
 
-Gemini 3 uses thinking levels, not a numeric budget. The adapter does not set
-`maxOutputTokens` for those models, and `capabilities.output` is absent. Pass
-an explicit `maxTokens` if you need a floor above Google's API default.
+Unknown model ids have no verified output limit, so the adapter leaves
+`maxOutputTokens` unset for them.
 
 ```typescript
 // Rejected: `max` spends all 32,768 tokens on thinking.

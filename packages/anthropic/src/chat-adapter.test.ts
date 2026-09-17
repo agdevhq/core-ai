@@ -731,7 +731,7 @@ describe('reasoning output budgets', () => {
         });
     });
 
-    it('should leave lower adaptive efforts on the default allowance', () => {
+    it('should give lower adaptive efforts the full model output range', () => {
         const request = createGenerateRequest(
             'claude-opus-4-6',
             4096,
@@ -740,7 +740,7 @@ describe('reasoning output budgets', () => {
 
         expect(request).toMatchObject({
             output_config: { effort: 'high' },
-            max_tokens: 4096,
+            max_tokens: 128_000,
         });
     });
 
@@ -1117,41 +1117,6 @@ describe('reasoning support', () => {
                 anthropic: { signature: 'sig_1' },
             },
         });
-    });
-
-    it('should preserve redacted thinking data in streams', async () => {
-        const events = [];
-        for await (const event of transformStream(
-            toAsyncIterable<RawMessageStreamEvent>([
-                {
-                    type: 'content_block_start',
-                    index: 0,
-                    content_block: {
-                        type: 'redacted_thinking',
-                        data: 'redacted_payload',
-                    },
-                },
-                {
-                    type: 'content_block_stop',
-                    index: 0,
-                },
-                {
-                    type: 'message_stop',
-                },
-            ])
-        )) {
-            events.push(event);
-        }
-
-        expect(events.slice(0, 2)).toEqual([
-            { type: 'reasoning-start' },
-            {
-                type: 'reasoning-end',
-                providerMetadata: {
-                    anthropic: { redactedData: 'redacted_payload' },
-                },
-            },
-        ]);
     });
 
     it('should emit reasoning-end before tool-call events in stream', async () => {

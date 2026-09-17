@@ -519,9 +519,9 @@ type AnthropicRequestBudget = {
 
 /**
  * Adaptive thinking has no numeric budget, but it still shares `max_tokens`.
- * The highest effort therefore uses the model's full output range when the
- * caller omits a limit. Manual thinking (Claude 4.5 and earlier) keeps the
- * previous clamp: the budget shrinks to fit `maxTokens`.
+ * When the caller omits a hard limit, use the model's full output range and
+ * let effort control how much of it is spent. Manual thinking (Claude 4.5 and
+ * earlier) keeps the previous clamp: the budget shrinks to fit `maxTokens`.
  */
 function resolveAnthropicRequestBudget(args: {
     modelId: string;
@@ -546,10 +546,7 @@ function resolveAnthropicRequestBudget(args: {
 
     if (getAnthropicThinkingMode(modelId) === 'adaptive') {
         const maxTokens =
-            options.maxTokens ??
-            (effort === 'max' && modelMaxTokens !== undefined
-                ? modelMaxTokens
-                : defaultMaxTokens);
+            options.maxTokens ?? modelMaxTokens ?? defaultMaxTokens;
 
         return { maxTokens, thinking: { mode: 'adaptive', effort } };
     }
@@ -872,7 +869,6 @@ export async function* transformStream(
     const emittedToolCalls = new Set<number>();
     const contentBlockTypeByIndex = new Map<number, string>();
     const reasoningSignatureByIndex = new Map<number, string>();
-    const redactedThinkingDataByIndex = new Map<number, string>();
 
     for await (const event of stream) {
         if (event.type === 'message_start') {
@@ -901,18 +897,6 @@ export async function* transformStream(
         if (event.type === 'content_block_start') {
             contentBlockTypeByIndex.set(event.index, event.content_block.type);
             if (event.content_block.type === 'thinking') {
-                yield {
-                    type: 'reasoning-start',
-                };
-                continue;
-            }
-            if (event.content_block.type === 'redacted_thinking') {
-                if (typeof event.content_block.data === 'string') {
-                    redactedThinkingDataByIndex.set(
-                        event.index,
-                        event.content_block.data
-                    );
-                }
                 yield {
                     type: 'reasoning-start',
                 };
@@ -1020,25 +1004,6 @@ export async function* transformStream(
                     type: 'reasoning-end',
                     providerMetadata: {
                         anthropic: { ...(signature ? { signature } : {}) },
-                    },
-                };
-                continue;
-            }
-
-            if (
-                contentBlockTypeByIndex.get(event.index) === 'redacted_thinking'
-            ) {
-                const redactedData = redactedThinkingDataByIndex.get(
-                    event.index
-                );
-                redactedThinkingDataByIndex.delete(event.index);
-                contentBlockTypeByIndex.delete(event.index);
-                yield {
-                    type: 'reasoning-end',
-                    providerMetadata: {
-                        anthropic: {
-                            ...(redactedData ? { redactedData } : {}),
-                        },
                     },
                 };
                 continue;

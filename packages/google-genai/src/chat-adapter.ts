@@ -680,9 +680,15 @@ function mapReasoningToConfig(
         options.reasoning.effort,
         capabilities.reasoning.supportedEfforts
     );
+    const modelMaxTokens = capabilities.output?.maxTokens;
+    const outputLimit =
+        options.maxTokens === undefined && modelMaxTokens !== undefined
+            ? { maxOutputTokens: modelMaxTokens }
+            : {};
 
     if (capabilities.reasoning.thinkingParam === 'thinkingLevel') {
         return {
+            ...outputLimit,
             thinkingConfig: {
                 thinkingLevel: toGoogleThinkingLevel(effort),
                 includeThoughts: true,
@@ -694,7 +700,6 @@ function mapReasoningToConfig(
         effort,
         capabilities.reasoning.thinkingBudgetRange
     );
-    const modelMaxTokens = capabilities.output?.maxTokens;
 
     if (
         options.maxTokens !== undefined &&
@@ -708,9 +713,7 @@ function mapReasoningToConfig(
     }
 
     return {
-        ...(options.maxTokens === undefined && modelMaxTokens !== undefined
-            ? { maxOutputTokens: modelMaxTokens }
-            : {}),
+        ...outputLimit,
         thinkingConfig: {
             thinkingBudget,
             includeThoughts: true,

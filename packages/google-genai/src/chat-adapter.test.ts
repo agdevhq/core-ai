@@ -603,6 +603,7 @@ describe('reasoning support', () => {
         });
 
         expect(request.config).toMatchObject({
+            maxOutputTokens: 65_536,
             thinkingConfig: {
                 thinkingLevel: 'HIGH',
                 includeThoughts: true,

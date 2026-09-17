@@ -164,11 +164,11 @@ describe('output and thinking-budget metadata', () => {
         ).toEqual(range);
     });
 
-    it('should leave thinking-level models without a budget range', () => {
+    it('should report the output ceiling without a budget range for thinking-level models', () => {
         const capabilities = getGoogleModelCapabilities('gemini-3-pro');
 
         expect(capabilities.reasoning.thinkingBudgetRange).toBeUndefined();
-        expect(capabilities.output).toBeUndefined();
+        expect(capabilities.output).toEqual({ maxTokens: 65_536 });
     });
 
     it('should leave unknown models without verified limits', () => {

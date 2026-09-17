@@ -333,9 +333,9 @@ const result = await generate({
 
 Reasoning shares the output allowance with the visible answer.
 
-On adaptive models, omit `maxTokens` with `effort: 'max'` and the request uses
-the model's full output limit instead of the small default allowance. An
-explicit `maxTokens` stays a hard limit.
+On adaptive models, omit `maxTokens` and the request uses the model's full
+output limit instead of the small default allowance. Effort controls how much
+of that allowance the model spends. An explicit `maxTokens` stays a hard limit.
 
 On Claude 4.5 and earlier, the thinking budget shrinks to fit `maxTokens`.
 
