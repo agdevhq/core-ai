@@ -255,6 +255,9 @@ type ModelCapabilities = {
             | { supported: false }
             | { supported: true; maxStrictTools?: number };
     };
+    output?: {
+        maxTokens: number;
+    };
 };
 ```
 
@@ -268,6 +271,7 @@ type ModelCapabilities = {
 | `modalities.output`                  | Modalities the model can emit as assistant content                   |
 | `tools.strictSchemas.supported`      | Whether `strict: true` is available for tool schemas                 |
 | `tools.strictSchemas.maxStrictTools` | Optional per-request limit on the number of strict tools             |
+| `output.maxTokens`                   | Verified ceiling for a single response, in tokens                    |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
 option. The model may still return reasoning output. `optional` means callers
@@ -286,6 +290,13 @@ common presets `TEXT_ONLY_MODALITIES` (`text` in / `text` out) and
 `MULTIMODAL_INPUT_MODALITIES` (`text` + `image` + `file` in / `text` out).
 Providers that support `AudioPart` add `'audio'` to their input array. `'video'`
 is reserved until a dedicated user content part exists.
+
+`output` is present only when the provider registry has a verified response
+ceiling for that model id. Adapters that spend reasoning out of the same
+allowance (Anthropic `max_tokens`, Google `maxOutputTokens`) use it to size
+an omitted limit. Callers can read `capabilities.output?.maxTokens` instead of
+hardcoding a per-model cap. Treat a missing field as unknown — do not invent a
+ceiling, and keep an explicit `maxTokens` if you need a guaranteed floor.
 
 Sending image, file, or audio parts when those modalities are not in
 `modalities.input` throws an `UnsupportedInputModalityError` before the

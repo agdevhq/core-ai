@@ -28,9 +28,13 @@ const MAX_EFFORTS = [
 
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
-    supportsStrictToolSchemas: boolean
+    supportsStrictToolSchemas: boolean,
+    maxOutputTokens: number | undefined
 ): AnthropicModelCapabilities {
     return {
+        ...(maxOutputTokens === undefined
+            ? {}
+            : { output: { maxTokens: maxOutputTokens } }),
         reasoning: {
             mode: 'optional',
             supportedEfforts,
@@ -135,19 +139,55 @@ const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
     max: 65536,
 };
 
+/**
+ * Verified synchronous Messages API `max_tokens` ceilings.
+ *
+ * Anthropic documents these in decimal thousands rather than powers of two: a
+ * "32k" model rejects 32768 with `max_tokens: 32768 > 32000`. Ids absent from
+ * this map have no verified ceiling and must be treated as unknown rather than
+ * capped at a guess.
+ */
+const ANTHROPIC_MODEL_MAX_OUTPUT_TOKENS: Record<string, number> = {
+    'claude-fable-5': 128_000,
+    'claude-mythos-5': 128_000,
+    'claude-mythos-preview': 128_000,
+    'claude-opus-5': 128_000,
+    'claude-opus-4-8': 128_000,
+    'claude-opus-4-7': 128_000,
+    'claude-opus-4-6': 128_000,
+    'claude-sonnet-5': 128_000,
+    'claude-sonnet-4-6': 128_000,
+    'claude-opus-4-5': 64_000,
+    'claude-sonnet-4-5': 64_000,
+    'claude-haiku-4-5': 64_000,
+    'claude-sonnet-4': 64_000,
+    'claude-sonnet-3-7': 64_000,
+    'claude-3-7-sonnet': 64_000,
+    'claude-opus-4-1': 32_000,
+    'claude-opus-4': 32_000,
+};
+
 export function getAnthropicModelCapabilities(
     modelId: string
 ): AnthropicModelCapabilities {
+    const maxOutputTokens = getAnthropicModelMaxOutputTokens(modelId);
+    const thinkingMode = getAnthropicThinkingMode(modelId);
     const supportedEfforts =
-        supportsAnthropicMaxEffort(modelId) ||
-        getAnthropicThinkingMode(modelId) === 'manual'
+        supportsAnthropicMaxEffort(modelId) || thinkingMode === 'manual'
             ? MAX_EFFORTS
             : STANDARD_EFFORTS;
 
     return createCapabilities(
         supportedEfforts,
-        supportsAnthropicStrictToolSchemas(modelId)
+        supportsAnthropicStrictToolSchemas(modelId),
+        maxOutputTokens
     );
+}
+
+export function getAnthropicModelMaxOutputTokens(
+    modelId: string
+): number | undefined {
+    return ANTHROPIC_MODEL_MAX_OUTPUT_TOKENS[normalizeModelId(modelId)];
 }
 
 export function normalizeModelId(modelId: string): string {

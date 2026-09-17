@@ -7,7 +7,10 @@ export type {
     GoogleGenAIProviderOptions,
 } from './provider.js';
 export type { GoogleReasoningMetadata } from './chat-adapter.js';
-export type { GoogleModelCapabilities } from './model-capabilities.js';
+export type {
+    GoogleModelCapabilities,
+    GoogleThinkingBudgetRange,
+} from './model-capabilities.js';
 export { getGoogleModelCapabilities } from './model-capabilities.js';
 export {
     googleGenerateProviderOptionsSchema,

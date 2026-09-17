@@ -30,6 +30,7 @@ import type {
     GenerateResult,
     Message,
     ModelCapabilities,
+    ReasoningEffort,
     StreamEvent,
     ToolSet,
     UserContentPart,
@@ -454,17 +455,22 @@ function createRequestBase(
     provider: string,
     adapterOptions: AnthropicAdapterOptions
 ) {
-    const maxTokens = options.maxTokens ?? defaultMaxTokens;
     const capabilities =
         adapterOptions.capabilities ?? getAnthropicModelCapabilities(modelId);
     validateAnthropicReasoningConfig(
         modelId,
-        maxTokens,
+        defaultMaxTokens,
         options,
         anthropicOptions,
         provider,
         capabilities
     );
+    const budget = resolveAnthropicRequestBudget({
+        modelId,
+        defaultMaxTokens,
+        options,
+        capabilities,
+    });
     validateInputModalities({
         messages: options.messages,
         capabilities,
@@ -472,11 +478,9 @@ function createRequestBase(
         providerId: provider,
     });
     const converted = convertMessages(options.messages);
-    const reasoningFields = mapReasoningToRequestFields(
+    const reasoningFields = mapThinkingToRequestFields(
         modelId,
-        maxTokens,
-        options,
-        capabilities
+        budget.thinking
     );
     if (options.tools) {
         validateToolSchemaStrictness({
@@ -490,7 +494,7 @@ function createRequestBase(
     return {
         model: modelId,
         messages: converted.messages,
-        max_tokens: maxTokens,
+        max_tokens: budget.maxTokens,
         ...(converted.system ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
@@ -500,6 +504,61 @@ function createRequestBase(
             : {}),
         ...reasoningFields,
         ...mapSamplingToRequestFields(options),
+    };
+}
+
+type AnthropicThinkingPlan =
+    | { mode: 'none' }
+    | { mode: 'adaptive'; effort: ReasoningEffort }
+    | { mode: 'manual'; effort: ReasoningEffort; budgetTokens: number };
+
+type AnthropicRequestBudget = {
+    maxTokens: number;
+    thinking: AnthropicThinkingPlan;
+};
+
+/**
+ * Adaptive thinking has no numeric budget, but it still shares `max_tokens`.
+ * When the caller omits a hard limit, use the model's full output range and
+ * let effort control how much of it is spent. Manual thinking (Claude 4.5 and
+ * earlier) keeps the previous clamp: the budget shrinks to fit `maxTokens`.
+ */
+function resolveAnthropicRequestBudget(args: {
+    modelId: string;
+    defaultMaxTokens: number;
+    options: GenerateOptions;
+    capabilities: ModelCapabilities;
+}): AnthropicRequestBudget {
+    const { modelId, defaultMaxTokens, options, capabilities } = args;
+    const modelMaxTokens = capabilities.output?.maxTokens;
+
+    if (!options.reasoning) {
+        return {
+            maxTokens: options.maxTokens ?? defaultMaxTokens,
+            thinking: { mode: 'none' },
+        };
+    }
+
+    const effort = clampReasoningEffort(
+        options.reasoning.effort,
+        capabilities.reasoning.supportedEfforts
+    );
+
+    if (getAnthropicThinkingMode(modelId) === 'adaptive') {
+        const maxTokens =
+            options.maxTokens ?? modelMaxTokens ?? defaultMaxTokens;
+
+        return { maxTokens, thinking: { mode: 'adaptive', effort } };
+    }
+
+    const maxTokens = options.maxTokens ?? defaultMaxTokens;
+    return {
+        maxTokens,
+        thinking: {
+            mode: 'manual',
+            effort,
+            budgetTokens: toAnthropicManualBudget(effort, maxTokens),
+        },
     };
 }
 
@@ -516,7 +575,7 @@ function mapSamplingToRequestFields(
 
 function validateAnthropicReasoningConfig(
     modelId: string,
-    maxTokens: number,
+    defaultMaxTokens: number,
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
     provider: string,
@@ -558,6 +617,7 @@ function validateAnthropicReasoningConfig(
         return;
     }
 
+    const maxTokens = options.maxTokens ?? defaultMaxTokens;
     if (getAnthropicThinkingMode(modelId) === 'manual' && maxTokens <= 1024) {
         throw new ValidationError(
             `Anthropic model "${modelId}" requires maxTokens greater than 1024 when reasoning is enabled`,
@@ -612,31 +672,24 @@ function validateAnthropicReasoningConfig(
     }
 }
 
-function mapReasoningToRequestFields(
+function mapThinkingToRequestFields(
     modelId: string,
-    maxTokens: number,
-    options: GenerateOptions,
-    capabilities: ModelCapabilities
+    thinking: AnthropicThinkingPlan
 ) {
-    if (!options.reasoning) {
-        return {};
-    }
-
-    const thinkingMode = getAnthropicThinkingMode(modelId);
-    const effort = clampReasoningEffort(
-        options.reasoning.effort,
-        capabilities.reasoning.supportedEfforts
-    );
     const baseFields: Record<string, unknown> = {};
 
-    if (thinkingMode === 'adaptive') {
+    if (thinking.mode === 'none') {
+        return baseFields;
+    }
+
+    if (thinking.mode === 'adaptive') {
         baseFields['thinking'] = {
             type: 'adaptive',
             display: 'summarized',
         };
         baseFields['output_config'] = {
             effort: toAnthropicAdaptiveEffort(
-                effort,
+                thinking.effort,
                 supportsAnthropicMaxEffort(modelId)
             ),
         };
@@ -645,7 +698,7 @@ function mapReasoningToRequestFields(
 
     baseFields['thinking'] = {
         type: 'enabled',
-        budget_tokens: toAnthropicManualBudget(effort, maxTokens),
+        budget_tokens: thinking.budgetTokens,
         display: 'summarized',
     };
     return baseFields;

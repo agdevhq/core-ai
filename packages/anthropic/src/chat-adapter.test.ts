@@ -638,7 +638,7 @@ describe('reasoning support', () => {
         ]);
     });
 
-    it('should map adaptive and manual reasoning fields within maxTokens', () => {
+    it('should map adaptive and manual reasoning fields', () => {
         const adaptiveOptions = {
             messages: [{ role: 'user', content: 'Hi' }],
             tools: {
@@ -692,7 +692,101 @@ describe('reasoning support', () => {
         });
         expect(clamped).toHaveProperty('output_config.effort', 'high');
     });
+});
 
+describe('reasoning output budgets', () => {
+    const reasoningOptions = (
+        effort: 'medium' | 'high' | 'max',
+        maxTokens?: number
+    ) =>
+        ({
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort },
+            ...(maxTokens === undefined ? {} : { maxTokens }),
+        }) satisfies GenerateOptions;
+
+    it('should clamp a manual thinking budget to the caller limit', () => {
+        const request = createGenerateRequest(
+            'claude-sonnet-4-5',
+            4096,
+            reasoningOptions('high', 32_000)
+        );
+
+        expect(request).toMatchObject({
+            thinking: { type: 'enabled', budget_tokens: 31_999 },
+            max_tokens: 32_000,
+        });
+    });
+
+    it('should give adaptive max effort the full model output range', () => {
+        const request = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('max')
+        );
+
+        expect(request).toMatchObject({
+            output_config: { effort: 'max' },
+            max_tokens: 128_000,
+        });
+    });
+
+    it('should give lower adaptive efforts the full model output range', () => {
+        const request = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('high')
+        );
+
+        expect(request).toMatchObject({
+            output_config: { effort: 'high' },
+            max_tokens: 128_000,
+        });
+    });
+
+    it('should respect an explicit limit for adaptive thinking', () => {
+        const request = createGenerateRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('max', 8192)
+        );
+
+        expect(request).toMatchObject({
+            output_config: { effort: 'max' },
+            max_tokens: 8192,
+        });
+    });
+
+    it('should size adaptive stream requests the same way', () => {
+        const request = createStreamRequest(
+            'claude-opus-4-6',
+            4096,
+            reasoningOptions('max')
+        );
+
+        expect(request).toMatchObject({
+            stream: true,
+            output_config: { effort: 'max' },
+            max_tokens: 128_000,
+        });
+    });
+
+    it('should leave non-reasoning requests on the caller limits', () => {
+        const messages = [{ role: 'user', content: 'Hi' }] satisfies Message[];
+
+        expect(
+            createGenerateRequest('claude-sonnet-4-5', 4096, { messages })
+        ).toMatchObject({ max_tokens: 4096 });
+        expect(
+            createGenerateRequest('claude-sonnet-4-5', 4096, {
+                messages,
+                maxTokens: 512,
+            })
+        ).toMatchObject({ max_tokens: 512 });
+    });
+});
+
+describe('reasoning support', () => {
     it('should include cache_control when cacheControl provider option is set', () => {
         const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
             messages: [{ role: 'user', content: 'Hello' }],

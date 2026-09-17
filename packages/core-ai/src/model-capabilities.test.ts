@@ -66,3 +66,34 @@ describe('modality helpers', () => {
         expect(supportsOutputModality(capabilities, 'text')).toBe(true);
     });
 });
+
+describe('output capabilities', () => {
+    const reasoning: ModelCapabilities['reasoning'] = {
+        mode: 'optional',
+        supportedEfforts: ['low', 'medium', 'high', 'max'],
+        restrictsSamplingParams: false,
+        supportedToolChoices: ['auto', 'none'],
+    };
+    const tools = { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS };
+
+    it('exposes a verified maximum when the registry has one', () => {
+        const capabilities: ModelCapabilities = {
+            reasoning,
+            modalities: TEXT_ONLY_MODALITIES,
+            tools,
+            output: { maxTokens: 64_000 },
+        };
+
+        expect(capabilities.output?.maxTokens).toBe(64_000);
+    });
+
+    it('stays absent for models without a verified maximum', () => {
+        const capabilities: ModelCapabilities = {
+            reasoning,
+            modalities: TEXT_ONLY_MODALITIES,
+            tools,
+        };
+
+        expect(capabilities.output).toBeUndefined();
+    });
+});

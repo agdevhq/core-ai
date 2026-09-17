@@ -204,6 +204,18 @@ export type ToolSchemaStrictnessCapabilities =
     | { supported: false }
     | { supported: true; maxStrictTools?: number };
 
+export type ModelOutputCapabilities = {
+    /**
+     * Verified ceiling for a single response, in tokens.
+     *
+     * Providers that spend reasoning out of the same allowance (Anthropic
+     * `max_tokens`, Google `maxOutputTokens`) count thinking tokens against
+     * this number, so it bounds the thinking budget as well as the visible
+     * answer.
+     */
+    maxTokens: number;
+};
+
 export type ModelCapabilities = {
     reasoning: {
         mode: 'unsupported' | 'optional' | 'always-on';
@@ -227,6 +239,12 @@ export type ModelCapabilities = {
     tools: {
         strictSchemas: ToolSchemaStrictnessCapabilities;
     };
+    /**
+     * Output limits, when the provider registry has a verified value for this
+     * model id. Absent means unknown — adapters must not invent a ceiling,
+     * because sending one the model does not accept is itself an error.
+     */
+    output?: ModelOutputCapabilities;
 };
 
 export type ChatModel = {

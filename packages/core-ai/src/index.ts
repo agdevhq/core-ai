@@ -23,6 +23,7 @@ export type {
     ChatOutputModality,
     ToolSchemaStrictnessCapabilities,
     ModelCapabilities,
+    ModelOutputCapabilities,
     ChatModel,
     ChatModelMiddleware,
     BaseGenerateOptions,

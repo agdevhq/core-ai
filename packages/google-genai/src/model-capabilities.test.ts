@@ -102,8 +102,79 @@ describe('reasoning mapping', () => {
         expect(toGoogleThinkingLevel('max')).toBe('HIGH');
     });
 
-    it('should map effort to thinking budget', () => {
+    it('should map effort to thinking budget without a documented range', () => {
         expect(toGoogleThinkingBudget('minimal')).toBe(1024);
-        expect(toGoogleThinkingBudget('high')).toBe(32768);
+        expect(toGoogleThinkingBudget('low')).toBe(4096);
+        expect(toGoogleThinkingBudget('medium')).toBe(16384);
+        expect(toGoogleThinkingBudget('high')).toBe(24576);
+        expect(toGoogleThinkingBudget('max')).toBe(32768);
+    });
+
+    it.each([
+        ['gemini-2.5-pro', 24576, 32768],
+        ['gemini-2.5-flash', 18432, 24576],
+        ['gemini-2.5-flash-lite', 18432, 24576],
+    ])(
+        'should keep %s budgets inside its documented range',
+        (modelId, high, max) => {
+            const range =
+                getGoogleModelCapabilities(modelId).reasoning
+                    .thinkingBudgetRange;
+
+            expect(toGoogleThinkingBudget('high', range)).toBe(high);
+            expect(toGoogleThinkingBudget('max', range)).toBe(max);
+        }
+    );
+
+    it('should keep budgets monotonic and distinct at the top', () => {
+        const range =
+            getGoogleModelCapabilities('gemini-2.5-flash').reasoning
+                .thinkingBudgetRange;
+        const budgets = (
+            ['minimal', 'low', 'medium', 'high', 'max'] as const
+        ).map((effort) => toGoogleThinkingBudget(effort, range));
+
+        expect(budgets).toEqual([1024, 4096, 16384, 18432, 24576]);
+    });
+
+    it('should lift a budget to the range minimum', () => {
+        expect(
+            toGoogleThinkingBudget('minimal', { min: 4096, max: 24576 })
+        ).toBe(4096);
+    });
+});
+
+describe('output and thinking-budget metadata', () => {
+    it.each(['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite'])(
+        'should report the verified output ceiling for %s',
+        (modelId) => {
+            expect(getGoogleModelCapabilities(modelId).output).toEqual({
+                maxTokens: 65_536,
+            });
+        }
+    );
+
+    it.each([
+        ['gemini-2.5-pro', { min: 128, max: 32_768 }],
+        ['gemini-2.5-flash', { min: 0, max: 24_576 }],
+        ['gemini-2.5-flash-lite', { min: 512, max: 24_576 }],
+    ])('should report the documented range for %s', (modelId, range) => {
+        expect(
+            getGoogleModelCapabilities(modelId).reasoning.thinkingBudgetRange
+        ).toEqual(range);
+    });
+
+    it('should report the output ceiling without a budget range for thinking-level models', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-3-pro');
+
+        expect(capabilities.reasoning.thinkingBudgetRange).toBeUndefined();
+        expect(capabilities.output).toEqual({ maxTokens: 65_536 });
+    });
+
+    it('should leave unknown models without verified limits', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-custom');
+
+        expect(capabilities.reasoning.thinkingBudgetRange).toBeUndefined();
+        expect(capabilities.output).toBeUndefined();
     });
 });
