@@ -480,6 +480,31 @@ describe('generate', () => {
         expect(create).toHaveBeenCalledTimes(1);
     });
 
+    it('should internally stream any generate request above the non-streaming cap', async () => {
+        const create = vi.fn(async (request: unknown) => {
+            expect(request).toMatchObject({
+                max_tokens: 32_000,
+                stream: true,
+            });
+            return toAsyncIterable(createTextStreamEvents('plain answer'));
+        });
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6',
+            {
+                defaultMaxTokens: 32_000,
+            }
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Hello' }],
+        });
+
+        expect(result.content).toBe('plain answer');
+        expect(result.finishReason).toBe('stop');
+        expect(create).toHaveBeenCalledTimes(1);
+    });
+
     it.each(['anthropic', 'anthropic-vertex'])(
         'should preserve generate abort semantics for %s when streaming internally',
         async (providerId) => {

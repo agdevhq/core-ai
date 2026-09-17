@@ -160,10 +160,10 @@ request options remain valid, and image input support. See
 for details.
 
 Thinking budgets and output limits resolve exactly as they do on Google GenAI:
-Gemini 2.5 budgets come from each model's documented range, an omitted
-`maxTokens` uses the model's full output limit so thoughts and answer both fit,
-and a `maxTokens` that cannot hold the thinking budget raises a
-`ValidationError`. See
+Gemini 2.5 budgets come from each model's documented range. On Gemini 2.5,
+omitting `maxTokens` while reasoning is set uses the verified 65,536 output
+limit. Gemini 3 does not auto-set that limit. A `maxTokens` that cannot hold a
+Gemini 2.5 thinking budget raises a `ValidationError`. See
 [How reasoning and maxTokens interact](/api/providers/google-genai#how-reasoning-and-maxtokens-interact).
 
 ### Strict tool schemas

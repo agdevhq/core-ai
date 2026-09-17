@@ -144,6 +144,9 @@ For registered Claude models:
   `modalities.output` is `['text']`.
 - `tools.strictSchemas` reports whether the model supports strict tool schemas.
   Supported models report `{ supported: true, maxStrictTools: 20 }`.
+- `output.maxTokens` is the verified Messages API ceiling when the registry
+  has one (for example 128,000 on Opus 4.6). The field is absent for unknown
+  ids.
 
 ### Strict tool schemas
 
@@ -309,7 +312,9 @@ const result = await generate({
 
 ### Manual thinking budget (Claude 4.5 and earlier)
 
-Token budgets: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192, `high` -> 32,768, `max` -> 65,536.
+These token budgets are this library's mapping, not Anthropic-documented
+effort values: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192,
+`high` -> 32,768, `max` -> 65,536.
 The adapter caps the selected budget at `maxTokens - 1` because Anthropic
 requires the thinking budget to be lower than the total output limit.
 `maxTokens` must be greater than 1,024.
@@ -332,8 +337,12 @@ On adaptive models, omit `maxTokens` with `effort: 'max'` and the request uses
 the model's full output limit instead of the small default allowance. An
 explicit `maxTokens` stays a hard limit.
 
-On Claude 4.5 and earlier, the adapter keeps the previous clamp: the thinking
-budget shrinks to fit `maxTokens`.
+On Claude 4.5 and earlier, the thinking budget shrinks to fit `maxTokens`.
+
+The Anthropic SDK rejects non-streaming requests above model-specific
+thresholds. The lowest threshold is 8,192 tokens, so `generate()` and
+`generateObject()` with a larger `max_tokens` use the streaming transport and
+still return a regular result.
 
 ## Reasoning restrictions
 
