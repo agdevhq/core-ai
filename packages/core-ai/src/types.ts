@@ -209,9 +209,9 @@ export type ModelOutputCapabilities = {
      * Verified ceiling for a single response, in tokens.
      *
      * Providers that spend reasoning out of the same allowance (Anthropic
-     * `max_tokens`, Google `maxOutputTokens`) generally count thinking tokens
-     * against this number. Anthropic interleaved thinking is an exception:
-     * its cumulative thinking budget can exceed the per-response ceiling.
+     * `max_tokens`, Google `maxOutputTokens`) count thinking tokens against
+     * this number, so it bounds the thinking budget as well as the visible
+     * answer.
      */
     maxTokens: number;
 };

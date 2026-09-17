@@ -141,10 +141,10 @@ describe('effort mapping', () => {
         expect(toAnthropicAdaptiveEffort('max', false)).toBe('high');
     });
 
-    it('should map manual budgets without regard to the output ceiling', () => {
+    it('should map and clamp manual budgets', () => {
         expect(toAnthropicManualBudget('minimal')).toBe(1024);
-        expect(toAnthropicManualBudget('medium')).toBe(8192);
         expect(toAnthropicManualBudget('max')).toBe(65536);
+        expect(toAnthropicManualBudget('medium', 4096)).toBe(4095);
     });
 });
 
@@ -177,22 +177,6 @@ describe('output limits', () => {
         expect(
             getAnthropicModelCapabilities('claude-future-5').output
         ).toBeUndefined();
-    });
-
-    it('should keep interleaved efforts independent of request limits', () => {
-        // Interleaved thinking can use a cumulative budget above max_tokens,
-        // so the request options determine whether an effort is valid.
-        expect(
-            getAnthropicModelCapabilities('claude-opus-4-1').reasoning
-                .supportedEfforts
-        ).toEqual(['minimal', 'low', 'medium', 'high', 'max']);
-    });
-
-    it('should hide impossible efforts without interleaved thinking', () => {
-        expect(
-            getAnthropicModelCapabilities('claude-haiku-4-5').reasoning
-                .supportedEfforts
-        ).toEqual(['minimal', 'low', 'medium', 'high']);
     });
 
     it('should keep every adaptive effort regardless of the ceiling', () => {

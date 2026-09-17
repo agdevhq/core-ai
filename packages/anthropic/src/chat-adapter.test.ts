@@ -677,12 +677,9 @@ describe('reasoning support', () => {
         expect(manual).toMatchObject({
             thinking: {
                 type: 'enabled',
-                budget_tokens: 8192,
+                budget_tokens: 4095,
                 display: 'summarized',
             },
-            // Interleaved thinking can spend its cumulative budget across
-            // multiple blocks without increasing the per-response allowance.
-            max_tokens: 4096,
         });
         expect(manual).not.toHaveProperty('betas');
         expect(
@@ -708,178 +705,17 @@ describe('reasoning output budgets', () => {
             ...(maxTokens === undefined ? {} : { maxTokens }),
         }) satisfies GenerateOptions;
 
-    it('should size an omitted limit from the thinking budget', () => {
+    it('should clamp a manual thinking budget to the caller limit', () => {
         const request = createGenerateRequest(
             'claude-sonnet-4-5',
             4096,
-            reasoningOptions('high')
+            reasoningOptions('high', 32_000)
         );
 
         expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
-            max_tokens: 36_864,
+            thinking: { type: 'enabled', budget_tokens: 31_999 },
+            max_tokens: 32_000,
         });
-    });
-
-    it('should cap an omitted limit at the model output ceiling', () => {
-        const request = createGenerateRequest(
-            'claude-sonnet-4-5',
-            64_000,
-            reasoningOptions('high')
-        );
-
-        expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
-            max_tokens: 64_000,
-        });
-    });
-
-    it('should reject an explicit limit that cannot hold the thinking budget', () => {
-        expect(() =>
-            createGenerateRequest(
-                'claude-sonnet-4-5',
-                4096,
-                reasoningOptions('high', 32_000)
-            )
-        ).toThrowError(
-            /needs maxTokens above the 32768-token thinking budget of reasoning effort "high", but maxTokens is 32000/
-        );
-        expect(() =>
-            createGenerateRequest(
-                'claude-sonnet-4-5',
-                4096,
-                reasoningOptions('high', 32_000)
-            )
-        ).toThrowError(ValidationError);
-    });
-
-    it('should keep an explicit limit that can hold the thinking budget', () => {
-        const request = createGenerateRequest(
-            'claude-sonnet-4-5',
-            4096,
-            reasoningOptions('high', 40_000)
-        );
-
-        expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
-            max_tokens: 40_000,
-        });
-    });
-
-    it('should reject manual effort that cannot fit under the ceiling', () => {
-        expect(() =>
-            createGenerateRequest(
-                'claude-sonnet-4-5',
-                4096,
-                reasoningOptions('max')
-            )
-        ).toThrowError(
-            /cannot run reasoning effort "max": a 65536-token thinking budget does not fit under its 64000-token output ceiling/
-        );
-    });
-
-    it('should honour manual max effort when the ceiling has room', () => {
-        const capabilities = {
-            ...getAnthropicModelCapabilities('claude-sonnet-4-5'),
-            output: { maxTokens: 128_000 },
-            reasoning: {
-                ...getAnthropicModelCapabilities('claude-sonnet-4-5').reasoning,
-                supportedEfforts: ['medium', 'high', 'max'] as const,
-            },
-        };
-
-        const request = createGenerateRequest(
-            'claude-sonnet-4-5',
-            4096,
-            reasoningOptions('max'),
-            'anthropic',
-            { capabilities }
-        );
-
-        expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 65_536 },
-            max_tokens: 69_632,
-        });
-    });
-
-    it('should reject an effort the model output ceiling cannot honour', () => {
-        const base = getAnthropicModelCapabilities('claude-sonnet-4-5');
-        const capabilities = {
-            ...base,
-            output: { maxTokens: 2000 },
-            reasoning: {
-                ...base.reasoning,
-                supportedEfforts: ['high'] as const,
-            },
-        };
-
-        expect(() =>
-            createGenerateRequest(
-                'claude-sonnet-4-5',
-                4096,
-                reasoningOptions('high'),
-                'anthropic',
-                { capabilities }
-            )
-        ).toThrowError(
-            /cannot run reasoning effort "high": a 32768-token thinking budget does not fit under its 2000-token output ceiling/
-        );
-    });
-
-    it('should allow interleaved thinking budget above an explicit limit', () => {
-        const request = createGenerateRequest('claude-sonnet-4-5', 4096, {
-            ...reasoningOptions('high', 4096),
-            tools: {
-                tool: defineTool({
-                    name: 'tool',
-                    description: 'Test tool',
-                    parameters: z.object({ query: z.string() }),
-                }),
-            },
-        });
-
-        expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
-            max_tokens: 4096,
-        });
-    });
-
-    it('should preserve interleaved max effort above the model output ceiling', () => {
-        const request = createGenerateRequest('claude-sonnet-4-5', 4096, {
-            ...reasoningOptions('max'),
-            tools: {
-                tool: defineTool({
-                    name: 'tool',
-                    description: 'Test tool',
-                    parameters: z.object({ query: z.string() }),
-                }),
-            },
-        });
-
-        expect(request).toMatchObject({
-            thinking: { type: 'enabled', budget_tokens: 65_536 },
-            max_tokens: 4096,
-        });
-    });
-
-    it('should enforce the limit when tools do not enable interleaving', () => {
-        const options = {
-            ...reasoningOptions('high', 4096),
-            tools: {
-                tool: defineTool({
-                    name: 'tool',
-                    description: 'Test tool',
-                    parameters: z.object({ query: z.string() }),
-                }),
-            },
-        } satisfies GenerateOptions;
-
-        expect(() =>
-            createGenerateRequest('claude-haiku-4-5', 4096, options)
-        ).toThrowError(/needs maxTokens above the 32768-token thinking budget/);
-        expect(getAnthropicRequestBetas('claude-haiku-4-5', options)).toEqual(
-            []
-        );
     });
 
     it('should give adaptive max effort the full model output range', () => {
@@ -921,17 +757,17 @@ describe('reasoning output budgets', () => {
         });
     });
 
-    it('should size stream requests the same way', () => {
+    it('should size adaptive stream requests the same way', () => {
         const request = createStreamRequest(
-            'claude-sonnet-4-5',
+            'claude-opus-4-6',
             4096,
-            reasoningOptions('high')
+            reasoningOptions('max')
         );
 
         expect(request).toMatchObject({
             stream: true,
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
-            max_tokens: 36_864,
+            output_config: { effort: 'max' },
+            max_tokens: 128_000,
         });
     });
 
@@ -1077,22 +913,12 @@ describe('reasoning support', () => {
             })
         ).toThrowError(ValidationError);
 
-        // An explicit limit that leaves no room beyond the smallest thinking
-        // budget is rejected; the same limit as a default is sized up instead.
-        expect(() =>
-            createGenerateRequest('claude-sonnet-4-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'minimal' },
-                maxTokens: 1024,
-            })
-        ).toThrowError(ValidationError);
-
         expect(() =>
             createGenerateRequest('claude-sonnet-4-5', 1024, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'minimal' },
             })
-        ).not.toThrow();
+        ).toThrowError(ValidationError);
     });
 
     it('should attribute validation errors to a custom provider id', () => {

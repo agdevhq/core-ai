@@ -459,6 +459,7 @@ function createRequestBase(
         adapterOptions.capabilities ?? getAnthropicModelCapabilities(modelId);
     validateAnthropicReasoningConfig(
         modelId,
+        defaultMaxTokens,
         options,
         anthropicOptions,
         provider,
@@ -469,7 +470,6 @@ function createRequestBase(
         defaultMaxTokens,
         options,
         capabilities,
-        provider,
     });
     validateInputModalities({
         messages: options.messages,
@@ -518,25 +518,18 @@ type AnthropicRequestBudget = {
 };
 
 /**
- * Anthropic pays for reasoning out of `max_tokens`, so the completion ceiling
- * and the thinking budget have to be chosen together.
- *
- * An explicit `maxTokens` stays a hard caller limit. Outside interleaved
- * thinking, a limit that cannot hold the requested thinking budget is rejected
- * rather than quietly downgraded. Interleaved thinking is the exception:
- * Anthropic allows its cumulative budget to exceed the per-response limit.
- * When `maxTokens` is omitted outside that mode, the ceiling is sized from the
- * budget plus the configured completion allowance and capped by the model's
- * verified maximum.
+ * Adaptive thinking has no numeric budget, but it still shares `max_tokens`.
+ * The highest effort therefore uses the model's full output range when the
+ * caller omits a limit. Manual thinking (Claude 4.5 and earlier) keeps the
+ * previous clamp: the budget shrinks to fit `maxTokens`.
  */
 function resolveAnthropicRequestBudget(args: {
     modelId: string;
     defaultMaxTokens: number;
     options: GenerateOptions;
     capabilities: ModelCapabilities;
-    provider: string;
 }): AnthropicRequestBudget {
-    const { modelId, defaultMaxTokens, options, capabilities, provider } = args;
+    const { modelId, defaultMaxTokens, options, capabilities } = args;
     const modelMaxTokens = capabilities.output?.maxTokens;
 
     if (!options.reasoning) {
@@ -550,15 +543,8 @@ function resolveAnthropicRequestBudget(args: {
         options.reasoning.effort,
         capabilities.reasoning.supportedEfforts
     );
-    const usesInterleavedThinking = shouldUseAnthropicInterleavedThinking(
-        modelId,
-        options
-    );
 
     if (getAnthropicThinkingMode(modelId) === 'adaptive') {
-        // Adaptive thinking has no numeric budget, but it still shares the
-        // completion ceiling, so the highest effort needs the model's full
-        // range instead of the much smaller default allowance.
         const maxTokens =
             options.maxTokens ??
             (effort === 'max' && modelMaxTokens !== undefined
@@ -568,46 +554,15 @@ function resolveAnthropicRequestBudget(args: {
         return { maxTokens, thinking: { mode: 'adaptive', effort } };
     }
 
-    const budgetTokens = toAnthropicManualBudget(effort);
-    const thinking = { mode: 'manual', effort, budgetTokens } as const;
-
-    if (options.maxTokens !== undefined) {
-        if (!usesInterleavedThinking && options.maxTokens <= budgetTokens) {
-            throw new ValidationError(
-                `Anthropic model "${modelId}" needs maxTokens above the ${budgetTokens}-token thinking budget of reasoning effort "${effort}", but maxTokens is ${options.maxTokens}. Raise maxTokens, lower the effort, or omit maxTokens to size the request from the model's limits.`,
-                undefined,
-                provider
-            );
-        }
-
-        return { maxTokens: options.maxTokens, thinking };
-    }
-
-    if (usesInterleavedThinking) {
-        return {
-            maxTokens:
-                modelMaxTokens === undefined
-                    ? defaultMaxTokens
-                    : Math.min(defaultMaxTokens, modelMaxTokens),
-            thinking,
-        };
-    }
-
-    const preferredMaxTokens = budgetTokens + defaultMaxTokens;
-    const maxTokens =
-        modelMaxTokens === undefined
-            ? preferredMaxTokens
-            : Math.min(preferredMaxTokens, modelMaxTokens);
-
-    if (maxTokens <= budgetTokens) {
-        throw new ValidationError(
-            `Anthropic model "${modelId}" cannot run reasoning effort "${effort}": a ${budgetTokens}-token thinking budget does not fit under its ${maxTokens}-token output ceiling.`,
-            undefined,
-            provider
-        );
-    }
-
-    return { maxTokens, thinking };
+    const maxTokens = options.maxTokens ?? defaultMaxTokens;
+    return {
+        maxTokens,
+        thinking: {
+            mode: 'manual',
+            effort,
+            budgetTokens: toAnthropicManualBudget(effort, maxTokens),
+        },
+    };
 }
 
 function mapSamplingToRequestFields(
@@ -623,6 +578,7 @@ function mapSamplingToRequestFields(
 
 function validateAnthropicReasoningConfig(
     modelId: string,
+    defaultMaxTokens: number,
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
     provider: string,
@@ -662,6 +618,15 @@ function validateAnthropicReasoningConfig(
 
     if (!options.reasoning) {
         return;
+    }
+
+    const maxTokens = options.maxTokens ?? defaultMaxTokens;
+    if (getAnthropicThinkingMode(modelId) === 'manual' && maxTokens <= 1024) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" requires maxTokens greater than 1024 when reasoning is enabled`,
+            undefined,
+            provider
+        );
     }
 
     if (
@@ -751,7 +716,10 @@ export function getAnthropicRequestBetas(
     );
     const configuredBetas = providerOptions?.betas ?? [];
     const shouldEnableInterleavedThinking =
-        shouldUseAnthropicInterleavedThinking(modelId, options);
+        options.reasoning !== undefined &&
+        options.tools !== undefined &&
+        Object.keys(options.tools).length > 0 &&
+        requiresAnthropicInterleavedThinkingBeta(modelId);
 
     return uniqueStrings([
         ...configuredBetas,
@@ -759,18 +727,6 @@ export function getAnthropicRequestBetas(
             ? ['interleaved-thinking-2025-05-14']
             : []),
     ]);
-}
-
-function shouldUseAnthropicInterleavedThinking(
-    modelId: string,
-    options: GenerateOptions
-): boolean {
-    return (
-        options.reasoning !== undefined &&
-        options.tools !== undefined &&
-        Object.keys(options.tools).length > 0 &&
-        requiresAnthropicInterleavedThinkingBeta(modelId)
-    );
 }
 
 function mapAnthropicProviderOptionsToRequest<TRequest extends object>(

@@ -178,31 +178,9 @@ export function getAnthropicModelCapabilities(
             : STANDARD_EFFORTS;
 
     return createCapabilities(
-        thinkingMode === 'manual' &&
-            !requiresAnthropicInterleavedThinkingBeta(modelId)
-            ? withinManualOutputCeiling(supportedEfforts, maxOutputTokens)
-            : supportedEfforts,
+        supportedEfforts,
         supportsAnthropicStrictToolSchemas(modelId),
         maxOutputTokens
-    );
-}
-
-/**
- * Models without interleaved thinking always require `budget_tokens` to stay
- * below `max_tokens`. Interleaved-capable models keep all efforts because the
- * validity of a cumulative budget depends on whether the request includes
- * tools.
- */
-function withinManualOutputCeiling(
-    supportedEfforts: readonly ReasoningEffort[],
-    maxOutputTokens: number | undefined
-): readonly ReasoningEffort[] {
-    if (maxOutputTokens === undefined) {
-        return supportedEfforts;
-    }
-
-    return supportedEfforts.filter(
-        (effort) => ANTHROPIC_MANUAL_BUDGET_MAP[effort] < maxOutputTokens
     );
 }
 
@@ -254,6 +232,12 @@ export function toAnthropicAdaptiveEffort(
     return ANTHROPIC_ADAPTIVE_EFFORT_MAP[effort];
 }
 
-export function toAnthropicManualBudget(effort: ReasoningEffort): number {
-    return ANTHROPIC_MANUAL_BUDGET_MAP[effort];
+export function toAnthropicManualBudget(
+    effort: ReasoningEffort,
+    maxTokens?: number
+): number {
+    const targetBudget = ANTHROPIC_MANUAL_BUDGET_MAP[effort];
+    return maxTokens === undefined
+        ? targetBudget
+        : Math.min(targetBudget, maxTokens - 1);
 }

@@ -447,44 +447,38 @@ describe('generate', () => {
         );
     });
 
-    it.each([
-        ['claude-sonnet-4-5', 'high', 36_864],
-        ['claude-opus-4-6', 'max', 128_000],
-    ] as const)(
-        'should internally stream oversized %s generate requests',
-        async (modelId, effort, maxTokens) => {
-            const create = vi.fn(async (request: unknown) => {
-                expect(request).toMatchObject({
-                    max_tokens: maxTokens,
-                    stream: true,
-                });
-                return toAsyncIterable(createTextStreamEvents('deep answer'));
+    it('should internally stream oversized adaptive generate requests', async () => {
+        const create = vi.fn(async (request: unknown) => {
+            expect(request).toMatchObject({
+                max_tokens: 128_000,
+                stream: true,
             });
-            const model = createAnthropicChatModel(
-                createMockClient(create),
-                modelId,
-                {
-                    defaultMaxTokens: 4096,
-                }
-            );
+            return toAsyncIterable(createTextStreamEvents('deep answer'));
+        });
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6',
+            {
+                defaultMaxTokens: 4096,
+            }
+        );
 
-            const result = await model.generate({
-                messages: [{ role: 'user', content: 'Think deeply' }],
-                reasoning: { effort },
-            });
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Think deeply' }],
+            reasoning: { effort: 'max' },
+        });
 
-            expect(result.content).toBe('deep answer');
-            expect(result.finishReason).toBe('stop');
-            expect(result.parts).toContainEqual({
-                type: 'reasoning',
-                text: '',
-                providerMetadata: {
-                    anthropic: { redactedData: 'redacted_payload' },
-                },
-            });
-            expect(create).toHaveBeenCalledTimes(1);
-        }
-    );
+        expect(result.content).toBe('deep answer');
+        expect(result.finishReason).toBe('stop');
+        expect(result.parts).toContainEqual({
+            type: 'reasoning',
+            text: '',
+            providerMetadata: {
+                anthropic: { redactedData: 'redacted_payload' },
+            },
+        });
+        expect(create).toHaveBeenCalledTimes(1);
+    });
 
     it.each(['anthropic', 'anthropic-vertex'])(
         'should preserve generate abort semantics for %s when streaming internally',

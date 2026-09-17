@@ -310,14 +310,9 @@ const result = await generate({
 ### Manual thinking budget (Claude 4.5 and earlier)
 
 Token budgets: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192, `high` -> 32,768, `max` -> 65,536.
-
-Without interleaved thinking, Anthropic spends thinking tokens out of
-`max_tokens` and requires the budget to stay below it. The adapter rejects an
-effort whose budget cannot fit instead of silently reducing the effort.
-
-With tools on a compatible model, the adapter enables interleaved thinking.
-Anthropic then treats `budget_tokens` as a cumulative budget across thinking
-blocks, so it can exceed the per-response `max_tokens` limit.
+The adapter caps the selected budget at `maxTokens - 1` because Anthropic
+requires the thinking budget to be lower than the total output limit.
+`maxTokens` must be greater than 1,024.
 
 ```typescript
 const result = await generate({
@@ -331,30 +326,14 @@ const result = await generate({
 
 ### How reasoning and maxTokens interact
 
-Reasoning shares the output allowance with the visible answer, so the provider
-resolves the two together.
+Reasoning shares the output allowance with the visible answer.
 
-Outside interleaved thinking, omit `maxTokens` to size the request for the
-effort you asked for. The adapter adds the thinking budget to the provider's
-`defaultMaxTokens` answer allowance and caps the result at the model's output
-limit. Adaptive `max` effort gets the model's full output limit because
-adaptive thinking has no separate budget to reserve.
+On adaptive models, omit `maxTokens` with `effort: 'max'` and the request uses
+the model's full output limit instead of the small default allowance. An
+explicit `maxTokens` stays a hard limit.
 
-Set `maxTokens` and it stays a hard limit. A limit that cannot hold the
-requested thinking budget raises a `ValidationError` outside interleaved
-thinking. Raise `maxTokens`, lower the effort, or enable compatible tools.
-With interleaved thinking, `maxTokens` remains the per-response limit while the
-cumulative thinking budget can exceed it.
-
-```typescript
-// Rejected: `high` needs 32,768 thinking tokens and nothing is left over.
-await generate({
-    model: anthropic.chatModel('claude-sonnet-4-5'),
-    messages: [{ role: 'user', content: 'Complex reasoning task...' }],
-    reasoning: { effort: 'high' },
-    maxTokens: 32_000,
-});
-```
+On Claude 4.5 and earlier, the adapter keeps the previous clamp: the thinking
+budget shrinks to fit `maxTokens`.
 
 ## Reasoning restrictions
 
