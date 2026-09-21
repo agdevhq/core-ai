@@ -25,6 +25,7 @@ import {
     transformStream,
 } from './chat-adapter.js';
 import { wrapOpenAIError } from './openai-error.js';
+import type { OpenAIResponsesGenerateProviderOptionsConfig } from './provider-options.js';
 import {
     createStructuredOutputRequestOptions,
     extractStructuredObject,
@@ -37,14 +38,23 @@ type OpenAIChatClient = {
     responses: OpenAI['responses'];
 };
 
+export type OpenAIResponsesModelOptions = {
+    providerId?: string;
+    providerOptions?: OpenAIResponsesGenerateProviderOptionsConfig;
+};
+
 export function createOpenAIChatModel(
     client: OpenAIChatClient,
     modelId: string,
     capabilities: ModelCapabilities,
-    providerId = DEFAULT_PROVIDER_ID
+    modelOptions: OpenAIResponsesModelOptions = {}
 ): ChatModel {
-    const provider = providerId;
-    const adapterOptions = { capabilities, providerId };
+    const provider = modelOptions.providerId ?? DEFAULT_PROVIDER_ID;
+    const adapterOptions = {
+        capabilities,
+        providerId: provider,
+        providerOptions: modelOptions.providerOptions,
+    };
 
     async function callOpenAIResponsesApi<TResponse>(
         request:

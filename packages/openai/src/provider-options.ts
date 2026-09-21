@@ -14,6 +14,7 @@ export const openaiResponsesGenerateProviderOptionsSchema = z
         include: z.array(z.string()).optional(),
         parallelToolCalls: z.boolean().optional(),
         user: z.string().optional(),
+        promptCacheKey: z.string().optional(),
     })
     .strict();
 
@@ -37,6 +38,11 @@ export const openaiChatGenerateProviderOptionsSchema =
 export type OpenAIChatGenerateProviderOptions = z.infer<
     typeof openaiChatGenerateProviderOptionsSchema
 >;
+
+export type OpenAIResponsesGenerateProviderOptionsConfig = {
+    key: string;
+    schema: z.ZodType<OpenAIResponsesGenerateProviderOptions>;
+};
 
 export type OpenAIChatGenerateProviderOptionsConfig = {
     key: string;
@@ -87,12 +93,16 @@ function parseOpenAIProviderOptions<TOptions>(
 }
 
 export function parseOpenAIResponsesGenerateProviderOptions(
-    providerOptions: GenerateProviderOptions | undefined
+    providerOptions: GenerateProviderOptions | undefined,
+    config: OpenAIResponsesGenerateProviderOptionsConfig = {
+        key: 'openai',
+        schema: openaiResponsesGenerateProviderOptionsSchema,
+    }
 ): OpenAIResponsesGenerateProviderOptions | undefined {
     return parseOpenAIProviderOptions(
         providerOptions,
-        'openai',
-        openaiResponsesGenerateProviderOptionsSchema
+        config.key,
+        config.schema
     );
 }
 

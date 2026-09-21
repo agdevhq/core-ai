@@ -2,6 +2,7 @@ import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
 import type { ModelCapabilities } from '@core-ai/core-ai';
 
+import { openaiResponsesGenerateProviderOptionsSchema } from '../provider-options.js';
 import { createOpenAIProvider } from './provider-factory.js';
 import { TEXT_ONLY_MODALITIES } from '@core-ai/core-ai';
 
@@ -109,7 +110,102 @@ describe('createOpenAIProvider', () => {
             expect.any(Object)
         );
     });
+
+    it('should read responses provider options from the provider namespace', async () => {
+        const create = vi.fn(async () => createResponse());
+        const provider = createOpenAIProvider(
+            { client: createMockResponsesClient(create) },
+            { providerId: 'custom' }
+        );
+
+        await provider.chatModel('custom-model').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                custom: { promptCacheKey: 'conversation-1' },
+                openai: { user: 'ignored' },
+            },
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ prompt_cache_key: 'conversation-1' }),
+            expect.any(Object)
+        );
+        expect(create).not.toHaveBeenCalledWith(
+            expect.objectContaining({ user: 'ignored' }),
+            expect.any(Object)
+        );
+    });
+
+    it('should support an explicit responses provider options namespace', async () => {
+        const create = vi.fn(async () => createResponse());
+        const provider = createOpenAIProvider(
+            { client: createMockResponsesClient(create) },
+            { providerId: 'azure-openai', providerOptionsKey: 'openai' }
+        );
+
+        await provider.chatModel('custom-model').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                openai: { user: 'user-1' },
+            },
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ user: 'user-1' }),
+            expect.any(Object)
+        );
+    });
+
+    it('should validate responses provider options with a custom schema', async () => {
+        const create = vi.fn(async () => createResponse());
+        const provider = createOpenAIProvider(
+            { client: createMockResponsesClient(create) },
+            {
+                providerId: 'custom',
+                responsesProviderOptionsSchema:
+                    openaiResponsesGenerateProviderOptionsSchema.pick({
+                        user: true,
+                    }),
+            }
+        );
+
+        await expect(
+            provider.chatModel('custom-model').generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                providerOptions: {
+                    custom: { store: true },
+                },
+            })
+        ).rejects.toThrowError(/unrecognized key/i);
+        expect(create).not.toHaveBeenCalled();
+    });
 });
+
+function createMockResponsesClient(
+    create: (options: unknown, requestOptions?: unknown) => Promise<unknown>
+): OpenAI {
+    return { responses: { create } } as unknown as OpenAI;
+}
+
+function createResponse() {
+    return {
+        output: [
+            {
+                type: 'message',
+                role: 'assistant',
+                content: [{ type: 'output_text', text: 'Done' }],
+            },
+        ],
+        status: 'completed',
+        usage: {
+            input_tokens: 1,
+            output_tokens: 1,
+            input_tokens_details: { cached_tokens: 0 },
+            output_tokens_details: { reasoning_tokens: 0 },
+            total_tokens: 2,
+        },
+    };
+}
 
 function createMockClient(
     create?: (options: unknown, requestOptions?: unknown) => Promise<unknown>

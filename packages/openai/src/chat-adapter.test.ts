@@ -24,6 +24,7 @@ import {
     validateOpenAIReasoningConfig,
 } from './chat-adapter.js';
 import { getOpenAIModelCapabilities } from './model-capabilities.js';
+import { openaiResponsesGenerateProviderOptionsSchema } from './provider-options.js';
 import { wrapOpenAIError } from './openai-error.js';
 import { toAsyncIterable } from '@core-ai/testing';
 
@@ -555,6 +556,64 @@ describe('createGenerateRequest', () => {
         );
         expect(request.store).toBe(false);
     });
+
+    it('should map promptCacheKey to prompt_cache_key', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            providerOptions: { openai: { promptCacheKey: 'conversation-1' } },
+        });
+
+        expect(request).toMatchObject({ prompt_cache_key: 'conversation-1' });
+    });
+
+    it('should read provider options from a configured namespace and schema', () => {
+        const request = createGenerateRequest(
+            'gpt-5-mini',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: {
+                    custom: { store: true },
+                    openai: { user: 'ignored' },
+                } as unknown as GenerateOptions['providerOptions'],
+            },
+            {
+                providerOptions: {
+                    key: 'custom',
+                    schema: openaiResponsesGenerateProviderOptionsSchema,
+                },
+            }
+        );
+
+        expect(request.store).toBe(true);
+        expect(request.user).toBeUndefined();
+    });
+
+    it.each([
+        ['always-on', ['reasoning.encrypted_content']],
+        ['optional', undefined],
+    ] as const)(
+        'should handle encrypted reasoning for %s models without a reasoning option',
+        (mode, include) => {
+            const request = createGenerateRequest(
+                'custom-model',
+                { messages: [{ role: 'user', content: 'Hi' }] },
+                {
+                    providerId: 'custom',
+                    capabilities: {
+                        ...getOpenAIModelCapabilities('gpt-5-mini'),
+                        reasoning: {
+                            mode,
+                            supportedEfforts: [],
+                            restrictsSamplingParams: false,
+                            supportedToolChoices: ['auto'],
+                        },
+                    },
+                }
+            );
+
+            expect(request.include).toEqual(include);
+        }
+    );
 
     it('should include encrypted reasoning even without providerOptions', () => {
         const request = createGenerateRequest('gpt-5-mini', {

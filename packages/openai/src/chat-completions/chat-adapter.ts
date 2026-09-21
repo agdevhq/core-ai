@@ -353,6 +353,9 @@ function mapOpenAIProviderOptionsToRequestFields(
             ? { presence_penalty: options.presencePenalty }
             : {}),
         ...(options?.seed !== undefined ? { seed: options.seed } : {}),
+        ...(options?.promptCacheKey !== undefined
+            ? { prompt_cache_key: options.promptCacheKey }
+            : {}),
     };
 }
 

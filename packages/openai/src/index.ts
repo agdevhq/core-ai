@@ -29,7 +29,9 @@ export {
 } from './provider-options.js';
 export type {
     OpenAIResponsesGenerateProviderOptions,
+    OpenAIResponsesGenerateProviderOptionsConfig,
     OpenAIChatGenerateProviderOptions,
+    OpenAIChatGenerateProviderOptionsConfig,
     OpenAICompatGenerateProviderOptions,
     OpenAIEmbedProviderOptions,
     OpenAIImageProviderOptions,

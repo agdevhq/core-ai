@@ -956,6 +956,15 @@ describe('reasoning support', () => {
         ).toThrowError(/unrecognized_keys/);
     });
 
+    it('should map promptCacheKey to prompt_cache_key', () => {
+        const request = createGenerateRequest('gpt-4o-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            providerOptions: { openai: { promptCacheKey: 'conversation-1' } },
+        });
+
+        expect(request).toMatchObject({ prompt_cache_key: 'conversation-1' });
+    });
+
     it('should reject invalid compat provider options', () => {
         const invalidProviderOptions = {
             openai: { seed: 1.5 },

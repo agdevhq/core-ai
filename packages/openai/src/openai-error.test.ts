@@ -21,6 +21,29 @@ describe('wrapOpenAIError', () => {
         expect(wrapped.provider).toBe('openai');
     });
 
+    it('should keep the message of flat OpenAI-compatible error bodies', () => {
+        // xAI returns `{ code, error: string }` instead of a nested error object.
+        const error = APIError.generate(
+            400,
+            {
+                code: '400',
+                error: 'Model grok-4.7 does not support parameter stop.',
+            },
+            undefined,
+            new Headers()
+        );
+
+        const wrapped = wrapOpenAIError(error, 'xai');
+
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        expect(wrapped.message).toContain(
+            'Model grok-4.7 does not support parameter stop.'
+        );
+        expect(wrapped.provider).toBe('xai');
+        expect((wrapped as ProviderError).statusCode).toBe(400);
+    });
+
     it('should map AbortError by name to AbortedError', () => {
         const error = new Error('aborted');
         error.name = 'AbortError';
