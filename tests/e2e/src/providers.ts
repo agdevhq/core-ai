@@ -14,6 +14,10 @@ import {
     createOpenAIAdapter,
     createOpenAIChatAdapter,
 } from './adapters/openai.adapter.ts';
+import {
+    createXAIAdapter,
+    createXAIChatAdapter,
+} from './adapters/xai.adapter.ts';
 import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
 import type { ProviderId } from './adapters/provider-adapter.ts';
 import { createAnthropicVertexAdapter } from './adapters/anthropic-vertex.adapter.ts';
@@ -33,6 +37,8 @@ export function getRegisteredProviders(): ProviderE2EAdapter[] {
         createMistralAdapter(),
         createOmnifactAdapter(),
         createKimiAdapter(),
+        createXAIAdapter(),
+        createXAIChatAdapter(),
     ];
 
     const providerFilter = getProviderFilter();

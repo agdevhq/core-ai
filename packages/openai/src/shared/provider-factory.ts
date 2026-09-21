@@ -18,7 +18,9 @@ import {
 } from '../model-capabilities.js';
 import {
     openaiChatGenerateProviderOptionsSchema,
+    openaiResponsesGenerateProviderOptionsSchema,
     type OpenAIChatGenerateProviderOptionsConfig,
+    type OpenAIResponsesGenerateProviderOptionsConfig,
 } from '../provider-options.js';
 import type {
     OpenAICompatibility,
@@ -51,7 +53,10 @@ export type OpenAIProviderFactoryOptions = {
     modelCapabilities?: ModelCapabilitiesRegistry;
     providerId?: string;
     providerOptionsKey?: string;
+    /** Chat Completions provider options schema. */
     providerOptionsSchema?: OpenAIChatGenerateProviderOptionsConfig['schema'];
+    /** Responses API provider options schema. */
+    responsesProviderOptionsSchema?: OpenAIResponsesGenerateProviderOptionsConfig['schema'];
     defaultApi?: 'responses' | 'chat-completions';
     compatibility?: OpenAICompatibility;
 };
@@ -67,6 +72,7 @@ export function createOpenAIProvider(
             baseURL: options.baseURL,
         });
     const providerId = factoryOptions.providerId ?? 'openai';
+    const providerOptionsKey = factoryOptions.providerOptionsKey ?? providerId;
     const compatibilityOptions =
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
@@ -81,7 +87,15 @@ export function createOpenAIProvider(
             client,
             modelId,
             toOpenAIResponsesCapabilities(resolveCapabilities(modelId)),
-            providerId
+            {
+                providerId,
+                providerOptions: {
+                    key: providerOptionsKey,
+                    schema:
+                        factoryOptions.responsesProviderOptionsSchema ??
+                        openaiResponsesGenerateProviderOptionsSchema,
+                },
+            }
         );
     const createChatCompletionsModel = (modelId: string) => {
         const capabilities = resolveCapabilities(modelId);
@@ -101,6 +115,8 @@ export function createOpenAIProvider(
                           compatibilityOptions?.structuredOutputMode,
                       maxTokensParameter:
                           compatibilityOptions?.maxTokensParameter,
+                      reasoningTokenAccounting:
+                          compatibilityOptions?.reasoningTokenAccounting,
                   }
                 : undefined;
 
@@ -109,7 +125,7 @@ export function createOpenAIProvider(
             capabilities,
             compatibility,
             providerOptions: {
-                key: factoryOptions.providerOptionsKey ?? providerId,
+                key: providerOptionsKey,
                 schema:
                     factoryOptions.providerOptionsSchema ??
                     openaiChatGenerateProviderOptionsSchema,

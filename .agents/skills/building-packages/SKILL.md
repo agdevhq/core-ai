@@ -22,6 +22,7 @@ Publishable packages are built with **tsup** (esbuild-based), orchestrated by **
 - `@core-ai/mistral` — Mistral provider
 - `@core-ai/omnifact` — Omnifact provider
 - `@core-ai/kimi` — Kimi API provider
+- `@core-ai/xai` — xAI (Grok) provider
 - `@core-ai/langfuse` — Langfuse observability middleware
 - `@core-ai/opentelemetry` — OpenTelemetry observability middleware
 - `@core-ai/axiom` — Axiom OTLP exporter preset
@@ -99,7 +100,7 @@ layers are:
 - Composed providers depend on `core-ai` and their base provider:
     - `anthropic-vertex` → `anthropic`
     - `azure-openai`, `openai-compat`, `omnifact` → `openai`
-    - `kimi` → `openai`
+    - `kimi`, `xai` → `openai`
     - `google-vertex` → `google-genai`
 - Integrations:
     - `langfuse`, `opentelemetry` → `core-ai`

@@ -684,6 +684,79 @@ describe('audio input', () => {
     );
 });
 
+describe('reasoning token accounting', () => {
+    const usage = {
+        prompt_tokens: 10,
+        completion_tokens: 3,
+        total_tokens: 15,
+        completion_tokens_details: {
+            reasoning_tokens: 2,
+        },
+    };
+
+    function createResponse() {
+        return asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'answer',
+                        refusal: null,
+                    },
+                },
+            ],
+            usage,
+        });
+    }
+
+    it('should treat reasoning tokens as included in completion tokens by default', () => {
+        const result = mapGenerateResponse(createResponse());
+
+        expect(result.usage.outputTokens).toBe(3);
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+    });
+
+    it('should add separately reported reasoning tokens to outputTokens', () => {
+        const result = mapGenerateResponse(createResponse(), {
+            reasoningTokenAccounting: 'separate',
+        });
+
+        expect(result.usage.outputTokens).toBe(5);
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+    });
+
+    it('should add separately reported reasoning tokens to streamed outputTokens', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: { content: 'answer' },
+                            },
+                        ],
+                    }),
+                    asChunk({ choices: [], usage }),
+                ]),
+                { reasoningTokenAccounting: 'separate' }
+            )
+        );
+
+        const finish = events.find((event) => event.type === 'finish');
+        expect(finish).toMatchObject({
+            usage: {
+                outputTokens: 5,
+                outputTokenDetails: { reasoningTokens: 2 },
+            },
+        });
+    });
+});
+
 describe('reasoning support', () => {
     it('should fold reasoning parts into text content wrapped in <thinking> tags', () => {
         const messages: Message[] = [
@@ -875,6 +948,15 @@ describe('reasoning support', () => {
                 },
             })
         ).toThrowError(/unrecognized_keys/);
+    });
+
+    it('should map promptCacheKey to prompt_cache_key', () => {
+        const request = createGenerateRequest('gpt-4o-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            providerOptions: { openai: { promptCacheKey: 'conversation-1' } },
+        });
+
+        expect(request).toMatchObject({ prompt_cache_key: 'conversation-1' });
     });
 
     it('should reject invalid compat provider options', () => {

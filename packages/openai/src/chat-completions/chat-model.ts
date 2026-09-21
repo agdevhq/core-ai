@@ -63,6 +63,8 @@ export function createOpenAIChatCompletionsModel(
             compatibilityOptions !== undefined &&
             compatibilityOptions.reasoning !== false,
         maxTokensParameter: compatibilityOptions?.maxTokensParameter,
+        reasoningTokenAccounting:
+            compatibilityOptions?.reasoningTokenAccounting,
         providerId: provider,
         providerOptions: modelOptions.providerOptions,
         reasoning:

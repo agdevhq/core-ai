@@ -13,6 +13,7 @@ export type {
     OpenAIChatCompletionsModelOptions,
 } from './chat-completions/chat-model.js';
 export type { OpenAIStructuredOutputMode } from './shared/structured-output.js';
+export type { OpenAIReasoningTokenAccounting } from './shared/usage.js';
 export { createOpenAIChatCompletionsModel } from './chat-completions/chat-model.js';
 export type { OpenAIReasoningMetadata } from './chat-adapter.js';
 export type { OpenAIModelCapabilities } from './model-capabilities.js';
@@ -28,7 +29,9 @@ export {
 } from './provider-options.js';
 export type {
     OpenAIResponsesGenerateProviderOptions,
+    OpenAIResponsesGenerateProviderOptionsConfig,
     OpenAIChatGenerateProviderOptions,
+    OpenAIChatGenerateProviderOptionsConfig,
     OpenAICompatGenerateProviderOptions,
     OpenAIEmbedProviderOptions,
     OpenAIImageProviderOptions,

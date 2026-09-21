@@ -25,12 +25,9 @@ function createOpenAIChatModel(
     modelId: string,
     providerId = 'openai'
 ) {
-    return createModel(
-        client,
-        modelId,
-        getOpenAIModelCapabilities(modelId),
-        providerId
-    );
+    return createModel(client, modelId, getOpenAIModelCapabilities(modelId), {
+        providerId,
+    });
 }
 
 describe('createOpenAIChatModel', () => {

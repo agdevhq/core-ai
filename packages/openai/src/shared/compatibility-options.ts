@@ -1,5 +1,6 @@
 import type { OpenAIChatCompletionsCapabilities } from '../model-capabilities.js';
 import type { OpenAIStructuredOutputMode } from './structured-output.js';
+import type { OpenAIReasoningTokenAccounting } from './usage.js';
 
 export type OpenAIReasoningCompatibilityOptions = {
     requestField: 'reasoning_content' | 'reasoning';
@@ -10,6 +11,8 @@ export type OpenAICompatibilityOptions = {
     reasoning?: boolean | OpenAIReasoningCompatibilityOptions;
     structuredOutputMode?: OpenAIStructuredOutputMode;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
+    /** Chat Completions only. Defaults to `included`. */
+    reasoningTokenAccounting?: OpenAIReasoningTokenAccounting;
 };
 
 export type OpenAICompatibility = boolean | OpenAICompatibilityOptions;
@@ -19,7 +22,7 @@ export type OpenAIResolvedReasoningCompatibilityOptions =
 
 export type OpenAIResolvedCompatibilityOptions = Pick<
     OpenAICompatibilityOptions,
-    'structuredOutputMode' | 'maxTokensParameter'
+    'structuredOutputMode' | 'maxTokensParameter' | 'reasoningTokenAccounting'
 > & {
     reasoning: boolean | OpenAIResolvedReasoningCompatibilityOptions;
 };

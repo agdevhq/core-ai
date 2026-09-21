@@ -44,6 +44,7 @@ import {
 import {
     parseOpenAIResponsesGenerateProviderOptions,
     type OpenAIResponsesGenerateProviderOptions,
+    type OpenAIResponsesGenerateProviderOptionsConfig,
 } from './provider-options.js';
 
 export { validateOpenAIReasoningConfig };
@@ -60,6 +61,7 @@ export const DEFAULT_PROVIDER_ID = 'openai';
 export type OpenAIResponsesAdapterOptions = {
     capabilities?: ModelCapabilities;
     providerId?: string;
+    providerOptions?: OpenAIResponsesGenerateProviderOptionsConfig;
 };
 
 type ResolvedAdapterOptions = {
@@ -324,7 +326,8 @@ function createRequest(
 ) {
     const resolved = resolveAdapterOptions(modelId, adapterOptions);
     const openaiOptions = parseOpenAIResponsesGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        adapterOptions.providerOptions
     );
     const request: Record<string, unknown> = {
         ...createRequestBase(modelId, options, resolved),
@@ -335,9 +338,12 @@ function createRequest(
         ...mapOpenAIProviderOptionsToRequestFields(openaiOptions),
     };
 
+    // Always-on models reason without being asked, so their reasoning items
+    // need encrypted content for stateless (`store: false`) round trips too.
+    const reasoningMode = resolved.capabilities.reasoning.mode;
     if (
-        options.reasoning &&
-        resolved.capabilities.reasoning.mode !== 'unsupported'
+        reasoningMode === 'always-on' ||
+        (options.reasoning && reasoningMode !== 'unsupported')
     ) {
         request.include = mergeInclude(request.include, [
             ENCRYPTED_REASONING_INCLUDE,
@@ -459,6 +465,9 @@ function mapOpenAIProviderOptionsToRequestFields(
             ? { parallel_tool_calls: options.parallelToolCalls }
             : {}),
         ...(options?.user !== undefined ? { user: options.user } : {}),
+        ...(options?.promptCacheKey !== undefined
+            ? { prompt_cache_key: options.promptCacheKey }
+            : {}),
     };
 }
 
@@ -1087,7 +1096,11 @@ function mapReasoningToRequestFields(
         return {};
     }
 
-    if (capabilities.reasoning.mode === 'unsupported') {
+    // An empty effort list means the model rejects the effort parameter.
+    if (
+        capabilities.reasoning.mode === 'unsupported' ||
+        capabilities.reasoning.supportedEfforts.length === 0
+    ) {
         return {};
     }
 

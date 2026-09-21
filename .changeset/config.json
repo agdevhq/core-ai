@@ -17,7 +17,8 @@
             "@core-ai/azure-openai",
             "@core-ai/omnifact",
             "@core-ai/anthropic-vertex",
-            "@core-ai/kimi"
+            "@core-ai/kimi",
+            "@core-ai/xai"
         ]
     ],
     "linked": [],
