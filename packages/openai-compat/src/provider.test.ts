@@ -176,6 +176,30 @@ describe('createOpenAICompat', () => {
         expect(create.mock.calls[0]?.[0]).not.toHaveProperty('tools');
     });
 
+    it('should read provider options from providerOptions["openai-compat"] only', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            createChatCompletion({ role: 'assistant', content: 'ok' })
+        );
+        const provider = createOpenAICompat({
+            client: createMockClient(create),
+        });
+
+        await provider.chatModel('qwen3-235b').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                'openai-compat': { seed: 42 },
+                openai: { seed: 7, user: 'openai-user' },
+            },
+        });
+
+        const request = create.mock.calls.at(-1)?.[0] as Record<
+            string,
+            unknown
+        >;
+        expect(request.seed).toBe(42);
+        expect(request.user).toBeUndefined();
+    });
+
     it('should forward strict tools optimistically', async () => {
         const create = vi.fn(async (_request: unknown) =>
             createChatCompletion({ content: 'answer' })

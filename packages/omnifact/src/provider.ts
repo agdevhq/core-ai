@@ -25,7 +25,6 @@ export function createOmnifact(
         },
         {
             providerId: 'omnifact',
-            providerOptionsKey: 'openai',
             defaultApi: 'chat-completions',
             compatibility: {
                 maxTokensParameter: 'max_completion_tokens',

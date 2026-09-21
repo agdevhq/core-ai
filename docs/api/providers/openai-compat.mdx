@@ -166,7 +166,7 @@ Strict OpenAI Chat Completions does not expose reasoning text. Use
 
 ## Provider-specific options
 
-Pass Chat Completions options through `providerOptions.openai`:
+Pass Chat Completions options through `providerOptions['openai-compat']`:
 
 ```typescript
 const result = await generate({
@@ -174,7 +174,7 @@ const result = await generate({
     messages: [{ role: 'user', content: 'Hello' }],
     maxTokens: 1024,
     providerOptions: {
-        openai: {
+        'openai-compat': {
             stopSequences: ['\n\n'],
             frequencyPenalty: 0.5,
             presencePenalty: 0.3,

@@ -84,6 +84,43 @@ describe('createOmnifact', () => {
         expect(result.reasoning).toBe('thinking');
     });
 
+    it('should read provider options from providerOptions.omnifact only', async () => {
+        chatCreate.mockResolvedValue({
+            id: 'chatcmpl-1',
+            object: 'chat.completion',
+            created: Date.now(),
+            model: 'gpt-5-mini',
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'ok',
+                        refusal: null,
+                    },
+                },
+            ],
+        });
+        const provider = createOmnifact({ apiKey: 'test-key' });
+
+        await provider.chatModel('eu/gpt-5-mini').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                omnifact: { seed: 42 },
+                openai: { seed: 7, user: 'openai-user' },
+            },
+        });
+
+        const request = chatCreate.mock.calls.at(-1)?.[0] as Record<
+            string,
+            unknown
+        >;
+        expect(request.seed).toBe(42);
+        expect(request.user).toBeUndefined();
+    });
+
     it('should tag errors with provider "omnifact"', async () => {
         chatCreate.mockRejectedValue(new Error('upstream failure'));
 

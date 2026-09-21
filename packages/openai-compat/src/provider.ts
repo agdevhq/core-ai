@@ -31,7 +31,6 @@ export function createOpenAICompat(
 ): OpenAICompatProvider {
     const provider = createOpenAIProvider(options, {
         providerId: 'openai-compat',
-        providerOptionsKey: 'openai',
         defaultApi: 'chat-completions',
         compatibility: {
             reasoning: options.reasoning,

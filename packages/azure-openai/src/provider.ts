@@ -4,6 +4,7 @@ import {
     createOpenAIChatCompletionsModel,
     createOpenAIProvider,
     getOpenAIModelCapabilities,
+    openaiChatGenerateProviderOptionsSchema,
     type OpenAIChatClient,
 } from '@core-ai/openai';
 
@@ -55,6 +56,10 @@ export function createAzureOpenAI(
                 createOpenAIChatCompletionsModel(client, modelId, {
                     capabilities: getOpenAIModelCapabilities(modelId),
                     providerId: PROVIDER_ID,
+                    providerOptions: {
+                        key: PROVIDER_ID,
+                        schema: openaiChatGenerateProviderOptionsSchema,
+                    },
                 }),
         };
 
@@ -73,12 +78,9 @@ export function createAzureOpenAI(
     const provider = createOpenAIProvider(
         { client },
         {
+            // Namespaces `providerOptions` and reasoning `providerMetadata`, so
+            // encrypted content is not replayed to first-party OpenAI.
             providerId: PROVIDER_ID,
-            // Escape-hatch options stay under `providerOptions.openai` (Responses
-            // field shapes are shared). Reasoning `providerMetadata` is namespaced
-            // by `providerId` (`azure-openai`) so encrypted content is not replayed
-            // to first-party OpenAI.
-            providerOptionsKey: 'openai',
         }
     );
 

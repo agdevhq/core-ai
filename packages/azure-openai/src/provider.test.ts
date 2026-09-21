@@ -421,6 +421,61 @@ describe('createAzureOpenAI', () => {
         expect(responsesCreate).not.toHaveBeenCalled();
     });
 
+    it('should read Responses provider options from providerOptions["azure-openai"] only', async () => {
+        responsesCreate.mockResolvedValue(createResponsesResult());
+        const provider = createAzureOpenAI({
+            apiKey: 'test-key',
+            endpoint: 'https://example.openai.azure.com',
+        });
+
+        await provider.chatModel('gpt-5-mini-deployment').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                'azure-openai': { user: 'azure-user' },
+                openai: { user: 'openai-user', store: true },
+            },
+        });
+
+        expect(responsesCreate).toHaveBeenCalledWith(
+            expect.objectContaining({ user: 'azure-user', store: false }),
+            expect.any(Object)
+        );
+    });
+
+    it.each(['v1', 'classic'] as const)(
+        'should read %s Chat Completions provider options from providerOptions["azure-openai"] only',
+        async (api) => {
+            chatCreate.mockResolvedValue(createChatCompletionResult());
+            const provider =
+                api === 'classic'
+                    ? createAzureOpenAI({
+                          api,
+                          apiKey: 'test-key',
+                          endpoint: 'https://example.openai.azure.com',
+                          apiVersion: '2024-10-21',
+                      })
+                    : createAzureOpenAI({
+                          apiKey: 'test-key',
+                          endpoint: 'https://example.openai.azure.com',
+                      });
+
+            await provider.chat.chatModel('gpt-5-mini-deployment').generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                providerOptions: {
+                    'azure-openai': { seed: 42 },
+                    openai: { seed: 7, user: 'openai-user' },
+                },
+            });
+
+            const request = chatCreate.mock.calls.at(-1)?.[0] as Record<
+                string,
+                unknown
+            >;
+            expect(request.seed).toBe(42);
+            expect(request.user).toBeUndefined();
+        }
+    );
+
     it('should use a provided client', async () => {
         responsesCreate.mockResolvedValue({
             output: [

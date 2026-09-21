@@ -364,11 +364,14 @@ interface ImageProviderOptions {
 }
 ```
 
-Providers extend these via declaration merging to provide type-safe options:
+Providers extend these via declaration merging to provide type-safe options.
+The key is always the provider id reported by `model.provider`, so each model
+reads only its own entry and ignores the rest:
 
 ```typescript
 providerOptions: {
   openai: { user: 'user-123', store: true },
+  'azure-openai': { user: 'user-123' },
 }
 ```
 
