@@ -38,7 +38,7 @@ type OpenAIChatClient = {
     responses: OpenAI['responses'];
 };
 
-export type OpenAIResponsesModelOptions = {
+type OpenAIResponsesModelOptions = {
     providerId?: string;
     providerOptions?: OpenAIResponsesGenerateProviderOptionsConfig;
 };

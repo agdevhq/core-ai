@@ -11,7 +11,7 @@ function capabilitiesFor(modelId: string) {
 }
 
 describe('XAI_MODEL_CAPABILITIES', () => {
-    it.each(['grok-4.7', 'grok-4.6', 'grok-4.5'])(
+    it.each(['grok-4.7', 'grok-4.6', 'grok-4.5', 'grok-4.3'])(
         'should treat %s as always-on reasoning with configurable effort',
         (modelId) => {
             expect(capabilitiesFor(modelId)?.reasoning).toMatchObject({
@@ -20,13 +20,6 @@ describe('XAI_MODEL_CAPABILITIES', () => {
             });
         }
     );
-
-    it('should treat grok-4.3 reasoning as optional', () => {
-        expect(capabilitiesFor('grok-4.3')?.reasoning).toMatchObject({
-            mode: 'optional',
-            supportedEfforts: ['low', 'medium', 'high', 'max'],
-        });
-    });
 
     it.each([
         ['grok-4.20-0309-reasoning', 'always-on'],
@@ -67,10 +60,10 @@ describe('XAI_MODEL_CAPABILITIES', () => {
         }
     });
 
-    it('should fall back to optional reasoning for unknown models', () => {
+    it('should treat unknown models as always-on reasoning with configurable effort', () => {
         expect(capabilitiesFor('grok-99')).toBe(
             XAI_MODEL_CAPABILITIES[UNKNOWN_MODEL]
         );
-        expect(capabilitiesFor('grok-99')?.reasoning.mode).toBe('optional');
+        expect(capabilitiesFor('grok-99')).toBe(capabilitiesFor('grok-4.7'));
     });
 });

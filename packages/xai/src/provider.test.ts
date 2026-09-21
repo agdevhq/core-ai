@@ -6,6 +6,7 @@ import {
     type GenerateOptions,
     type Message,
 } from '@core-ai/core-ai';
+import { toAsyncIterable } from '@core-ai/testing';
 
 import { createXAI } from './provider.ts';
 
@@ -111,6 +112,21 @@ describe('createXAI', () => {
                 include: ['reasoning.encrypted_content'],
             });
         });
+
+        it.each(['grok-4.3', 'grok-4.20-0309-reasoning', 'grok-99'])(
+            'should ask %s for encrypted reasoning without a reasoning option',
+            async (modelId) => {
+                const provider = createXAI({ apiKey: 'test-key' });
+
+                await provider.chatModel(modelId).generate({
+                    messages: MESSAGES,
+                });
+
+                expect(lastRequest(responsesCreate).include).toEqual([
+                    'reasoning.encrypted_content',
+                ]);
+            }
+        );
 
         it('should report output tokens as returned, since they include reasoning', async () => {
             const provider = createXAI({ apiKey: 'test-key' });
@@ -268,6 +284,79 @@ describe('createXAI', () => {
 
             expect(result.usage.outputTokens).toBe(59);
             expect(result.usage.outputTokenDetails.reasoningTokens).toBe(58);
+        });
+
+        it('should add separately reported reasoning tokens to streamed outputTokens', async () => {
+            const completion = createChatCompletion();
+            chatCreate.mockResolvedValue(
+                toAsyncIterable([
+                    {
+                        id: 'chatcmpl-1',
+                        object: 'chat.completion.chunk',
+                        created: 0,
+                        model: 'grok-4.7',
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: { content: 'ok' },
+                            },
+                        ],
+                    },
+                    {
+                        id: 'chatcmpl-1',
+                        object: 'chat.completion.chunk',
+                        created: 0,
+                        model: 'grok-4.7',
+                        choices: [],
+                        usage: completion.usage,
+                    },
+                ])
+            );
+            const provider = createXAI({ apiKey: 'test-key' });
+
+            const chatStream = await provider.chat
+                .chatModel('grok-4.7')
+                .stream({ messages: MESSAGES });
+            const result = await chatStream.result;
+
+            expect(lastRequest(chatCreate)).toMatchObject({
+                stream: true,
+                stream_options: { include_usage: true },
+            });
+            expect(result.usage.outputTokens).toBe(59);
+            expect(result.usage.outputTokenDetails.reasoningTokens).toBe(58);
+        });
+
+        it('should use strict json_schema structured output', async () => {
+            const completion = createChatCompletion();
+            chatCreate.mockResolvedValue({
+                ...completion,
+                choices: [
+                    {
+                        ...completion.choices[0],
+                        message: {
+                            role: 'assistant',
+                            content: '{"city":"Berlin"}',
+                            refusal: null,
+                        },
+                    },
+                ],
+            });
+            const provider = createXAI({ apiKey: 'test-key' });
+
+            const result = await provider.chat
+                .chatModel('grok-4.7')
+                .generateObject({
+                    messages: MESSAGES,
+                    schema: z.object({ city: z.string() }),
+                });
+
+            expect(result.object).toEqual({ city: 'Berlin' });
+            expect(lastRequest(chatCreate).response_format).toMatchObject({
+                type: 'json_schema',
+                json_schema: { strict: true },
+            });
         });
 
         it('should send xhigh for max effort and nothing to models that reject effort', async () => {

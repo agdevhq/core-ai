@@ -347,7 +347,7 @@ Kimi provides access to Moonshot AI models through the Kimi API, including nativ
 import { createKimi } from '@core-ai/kimi';
 
 const kimi = createKimi({
-    apiKey: process.env.KIMI_API_KEY,
+  apiKey: process.env.KIMI_API_KEY,
 });
 ```
 
@@ -369,7 +369,7 @@ xAI provides access to Grok models. The provider uses xAI's Responses API by def
 import { createXAI } from '@core-ai/xai';
 
 const xai = createXAI({
-    apiKey: process.env.XAI_API_KEY,
+  apiKey: process.env.XAI_API_KEY,
 });
 ```
 
@@ -382,7 +382,7 @@ const model = xai.chatModel('grok-4.7');
 const chatCompletionsModel = xai.chat.chatModel('grok-4.7');
 ```
 
-Pass `providerOptions.xai` for xAI-specific options. Flagship Grok models always reason; core-ai preserves their reasoning across turns via `resultToMessage()`.
+Pass `providerOptions.xai` for xAI-specific options. Grok reasoning models always reason; core-ai preserves their reasoning across turns via `resultToMessage()`.
 
 ## Using Custom Clients
 
@@ -404,16 +404,16 @@ const openai = createOpenAI({ client: customClient });
 
 ## Provider Comparison
 
-| Provider               | Chat | Embeddings | Images | Special Features                           |
-| ---------------------- | ---- | ---------- | ------ | ------------------------------------------ |
-| OpenAI                 | ✓    | ✓          | ✓      | Most comprehensive model selection         |
-| Azure OpenAI           | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth        |
-| Anthropic              | ✓    | ✗          | ✗      | Extended thinking, prompt caching          |
-| Anthropic on Vertex AI | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth           |
-| Google GenAI           | ✓    | ✓          | ✓      | Gemini native images and Imagen            |
-| Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini native images and Imagen on Vertex  |
-| Mistral                | ✓    | ✓          | ✗      | Efficient open-source options              |
-| Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models    |
+| Provider               | Chat | Embeddings | Images | Special Features                          |
+| ---------------------- | ---- | ---------- | ------ | ----------------------------------------- |
+| OpenAI                 | ✓    | ✓          | ✓      | Most comprehensive model selection        |
+| Azure OpenAI           | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth       |
+| Anthropic              | ✓    | ✗          | ✗      | Extended thinking, prompt caching         |
+| Anthropic on Vertex AI | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth          |
+| Google GenAI           | ✓    | ✓          | ✓      | Gemini native images and Imagen           |
+| Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini native images and Imagen on Vertex |
+| Mistral                | ✓    | ✓          | ✗      | Efficient open-source options             |
+| Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models   |
 | Kimi                   | ✓    | ✗          | ✗      | Preserved thinking, coding focus           |
 | xAI                    | ✓    | ✗          | ✗      | Grok reasoning models on the Responses API |
 

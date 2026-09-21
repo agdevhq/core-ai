@@ -481,7 +481,7 @@ function mapFunctionToolCall(
 }
 
 function mapFinishReason(reason: string | null): FinishReason {
-    if (reason === 'stop' || reason === 'end_turn') {
+    if (reason === 'stop') {
         return 'stop';
     }
     if (reason === 'length') {

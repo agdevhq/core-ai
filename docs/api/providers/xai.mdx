@@ -54,13 +54,12 @@ Set `providerOptions.xai.store` to `true` to opt in to xAI's server-side storage
 
 ## Supported models
 
-- **grok-4.7**, **grok-4.6**, **grok-4.5** — flagship models with always-on reasoning and effort control
-- **grok-4.3** — reasoning on by default, with effort control
+- **grok-4.7**, **grok-4.6**, **grok-4.5**, **grok-4.3** — always-on reasoning with effort control
 - **grok-4.20-0309-reasoning**, **grok-4.20-multi-agent-0309** — always-on reasoning without effort control
 - **grok-4.20-0309-non-reasoning** — no reasoning
 - **grok-build-0.1** — coding model with always-on reasoning and no effort control
 
-Aliases published by xAI, such as `grok-4.5-latest` and `grok-4.20`, resolve to the same capabilities. Unknown model IDs are treated as optional-reasoning models with effort control.
+Aliases published by xAI, such as `grok-4.5-latest` and `grok-4.20`, resolve to the same capabilities. Unknown model IDs are treated like `grok-4.7`: always-on reasoning with effort control.
 
 ## Provider support
 
@@ -86,7 +85,7 @@ const model = xai.chatModel('grok-4.7');
 const capabilities = model.capabilities;
 ```
 
-- `reasoning.mode` is `always-on` for `grok-4.7`, `grok-4.6`, `grok-4.5`, the `grok-4.20` reasoning models, and `grok-build-0.1`. It is `optional` for `grok-4.3` and `unsupported` for `grok-4.20-0309-non-reasoning`.
+- `reasoning.mode` is `always-on` for every model except `grok-4.20-0309-non-reasoning`, where it is `unsupported`. xAI lets `grok-4.3` skip reasoning with an effort of `none`, which core-ai does not expose, so `grok-4.3` always reasons.
 - `supportedEfforts` is `['low', 'medium', 'high', 'max']` for models with effort control and empty otherwise. `max` is sent as `xhigh`. Other efforts are clamped to the nearest supported value.
 - `restrictsSamplingParams` is `false`; `temperature` and `topP` are accepted.
 - `modalities.input` is `['text', 'image']` for every model.

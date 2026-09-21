@@ -684,7 +684,7 @@ describe('audio input', () => {
     );
 });
 
-describe('OpenAI-compatible response quirks', () => {
+describe('reasoning token accounting', () => {
     const usage = {
         prompt_tokens: 10,
         completion_tokens: 3,
@@ -694,12 +694,12 @@ describe('OpenAI-compatible response quirks', () => {
         },
     };
 
-    function createResponse(finishReason: string) {
+    function createResponse() {
         return asChatCompletion({
             choices: [
                 {
                     index: 0,
-                    finish_reason: finishReason as 'stop',
+                    finish_reason: 'stop',
                     logprobs: null,
                     message: {
                         role: 'assistant',
@@ -712,21 +712,15 @@ describe('OpenAI-compatible response quirks', () => {
         });
     }
 
-    it('should map the end_turn finish reason to stop', () => {
-        expect(
-            mapGenerateResponse(createResponse('end_turn')).finishReason
-        ).toBe('stop');
-    });
-
     it('should treat reasoning tokens as included in completion tokens by default', () => {
-        const result = mapGenerateResponse(createResponse('stop'));
+        const result = mapGenerateResponse(createResponse());
 
         expect(result.usage.outputTokens).toBe(3);
         expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
     });
 
     it('should add separately reported reasoning tokens to outputTokens', () => {
-        const result = mapGenerateResponse(createResponse('stop'), {
+        const result = mapGenerateResponse(createResponse(), {
             reasoningTokenAccounting: 'separate',
         });
 

@@ -42,8 +42,7 @@ By default, requests go to `https://api.x.ai/v1`. Set `baseURL` to use a custom 
 
 | Model                                                                      | Reasoning     | Effort control                 |
 | -------------------------------------------------------------------------- | ------------- | ------------------------------ |
-| `grok-4.7`, `grok-4.6`, `grok-4.5`                                         | Always on     | `low`, `medium`, `high`, `max` |
-| `grok-4.3`                                                                 | On by default | `low`, `medium`, `high`, `max` |
+| `grok-4.7`, `grok-4.6`, `grok-4.5`, `grok-4.3`                             | Always on     | `low`, `medium`, `high`, `max` |
 | `grok-4.20-0309-reasoning`, `grok-4.20-multi-agent-0309`, `grok-build-0.1` | Always on     | None                           |
 | `grok-4.20-0309-non-reasoning`                                             | Not supported | None                           |
 
