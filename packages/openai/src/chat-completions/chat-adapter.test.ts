@@ -684,6 +684,85 @@ describe('audio input', () => {
     );
 });
 
+describe('OpenAI-compatible response quirks', () => {
+    const usage = {
+        prompt_tokens: 10,
+        completion_tokens: 3,
+        total_tokens: 15,
+        completion_tokens_details: {
+            reasoning_tokens: 2,
+        },
+    };
+
+    function createResponse(finishReason: string) {
+        return asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: finishReason as 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'answer',
+                        refusal: null,
+                    },
+                },
+            ],
+            usage,
+        });
+    }
+
+    it('should map the end_turn finish reason to stop', () => {
+        expect(
+            mapGenerateResponse(createResponse('end_turn')).finishReason
+        ).toBe('stop');
+    });
+
+    it('should treat reasoning tokens as included in completion tokens by default', () => {
+        const result = mapGenerateResponse(createResponse('stop'));
+
+        expect(result.usage.outputTokens).toBe(3);
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+    });
+
+    it('should add separately reported reasoning tokens to outputTokens', () => {
+        const result = mapGenerateResponse(createResponse('stop'), {
+            reasoningTokenAccounting: 'separate',
+        });
+
+        expect(result.usage.outputTokens).toBe(5);
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+    });
+
+    it('should add separately reported reasoning tokens to streamed outputTokens', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: { content: 'answer' },
+                            },
+                        ],
+                    }),
+                    asChunk({ choices: [], usage }),
+                ]),
+                { reasoningTokenAccounting: 'separate' }
+            )
+        );
+
+        const finish = events.find((event) => event.type === 'finish');
+        expect(finish).toMatchObject({
+            usage: {
+                outputTokens: 5,
+                outputTokenDetails: { reasoningTokens: 2 },
+            },
+        });
+    });
+});
+
 describe('reasoning support', () => {
     it('should fold reasoning parts into text content wrapped in <thinking> tags', () => {
         const messages: Message[] = [

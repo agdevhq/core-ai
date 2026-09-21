@@ -101,6 +101,8 @@ export function createOpenAIProvider(
                           compatibilityOptions?.structuredOutputMode,
                       maxTokensParameter:
                           compatibilityOptions?.maxTokensParameter,
+                      reasoningTokenAccounting:
+                          compatibilityOptions?.reasoningTokenAccounting,
                   }
                 : undefined;
 

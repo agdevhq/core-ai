@@ -32,6 +32,10 @@ import { convertToolChoice, convertTools } from '../shared/tools.js';
 import type { OpenAIResolvedReasoningCompatibilityOptions } from '../shared/compatibility-options.js';
 import type { OpenAIRequestOptions } from '../shared/structured-output.js';
 import {
+    normalizeOutputTokens,
+    type OpenAIReasoningTokenAccounting,
+} from '../shared/usage.js';
+import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
     validateReasoningConfig,
@@ -50,6 +54,7 @@ export type OpenAIChatCompletionsAdapterOptions = {
     providerId?: string;
     providerOptions?: OpenAIChatGenerateProviderOptionsConfig;
     reasoning?: OpenAIResolvedReasoningCompatibilityOptions;
+    reasoningTokenAccounting?: OpenAIReasoningTokenAccounting;
 };
 
 type OpenAIChatCompletionsRequestAdapterOptions =
@@ -427,7 +432,11 @@ export function mapGenerateResponse(
         finishReason: mapFinishReason(firstChoice.finish_reason),
         usage: {
             inputTokens: response.usage?.prompt_tokens ?? 0,
-            outputTokens: response.usage?.completion_tokens ?? 0,
+            outputTokens: normalizeOutputTokens(
+                response.usage?.completion_tokens ?? 0,
+                reasoningTokens,
+                adapterOptions.reasoningTokenAccounting
+            ),
             inputTokenDetails: {
                 cacheReadTokens:
                     response.usage?.prompt_tokens_details?.cached_tokens ?? 0,
@@ -469,7 +478,7 @@ function mapFunctionToolCall(
 }
 
 function mapFinishReason(reason: string | null): FinishReason {
-    if (reason === 'stop') {
+    if (reason === 'stop' || reason === 'end_turn') {
         return 'stop';
     }
     if (reason === 'length') {
@@ -558,7 +567,11 @@ export async function* transformStream(
                 chunk.usage.completion_tokens_details?.reasoning_tokens;
             usage = {
                 inputTokens: chunk.usage.prompt_tokens ?? 0,
-                outputTokens: chunk.usage.completion_tokens ?? 0,
+                outputTokens: normalizeOutputTokens(
+                    chunk.usage.completion_tokens ?? 0,
+                    reasoningTokens,
+                    adapterOptions.reasoningTokenAccounting
+                ),
                 inputTokenDetails: {
                     cacheReadTokens:
                         chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
