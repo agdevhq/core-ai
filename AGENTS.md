@@ -22,7 +22,7 @@ npm install -w <workspace-name> some-package
 
 ## TypeScript & ESM
 
-All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. Relative imports must include an explicit `.js` or `.ts` extension — the convention differs by package: `core-ai`, the middleware packages (`testing`, `langfuse`, `opentelemetry`, `axiom`), and `kimi` import with `.ts`; the other provider SDK packages import with `.js`. Match the package you are editing.
+All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. Relative imports must include an explicit `.js` or `.ts` extension — the convention differs by package: `core-ai`, the middleware packages (`testing`, `langfuse`, `opentelemetry`, `axiom`), `kimi`, and `xai` import with `.ts`; the other provider SDK packages import with `.js`. Match the package you are editing.
 
 TypeScript configurations:
 
@@ -56,7 +56,7 @@ Live E2E tests (real API calls, separate from `npm run test`):
 npm run test:e2e                  # all providers with configured keys
 npm run test:e2e:anthropic        # one provider — also :anthropic-vertex, :openai, :openai:chat, :openai:compat,
                                   #   :azure-openai, :azure-openai:chat, :azure-openai:classic, :google, :google-vertex,
-                                  #   :mistral, :omnifact, :kimi
+                                  #   :mistral, :omnifact, :kimi, :xai, :xai:chat
 ```
 
 Harness lives in `tests/e2e/` — one shared behavioral contract run against every provider adapter (see `tests/e2e/README.md` for env vars and model overrides).
@@ -73,11 +73,11 @@ Before contributing changes, first read the `contributing` skill.
 
 The provider-agnostic contract, **zero provider dependencies** (only zod). `types.ts` holds the whole domain model (`Message` union, `AssistantContentPart`, `ChatModel`/`EmbeddingModel`/`ImageModel`, `StreamEvent`, usage types); top-level functions (`generate`, `stream`, `generateObject`, `streamObject`, `embed`, `generateImage`) are thin delegators to the model methods. `base-stream.ts` is the generic streaming engine — streams are **eagerly started and replayable**, expose `.result` and `.events`, and own abort semantics; provider adapters just produce raw `StreamEvent`s. `wrap-chat-model.ts` (and embedding/image variants) implement the middleware API. Also load-bearing: `tool.ts` (`defineTool`), `provider-metadata.ts` (`getProviderMetadata`), `result-to-message.ts`.
 
-### Provider packages (10)
+### Provider packages (11)
 
 Full implementations — `anthropic`, `openai`, `google-genai`, `mistral` — share one file pattern; mirror it when adding a provider or feature: `provider.ts` (`create<Provider>()` factory; accepts `apiKey`/`baseURL` or a pre-built SDK `client`), `chat-model.ts` (orchestration only), `chat-adapter.ts` (pure mapping between core-ai and native SDK types — the bulk of provider logic and tests), `model-capabilities.ts` (per-model-id capability lookup), `provider-options.ts` (typed `providerOptions.<provider>` escape hatch), plus `embedding-model.ts`/`image-model.ts` where supported.
 
-The other six are thin wrappers: `azure-openai`, `omnifact`, `openai-compat`, and `kimi` re-configure `@core-ai/openai`; `anthropic-vertex` re-configures `@core-ai/anthropic`; `google-vertex` re-configures `@core-ai/google-genai`. `@core-ai/openai` defaults to the **Responses API** (Chat Completions lives in `src/chat-completions/`); its `./compat` subpath is deprecated — use `@core-ai/openai-compat` instead.
+The other seven are thin wrappers: `azure-openai`, `omnifact`, `openai-compat`, `kimi`, and `xai` re-configure `@core-ai/openai`; `anthropic-vertex` re-configures `@core-ai/anthropic`; `google-vertex` re-configures `@core-ai/google-genai`. `@core-ai/openai` defaults to the **Responses API** (Chat Completions lives in `src/chat-completions/`); its `./compat` subpath is deprecated — use `@core-ai/openai-compat` instead.
 
 ### Cross-provider invariants
 

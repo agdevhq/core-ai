@@ -29,6 +29,7 @@ GOOGLE_API_KEY=your_google_api_key
 MISTRAL_API_KEY=your_mistral_api_key
 OMNIFACT_API_KEY=your_omnifact_org_api_key
 KIMI_API_KEY=your_kimi_api_key
+XAI_API_KEY=your_xai_api_key
 AZURE_OPENAI_API_KEY=your_azure_openai_api_key
 AZURE_OPENAI_ENDPOINT=https://your-resource.openai.azure.com
 GOOGLE_VERTEX_PROJECT=your_google_cloud_project_id
@@ -199,21 +200,30 @@ core-ai supports multiple AI providers with the same unified API.
     Application Default Credentials.
 </Card>
 
-  <Card
+<Card
     title="Google on Vertex AI"
     icon="cloud"
     href="https://github.com/agdevhq/core-ai/blob/main/examples/14-google-vertex-provider.ts"
-  >
-    Using Gemini on Vertex AI with the same `generate()` API. Authenticates via Application Default Credentials.
-  </Card>
+>
+    Using Gemini on Vertex AI with the same `generate()` API. Authenticates via
+    Application Default Credentials.
+</Card>
 
-  <Card
+<Card
     title="Kimi Provider"
     icon="code"
     href="https://github.com/agdevhq/core-ai/blob/main/examples/15-kimi-provider.ts"
-  >
+>
     Using the Kimi API with reasoning output and the same `generate()` API.
-  </Card>
+</Card>
+
+<Card
+    title="xAI Provider"
+    icon="brain"
+    href="https://github.com/agdevhq/core-ai/blob/main/examples/21-xai-provider.ts"
+>
+    Using Grok models with reasoning effort and the same `generate()` API.
+</Card>
 </CardGroup>
 
 ## Example Categories
@@ -260,6 +270,7 @@ Experience true provider portability:
 - **13-anthropic-vertex-provider.ts** - Claude on Vertex AI
 - **14-google-vertex-provider.ts** - Gemini on Vertex AI
 - **15-kimi-provider.ts** - Kimi models
+- **21-xai-provider.ts** - xAI Grok models
 
 ## Next Steps
 

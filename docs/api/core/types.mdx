@@ -311,8 +311,8 @@ from the response formats used by `generateObject()` and `streamObject()`.
 Provider packages also export `get*ModelCapabilities(modelId)` helpers for
 registry data without constructing a `ChatModel`. A model factory can apply
 API- or endpoint-specific gates afterward; for example, OpenAI Responses has
-narrower legacy-model support than Chat Completions. Kimi exposes this data
-through `ChatModel.capabilities` only.
+narrower legacy-model support than Chat Completions. Kimi and xAI expose this
+data through `ChatModel.capabilities` only.
 
 ### EmbeddingModel
 

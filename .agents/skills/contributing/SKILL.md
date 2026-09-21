@@ -79,6 +79,7 @@ All publishable packages share a single version number (the `fixed` group in `.c
 - `@core-ai/omnifact`
 - `@core-ai/anthropic-vertex`
 - `@core-ai/kimi`
+- `@core-ai/xai`
 
 Selecting any one package in a changeset bumps every package in the fixed group to the same version. Create a changeset for **every package with meaningful changes** — use separate files when the changelog text differs per package.
 

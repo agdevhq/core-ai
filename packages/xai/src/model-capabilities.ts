@@ -52,10 +52,10 @@ const OPTIONAL_REASONING = createCapabilities('optional', CONFIGURABLE_EFFORTS);
 const FIXED_REASONING = createCapabilities('always-on', NO_EFFORTS);
 const NO_REASONING = createCapabilities('unsupported', NO_EFFORTS);
 
-function withAliases<TCapabilities extends ModelCapabilities>(
-    capabilities: TCapabilities,
+function withAliases(
+    capabilities: ModelCapabilities,
     modelIds: readonly string[]
-): Record<string, TCapabilities> {
+): Record<string, ModelCapabilities> {
     return Object.fromEntries(
         modelIds.map((modelId) => [modelId, capabilities])
     );
