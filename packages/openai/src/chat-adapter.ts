@@ -1096,7 +1096,11 @@ function mapReasoningToRequestFields(
         return {};
     }
 
-    if (capabilities.reasoning.mode === 'unsupported') {
+    // An empty effort list means the model rejects the effort parameter.
+    if (
+        capabilities.reasoning.mode === 'unsupported' ||
+        capabilities.reasoning.supportedEfforts.length === 0
+    ) {
         return {};
     }
 

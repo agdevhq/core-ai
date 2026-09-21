@@ -588,6 +588,31 @@ describe('createGenerateRequest', () => {
         expect(request.user).toBeUndefined();
     });
 
+    it('should not send an effort to reasoning models without configurable efforts', () => {
+        const request = createGenerateRequest(
+            'custom-model',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'high' },
+            },
+            {
+                providerId: 'custom',
+                capabilities: {
+                    ...getOpenAIModelCapabilities('gpt-5-mini'),
+                    reasoning: {
+                        mode: 'always-on',
+                        supportedEfforts: [],
+                        restrictsSamplingParams: false,
+                        supportedToolChoices: ['auto'],
+                    },
+                },
+            }
+        );
+
+        expect(request.reasoning).toBeUndefined();
+        expect(request.include).toEqual(['reasoning.encrypted_content']);
+    });
+
     it.each([
         ['always-on', ['reasoning.encrypted_content']],
         ['optional', undefined],
