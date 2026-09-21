@@ -5,8 +5,8 @@ import type {
     EmbedResult,
     EmbeddingModel,
 } from '@core-ai/core-ai';
-import { wrapMistralError } from './mistral-error.js';
-import { parseMistralEmbedProviderOptions } from './provider-options.js';
+import { wrapMistralError } from './mistral-error.ts';
+import { parseMistralEmbedProviderOptions } from './provider-options.ts';
 
 type MistralEmbeddingClient = {
     embeddings: Mistral['embeddings'];

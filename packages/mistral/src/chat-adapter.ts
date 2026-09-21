@@ -37,8 +37,8 @@ import {
 import {
     parseMistralGenerateProviderOptions,
     type MistralGenerateProviderOptions,
-} from './provider-options.js';
-import { getMistralModelCapabilities } from './model-capabilities.js';
+} from './provider-options.ts';
+import { getMistralModelCapabilities } from './model-capabilities.ts';
 
 type MistralFunctionTool = Tool & { type: 'function' };
 type ConvertMessagesOptions = {

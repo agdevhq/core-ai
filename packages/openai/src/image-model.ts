@@ -5,11 +5,11 @@ import type {
     ImageGenerateResult,
     ImageModel,
 } from '@core-ai/core-ai';
-import { wrapOpenAIError } from './openai-error.js';
+import { wrapOpenAIError } from './openai-error.ts';
 import {
     parseOpenAIImageProviderOptions,
     type OpenAIImageProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';
 
 type OpenAIImageClient = {
     images: OpenAI['images'];

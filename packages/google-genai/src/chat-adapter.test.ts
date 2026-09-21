@@ -14,8 +14,8 @@ import {
     getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
-} from './chat-adapter.js';
-import { getGoogleModelCapabilities } from './model-capabilities.js';
+} from './chat-adapter.ts';
+import { getGoogleModelCapabilities } from './model-capabilities.ts';
 import {
     defineTool,
     ToolSchemaStrictnessError,

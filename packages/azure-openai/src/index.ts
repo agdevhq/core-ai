@@ -1,9 +1,9 @@
-export { createAzureOpenAI } from './provider.js';
+export { createAzureOpenAI } from './provider.ts';
 export type {
     AzureOpenAIProvider,
     AzureOpenAIProviderOptions,
-} from './provider.js';
+} from './provider.ts';
 export type {
     AzureOpenAIChatGenerateProviderOptions,
     AzureOpenAIResponsesGenerateProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';

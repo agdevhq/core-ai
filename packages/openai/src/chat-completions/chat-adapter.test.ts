@@ -9,7 +9,7 @@ import {
     mapGenerateResponse,
     type OpenAIChatCompletionsAdapterOptions,
     transformStream,
-} from './chat-adapter.js';
+} from './chat-adapter.ts';
 import {
     ValidationError,
     defineTool,
@@ -17,12 +17,12 @@ import {
     type Message,
     type ToolSet,
 } from '@core-ai/core-ai';
-import type { OpenAICompatRequestOptions } from '../provider-options.js';
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+import type { OpenAICompatRequestOptions } from '../provider-options.ts';
+import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
 import {
     createStructuredOutputRequestOptions,
     getStructuredOutputName,
-} from '../shared/structured-output.js';
+} from '../shared/structured-output.ts';
 import type {
     ChatCompletion,
     ChatCompletionChunk,

@@ -2,8 +2,8 @@ import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
 import type { ModelCapabilities } from '@core-ai/core-ai';
 
-import { openaiResponsesGenerateProviderOptionsSchema } from '../provider-options.js';
-import { createOpenAIProvider } from './provider-factory.js';
+import { openaiResponsesGenerateProviderOptionsSchema } from '../provider-options.ts';
+import { createOpenAIProvider } from './provider-factory.ts';
 import { TEXT_ONLY_MODALITIES } from '@core-ai/core-ai';
 
 const CAPABILITIES: ModelCapabilities = {

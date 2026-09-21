@@ -1,17 +1,17 @@
-export { createOpenAICompat, createOpenAICompatChatProvider } from './compat/provider.js';
-export { createOpenAICompatChatModel } from './compat/chat-model.js';
+export { createOpenAICompat, createOpenAICompatChatProvider } from './compat/provider.ts';
+export { createOpenAICompatChatModel } from './compat/chat-model.ts';
 export type {
     OpenAICompatProvider,
     OpenAICompatProviderOptions,
     OpenAICompatChatProvider,
     OpenAICompatChatProviderOptions,
-} from './compat/provider.js';
-export type { OpenAIChatClient } from './compat/chat-model.js';
+} from './compat/provider.ts';
+export type { OpenAIChatClient } from './compat/chat-model.ts';
 export {
     openaiCompatGenerateProviderOptionsSchema,
     openaiCompatProviderOptionsSchema,
-} from './provider-options.js';
+} from './provider-options.ts';
 export type {
     OpenAICompatGenerateProviderOptions,
     OpenAICompatRequestOptions,
-} from './provider-options.js';
+} from './provider-options.ts';

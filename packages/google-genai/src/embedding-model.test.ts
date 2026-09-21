@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
-import { createGoogleGenAIEmbeddingModel } from './embedding-model.js';
+import { createGoogleGenAIEmbeddingModel } from './embedding-model.ts';
 
 describe('createGoogleGenAIEmbeddingModel', () => {
     it('should embed a single string', async () => {

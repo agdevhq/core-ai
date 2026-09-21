@@ -1,7 +1,7 @@
-export { createMistral } from './provider.js';
-export type { MistralProvider, MistralProviderOptions } from './provider.js';
-export type { MistralModelCapabilities } from './model-capabilities.js';
-export { getMistralModelCapabilities } from './model-capabilities.js';
+export { createMistral } from './provider.ts';
+export type { MistralProvider, MistralProviderOptions } from './provider.ts';
+export type { MistralModelCapabilities } from './model-capabilities.ts';
+export { getMistralModelCapabilities } from './model-capabilities.ts';
 export {
     mistralGenerateProviderOptionsSchema,
     mistralEmbedProviderOptionsSchema,
@@ -9,4 +9,4 @@ export {
     type MistralGenerateProviderOptions,
     type MistralEmbedProviderOptions,
     type MistralProviderOptions as MistralModelProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';

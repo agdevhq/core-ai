@@ -23,8 +23,8 @@ import {
     getAnthropicRequestBetas,
     mapGenerateResponse,
     transformStream,
-} from './chat-adapter.js';
-import { getAnthropicModelCapabilities } from './model-capabilities.js';
+} from './chat-adapter.ts';
+import { getAnthropicModelCapabilities } from './model-capabilities.ts';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {

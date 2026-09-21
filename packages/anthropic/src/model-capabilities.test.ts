@@ -9,7 +9,7 @@ import {
     supportsAnthropicStrictToolSchemas,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
-} from './model-capabilities.js';
+} from './model-capabilities.ts';
 
 describe('normalizeModelId', () => {
     it('should strip date suffixes', () => {

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getMistralModelCapabilities,
     normalizeModelId,
-} from './model-capabilities.js';
+} from './model-capabilities.ts';
 
 describe('normalizeModelId', () => {
     it('should strip the latest alias', () => {

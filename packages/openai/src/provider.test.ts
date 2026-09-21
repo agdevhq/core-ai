@@ -1,6 +1,6 @@
 import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
-import { createOpenAI } from './provider.js';
+import { createOpenAI } from './provider.ts';
 
 describe('createOpenAI', () => {
     it('should create a client when one is not provided', () => {

@@ -12,8 +12,8 @@ import {
     RateLimitError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createMistralChatModel } from './chat-model.js';
-import { getMistralModelCapabilities } from './model-capabilities.js';
+import { createMistralChatModel } from './chat-model.ts';
+import { getMistralModelCapabilities } from './model-capabilities.ts';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createMistralChatModel', () => {

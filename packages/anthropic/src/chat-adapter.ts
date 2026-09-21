@@ -21,7 +21,7 @@ import {
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
-export { wrapAnthropicError } from './anthropic-error.js';
+export { wrapAnthropicError } from './anthropic-error.ts';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -43,11 +43,11 @@ import {
     supportsAnthropicMaxEffort,
     toAnthropicAdaptiveEffort,
     toAnthropicManualBudget,
-} from './model-capabilities.js';
+} from './model-capabilities.ts';
 import {
     parseAnthropicGenerateProviderOptions,
     type AnthropicGenerateProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';
 
 export type AnthropicReasoningMetadata = {
     signature?: string;

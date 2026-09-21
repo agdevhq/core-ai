@@ -1,6 +1,6 @@
-export { createAnthropicVertex } from './provider.js';
+export { createAnthropicVertex } from './provider.ts';
 export type {
     AnthropicVertexProvider,
     AnthropicVertexProviderOptions,
     AnthropicVertexServiceAccountCredentials,
-} from './provider.js';
+} from './provider.ts';

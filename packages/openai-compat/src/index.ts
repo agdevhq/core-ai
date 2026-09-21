@@ -1,6 +1,6 @@
-export { createOpenAICompat } from './provider.js';
+export { createOpenAICompat } from './provider.ts';
 export type {
     OpenAICompatProvider,
     OpenAICompatProviderOptions,
-} from './provider.js';
-export type { OpenAICompatGenerateProviderOptions } from './provider-options.js';
+} from './provider.ts';
+export type { OpenAICompatGenerateProviderOptions } from './provider-options.ts';

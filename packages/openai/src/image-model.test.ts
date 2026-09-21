@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type OpenAI from 'openai';
-import { createOpenAIImageModel } from './image-model.js';
+import { createOpenAIImageModel } from './image-model.ts';
 
 describe('createOpenAIImageModel', () => {
     it('should map generated images', async () => {

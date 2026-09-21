@@ -4,11 +4,11 @@ import type {
     EmbedResult,
     EmbeddingModel,
 } from '@core-ai/core-ai';
-import { wrapOpenAIError } from './openai-error.js';
+import { wrapOpenAIError } from './openai-error.ts';
 import {
     parseOpenAIEmbedProviderOptions,
     type OpenAIEmbedProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';
 
 type OpenAIEmbeddingClient = {
     embeddings: OpenAI['embeddings'];

@@ -4,12 +4,12 @@ import type {
     EmbedResult,
     EmbeddingModel,
 } from '@core-ai/core-ai';
-import { wrapGoogleError } from './google-error.js';
+import { wrapGoogleError } from './google-error.ts';
 import {
     parseGoogleEmbedProviderOptions,
     type GoogleEmbedProviderOptions,
-} from './provider-options.js';
-import type { GoogleGenAIClient } from './provider.js';
+} from './provider-options.ts';
+import type { GoogleGenAIClient } from './provider.ts';
 
 export function createGoogleGenAIEmbeddingModel(
     client: GoogleGenAIClient,

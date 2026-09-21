@@ -88,7 +88,7 @@ Each `package.json` points to built output:
 
 ### TypeScript and `.ts` imports
 
-Some packages use `.ts` import extensions (see the extension conventions in `AGENTS.md`), enabled by `allowImportingTsExtensions: true` and `noEmit: true` in the shared tsconfig. tsup/esbuild handles these extensions during bundling, and `dts: true` uses `emitDeclarationOnly` mode for declaration generation.
+All packages use `.ts` import extensions for relative imports, enabled by `allowImportingTsExtensions: true` and `noEmit: true` in the shared tsconfig. tsup/esbuild handles these extensions during bundling, and `dts: true` uses `emitDeclarationOnly` mode for declaration generation.
 
 ## Dependency Graph
 

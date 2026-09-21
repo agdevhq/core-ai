@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
 import { ProviderError } from '@core-ai/core-ai';
 
-import { createGoogleGenAIImageModel } from './image-model.js';
+import { createGoogleGenAIImageModel } from './image-model.ts';
 
 describe('createGoogleGenAIImageModel', () => {
     it('should generate Gemini images with generateContent', async () => {

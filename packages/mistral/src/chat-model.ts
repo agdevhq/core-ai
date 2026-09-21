@@ -26,9 +26,9 @@ import {
     getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
-} from './chat-adapter.js';
-import { wrapMistralError } from './mistral-error.js';
-import { getMistralModelCapabilities } from './model-capabilities.js';
+} from './chat-adapter.ts';
+import { wrapMistralError } from './mistral-error.ts';
+import { getMistralModelCapabilities } from './model-capabilities.ts';
 
 type MistralChatClient = {
     chat: Mistral['chat'];

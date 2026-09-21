@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ProviderError, ToolSchemaStrictnessError } from '@core-ai/core-ai';
 import type { GoogleGenAIClient } from '@core-ai/google-genai';
 
-import { createGoogleVertex } from './provider.js';
+import { createGoogleVertex } from './provider.ts';
 
 const {
     googleGenAIConstructor,

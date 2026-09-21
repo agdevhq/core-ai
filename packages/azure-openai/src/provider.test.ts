@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import { ProviderError, ValidationError } from '@core-ai/core-ai';
 import type OpenAI from 'openai';
-import { createAzureOpenAI } from './provider.js';
+import { createAzureOpenAI } from './provider.ts';
 
 const { azureConstructor, chatCreate, openAIConstructor, responsesCreate } =
     vi.hoisted(() => ({

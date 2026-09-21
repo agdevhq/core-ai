@@ -1,6 +1,6 @@
 import type { ChatModel } from '@core-ai/core-ai';
 import { createOpenAIProvider } from '@core-ai/openai';
-import { DEFAULT_BASE_URL } from './constants.js';
+import { DEFAULT_BASE_URL } from './constants.ts';
 
 export type OmnifactProviderOptions = {
     apiKey?: string;

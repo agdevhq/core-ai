@@ -1,6 +1,6 @@
 import type { Mistral } from '@mistralai/mistralai';
 import { describe, expect, it, vi } from 'vitest';
-import { createMistral } from './provider.js';
+import { createMistral } from './provider.ts';
 
 describe('createMistral', () => {
     it('should expose all model factories', () => {

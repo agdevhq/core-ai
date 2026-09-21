@@ -2,8 +2,8 @@ import {
     createOpenAIProvider,
     type OpenAIProvider as SharedOpenAIProvider,
     type OpenAIProviderBaseOptions,
-} from './shared/provider-factory.js';
-import { OPENAI_MODEL_CAPABILITIES } from './model-capabilities.js';
+} from './shared/provider-factory.ts';
+import { OPENAI_MODEL_CAPABILITIES } from './model-capabilities.ts';
 
 export type OpenAIProviderOptions = OpenAIProviderBaseOptions;
 export type OpenAIProvider = SharedOpenAIProvider;

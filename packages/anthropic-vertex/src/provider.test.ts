@@ -7,7 +7,7 @@ import {
 } from '@core-ai/core-ai';
 import type { AnthropicChatClient } from '@core-ai/anthropic';
 
-import { createAnthropicVertex } from './provider.js';
+import { createAnthropicVertex } from './provider.ts';
 
 const { anthropicVertexConstructor, messagesCreate } = vi.hoisted(() => ({
     anthropicVertexConstructor: vi.fn(),

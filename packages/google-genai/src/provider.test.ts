@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { GoogleGenAI } from '@google/genai';
 import { ProviderError } from '@core-ai/core-ai';
-import { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
+import { createGoogleGenAI, createGoogleGenAIProvider } from './provider.ts';
 
 describe('createGoogleGenAI', () => {
     it('should expose all model factories', () => {

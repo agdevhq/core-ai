@@ -22,7 +22,7 @@ npm install -w <workspace-name> some-package
 
 ## TypeScript & ESM
 
-All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. Relative imports must include an explicit `.js` or `.ts` extension — the convention differs by package: `core-ai`, the middleware packages (`testing`, `langfuse`, `opentelemetry`, `axiom`), `kimi`, and `xai` import with `.ts`; the other provider SDK packages import with `.js`. Match the package you are editing.
+All packages use ESM (`"type": "module"`) with `allowImportingTsExtensions` enabled. Relative imports must include an explicit `.ts` extension (`import { foo } from './foo.ts'`) in every package. tsup bundles the output, so the extension never reaches `dist`.
 
 TypeScript configurations:
 
@@ -205,7 +205,7 @@ export const DEFAULT_CONFIG = {
 
 ### Import Organization
 
-- Local file imports: include an explicit `.js` or `.ts` extension, following the package's existing convention (see [TypeScript & ESM](#typescript--esm))
+- Local file imports: include an explicit `.ts` extension (see [TypeScript & ESM](#typescript--esm))
 - Workspace package imports and npm packages: no extensions needed
 - Check the target package's `package.json` exports before importing from workspace packages
 - Every import must be declared in that package's `package.json` (`import/no-extraneous-dependencies`, internal workspace deps included)
@@ -220,8 +220,8 @@ Group imports in this order:
 import { z } from 'zod';
 import { getLogger } from '@workspace/logging';
 
-import { createConnection } from '../database.js';
-import { UserRole } from '../models/user.js';
+import { createConnection } from '../database.ts';
+import { UserRole } from '../models/user.ts';
 ```
 
 ### Linting

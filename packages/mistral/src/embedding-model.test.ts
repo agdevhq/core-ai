@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Mistral } from '@mistralai/mistralai';
 import { ProviderError } from '@core-ai/core-ai';
-import { createMistralEmbeddingModel } from './embedding-model.js';
+import { createMistralEmbeddingModel } from './embedding-model.ts';
 
 describe('createMistralEmbeddingModel', () => {
     it('should embed a single string', async () => {

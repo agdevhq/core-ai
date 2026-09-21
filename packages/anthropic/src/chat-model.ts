@@ -28,8 +28,8 @@ import {
     mapGenerateResponse,
     transformStream,
     wrapAnthropicError,
-} from './chat-adapter.js';
-import { getAnthropicModelCapabilities } from './model-capabilities.js';
+} from './chat-adapter.ts';
+import { getAnthropicModelCapabilities } from './model-capabilities.ts';
 
 export type AnthropicChatClient = {
     messages: {
