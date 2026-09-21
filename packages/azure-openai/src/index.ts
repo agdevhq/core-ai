@@ -3,3 +3,7 @@ export type {
     AzureOpenAIProvider,
     AzureOpenAIProviderOptions,
 } from './provider.js';
+export type {
+    AzureOpenAIChatGenerateProviderOptions,
+    AzureOpenAIResponsesGenerateProviderOptions,
+} from './provider-options.js';

@@ -87,13 +87,12 @@ describe('createOpenAIProvider', () => {
         );
     });
 
-    it('should support an explicit provider options namespace', async () => {
+    it('should ignore chat provider options under another provider id', async () => {
         const create = vi.fn(async () => createChatCompletion());
         const provider = createOpenAIProvider(
             { client: createMockClient(create) },
             {
                 providerId: 'custom',
-                providerOptionsKey: 'openai',
                 defaultApi: 'chat-completions',
             }
         );
@@ -106,7 +105,7 @@ describe('createOpenAIProvider', () => {
         });
 
         expect(create).toHaveBeenCalledWith(
-            expect.objectContaining({ seed: 42 }),
+            expect.not.objectContaining({ seed: 42 }),
             expect.any(Object)
         );
     });
@@ -132,26 +131,6 @@ describe('createOpenAIProvider', () => {
         );
         expect(create).not.toHaveBeenCalledWith(
             expect.objectContaining({ user: 'ignored' }),
-            expect.any(Object)
-        );
-    });
-
-    it('should support an explicit responses provider options namespace', async () => {
-        const create = vi.fn(async () => createResponse());
-        const provider = createOpenAIProvider(
-            { client: createMockResponsesClient(create) },
-            { providerId: 'azure-openai', providerOptionsKey: 'openai' }
-        );
-
-        await provider.chatModel('custom-model').generate({
-            messages: [{ role: 'user', content: 'hello' }],
-            providerOptions: {
-                openai: { user: 'user-1' },
-            },
-        });
-
-        expect(create).toHaveBeenCalledWith(
-            expect.objectContaining({ user: 'user-1' }),
             expect.any(Object)
         );
     });

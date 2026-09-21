@@ -51,8 +51,8 @@ export type OpenAIChatProvider = {
 
 export type OpenAIProviderFactoryOptions = {
     modelCapabilities?: ModelCapabilitiesRegistry;
+    /** Also the `providerOptions` and reasoning `providerMetadata` key. */
     providerId?: string;
-    providerOptionsKey?: string;
     /** Chat Completions provider options schema. */
     providerOptionsSchema?: OpenAIChatGenerateProviderOptionsConfig['schema'];
     /** Responses API provider options schema. */
@@ -72,7 +72,6 @@ export function createOpenAIProvider(
             baseURL: options.baseURL,
         });
     const providerId = factoryOptions.providerId ?? 'openai';
-    const providerOptionsKey = factoryOptions.providerOptionsKey ?? providerId;
     const compatibilityOptions =
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
@@ -90,7 +89,7 @@ export function createOpenAIProvider(
             {
                 providerId,
                 providerOptions: {
-                    key: providerOptionsKey,
+                    key: providerId,
                     schema:
                         factoryOptions.responsesProviderOptionsSchema ??
                         openaiResponsesGenerateProviderOptionsSchema,
@@ -125,7 +124,7 @@ export function createOpenAIProvider(
             capabilities,
             compatibility,
             providerOptions: {
-                key: providerOptionsKey,
+                key: providerId,
                 schema:
                     factoryOptions.providerOptionsSchema ??
                     openaiChatGenerateProviderOptionsSchema,

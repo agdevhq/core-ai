@@ -178,9 +178,7 @@ contract, error reasons, and the parallel-tool-calls caveat.
 ## Reasoning metadata
 
 On Azure v1 Responses, encrypted reasoning is stored under the `azure-openai`
-provider key — not `openai`. Use that key when reading metadata, and keep
-escape-hatch request options under `providerOptions.openai` (shared Responses
-field shapes).
+provider key — not `openai`. Use that key when reading metadata.
 
 ```typescript
 import { generate, getProviderMetadata } from '@core-ai/core-ai';
@@ -254,14 +252,17 @@ for await (const chunk of result.textStream) {
 
 ## Provider-specific options
 
-Root Azure v1 models use the OpenAI Responses options:
+Pass Azure OpenAI options via `providerOptions['azure-openai']`. Options under
+any other key, including `openai`, are ignored.
+
+Root Azure v1 models accept the OpenAI Responses fields:
 
 ```typescript
 await generate({
     model: azure.chatModel('gpt-5-mini-deployment'),
     messages: [{ role: 'user', content: 'Hello!' }],
     providerOptions: {
-        openai: {
+        'azure-openai': {
             store: false,
             serviceTier: 'auto',
         },
@@ -269,14 +270,14 @@ await generate({
 });
 ```
 
-Nested and classic models use Chat Completions options:
+Nested and classic models accept the OpenAI Chat Completions fields:
 
 ```typescript
 await generate({
     model: azure.chat.chatModel('gpt-5-mini-deployment'),
     messages: [{ role: 'user', content: 'Hello!' }],
     providerOptions: {
-        openai: {
+        'azure-openai': {
             seed: 42,
         },
     },

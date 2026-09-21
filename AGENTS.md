@@ -83,6 +83,7 @@ The other seven are thin wrappers: `azure-openai`, `omnifact`, `openai-compat`, 
 
 - Part `metadata` is application-owned: adapters must ignore it and never serialize it to provider APIs.
 - `providerMetadata` on reasoning parts is namespaced by provider key (`openai` vs `azure-openai` are distinct); adapters downgrade foreign reasoning blocks to plain text instead of forwarding opaque metadata.
+- `providerOptions` are keyed by the provider id (`model.provider`) — wrappers own their key (`azure-openai`, `openai-compat`, `omnifact`, `kimi`, `xai`) even when they reuse another provider's option schema, and ignore every other key.
 - Usage normalization: `inputTokens` always includes cache reads/writes; `outputTokens` includes reasoning tokens.
 
 ### Supporting packages
