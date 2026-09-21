@@ -8,12 +8,12 @@ import type {
     ImageGenerateResult,
     ImageModel,
 } from '@core-ai/core-ai';
-import { wrapGoogleError } from './google-error.js';
+import { wrapGoogleError } from './google-error.ts';
 import {
     parseGoogleImageProviderOptions,
     type GoogleImageProviderOptions,
-} from './provider-options.js';
-import type { GoogleGenAIClient } from './provider.js';
+} from './provider-options.ts';
+import type { GoogleGenAIClient } from './provider.ts';
 
 export function createGoogleGenAIImageModel(
     client: GoogleGenAIClient,

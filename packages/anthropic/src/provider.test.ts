@@ -7,8 +7,8 @@ import {
     ToolSchemaStrictnessError,
 } from '@core-ai/core-ai';
 
-import { createAnthropic, createAnthropicChatProvider } from './provider.js';
-import type { AnthropicChatClient } from './chat-model.js';
+import { createAnthropic, createAnthropicChatProvider } from './provider.ts';
+import type { AnthropicChatClient } from './chat-model.ts';
 
 describe('createAnthropic', () => {
     it('should expose chatModel factory only', () => {

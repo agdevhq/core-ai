@@ -1,6 +1,6 @@
-import type { OpenAIChatCompletionsCapabilities } from '../model-capabilities.js';
-import type { OpenAIStructuredOutputMode } from './structured-output.js';
-import type { OpenAIReasoningTokenAccounting } from './usage.js';
+import type { OpenAIChatCompletionsCapabilities } from '../model-capabilities.ts';
+import type { OpenAIStructuredOutputMode } from './structured-output.ts';
+import type { OpenAIReasoningTokenAccounting } from './usage.ts';
 
 export type OpenAIReasoningCompatibilityOptions = {
     requestField: 'reasoning_content' | 'reasoning';

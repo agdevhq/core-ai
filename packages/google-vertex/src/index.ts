@@ -1,9 +1,9 @@
-export { createGoogleVertex } from './provider.js';
+export { createGoogleVertex } from './provider.ts';
 export type {
     GoogleVertexProvider,
     GoogleVertexProviderOptions,
     GoogleVertexServiceAccountCredentials,
-} from './provider.js';
+} from './provider.ts';
 export {
     getGoogleModelCapabilities,
     googleEmbedProviderOptionsSchema,

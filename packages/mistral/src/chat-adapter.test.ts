@@ -24,8 +24,8 @@ import {
     getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
-} from './chat-adapter.js';
-import { getMistralModelCapabilities } from './model-capabilities.js';
+} from './chat-adapter.ts';
+import { getMistralModelCapabilities } from './model-capabilities.ts';
 
 describe('convertMessages', () => {
     it('should convert system and user text messages', () => {

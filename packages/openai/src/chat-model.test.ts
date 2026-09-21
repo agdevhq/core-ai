@@ -16,8 +16,8 @@ import {
     StructuredOutputValidationError,
     resultToMessage,
 } from '@core-ai/core-ai';
-import { createOpenAIChatModel as createModel } from './chat-model.js';
-import { getOpenAIModelCapabilities } from './model-capabilities.js';
+import { createOpenAIChatModel as createModel } from './chat-model.ts';
+import { getOpenAIModelCapabilities } from './model-capabilities.ts';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 function createOpenAIChatModel(

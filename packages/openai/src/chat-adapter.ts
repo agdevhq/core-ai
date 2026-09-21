@@ -33,19 +33,19 @@ import {
     getOpenAIModelCapabilities,
     toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
-} from './model-capabilities.js';
-import { convertResponseTools, convertToolChoice } from './shared/tools.js';
-import type { OpenAIRequestOptions } from './shared/structured-output.js';
+} from './model-capabilities.ts';
+import { convertResponseTools, convertToolChoice } from './shared/tools.ts';
+import type { OpenAIRequestOptions } from './shared/structured-output.ts';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
     validateReasoningConfig,
-} from './shared/utils.js';
+} from './shared/utils.ts';
 import {
     parseOpenAIResponsesGenerateProviderOptions,
     type OpenAIResponsesGenerateProviderOptions,
     type OpenAIResponsesGenerateProviderOptionsConfig,
-} from './provider-options.js';
+} from './provider-options.ts';
 
 export { validateOpenAIReasoningConfig };
 

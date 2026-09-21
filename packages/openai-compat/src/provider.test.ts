@@ -4,7 +4,7 @@ import { z } from 'zod';
 import {
     createOpenAICompat,
     type OpenAICompatProviderOptions,
-} from './provider.js';
+} from './provider.ts';
 
 describe('createOpenAICompat', () => {
     it('should expose only compatibility-enabled Chat Completions models', async () => {

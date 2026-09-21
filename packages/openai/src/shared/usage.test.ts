@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { normalizeOutputTokens } from './usage.js';
+import { normalizeOutputTokens } from './usage.ts';
 
 describe('normalizeOutputTokens', () => {
     it('should return output tokens unchanged when reasoning is already included', () => {

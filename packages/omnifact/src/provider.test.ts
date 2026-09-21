@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderError } from '@core-ai/core-ai';
-import { createOmnifact } from './provider.js';
+import { createOmnifact } from './provider.ts';
 
 const { chatCreate } = vi.hoisted(() => ({ chatCreate: vi.fn() }));
 

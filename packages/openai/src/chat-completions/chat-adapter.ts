@@ -27,25 +27,25 @@ import {
     getOpenAIModelCapabilities,
     type OpenAIChatCompletionsCapabilities,
     toOpenAIReasoningEffort,
-} from '../model-capabilities.js';
-import { convertToolChoice, convertTools } from '../shared/tools.js';
-import type { OpenAIResolvedReasoningCompatibilityOptions } from '../shared/compatibility-options.js';
-import type { OpenAIRequestOptions } from '../shared/structured-output.js';
+} from '../model-capabilities.ts';
+import { convertToolChoice, convertTools } from '../shared/tools.ts';
+import type { OpenAIResolvedReasoningCompatibilityOptions } from '../shared/compatibility-options.ts';
+import type { OpenAIRequestOptions } from '../shared/structured-output.ts';
 import {
     normalizeOutputTokens,
     type OpenAIReasoningTokenAccounting,
-} from '../shared/usage.js';
+} from '../shared/usage.ts';
 import {
     safeParseJsonObject,
     validateOpenAIReasoningConfig,
     validateReasoningConfig,
-} from '../shared/utils.js';
+} from '../shared/utils.ts';
 import {
     parseOpenAIChatGenerateProviderOptions,
     type OpenAIChatGenerateProviderOptions,
     type OpenAIChatGenerateProviderOptionsConfig,
-} from '../provider-options.js';
-import { extractCompatibleReasoningText } from './compatibility.js';
+} from '../provider-options.ts';
+import { extractCompatibleReasoningText } from './compatibility.ts';
 
 export type OpenAIChatCompletionsAdapterOptions = {
     capabilities?: ModelCapabilities;

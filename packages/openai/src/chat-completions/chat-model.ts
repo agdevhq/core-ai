@@ -24,16 +24,16 @@ import {
     mapGenerateResponse,
     type OpenAIChatCompletionsAdapterOptions,
     transformStream,
-} from './chat-adapter.js';
-import { wrapOpenAIError } from '../openai-error.js';
-import type { OpenAIResolvedCompatibilityOptions } from '../shared/compatibility-options.js';
+} from './chat-adapter.ts';
+import { wrapOpenAIError } from '../openai-error.ts';
+import type { OpenAIResolvedCompatibilityOptions } from '../shared/compatibility-options.ts';
 import {
     createStructuredOutputRequestOptions,
     extractStructuredObject,
     getStructuredOutputName,
     transformStructuredOutputStream,
     type OpenAIRequestOptions,
-} from '../shared/structured-output.js';
+} from '../shared/structured-output.ts';
 
 export type OpenAIChatClient = {
     chat: OpenAI['chat'];

@@ -1,9 +1,9 @@
 import { GoogleGenAI } from '@google/genai';
 import type { ChatModel, EmbeddingModel, ImageModel } from '@core-ai/core-ai';
-import { DEFAULT_PROVIDER_ID } from './chat-adapter.js';
-import { createGoogleGenAIChatModel } from './chat-model.js';
-import { createGoogleGenAIEmbeddingModel } from './embedding-model.js';
-import { createGoogleGenAIImageModel } from './image-model.js';
+import { DEFAULT_PROVIDER_ID } from './chat-adapter.ts';
+import { createGoogleGenAIChatModel } from './chat-model.ts';
+import { createGoogleGenAIEmbeddingModel } from './embedding-model.ts';
+import { createGoogleGenAIImageModel } from './image-model.ts';
 
 export { DEFAULT_PROVIDER_ID };
 

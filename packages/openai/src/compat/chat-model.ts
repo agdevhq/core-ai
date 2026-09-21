@@ -1,8 +1,8 @@
 import {
     createOpenAIChatCompletionsModel,
     type OpenAIChatClient,
-} from '../chat-completions/chat-model.js';
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+} from '../chat-completions/chat-model.ts';
+import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
 
 export type { OpenAIChatClient };
 

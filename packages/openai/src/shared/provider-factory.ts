@@ -8,29 +8,29 @@ import {
     type ModelCapabilitiesRegistry,
 } from '@core-ai/core-ai';
 
-import { createOpenAIChatCompletionsModel } from '../chat-completions/chat-model.js';
-import { createOpenAIChatModel } from '../chat-model.js';
-import { createOpenAIEmbeddingModel } from '../embedding-model.js';
-import { createOpenAIImageModel } from '../image-model.js';
+import { createOpenAIChatCompletionsModel } from '../chat-completions/chat-model.ts';
+import { createOpenAIChatModel } from '../chat-model.ts';
+import { createOpenAIEmbeddingModel } from '../embedding-model.ts';
+import { createOpenAIImageModel } from '../image-model.ts';
 import {
     getOpenAIModelCapabilities,
     toOpenAIResponsesCapabilities,
-} from '../model-capabilities.js';
+} from '../model-capabilities.ts';
 import {
     openaiChatGenerateProviderOptionsSchema,
     openaiResponsesGenerateProviderOptionsSchema,
     type OpenAIChatGenerateProviderOptionsConfig,
     type OpenAIResponsesGenerateProviderOptionsConfig,
-} from '../provider-options.js';
+} from '../provider-options.ts';
 import type {
     OpenAICompatibility,
     OpenAIResolvedCompatibilityOptions,
-} from './compatibility-options.js';
+} from './compatibility-options.ts';
 
 export type {
     OpenAICompatibility,
     OpenAICompatibilityOptions,
-} from './compatibility-options.js';
+} from './compatibility-options.ts';
 
 export type OpenAIProviderBaseOptions = {
     apiKey?: string;

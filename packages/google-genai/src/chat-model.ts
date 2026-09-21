@@ -24,10 +24,10 @@ import {
     getStructuredOutputToolName,
     mapGenerateResponse,
     transformStream,
-} from './chat-adapter.js';
-import { wrapGoogleError } from './google-error.js';
-import { getGoogleModelCapabilities } from './model-capabilities.js';
-import type { GoogleGenAIClient } from './provider.js';
+} from './chat-adapter.ts';
+import { wrapGoogleError } from './google-error.ts';
+import { getGoogleModelCapabilities } from './model-capabilities.ts';
+import type { GoogleGenAIClient } from './provider.ts';
 
 export function createGoogleGenAIChatModel(
     client: GoogleGenAIClient,

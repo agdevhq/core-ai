@@ -23,16 +23,16 @@ import {
     DEFAULT_PROVIDER_ID,
     mapGenerateResponse,
     transformStream,
-} from './chat-adapter.js';
-import { wrapOpenAIError } from './openai-error.js';
-import type { OpenAIResponsesGenerateProviderOptionsConfig } from './provider-options.js';
+} from './chat-adapter.ts';
+import { wrapOpenAIError } from './openai-error.ts';
+import type { OpenAIResponsesGenerateProviderOptionsConfig } from './provider-options.ts';
 import {
     createStructuredOutputRequestOptions,
     extractStructuredObject,
     getStructuredOutputName,
     transformStructuredOutputStream,
     type OpenAIRequestOptions,
-} from './shared/structured-output.js';
+} from './shared/structured-output.ts';
 
 type OpenAIChatClient = {
     responses: OpenAI['responses'];

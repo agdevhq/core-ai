@@ -13,8 +13,8 @@ import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
-import { createAnthropicChatModel } from './chat-model.js';
-import { getAnthropicModelCapabilities } from './model-capabilities.js';
+import { createAnthropicChatModel } from './chat-model.ts';
+import { getAnthropicModelCapabilities } from './model-capabilities.ts';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createAnthropicChatModel', () => {

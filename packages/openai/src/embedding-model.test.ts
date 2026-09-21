@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import type OpenAI from 'openai';
-import { createOpenAIEmbeddingModel } from './embedding-model.js';
+import { createOpenAIEmbeddingModel } from './embedding-model.ts';
 
 describe('createOpenAIEmbeddingModel', () => {
     it('should embed a single string', async () => {

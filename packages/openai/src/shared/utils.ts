@@ -1,7 +1,7 @@
 import type { GenerateOptions, ModelCapabilities } from '@core-ai/core-ai';
 import { ValidationError } from '@core-ai/core-ai';
 
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
 
 export function safeParseJsonObject(json: string): Record<string, unknown> {
     try {

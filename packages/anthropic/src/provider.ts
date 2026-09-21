@@ -1,11 +1,11 @@
 import Anthropic from '@anthropic-ai/sdk';
 import type { ChatModel } from '@core-ai/core-ai';
 
-import { DEFAULT_PROVIDER_ID } from './chat-adapter.js';
+import { DEFAULT_PROVIDER_ID } from './chat-adapter.ts';
 import {
     createAnthropicChatModel,
     type AnthropicChatClient,
-} from './chat-model.js';
+} from './chat-model.ts';
 
 export type { AnthropicChatClient };
 

@@ -3,13 +3,13 @@ import type { ChatModel } from '@core-ai/core-ai';
 import {
     createOpenAIChatCompletionsModel,
     type OpenAIChatClient,
-} from '../chat-completions/chat-model.js';
+} from '../chat-completions/chat-model.ts';
 import {
     createOpenAIProvider,
     type OpenAIProvider,
     type OpenAIProviderBaseOptions,
-} from '../shared/provider-factory.js';
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+} from '../shared/provider-factory.ts';
+import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
 
 export type OpenAICompatProviderOptions = OpenAIProviderBaseOptions;
 export type OpenAICompatProvider = OpenAIProvider;

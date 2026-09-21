@@ -1,14 +1,14 @@
-export { createGoogleGenAI, createGoogleGenAIProvider } from './provider.js';
+export { createGoogleGenAI, createGoogleGenAIProvider } from './provider.ts';
 export type {
     GoogleGenAIClient,
     GoogleGenAIProvider,
     GoogleGenAIProviderBaseOptions,
     GoogleGenAIProviderFactoryOptions,
     GoogleGenAIProviderOptions,
-} from './provider.js';
-export type { GoogleReasoningMetadata } from './chat-adapter.js';
-export type { GoogleModelCapabilities } from './model-capabilities.js';
-export { getGoogleModelCapabilities } from './model-capabilities.js';
+} from './provider.ts';
+export type { GoogleReasoningMetadata } from './chat-adapter.ts';
+export type { GoogleModelCapabilities } from './model-capabilities.ts';
+export { getGoogleModelCapabilities } from './model-capabilities.ts';
 export {
     googleGenerateProviderOptionsSchema,
     googleEmbedProviderOptionsSchema,
@@ -18,4 +18,4 @@ export {
     type GoogleEmbedProviderOptions,
     type GoogleImageProviderOptions,
     type GoogleProviderOptions as GoogleModelProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';

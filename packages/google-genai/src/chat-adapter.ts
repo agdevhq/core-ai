@@ -35,12 +35,12 @@ import {
     toGoogleThinkingBudget,
     toGoogleThinkingLevel,
     type GoogleModelCapabilities,
-} from './model-capabilities.js';
-import { asObject } from './object-utils.js';
+} from './model-capabilities.ts';
+import { asObject } from './object-utils.ts';
 import {
     parseGoogleGenerateProviderOptions,
     type GoogleGenerateProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';
 
 /**
  * Thought signature Google attaches under the `google` provider metadata key.

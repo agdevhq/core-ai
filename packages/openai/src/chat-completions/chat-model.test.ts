@@ -19,8 +19,8 @@ import {
     createOpenAIChatCompletionsModel as createModel,
     type OpenAIChatClient,
     type OpenAIChatCompletionsModelOptions,
-} from './chat-model.js';
-import { getOpenAIModelCapabilities } from '../model-capabilities.js';
+} from './chat-model.ts';
+import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 function createOpenAIChatCompletionsModel(

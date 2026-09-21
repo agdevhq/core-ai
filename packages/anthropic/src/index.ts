@@ -1,4 +1,4 @@
-export { createAnthropic, createAnthropicChatProvider } from './provider.js';
+export { createAnthropic, createAnthropicChatProvider } from './provider.ts';
 export type {
     AnthropicChatClient,
     AnthropicChatProvider,
@@ -6,10 +6,10 @@ export type {
     AnthropicChatProviderOptions,
     AnthropicProvider,
     AnthropicProviderOptions,
-} from './provider.js';
-export type { AnthropicReasoningMetadata } from './chat-adapter.js';
-export type { AnthropicModelCapabilities } from './model-capabilities.js';
-export { getAnthropicModelCapabilities } from './model-capabilities.js';
+} from './provider.ts';
+export type { AnthropicReasoningMetadata } from './chat-adapter.ts';
+export type { AnthropicModelCapabilities } from './model-capabilities.ts';
+export { getAnthropicModelCapabilities } from './model-capabilities.ts';
 export {
     anthropicCacheControlSchema,
     anthropicGenerateProviderOptionsSchema,
@@ -17,4 +17,4 @@ export {
     type AnthropicCacheControl,
     type AnthropicGenerateProviderOptions,
     type AnthropicProviderOptions as AnthropicModelProviderOptions,
-} from './provider-options.js';
+} from './provider-options.ts';

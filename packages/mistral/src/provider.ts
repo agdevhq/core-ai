@@ -1,7 +1,7 @@
 import { Mistral } from '@mistralai/mistralai';
 import type { ChatModel, EmbeddingModel } from '@core-ai/core-ai';
-import { createMistralChatModel } from './chat-model.js';
-import { createMistralEmbeddingModel } from './embedding-model.js';
+import { createMistralChatModel } from './chat-model.ts';
+import { createMistralEmbeddingModel } from './embedding-model.ts';
 
 export type MistralProviderOptions = {
     apiKey?: string;

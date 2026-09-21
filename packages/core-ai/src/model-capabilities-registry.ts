@@ -1,5 +1,5 @@
-import { stripModelDateSuffix } from './model-id.js';
-import type { ModelCapabilities } from './types.js';
+import { stripModelDateSuffix } from './model-id.ts';
+import type { ModelCapabilities } from './types.ts';
 
 export const UNKNOWN_MODEL = Symbol('unknown-model');
 

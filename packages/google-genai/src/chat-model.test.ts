@@ -12,8 +12,8 @@ import {
     StructuredOutputValidationError,
     ToolSchemaStrictnessError,
 } from '@core-ai/core-ai';
-import { createGoogleGenAIChatModel } from './chat-model.js';
-import { getGoogleModelCapabilities } from './model-capabilities.js';
+import { createGoogleGenAIChatModel } from './chat-model.ts';
+import { getGoogleModelCapabilities } from './model-capabilities.ts';
 import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createGoogleGenAIChatModel', () => {

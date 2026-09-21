@@ -22,10 +22,10 @@ import {
     mapGenerateResponse,
     transformStream,
     validateOpenAIReasoningConfig,
-} from './chat-adapter.js';
-import { getOpenAIModelCapabilities } from './model-capabilities.js';
-import { openaiResponsesGenerateProviderOptionsSchema } from './provider-options.js';
-import { wrapOpenAIError } from './openai-error.js';
+} from './chat-adapter.ts';
+import { getOpenAIModelCapabilities } from './model-capabilities.ts';
+import { openaiResponsesGenerateProviderOptionsSchema } from './provider-options.ts';
+import { wrapOpenAIError } from './openai-error.ts';
 import { toAsyncIterable } from '@core-ai/testing';
 
 const IMAGE_MESSAGES: Message[] = [

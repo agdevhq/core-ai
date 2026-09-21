@@ -1,7 +1,7 @@
 import type OpenAI from 'openai';
 import { describe, expect, it, vi } from 'vitest';
-import { createOpenAICompatChatModel } from './chat-model.js';
-import { createOpenAICompat } from './provider.js';
+import { createOpenAICompatChatModel } from './chat-model.ts';
+import { createOpenAICompat } from './provider.ts';
 
 describe('createOpenAICompat', () => {
     it('should create a client when one is not provided', () => {

@@ -4,8 +4,8 @@ import {
     getRegisteredModelCapabilities,
     UNKNOWN_MODEL,
     type ModelCapabilitiesRegistry,
-} from './model-capabilities-registry.js';
-import type { ModelCapabilities } from './types.js';
+} from './model-capabilities-registry.ts';
+import type { ModelCapabilities } from './types.ts';
 import {
     MULTIMODAL_INPUT_MODALITIES,
     UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
