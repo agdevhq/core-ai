@@ -1,5 +1,17 @@
 # @core-ai/omnifact
 
+## 0.26.0
+
+### Minor Changes
+
+- a62f6ec: **Breaking:** provider options are now read from `providerOptions.omnifact`. Options under `providerOptions.openai` are silently ignored for Omnifact models — move them to the `omnifact` key. The accepted fields are unchanged and typed via the new `OmnifactGenerateProviderOptions` export.
+
+### Patch Changes
+
+- Updated dependencies [8d0c48a]
+    - @core-ai/openai@0.26.0
+    - @core-ai/core-ai@0.26.0
+
 ## 0.25.0
 
 ### Minor Changes
