@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
+    isAnthropicThinkingAlwaysOn,
     normalizeModelId,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
@@ -19,6 +20,7 @@ describe('normalizeModelId', () => {
         expect(normalizeModelId('claude-haiku-4-5@20251001')).toBe(
             'claude-haiku-4-5'
         );
+        expect(normalizeModelId('claude-opus-5-5')).toBe('claude-opus-5-5');
     });
 });
 
@@ -43,6 +45,23 @@ describe('getAnthropicModelCapabilities', () => {
         });
         expect(getAnthropicThinkingMode(modelId)).toBe('adaptive');
         expect(supportsAnthropicMaxEffort(modelId)).toBe(true);
+        expect(isAnthropicThinkingAlwaysOn(modelId)).toBe(false);
+    });
+
+    it('should resolve always-on adaptive thinking for claude-opus-5-5', () => {
+        const capabilities = getAnthropicModelCapabilities('claude-opus-5-5');
+        expect(capabilities.reasoning).toEqual({
+            mode: 'always-on',
+            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
+            restrictsSamplingParams: true,
+            supportedToolChoices: ['auto', 'none'],
+        });
+        expect(getAnthropicThinkingMode('claude-opus-5-5')).toBe('adaptive');
+        expect(supportsAnthropicMaxEffort('claude-opus-5-5')).toBe(true);
+        expect(isAnthropicThinkingAlwaysOn('claude-opus-5-5')).toBe(true);
+        expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5-5')).toBe(
+            true
+        );
     });
 
     it('should resolve manual thinking capabilities', () => {
@@ -98,6 +117,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-fable-5',
         'claude-mythos-5',
         'claude-mythos-preview',
+        'claude-opus-5-5',
         'claude-opus-5',
         'claude-opus-4-8',
         'claude-opus-4-7',
@@ -163,6 +183,9 @@ describe('interleaved thinking beta', () => {
 
 describe('sampling restrictions', () => {
     it('should identify models that always reject non-default sampling', () => {
+        expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5-5')).toBe(
+            true
+        );
         expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5')).toBe(
             true
         );

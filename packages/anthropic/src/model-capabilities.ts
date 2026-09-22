@@ -28,11 +28,12 @@ const MAX_EFFORTS = [
 
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
-    supportsStrictToolSchemas: boolean
+    supportsStrictToolSchemas: boolean,
+    reasoningMode: 'optional' | 'always-on'
 ): AnthropicModelCapabilities {
     return {
         reasoning: {
-            mode: 'optional',
+            mode: reasoningMode,
             supportedEfforts,
             restrictsSamplingParams: true,
             supportedToolChoices: ['auto', 'none'],
@@ -57,6 +58,7 @@ const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
     'claude-fable-5',
     'claude-mythos-5',
     'claude-mythos-preview',
+    'claude-opus-5-5',
     'claude-opus-5',
     'claude-opus-4-8',
     'claude-opus-4-7',
@@ -107,10 +109,13 @@ const MANUAL_INTERLEAVED_THINKING_MODELS = new Set([
     'claude-sonnet-4',
 ]);
 
+const ALWAYS_ON_THINKING_MODELS = new Set(['claude-opus-5-5']);
+
 const ALWAYS_RESTRICTED_SAMPLING_MODELS = new Set([
     'claude-fable-5',
     'claude-mythos-5',
     'claude-mythos-preview',
+    'claude-opus-5-5',
     'claude-opus-5',
     'claude-opus-4-8',
     'claude-opus-4-7',
@@ -146,7 +151,8 @@ export function getAnthropicModelCapabilities(
 
     return createCapabilities(
         supportedEfforts,
-        supportsAnthropicStrictToolSchemas(modelId)
+        supportsAnthropicStrictToolSchemas(modelId),
+        isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional'
     );
 }
 
@@ -164,6 +170,10 @@ export function getAnthropicThinkingMode(
 
 export function supportsAnthropicMaxEffort(modelId: string): boolean {
     return ADAPTIVE_MAX_EFFORT_MODELS.has(normalizeModelId(modelId));
+}
+
+export function isAnthropicThinkingAlwaysOn(modelId: string): boolean {
+    return ALWAYS_ON_THINKING_MODELS.has(normalizeModelId(modelId));
 }
 
 export function supportsAnthropicStrictToolSchemas(modelId: string): boolean {
