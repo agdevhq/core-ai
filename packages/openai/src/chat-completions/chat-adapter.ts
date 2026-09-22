@@ -277,10 +277,6 @@ function createRequestBase(
         getOpenAIModelCapabilities(modelId).chatCompletions.functionCalling;
     const usingTools =
         options.tools !== undefined && Object.keys(options.tools).length > 0;
-    const disableReasoningForTools =
-        usingTools &&
-        functionCalling === 'none-only' &&
-        options.reasoning === undefined;
 
     if (usingTools && functionCalling === 'unsupported') {
         throw new ValidationError(
@@ -290,40 +286,18 @@ function createRequestBase(
         );
     }
 
-    if (
-        usingTools &&
-        functionCalling === 'none-only' &&
-        options.reasoning !== undefined
-    ) {
-        throw new ValidationError(
-            `${adapterOptions.providerId} model "${modelId}" supports Chat Completions function calling only when reasoning is disabled. Omit reasoning or use the Responses API to combine tools with reasoning`,
-            undefined,
-            adapterOptions.providerId
-        );
-    }
-
-    if (!disableReasoningForTools) {
-        validateReasoningConfig(
-            modelId,
-            options,
-            adapterOptions.capabilities,
-            adapterOptions.providerId
-        );
-    }
+    validateReasoningConfig(
+        modelId,
+        options,
+        adapterOptions.capabilities,
+        adapterOptions.providerId
+    );
     validateInputModalities({
         messages: options.messages,
         capabilities: adapterOptions.capabilities,
         modelId,
         providerId: adapterOptions.providerId,
     });
-
-    const reasoningFields = disableReasoningForTools
-        ? { reasoning_effort: 'none' as const }
-        : mapReasoningToRequestFields(
-              modelId,
-              options,
-              adapterOptions.capabilities
-          );
 
     return {
         model: modelId,
@@ -340,7 +314,11 @@ function createRequestBase(
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...reasoningFields,
+        ...mapReasoningToRequestFields(
+            modelId,
+            options,
+            adapterOptions.capabilities
+        ),
         ...mapSamplingToRequestFields(modelId, options, adapterOptions),
     };
 }
