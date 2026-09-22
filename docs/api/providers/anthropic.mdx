@@ -310,9 +310,9 @@ const result = await generate({
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
     `claude-opus-5-5`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7`,
     `claude-opus-4-6`, `claude-sonnet-5`, and `claude-sonnet-4-6` support
-    `'max'` effort directly. On `claude-opus-5-5`, thinking cannot be disabled:
-    omit `reasoning` to use the API default effort of `medium`, or pass
-    `reasoning.effort` to choose a level. `thinking` is sent as `adaptive`.
+    `'max'` effort directly. On `claude-opus-5-5`, thinking cannot be disabled.
+    Omit `reasoning` to use the API default effort of `medium`, or pass
+    `reasoning.effort` to send adaptive thinking at that level.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)

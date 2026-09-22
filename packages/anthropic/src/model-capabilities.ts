@@ -109,10 +109,6 @@ const MANUAL_INTERLEAVED_THINKING_MODELS = new Set([
     'claude-sonnet-4',
 ]);
 
-/**
- * Thinking cannot be turned off. Forced tool choice is rejected on every
- * request, including ones that omit `reasoning`.
- */
 const ALWAYS_ON_THINKING_MODELS = new Set(['claude-opus-5-5']);
 
 const ALWAYS_RESTRICTED_SAMPLING_MODELS = new Set([
