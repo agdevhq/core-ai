@@ -1,5 +1,13 @@
 # @core-ai/azure-openai
 
+## 0.27.1
+
+### Patch Changes
+
+- Updated dependencies [45957a2]
+    - @core-ai/openai@0.27.1
+    - @core-ai/core-ai@0.27.1
+
 ## 0.27.0
 
 ### Patch Changes
