@@ -554,7 +554,10 @@ function validateAnthropicReasoningConfig(
         );
     }
 
-    if (!options.reasoning) {
+    const reasoningActive =
+        options.reasoning !== undefined ||
+        capabilities.reasoning.mode === 'always-on';
+    if (!reasoningActive) {
         return;
     }
 

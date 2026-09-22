@@ -691,6 +691,45 @@ describe('reasoning support', () => {
             reasoning: { effort: 'max' },
         });
         expect(clamped).toHaveProperty('output_config.effort', 'high');
+
+        const opus55 = createGenerateRequest('claude-opus-5-5', 4096, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(opus55).toMatchObject({
+            thinking: { type: 'adaptive', display: 'summarized' },
+            output_config: { effort: 'max' },
+        });
+    });
+
+    it('should reject forced tool choice on always-on thinking models', () => {
+        expect(() =>
+            createGenerateRequest('claude-opus-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'required',
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-opus-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: { type: 'tool', toolName: 'search' },
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-opus-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'auto',
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createGenerateRequest('claude-opus-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'required',
+            })
+        ).not.toThrow();
     });
 
     it('should include cache_control when cacheControl provider option is set', () => {
@@ -850,6 +889,13 @@ describe('reasoning support', () => {
     });
 
     it('should reject non-default sampling for newer models without explicit reasoning', () => {
+        expect(() =>
+            createGenerateRequest('claude-opus-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
         expect(() =>
             createGenerateRequest('claude-sonnet-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
