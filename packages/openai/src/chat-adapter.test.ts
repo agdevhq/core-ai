@@ -11,6 +11,7 @@ import {
     ServiceUnavailableError,
     UnsupportedInputModalityError,
     ValidationError,
+    defineTool,
     type GenerateOptions,
     type Message,
     type StreamEvent,
@@ -714,6 +715,59 @@ describe('createGenerateRequest', () => {
             effort: 'high',
             summary: 'auto',
         });
+    });
+
+    it('should request encrypted reasoning for GPT-6 without an effort override', () => {
+        const request = createGenerateRequest('gpt-6-sol', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: {
+                search: defineTool({
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({ query: z.string() }),
+                }),
+            },
+        });
+
+        expect(request.reasoning).toBeUndefined();
+        expect(request.include).toEqual(['reasoning.encrypted_content']);
+        expect(request.tools).toHaveLength(1);
+    });
+
+    it('should send max effort and clamp minimal for GPT-6', () => {
+        const maxRequest = createGenerateRequest('gpt-6-astra', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(maxRequest.reasoning).toEqual({
+            effort: 'max',
+            summary: 'auto',
+        });
+
+        const clamped = createGenerateRequest('gpt-6-luna', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+        expect(clamped.reasoning).toEqual({
+            effort: 'low',
+            summary: 'auto',
+        });
+    });
+
+    it('should reject sampling params for GPT-6 even when reasoning is omitted', () => {
+        expect(() =>
+            createGenerateRequest('gpt-6-astra', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.2,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('gpt-6-luna', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 0.9,
+            })
+        ).toThrowError(ValidationError);
     });
 
     it('should reject images for models without image input', () => {

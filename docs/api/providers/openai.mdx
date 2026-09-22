@@ -94,6 +94,14 @@ const imageGen = openai.imageModel('gpt-image-1');
 ### Chat models
 
 <AccordionGroup>
+  <Accordion title="GPT-6 Series" icon="star">
+    <ul>
+      <li><strong>gpt-6-astra</strong> - Flagship model for the hardest reasoning, coding, and computer-use work</li>
+      <li><strong>gpt-6-sol</strong> - Strong reasoning model for demanding coding and agentic workflows</li>
+      <li><strong>gpt-6-luna</strong> - Efficient model for focused, high-volume tasks</li>
+    </ul>
+  </Accordion>
+
   <Accordion title="GPT-5 Series" icon="star">
     <ul>
       <li><strong>gpt-5.6-sol</strong> - Flagship model with max reasoning effort for complex agentic work</li>
@@ -306,10 +314,12 @@ if (model.capabilities.reasoning.mode !== 'unsupported') {
 const capabilities = getOpenAIModelCapabilities('gpt-5.2');
 ```
 
-OpenAI reasoning is not always on. `supportedEfforts` lists the accepted effort
-levels, and `supportedToolChoices` contains all unified tool-choice modes.
-`restrictsSamplingParams` identifies models that reject `temperature` and
-`topP` while reasoning is enabled.
+`reasoning.mode` is `always-on` for `gpt-6-astra`, `gpt-6-sol`, and
+`gpt-6-luna`. Those models reason unless a Chat Completions request explicitly
+disables reasoning. Other OpenAI chat models are `optional` or `unsupported`.
+`supportedEfforts` lists the accepted effort levels, and `supportedToolChoices`
+contains all unified tool-choice modes. `restrictsSamplingParams` identifies
+models that reject `temperature` and `topP` while reasoning is enabled.
 
 OpenAI extends the shared capability shape with
 `chatCompletions.maxTokensParameter`. The Chat Completions adapter uses this to
@@ -317,8 +327,8 @@ select `max_tokens` or `max_completion_tokens`; the Responses API is unaffected.
 
 ### Image input
 
-`modalities.input` is `['text', 'image', 'file']` for the GPT-4 and GPT-5
-families, `o1`, `o3`, `o3-pro`, and `o4-mini` (image sources: `base64` and
+`modalities.input` is `['text', 'image', 'file']` for the GPT-4, GPT-5, and
+GPT-6 families, `o1`, `o3`, `o3-pro`, and `o4-mini` (image sources: `base64` and
 `url`). It is `['text']` for `gpt-3.5-turbo`, `o1-mini`, and `o3-mini`. Model
 IDs outside the registry allow image and file input but do not advertise audio.
 `modalities.output` is `['text']` for all chat models.
@@ -365,6 +375,7 @@ Reasoning support depends on the selected model family:
 
 | Models                                                                                                           | Supported effort levels            |
 | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`                                                                         | `low`, `medium`, `high`, `max`     |
 | `gpt-5.6-sol`                                                                                                    | `low`, `medium`, `high`, `max`     |
 | `gpt-5.6-terra`                                                                                                  | `low`, `medium`, `high`            |
 | `gpt-5.6-luna`                                                                                                   | `minimal`, `low`, `medium`, `high` |
@@ -378,10 +389,24 @@ Reasoning support depends on the selected model family:
 | `o1-mini`                                                                                                        | No effort control                  |
 
 <Warning>
-    When `capabilities.reasoning.restrictsSamplingParams` is `true` (GPT-5
-    family models), the adapter throws if you set `temperature` or `topP` while
-    reasoning is enabled.
+    When `capabilities.reasoning.restrictsSamplingParams` is `true`, the adapter
+    throws if you set `temperature` or `topP` while reasoning is enabled. GPT-6
+    models reason by default, so those parameters are rejected even when you
+    omit `reasoning`.
 </Warning>
+
+<Note>
+    For GPT-6, `max` is sent as `max`. For GPT-5 and o-series models, `max` is
+    sent as `xhigh`. `minimal` on GPT-6 is clamped to `low`.
+
+    GPT-6 Astra does not support tool calling on Chat Completions. Use
+    `chatModel()` (the Responses API). GPT-6 Sol and Luna accept Chat
+    Completions function calling only when reasoning is disabled. If you pass
+    tools and omit `reasoning`, the Chat Completions adapter sends
+    `reasoning_effort: "none"` and then allows `temperature` and `topP`.
+    Combining tools with `reasoning` on Chat Completions throws. Use the
+    Responses API to keep reasoning alongside tools.
+</Note>
 
 ### Reasoning metadata
 
