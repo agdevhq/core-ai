@@ -46,7 +46,7 @@ describe('getOpenAIModelCapabilities', () => {
     });
 
     it.each(['gpt-6-sol', 'gpt-6-luna'])(
-        'should return always-on capabilities with none-only Chat Completions tools for %s',
+        'should return always-on capabilities with supported Chat Completions tools for %s',
         (modelId) => {
             const capabilities = getOpenAIModelCapabilities(modelId);
             expect(capabilities.reasoning.mode).toBe('always-on');
@@ -58,7 +58,7 @@ describe('getOpenAIModelCapabilities', () => {
             ]);
             expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
             expect(capabilities.chatCompletions.functionCalling).toBe(
-                'none-only'
+                'supported'
             );
             expect(capabilities.nativeMaxEffort).toBe(true);
         }
@@ -74,6 +74,7 @@ describe('getOpenAIModelCapabilities', () => {
             'max',
         ]);
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+        expect(capabilities.chatCompletions.functionCalling).toBe('supported');
         expect(capabilities.nativeMaxEffort).toBe(false);
     });
 

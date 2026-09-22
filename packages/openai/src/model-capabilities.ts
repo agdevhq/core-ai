@@ -14,13 +14,9 @@ import {
 /**
  * Chat Completions function-calling support for a model.
  *
- * `none-only` models accept function tools only when `reasoning_effort` is
- * `none`. `unsupported` models accept tools on the Responses API only.
+ * `unsupported` models accept tools on the Responses API only.
  */
-export type OpenAIChatCompletionsFunctionCalling =
-    | 'supported'
-    | 'none-only'
-    | 'unsupported';
+export type OpenAIChatCompletionsFunctionCalling = 'supported' | 'unsupported';
 
 export type OpenAIChatCompletionsCapabilities = {
     maxTokensParameter: 'max_tokens' | 'max_completion_tokens';
@@ -138,9 +134,9 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
     supportedEfforts: HIGH_EFFORT,
     restrictsSamplingParams: true,
 });
-// GPT-6 reasons unless the request sets effort to `none`. Astra has no `none`
-// and rejects Chat Completions tool calls. Sol and Luna accept Chat Completions
-// function calls only at effort `none`.
+// GPT-6 reasons by default. Astra rejects Chat Completions function tools.
+// Sol and Luna keep function calling supported, so the adapter forwards tools
+// and reasoning unchanged, the same as GPT-5.6.
 const GPT_6_EFFORTS = [
     'low',
     'medium',
@@ -158,7 +154,7 @@ const GPT_6_SOL_LUNA_CAPABILITIES = createCapabilities({
     supportedEfforts: GPT_6_EFFORTS,
     restrictsSamplingParams: true,
     reasoningMode: 'always-on',
-    functionCalling: 'none-only',
+    functionCalling: 'supported',
     nativeMaxEffort: true,
 });
 
@@ -296,7 +292,6 @@ const OPENAI_REASONING_EFFORT_MAP: Record<
 };
 
 type OpenAIReasoningEffort =
-    | 'none'
     | 'minimal'
     | 'low'
     | 'medium'
@@ -350,7 +345,7 @@ export function normalizeModelId(modelId: string): string {
 export function toOpenAIReasoningEffort(
     effort: ReasoningEffort,
     modelId?: string
-): Exclude<OpenAIReasoningEffort, 'none'> {
+): OpenAIReasoningEffort {
     if (
         effort === 'max' &&
         modelId !== undefined &&

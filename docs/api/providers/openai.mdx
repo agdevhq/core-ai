@@ -400,12 +400,11 @@ Reasoning support depends on the selected model family:
     sent as `xhigh`. `minimal` on GPT-6 is clamped to `low`.
 
     GPT-6 Astra does not support tool calling on Chat Completions. Use
-    `chatModel()` (the Responses API). GPT-6 Sol and Luna accept Chat
-    Completions function calling only when reasoning is disabled. If you pass
-    tools and omit `reasoning`, the Chat Completions adapter sends
-    `reasoning_effort: "none"` and then allows `temperature` and `topP`.
-    Combining tools with `reasoning` on Chat Completions throws. Use the
-    Responses API to keep reasoning alongside tools.
+    `chatModel()` (the Responses API). GPT-6 Sol and Luna support Chat
+    Completions function calling. The adapter forwards tools and `reasoning`
+    as you set them, the same as GPT-5.6. OpenAI accepts function tools on
+    these models only when the effective reasoning effort is `none`. Omitting
+    `reasoning` leaves the provider default, `medium`.
 </Note>
 
 ### Reasoning metadata
