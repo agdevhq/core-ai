@@ -1,5 +1,15 @@
 # @core-ai/anthropic
 
+## 0.27.0
+
+### Minor Changes
+
+- e6e897b: Add model capability support for `claude-opus-5-5`. Adaptive thinking is always on, `max` effort is supported, non-default sampling parameters are rejected, and forced tool choice is rejected on every request.
+
+### Patch Changes
+
+- @core-ai/core-ai@0.27.0
+
 ## 0.26.0
 
 ### Patch Changes

@@ -1,5 +1,12 @@
 # @core-ai/openai-compat
 
+## 0.27.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.27.0
+- @core-ai/openai@0.27.0
+
 ## 0.26.0
 
 ### Minor Changes
