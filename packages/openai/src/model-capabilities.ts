@@ -11,12 +11,29 @@ import {
     type ReasoningEffort,
 } from '@core-ai/core-ai';
 
+/**
+ * Chat Completions function-calling support for a model.
+ *
+ * `none-only` models accept function tools only when `reasoning_effort` is
+ * `none`. `unsupported` models accept tools on the Responses API only.
+ */
+export type OpenAIChatCompletionsFunctionCalling =
+    | 'supported'
+    | 'none-only'
+    | 'unsupported';
+
 export type OpenAIChatCompletionsCapabilities = {
     maxTokensParameter: 'max_tokens' | 'max_completion_tokens';
+    functionCalling: OpenAIChatCompletionsFunctionCalling;
 };
 
 export type OpenAIModelCapabilities = ModelCapabilities & {
     chatCompletions: OpenAIChatCompletionsCapabilities;
+    /**
+     * When true, core `max` is sent as OpenAI `max`. Otherwise it is sent as
+     * `xhigh`, which is the top effort on earlier reasoning models.
+     */
+    nativeMaxEffort: boolean;
 };
 
 const STANDARD_EFFORTS = [
@@ -54,6 +71,9 @@ type CapabilitiesConfig = {
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     modalities?: ModelCapabilities['modalities'];
     strictToolSchemas?: ModelCapabilities['tools']['strictSchemas'];
+    reasoningMode?: 'optional' | 'always-on';
+    functionCalling?: OpenAIChatCompletionsFunctionCalling;
+    nativeMaxEffort?: boolean;
 };
 
 function createCapabilities({
@@ -62,10 +82,13 @@ function createCapabilities({
     maxTokensParameter = 'max_completion_tokens',
     modalities = MULTIMODAL_INPUT_MODALITIES,
     strictToolSchemas = SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    reasoningMode = 'optional',
+    functionCalling = 'supported',
+    nativeMaxEffort = false,
 }: CapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
-            mode: 'optional',
+            mode: reasoningMode,
             supportedEfforts,
             restrictsSamplingParams,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
@@ -76,7 +99,9 @@ function createCapabilities({
         },
         chatCompletions: {
             maxTokensParameter,
+            functionCalling,
         },
+        nativeMaxEffort,
     };
 }
 
@@ -113,17 +138,42 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
     supportedEfforts: HIGH_EFFORT,
     restrictsSamplingParams: true,
 });
+// GPT-6 reasons unless the request sets effort to `none`. Astra has no `none`
+// and rejects Chat Completions tool calls. Sol and Luna accept Chat Completions
+// function calls only at effort `none`.
+const GPT_6_EFFORTS = [
+    'low',
+    'medium',
+    'high',
+    'max',
+] as const satisfies readonly ReasoningEffort[];
+const GPT_6_ASTRA_CAPABILITIES = createCapabilities({
+    supportedEfforts: GPT_6_EFFORTS,
+    restrictsSamplingParams: true,
+    reasoningMode: 'always-on',
+    functionCalling: 'unsupported',
+    nativeMaxEffort: true,
+});
+const GPT_6_SOL_LUNA_CAPABILITIES = createCapabilities({
+    supportedEfforts: GPT_6_EFFORTS,
+    restrictsSamplingParams: true,
+    reasoningMode: 'always-on',
+    functionCalling: 'none-only',
+    nativeMaxEffort: true,
+});
 
 type NoReasoningCapabilitiesConfig = {
     maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     modalities?: ModelCapabilities['modalities'];
     strictToolSchemas?: ModelCapabilities['tools']['strictSchemas'];
+    functionCalling?: OpenAIChatCompletionsFunctionCalling;
 };
 
 function createNoReasoningCapabilities({
     maxTokensParameter,
     modalities = MULTIMODAL_INPUT_MODALITIES,
     strictToolSchemas = SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    functionCalling = 'supported',
 }: NoReasoningCapabilitiesConfig): OpenAIModelCapabilities {
     return {
         reasoning: {
@@ -138,7 +188,9 @@ function createNoReasoningCapabilities({
         },
         chatCompletions: {
             maxTokensParameter,
+            functionCalling,
         },
+        nativeMaxEffort: false,
     };
 }
 
@@ -186,6 +238,9 @@ const LEGACY_NO_STRICT_TOOLS_TEXT_ONLY_CAPABILITIES =
 
 export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-4o-2024-05-13': LEGACY_NO_STRICT_TOOLS_CAPABILITIES,
+    'gpt-6-astra': GPT_6_ASTRA_CAPABILITIES,
+    'gpt-6-sol': GPT_6_SOL_LUNA_CAPABILITIES,
+    'gpt-6-luna': GPT_6_SOL_LUNA_CAPABILITIES,
     'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
     'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
@@ -240,6 +295,15 @@ const OPENAI_REASONING_EFFORT_MAP: Record<
     max: 'xhigh',
 };
 
+type OpenAIReasoningEffort =
+    | 'none'
+    | 'minimal'
+    | 'low'
+    | 'medium'
+    | 'high'
+    | 'xhigh'
+    | 'max';
+
 export function getOpenAIModelCapabilities(
     modelId: string
 ): OpenAIModelCapabilities {
@@ -284,7 +348,16 @@ export function normalizeModelId(modelId: string): string {
 }
 
 export function toOpenAIReasoningEffort(
-    effort: ReasoningEffort
-): 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' {
+    effort: ReasoningEffort,
+    modelId?: string
+): Exclude<OpenAIReasoningEffort, 'none'> {
+    if (
+        effort === 'max' &&
+        modelId !== undefined &&
+        getOpenAIModelCapabilities(modelId).nativeMaxEffort
+    ) {
+        return 'max';
+    }
+
     return OPENAI_REASONING_EFFORT_MAP[effort];
 }

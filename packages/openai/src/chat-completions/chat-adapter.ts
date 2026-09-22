@@ -273,12 +273,43 @@ function createRequestBase(
     options: GenerateOptions,
     adapterOptions: OpenAIChatCompletionsRequestAdapterOptions
 ) {
-    validateReasoningConfig(
-        modelId,
-        options,
-        adapterOptions.capabilities,
-        adapterOptions.providerId
-    );
+    const functionCalling =
+        getOpenAIModelCapabilities(modelId).chatCompletions.functionCalling;
+    const usingTools =
+        options.tools !== undefined && Object.keys(options.tools).length > 0;
+    const disableReasoningForTools =
+        usingTools &&
+        functionCalling === 'none-only' &&
+        options.reasoning === undefined;
+
+    if (usingTools && functionCalling === 'unsupported') {
+        throw new ValidationError(
+            `${adapterOptions.providerId} model "${modelId}" does not support tool calling on Chat Completions. Use the Responses API`,
+            undefined,
+            adapterOptions.providerId
+        );
+    }
+
+    if (
+        usingTools &&
+        functionCalling === 'none-only' &&
+        options.reasoning !== undefined
+    ) {
+        throw new ValidationError(
+            `${adapterOptions.providerId} model "${modelId}" supports Chat Completions function calling only when reasoning is disabled. Omit reasoning or use the Responses API to combine tools with reasoning`,
+            undefined,
+            adapterOptions.providerId
+        );
+    }
+
+    if (!disableReasoningForTools) {
+        validateReasoningConfig(
+            modelId,
+            options,
+            adapterOptions.capabilities,
+            adapterOptions.providerId
+        );
+    }
     validateInputModalities({
         messages: options.messages,
         capabilities: adapterOptions.capabilities,
@@ -286,10 +317,13 @@ function createRequestBase(
         providerId: adapterOptions.providerId,
     });
 
-    const reasoningFields = mapReasoningToRequestFields(
-        options,
-        adapterOptions.capabilities
-    );
+    const reasoningFields = disableReasoningForTools
+        ? { reasoning_effort: 'none' as const }
+        : mapReasoningToRequestFields(
+              modelId,
+              options,
+              adapterOptions.capabilities
+          );
 
     return {
         model: modelId,
@@ -691,6 +725,7 @@ export async function* transformStream(
 }
 
 function mapReasoningToRequestFields(
+    modelId: string,
     options: GenerateOptions,
     capabilities: ModelCapabilities
 ) {
@@ -711,7 +746,7 @@ function mapReasoningToRequestFields(
     );
 
     return {
-        reasoning_effort: toOpenAIReasoningEffort(clampedEffort),
+        reasoning_effort: toOpenAIReasoningEffort(clampedEffort, modelId),
     };
 }
 

@@ -878,6 +878,89 @@ describe('reasoning support', () => {
         });
     });
 
+    it('should send max effort and clamp minimal for GPT-6', () => {
+        const maxRequest = createGenerateRequest('gpt-6-astra', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(maxRequest).toMatchObject({ reasoning_effort: 'max' });
+
+        const clamped = createGenerateRequest('gpt-6-sol', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+        expect(clamped).toMatchObject({ reasoning_effort: 'low' });
+    });
+
+    it('should reject sampling params for GPT-6 when reasoning stays enabled', () => {
+        expect(() =>
+            createGenerateRequest('gpt-6-luna', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.2,
+            })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should reject Chat Completions tools for GPT-6 Astra', () => {
+        expect(() =>
+            createGenerateRequest('gpt-6-astra', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({ query: z.string() }),
+                    }),
+                },
+            })
+        ).toThrowError(/does not support tool calling on Chat Completions/);
+    });
+
+    it.each(['gpt-6-sol', 'gpt-6-luna'])(
+        'should disable reasoning for Chat Completions tools on %s',
+        (modelId) => {
+            const request = createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.2,
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({ query: z.string() }),
+                    }),
+                },
+            });
+
+            expect(request).toMatchObject({
+                reasoning_effort: 'none',
+                temperature: 0.2,
+            });
+            expect(request.tools).toHaveLength(1);
+        }
+    );
+
+    it('should reject Chat Completions tools combined with reasoning on GPT-6 Sol', () => {
+        expect(() =>
+            createGenerateRequest(
+                'gpt-6-sol',
+                {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    reasoning: { effort: 'low' },
+                    tools: {
+                        search: defineTool({
+                            name: 'search',
+                            description: 'Search',
+                            parameters: z.object({ query: z.string() }),
+                        }),
+                    },
+                },
+                { providerId: 'azure-openai' }
+            )
+        ).toThrowError(
+            /azure-openai model "gpt-6-sol" supports Chat Completions function calling only when reasoning is disabled/
+        );
+    });
+
     it('should skip reasoning effort for unsupported models', () => {
         const request = createGenerateRequest('o1-mini', {
             messages: [{ role: 'user', content: 'Hi' }],
