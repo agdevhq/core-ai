@@ -717,58 +717,72 @@ describe('createGenerateRequest', () => {
         });
     });
 
-    it('should request encrypted reasoning for GPT-6 without an effort override', () => {
-        const request = createGenerateRequest('gpt-6-sol', {
-            messages: [{ role: 'user', content: 'Hi' }],
-            tools: {
-                search: defineTool({
-                    name: 'search',
-                    description: 'Search',
-                    parameters: z.object({ query: z.string() }),
-                }),
-            },
-        });
-
-        expect(request.reasoning).toBeUndefined();
-        expect(request.include).toEqual(['reasoning.encrypted_content']);
-        expect(request.tools).toHaveLength(1);
-    });
-
-    it('should send max effort and clamp minimal for GPT-6', () => {
-        const maxRequest = createGenerateRequest('gpt-6-astra', {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'max' },
-        });
-        expect(maxRequest.reasoning).toEqual({
-            effort: 'max',
-            summary: 'auto',
-        });
-
-        const clamped = createGenerateRequest('gpt-6-luna', {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'minimal' },
-        });
-        expect(clamped.reasoning).toEqual({
-            effort: 'low',
-            summary: 'auto',
-        });
-    });
-
-    it('should reject sampling params for GPT-6 even when reasoning is omitted', () => {
-        expect(() =>
-            createGenerateRequest('gpt-6-astra', {
+    it.each(['gpt-6.1-sol', 'gpt-6-sol'])(
+        'should request encrypted reasoning and forward tools for %s without an effort override',
+        (modelId) => {
+            const request = createGenerateRequest(modelId, {
                 messages: [{ role: 'user', content: 'Hi' }],
-                temperature: 0.2,
-            })
-        ).toThrowError(ValidationError);
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({ query: z.string() }),
+                    }),
+                },
+            });
 
-        expect(() =>
-            createGenerateRequest('gpt-6-luna', {
+            expect(request.reasoning).toBeUndefined();
+            expect(request.include).toEqual(['reasoning.encrypted_content']);
+            expect(request.tools).toHaveLength(1);
+        }
+    );
+
+    it.each(['gpt-6.1-sol', 'gpt-6-astra'])(
+        'should send max effort for %s',
+        (modelId) => {
+            const maxRequest = createGenerateRequest(modelId, {
                 messages: [{ role: 'user', content: 'Hi' }],
-                topP: 0.9,
-            })
-        ).toThrowError(ValidationError);
-    });
+                reasoning: { effort: 'max' },
+            });
+            expect(maxRequest.reasoning).toEqual({
+                effort: 'max',
+                summary: 'auto',
+            });
+        }
+    );
+
+    it.each(['gpt-6.1-sol', 'gpt-6-luna'])(
+        'should clamp minimal effort to low for %s',
+        (modelId) => {
+            const clamped = createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'minimal' },
+            });
+            expect(clamped.reasoning).toEqual({
+                effort: 'low',
+                summary: 'auto',
+            });
+        }
+    );
+
+    it.each(['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-luna'])(
+        'should reject sampling params for %s even when reasoning is omitted',
+        (modelId) => {
+            expect(() =>
+                createGenerateRequest(modelId, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    temperature: 0.2,
+                })
+            ).toThrowError(ValidationError);
+
+            expect(() =>
+                createGenerateRequest(modelId, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    topP: 0.9,
+                })
+            ).toThrowError(ValidationError);
+        }
+    );
 
     it('should reject images for models without image input', () => {
         expect(() =>

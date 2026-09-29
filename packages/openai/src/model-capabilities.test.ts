@@ -21,29 +21,32 @@ describe('normalizeModelId', () => {
 });
 
 describe('getOpenAIModelCapabilities', () => {
-    it('should return always-on max-range capabilities for gpt-6-astra', () => {
-        const capabilities = getOpenAIModelCapabilities('gpt-6-astra');
-        expect(capabilities.reasoning.mode).toBe('always-on');
-        expect(capabilities.reasoning.supportedEfforts).toEqual([
-            'low',
-            'medium',
-            'high',
-            'max',
-        ]);
-        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
-        expect(capabilities.chatCompletions.functionCalling).toBe(
-            'unsupported'
-        );
-        expect(capabilities.nativeMaxEffort).toBe(true);
-        expect(capabilities.chatCompletions.maxTokensParameter).toBe(
-            'max_completion_tokens'
-        );
-        expect(capabilities.modalities.input).toEqual([
-            'text',
-            'image',
-            'file',
-        ]);
-    });
+    it.each(['gpt-6.1-sol', 'gpt-6-astra'])(
+        'should return always-on max-range capabilities without Chat Completions tools for %s',
+        (modelId) => {
+            const capabilities = getOpenAIModelCapabilities(modelId);
+            expect(capabilities.reasoning.mode).toBe('always-on');
+            expect(capabilities.reasoning.supportedEfforts).toEqual([
+                'low',
+                'medium',
+                'high',
+                'max',
+            ]);
+            expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+            expect(capabilities.chatCompletions.functionCalling).toBe(
+                'unsupported'
+            );
+            expect(capabilities.nativeMaxEffort).toBe(true);
+            expect(capabilities.chatCompletions.maxTokensParameter).toBe(
+                'max_completion_tokens'
+            );
+            expect(capabilities.modalities.input).toEqual([
+                'text',
+                'image',
+                'file',
+            ]);
+        }
+    );
 
     it.each(['gpt-6-sol', 'gpt-6-luna'])(
         'should return always-on capabilities with supported Chat Completions tools for %s',
@@ -182,6 +185,9 @@ describe('getOpenAIModelCapabilities', () => {
         );
         expect(getOpenAIModelCapabilities('gpt-5.5-2026-04-23')).toEqual(
             getOpenAIModelCapabilities('gpt-5.5')
+        );
+        expect(getOpenAIModelCapabilities('gpt-6.1-sol-20260929')).toEqual(
+            getOpenAIModelCapabilities('gpt-6.1-sol')
         );
         expect(getOpenAIModelCapabilities('gpt-6-sol-20260922')).toEqual(
             getOpenAIModelCapabilities('gpt-6-sol')
@@ -337,6 +343,12 @@ describe('toOpenAIReasoningEffort', () => {
 
     it('should map max to max for GPT-6 models', () => {
         expect(toOpenAIReasoningEffort('max', 'gpt-6-astra')).toBe('max');
+        expect(toOpenAIReasoningEffort('max', 'gpt-6.1-sol-20260929')).toBe(
+            'max'
+        );
+        expect(
+            toOpenAIReasoningEffort('max', 'ft:gpt-6.1-sol:acme::abc123')
+        ).toBe('max');
         expect(toOpenAIReasoningEffort('max', 'gpt-6-sol-20260922')).toBe(
             'max'
         );
