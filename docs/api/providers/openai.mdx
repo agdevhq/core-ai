@@ -96,6 +96,7 @@ const imageGen = openai.imageModel('gpt-image-1');
 <AccordionGroup>
   <Accordion title="GPT-6 Series" icon="star">
     <ul>
+      <li><strong>gpt-6.1-sol</strong> - Near-Astra model for complex coding, computer use, and professional work</li>
       <li><strong>gpt-6-astra</strong> - Flagship model for the hardest reasoning, coding, and computer-use work</li>
       <li><strong>gpt-6-sol</strong> - Strong reasoning model for demanding coding and agentic workflows</li>
       <li><strong>gpt-6-luna</strong> - Efficient model for focused, high-volume tasks</li>
@@ -314,9 +315,10 @@ if (model.capabilities.reasoning.mode !== 'unsupported') {
 const capabilities = getOpenAIModelCapabilities('gpt-5.2');
 ```
 
-`reasoning.mode` is `always-on` for `gpt-6-astra`, `gpt-6-sol`, and
-`gpt-6-luna`. Those models reason unless a Chat Completions request explicitly
-disables reasoning. Other OpenAI chat models are `optional` or `unsupported`.
+`reasoning.mode` is `always-on` for `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`,
+and `gpt-6-luna`. Those models reason unless a Chat Completions request
+explicitly disables reasoning. Other OpenAI chat models are `optional` or
+`unsupported`.
 `supportedEfforts` lists the accepted effort levels, and `supportedToolChoices`
 contains all unified tool-choice modes. `restrictsSamplingParams` identifies
 models that reject `temperature` and `topP` while reasoning is enabled.
@@ -375,7 +377,7 @@ Reasoning support depends on the selected model family:
 
 | Models                                                                                                           | Supported effort levels            |
 | ---------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`                                                                         | `low`, `medium`, `high`, `max`     |
+| `gpt-6.1-sol`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`                                                          | `low`, `medium`, `high`, `max`     |
 | `gpt-5.6-sol`                                                                                                    | `low`, `medium`, `high`, `max`     |
 | `gpt-5.6-terra`                                                                                                  | `low`, `medium`, `high`            |
 | `gpt-5.6-luna`                                                                                                   | `minimal`, `low`, `medium`, `high` |
@@ -399,12 +401,12 @@ Reasoning support depends on the selected model family:
     For GPT-6, `max` is sent as `max`. For GPT-5 and o-series models, `max` is
     sent as `xhigh`. `minimal` on GPT-6 is clamped to `low`.
 
-    GPT-6 Astra does not support tool calling on Chat Completions. Use
-    `chatModel()` (the Responses API). GPT-6 Sol and Luna support Chat
-    Completions function calling. The adapter forwards tools and `reasoning`
-    as you set them, the same as GPT-5.6. OpenAI accepts function tools on
-    these models only when the effective reasoning effort is `none`. Omitting
-    `reasoning` leaves the provider default, `medium`.
+    GPT-6 Astra and GPT-6.1 Sol do not support tool calling on Chat
+    Completions. Use `chatModel()` (the Responses API). GPT-6 Sol and Luna
+    support Chat Completions function calling. The adapter forwards tools and
+    `reasoning` as you set them, the same as GPT-5.6. OpenAI accepts function
+    tools on these models only when the effective reasoning effort is `none`.
+    Omitting `reasoning` leaves the provider default, `medium`.
 </Note>
 
 ### Reasoning metadata
