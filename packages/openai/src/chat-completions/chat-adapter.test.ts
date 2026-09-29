@@ -757,6 +757,138 @@ describe('reasoning token accounting', () => {
     });
 });
 
+describe('cache write tokens', () => {
+    type PromptTokenDetails = NonNullable<
+        NonNullable<ChatCompletion['usage']>['prompt_tokens_details']
+    >;
+
+    function createResponse(promptTokensDetails: PromptTokenDetails) {
+        return asChatCompletion({
+            choices: [
+                {
+                    index: 0,
+                    finish_reason: 'stop',
+                    logprobs: null,
+                    message: {
+                        role: 'assistant',
+                        content: 'answer',
+                        refusal: null,
+                    },
+                },
+            ],
+            usage: {
+                prompt_tokens: 100,
+                completion_tokens: 8,
+                total_tokens: 108,
+                prompt_tokens_details: promptTokensDetails,
+            },
+        });
+    }
+
+    it('should map cache write tokens from prompt token details', () => {
+        const result = mapGenerateResponse(
+            createResponse({
+                cached_tokens: 40,
+                cache_write_tokens: 24,
+            })
+        );
+
+        expect(result.usage).toEqual({
+            inputTokens: 100,
+            outputTokens: 8,
+            inputTokenDetails: {
+                cacheReadTokens: 40,
+                cacheWriteTokens: 24,
+            },
+            outputTokenDetails: {},
+        });
+    });
+
+    it('should map a missing prompt cache write field to zero', () => {
+        const result = mapGenerateResponse(
+            createResponse({ cached_tokens: 40 })
+        );
+
+        expect(result.usage.inputTokens).toBe(100);
+        expect(result.usage.inputTokenDetails).toEqual({
+            cacheReadTokens: 40,
+            cacheWriteTokens: 0,
+        });
+    });
+
+    it('should map cache write tokens from the streaming usage chunk', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'stop',
+                                delta: { content: 'answer' },
+                            },
+                        ],
+                        usage: {
+                            prompt_tokens: 90,
+                            completion_tokens: 4,
+                            total_tokens: 94,
+                            prompt_tokens_details: {
+                                cached_tokens: 30,
+                                cache_write_tokens: 12,
+                            },
+                        },
+                    }),
+                ])
+            )
+        );
+
+        expect(events.at(-1)).toEqual({
+            type: 'finish',
+            finishReason: 'stop',
+            usage: {
+                inputTokens: 90,
+                outputTokens: 4,
+                inputTokenDetails: {
+                    cacheReadTokens: 30,
+                    cacheWriteTokens: 12,
+                },
+                outputTokenDetails: {},
+            },
+        });
+    });
+
+    it('should map a missing streaming cache write field to zero', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [],
+                        usage: {
+                            prompt_tokens: 90,
+                            completion_tokens: 4,
+                            total_tokens: 94,
+                            prompt_tokens_details: {
+                                cached_tokens: 30,
+                            },
+                        },
+                    }),
+                ])
+            )
+        );
+
+        expect(events.at(-1)).toMatchObject({
+            type: 'finish',
+            usage: {
+                inputTokens: 90,
+                inputTokenDetails: {
+                    cacheReadTokens: 30,
+                    cacheWriteTokens: 0,
+                },
+            },
+        });
+    });
+});
+
 describe('reasoning support', () => {
     it('should fold reasoning parts into text content wrapped in <thinking> tags', () => {
         const messages: Message[] = [

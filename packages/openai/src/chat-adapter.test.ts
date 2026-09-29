@@ -917,6 +917,63 @@ describe('mapGenerateResponse', () => {
         });
     });
 
+    it('should map cache write tokens from responses usage', () => {
+        const response = asResponse({
+            output: [
+                {
+                    type: 'message',
+                    role: 'assistant',
+                    content: [{ type: 'output_text', text: 'Cached' }],
+                },
+            ],
+            status: 'completed',
+            usage: {
+                input_tokens: 100,
+                output_tokens: 5,
+                input_tokens_details: {
+                    cached_tokens: 40,
+                    cache_write_tokens: 24,
+                },
+                output_tokens_details: { reasoning_tokens: 0 },
+                total_tokens: 105,
+            },
+        });
+
+        expect(mapGenerateResponse(response).usage).toEqual({
+            inputTokens: 100,
+            outputTokens: 5,
+            inputTokenDetails: {
+                cacheReadTokens: 40,
+                cacheWriteTokens: 24,
+            },
+            outputTokenDetails: {
+                reasoningTokens: 0,
+            },
+        });
+    });
+
+    it('should map a missing responses cache write field to zero', () => {
+        const response = asResponse({
+            output: [],
+            status: 'completed',
+            usage: {
+                input_tokens: 12,
+                output_tokens: 7,
+                input_tokens_details: { cached_tokens: 3 },
+                output_tokens_details: { reasoning_tokens: 2 },
+                total_tokens: 19,
+            },
+        });
+
+        const { usage } = mapGenerateResponse(response);
+
+        expect(usage.inputTokens).toBe(12);
+        expect(usage.inputTokenDetails).toEqual({
+            cacheReadTokens: 3,
+            cacheWriteTokens: 0,
+        });
+    });
+
     it('should namespace encrypted reasoning under a wrapping provider id', () => {
         const response = asResponse({
             output: [
@@ -1261,6 +1318,86 @@ describe('transformStream', () => {
                 },
             },
         ]);
+    });
+
+    it('should map cache write tokens from a completed response stream', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                    usage: {
+                        input_tokens: 80,
+                        output_tokens: 4,
+                        input_tokens_details: {
+                            cached_tokens: 20,
+                            cache_write_tokens: 16,
+                        },
+                        output_tokens_details: { reasoning_tokens: 0 },
+                        total_tokens: 84,
+                    },
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events).toEqual([
+            {
+                type: 'finish',
+                finishReason: 'stop',
+                usage: {
+                    inputTokens: 80,
+                    outputTokens: 4,
+                    inputTokenDetails: {
+                        cacheReadTokens: 20,
+                        cacheWriteTokens: 16,
+                    },
+                    outputTokenDetails: {
+                        reasoningTokens: 0,
+                    },
+                },
+            },
+        ]);
+    });
+
+    it('should map a missing streamed responses cache write field to zero', async () => {
+        const stream = toAsyncIterable<ResponseStreamEvent>([
+            asStreamEvent({
+                type: 'response.completed',
+                response: asResponse({
+                    output: [],
+                    status: 'completed',
+                    usage: {
+                        input_tokens: 4,
+                        output_tokens: 2,
+                        input_tokens_details: { cached_tokens: 1 },
+                        output_tokens_details: { reasoning_tokens: 0 },
+                        total_tokens: 6,
+                    },
+                }),
+            }),
+        ]);
+
+        const events = [];
+        for await (const event of transformStream(stream)) {
+            events.push(event);
+        }
+
+        expect(events.at(-1)).toMatchObject({
+            type: 'finish',
+            usage: {
+                inputTokens: 4,
+                inputTokenDetails: {
+                    cacheReadTokens: 1,
+                    cacheWriteTokens: 0,
+                },
+            },
+        });
     });
 
     it('should emit a single reasoning lifecycle across multiple summary parts', async () => {

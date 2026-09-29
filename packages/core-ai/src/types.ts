@@ -377,7 +377,7 @@ export type ChatInputTokenDetails = {
     cacheReadTokens: number;
     /**
      * Input tokens written to cache for future reuse. Subset of `inputTokens`.
-     * Only Anthropic reports this; other providers report `0`.
+     * Populated when the provider reports cache writes; otherwise `0`.
      */
     cacheWriteTokens: number;
 };

@@ -455,7 +455,9 @@ export function mapGenerateResponse(
             inputTokenDetails: {
                 cacheReadTokens:
                     response.usage?.prompt_tokens_details?.cached_tokens ?? 0,
-                cacheWriteTokens: 0,
+                cacheWriteTokens:
+                    response.usage?.prompt_tokens_details?.cache_write_tokens ??
+                    0,
             },
             outputTokenDetails: {
                 ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
@@ -590,7 +592,9 @@ export async function* transformStream(
                 inputTokenDetails: {
                     cacheReadTokens:
                         chunk.usage.prompt_tokens_details?.cached_tokens ?? 0,
-                    cacheWriteTokens: 0,
+                    cacheWriteTokens:
+                        chunk.usage.prompt_tokens_details?.cache_write_tokens ??
+                        0,
                 },
                 outputTokenDetails: {
                     ...(reasoningTokens !== undefined
