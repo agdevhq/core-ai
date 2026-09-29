@@ -38,6 +38,7 @@ import type {
 import {
     getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
+    rejectsAnthropicForcedToolChoiceAlways,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
     supportsAnthropicMaxEffort,
@@ -503,6 +504,14 @@ function createRequestBase(
     };
 }
 
+function getRequestedToolChoiceMode(toolChoice: GenerateOptions['toolChoice']) {
+    if (toolChoice === undefined) {
+        return undefined;
+    }
+
+    return typeof toolChoice === 'object' ? toolChoice.type : toolChoice;
+}
+
 function mapSamplingToRequestFields(
     options: Pick<GenerateOptions, 'temperature' | 'topP'>
 ) {
@@ -554,6 +563,19 @@ function validateAnthropicReasoningConfig(
         );
     }
 
+    const toolChoiceMode = getRequestedToolChoiceMode(options.toolChoice);
+    if (
+        rejectsAnthropicForcedToolChoiceAlways(modelId) &&
+        toolChoiceMode !== undefined &&
+        !capabilities.reasoning.supportedToolChoices.includes(toolChoiceMode)
+    ) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" does not support toolChoice "${toolChoiceMode}"`,
+            undefined,
+            provider
+        );
+    }
+
     const reasoningActive =
         options.reasoning !== undefined ||
         capabilities.reasoning.mode === 'always-on';
@@ -591,10 +613,6 @@ function validateAnthropicReasoningConfig(
         );
     }
 
-    const toolChoiceMode =
-        typeof options.toolChoice === 'object'
-            ? options.toolChoice.type
-            : options.toolChoice;
     if (
         toolChoiceMode !== undefined &&
         !capabilities.reasoning.supportedToolChoices.includes(toolChoiceMode)

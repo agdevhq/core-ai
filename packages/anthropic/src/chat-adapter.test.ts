@@ -700,6 +700,15 @@ describe('reasoning support', () => {
             thinking: { type: 'adaptive', display: 'summarized' },
             output_config: { effort: 'max' },
         });
+
+        const sonnet55 = createGenerateRequest('claude-sonnet-5-5', 4096, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(sonnet55).toMatchObject({
+            thinking: { type: 'adaptive', display: 'summarized' },
+            output_config: { effort: 'max' },
+        });
     });
 
     it('should reject forced tool choice on always-on thinking models', () => {
@@ -726,6 +735,51 @@ describe('reasoning support', () => {
 
         expect(() =>
             createGenerateRequest('claude-opus-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'required',
+            })
+        ).not.toThrow();
+    });
+
+    it('should reject forced tool choice on claude-sonnet-5-5', () => {
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'required',
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: { type: 'tool', toolName: 'search' },
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'high' },
+                toolChoice: 'required',
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'auto',
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                toolChoice: 'none',
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 toolChoice: 'required',
             })
@@ -893,6 +947,27 @@ describe('reasoning support', () => {
             createGenerateRequest('claude-opus-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 0.96,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-sonnet-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: { anthropic: { topK: 5 } },
             })
         ).toThrowError(ValidationError);
 

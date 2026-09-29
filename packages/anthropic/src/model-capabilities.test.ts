@@ -4,6 +4,7 @@ import {
     getAnthropicThinkingMode,
     isAnthropicThinkingAlwaysOn,
     normalizeModelId,
+    rejectsAnthropicForcedToolChoiceAlways,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
     supportsAnthropicMaxEffort,
@@ -21,6 +22,10 @@ describe('normalizeModelId', () => {
             'claude-haiku-4-5'
         );
         expect(normalizeModelId('claude-opus-5-5')).toBe('claude-opus-5-5');
+        expect(normalizeModelId('claude-sonnet-5-5')).toBe('claude-sonnet-5-5');
+        expect(normalizeModelId('claude-sonnet-5-5-20260928')).toBe(
+            'claude-sonnet-5-5'
+        );
     });
 });
 
@@ -33,6 +38,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-8',
         'claude-opus-4-7',
         'claude-opus-4-6',
+        'claude-sonnet-5-5',
         'claude-sonnet-5',
         'claude-sonnet-4-6',
     ])('should resolve adaptive max-effort capabilities for %s', (modelId) => {
@@ -80,6 +86,9 @@ describe('getAnthropicModelCapabilities', () => {
         expect(
             getAnthropicModelCapabilities('claude-opus-4-6-20260215')
         ).toEqual(getAnthropicModelCapabilities('claude-opus-4-6'));
+        expect(
+            getAnthropicModelCapabilities('claude-sonnet-5-5-20260928')
+        ).toEqual(getAnthropicModelCapabilities('claude-sonnet-5-5'));
         expect(supportsAnthropicMaxEffort('claude-opus-4-6-20260215')).toBe(
             true
         );
@@ -122,6 +131,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-8',
         'claude-opus-4-7',
         'claude-opus-4-6',
+        'claude-sonnet-5-5',
         'claude-sonnet-5',
         'claude-sonnet-4-6',
         'claude-sonnet-4-5-20250929',
@@ -181,6 +191,20 @@ describe('interleaved thinking beta', () => {
     });
 });
 
+describe('forced tool choice', () => {
+    it('should identify models that reject forced tool choice on every request', () => {
+        expect(
+            rejectsAnthropicForcedToolChoiceAlways('claude-sonnet-5-5')
+        ).toBe(true);
+        expect(
+            rejectsAnthropicForcedToolChoiceAlways('claude-sonnet-5-5-20260928')
+        ).toBe(true);
+        expect(rejectsAnthropicForcedToolChoiceAlways('claude-sonnet-5')).toBe(
+            false
+        );
+    });
+});
+
 describe('sampling restrictions', () => {
     it('should identify models that always reject non-default sampling', () => {
         expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5-5')).toBe(
@@ -189,6 +213,9 @@ describe('sampling restrictions', () => {
         expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5')).toBe(
             true
         );
+        expect(
+            restrictsAnthropicSamplingParamsAlways('claude-sonnet-5-5')
+        ).toBe(true);
         expect(restrictsAnthropicSamplingParamsAlways('claude-sonnet-5')).toBe(
             true
         );

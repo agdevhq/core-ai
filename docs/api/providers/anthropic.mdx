@@ -69,6 +69,7 @@ const anthropic = createAnthropic({
     <ul>
       <li><strong>claude-opus-5-5</strong> - Current Opus model for long-running agentic coding and knowledge work. Adaptive thinking is always on</li>
       <li><strong>claude-opus-5</strong> - Opus model for complex agentic coding and enterprise work</li>
+      <li><strong>claude-sonnet-5-5</strong> - Current Sonnet model for focused coding and knowledge work. Adaptive thinking is on by default, and forced tool choice is rejected on every request</li>
       <li><strong>claude-sonnet-5</strong> - Most agentic Sonnet model with near-Opus performance at lower cost</li>
       <li><strong>claude-opus-4-8</strong> - Opus model for complex reasoning and agentic coding</li>
       <li><strong>claude-opus-4-7</strong> - Opus model with max effort support</li>
@@ -142,7 +143,8 @@ For registered Claude models:
   `topK` rules are described under
   [Reasoning restrictions](/api/providers/anthropic#reasoning-restrictions).
 - `supportedToolChoices` is `['auto', 'none']` while reasoning is enabled. On
-  `claude-opus-5-5` that restriction applies to every request.
+  `claude-opus-5-5` and `claude-sonnet-5-5` that restriction applies to every
+  request.
 - `modalities.input` is `['text', 'image', 'file']` for every Claude model.
   Image sources accept both `base64` and `url`. File parts are PDF-only.
   `modalities.output` is `['text']`.
@@ -309,10 +311,12 @@ const result = await generate({
 <Note>
     `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
     `claude-opus-5-5`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7`,
-    `claude-opus-4-6`, `claude-sonnet-5`, and `claude-sonnet-4-6` support
-    `'max'` effort directly. On `claude-opus-5-5`, thinking cannot be disabled.
-    Omit `reasoning` to use the API default effort of `medium`, or pass
-    `reasoning.effort` to send adaptive thinking at that level.
+    `claude-opus-4-6`, `claude-sonnet-5-5`, `claude-sonnet-5`, and
+    `claude-sonnet-4-6` support `'max'` effort directly. On `claude-opus-5-5`,
+    thinking cannot be disabled. Omit `reasoning` to use the model's API default
+    effort, or pass `reasoning.effort` to send adaptive thinking at that level.
+    `claude-opus-5-5` defaults to `medium`, and `claude-sonnet-5-5` defaults to
+    `high`.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)
@@ -341,12 +345,12 @@ When reasoning is enabled, Anthropic enforces additional request constraints:
 - `toolChoice` must be `'auto'` or `'none'`
 - `providerOptions.anthropic.topK` must be omitted
 
-Claude Opus 5.5, Claude Fable 5, Mythos 5, Mythos Preview, Opus 5, Opus 4.8,
-Opus 4.7, and Sonnet 5 also reject non-default sampling parameters when you do
-not explicitly enable reasoning. For these models, use `temperature: 1`,
-`topP: 1`, and omit `topK`.
+Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5, Mythos 5, Mythos Preview,
+Opus 5, Opus 4.8, Opus 4.7, and Sonnet 5 also reject non-default sampling
+parameters when you do not explicitly enable reasoning. For these models, use
+`temperature: 1`, `topP: 1`, and omit `topK`.
 
-Claude Opus 5.5 also rejects `toolChoice: 'required'` and
+Claude Opus 5.5 and Claude Sonnet 5.5 also reject `toolChoice: 'required'` and
 `toolChoice: { type: 'tool', toolName }` on every request. `'auto'` and
 `'none'` remain valid.
 
@@ -460,7 +464,7 @@ Anthropic reports cache usage in `result.usage.inputTokenDetails`:
 
 Anthropic only caches prompts above the model's minimum cacheable length:
 
-- 512 tokens for Claude Opus 5.5
+- 512 tokens for Claude Opus 5.5 and Claude Sonnet 5.5
 - 1024 tokens for Claude Opus 4.8
 - 1024 tokens for Claude Sonnet 4.5, Claude Opus 4.1, Claude Opus 4, Claude Sonnet 4, and Claude Sonnet 3.7
 - 2048 tokens for Claude Sonnet 4.6
