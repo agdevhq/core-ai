@@ -1,5 +1,12 @@
 # @core-ai/anthropic
 
+## 0.28.1
+
+### Patch Changes
+
+- 9020ca3: Add model capability support for `claude-sonnet-5-5`, `claude-fable-5-1`, and `claude-mythos-5-1`. Adaptive thinking accepts `max` effort. On `claude-fable-5-1` and `claude-mythos-5-1`, adaptive thinking is always on. These models, along with `claude-opus-5-5`, reject forced tool choice and non-default sampling parameters on every request.
+    - @core-ai/core-ai@0.28.1
+
 ## 0.28.0
 
 ### Patch Changes
