@@ -55,6 +55,8 @@ function createCapabilities(
 }
 
 const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
+    'claude-fable-5-1',
+    'claude-mythos-5-1',
     'claude-fable-5',
     'claude-mythos-5',
     'claude-mythos-preview',
@@ -110,13 +112,22 @@ const MANUAL_INTERLEAVED_THINKING_MODELS = new Set([
     'claude-sonnet-4',
 ]);
 
-const ALWAYS_ON_THINKING_MODELS = new Set(['claude-opus-5-5']);
+const ALWAYS_ON_THINKING_MODELS = new Set([
+    'claude-fable-5-1',
+    'claude-mythos-5-1',
+    'claude-opus-5-5',
+]);
 
 const ALWAYS_REJECTED_FORCED_TOOL_CHOICE_MODELS = new Set([
+    'claude-fable-5-1',
+    'claude-mythos-5-1',
+    'claude-opus-5-5',
     'claude-sonnet-5-5',
 ]);
 
 const ALWAYS_RESTRICTED_SAMPLING_MODELS = new Set([
+    'claude-fable-5-1',
+    'claude-mythos-5-1',
     'claude-fable-5',
     'claude-mythos-5',
     'claude-mythos-preview',

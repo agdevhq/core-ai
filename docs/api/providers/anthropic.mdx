@@ -56,6 +56,8 @@ const anthropic = createAnthropic({
     Claude Fable and Mythos models use adaptive thinking mode.
 
     <ul>
+      <li><strong>claude-fable-5-1</strong> - Current Fable model for demanding reasoning and long-horizon agentic work. Adaptive thinking is always on, and forced tool choice is rejected on every request</li>
+      <li><strong>claude-mythos-5-1</strong> - Limited-access model with the same capability handling as Claude Fable 5.1</li>
       <li><strong>claude-fable-5</strong> - Widely available model for demanding reasoning and agentic work</li>
       <li><strong>claude-mythos-5</strong> - Limited-access model with the same capability handling</li>
       <li><strong>claude-mythos-preview</strong> - Limited-access preview model</li>
@@ -136,15 +138,17 @@ For registered Claude models:
 
 - `supportedEfforts` lists the accepted effort levels. Models with adaptive
   thinking may also support `max`.
-- `mode` is `always-on` for `claude-opus-5-5`, because adaptive thinking
-  cannot be disabled. For every other registered Claude model, `mode` is
-  `optional` and reasoning is enabled by passing `reasoning`.
+- `mode` is `always-on` for `claude-opus-5-5`, `claude-fable-5-1`, and
+  `claude-mythos-5-1`, because adaptive thinking cannot be disabled. For every
+  other registered Claude model, `mode` is `optional` and reasoning is enabled
+  by passing `reasoning`.
 - `restrictsSamplingParams` is `true`. The exact temperature, `topP`, and
   `topK` rules are described under
   [Reasoning restrictions](/api/providers/anthropic#reasoning-restrictions).
 - `supportedToolChoices` is `['auto', 'none']` while reasoning is enabled. On
-  `claude-opus-5-5` and `claude-sonnet-5-5` that restriction applies to every
-  request.
+  `claude-opus-5-5`, `claude-sonnet-5-5`, `claude-fable-5-1`, and
+  `claude-mythos-5-1` that restriction applies to every request, including
+  requests that omit `reasoning`.
 - `modalities.input` is `['text', 'image', 'file']` for every Claude model.
   Image sources accept both `base64` and `url`. File parts are PDF-only.
   `modalities.output` is `['text']`.
@@ -309,14 +313,15 @@ const result = await generate({
 ```
 
 <Note>
-    `claude-fable-5`, `claude-mythos-5`, `claude-mythos-preview`,
-    `claude-opus-5-5`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7`,
-    `claude-opus-4-6`, `claude-sonnet-5-5`, `claude-sonnet-5`, and
-    `claude-sonnet-4-6` support `'max'` effort directly. On `claude-opus-5-5`,
-    thinking cannot be disabled. Omit `reasoning` to use the model's API default
-    effort, or pass `reasoning.effort` to send adaptive thinking at that level.
-    `claude-opus-5-5` defaults to `medium`, and `claude-sonnet-5-5` defaults to
-    `high`.
+    `claude-fable-5-1`, `claude-mythos-5-1`, `claude-fable-5`, `claude-mythos-5`,
+    `claude-mythos-preview`, `claude-opus-5-5`, `claude-opus-5`,
+    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-5-5`,
+    `claude-sonnet-5`, and `claude-sonnet-4-6` support `'max'` effort directly.
+    On `claude-opus-5-5`, `claude-fable-5-1`, and `claude-mythos-5-1`, thinking
+    cannot be disabled. Omit `reasoning` to use the model's API default effort,
+    or pass `reasoning.effort` to send adaptive thinking at that level.
+    `claude-opus-5-5` defaults to `medium`. `claude-sonnet-5-5`,
+    `claude-fable-5-1`, and `claude-mythos-5-1` default to `high`.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)
@@ -345,14 +350,15 @@ When reasoning is enabled, Anthropic enforces additional request constraints:
 - `toolChoice` must be `'auto'` or `'none'`
 - `providerOptions.anthropic.topK` must be omitted
 
-Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5, Mythos 5, Mythos Preview,
-Opus 5, Opus 4.8, Opus 4.7, and Sonnet 5 also reject non-default sampling
-parameters when you do not explicitly enable reasoning. For these models, use
-`temperature: 1`, `topP: 1`, and omit `topK`.
+Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5.1, Claude Mythos 5.1, Claude
+Fable 5, Mythos 5, Mythos Preview, Opus 5, Opus 4.8, Opus 4.7, and Sonnet 5
+also reject non-default sampling parameters when you do not explicitly enable
+reasoning. For these models, use `temperature: 1`, `topP: 1`, and omit `topK`.
 
-Claude Opus 5.5 and Claude Sonnet 5.5 also reject `toolChoice: 'required'` and
-`toolChoice: { type: 'tool', toolName }` on every request. `'auto'` and
-`'none'` remain valid.
+Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5.1, and Claude Mythos 5.1
+reject `toolChoice: 'required'` and `toolChoice: { type: 'tool', toolName }` on
+every request. `'auto'` and `'none'` remain valid. Claude Fable 5 and Claude
+Mythos 5 accept forced tool choice when `reasoning` is omitted.
 
 <Warning>
     Violating these constraints throws a `ValidationError` before the request is
@@ -464,7 +470,7 @@ Anthropic reports cache usage in `result.usage.inputTokenDetails`:
 
 Anthropic only caches prompts above the model's minimum cacheable length:
 
-- 512 tokens for Claude Opus 5.5 and Claude Sonnet 5.5
+- 512 tokens for Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5.1, and Claude Mythos 5.1
 - 1024 tokens for Claude Opus 4.8
 - 1024 tokens for Claude Sonnet 4.5, Claude Opus 4.1, Claude Opus 4, Claude Sonnet 4, and Claude Sonnet 3.7
 - 2048 tokens for Claude Sonnet 4.6

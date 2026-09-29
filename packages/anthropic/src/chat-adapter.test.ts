@@ -692,99 +692,98 @@ describe('reasoning support', () => {
         });
         expect(clamped).toHaveProperty('output_config.effort', 'high');
 
-        const opus55 = createGenerateRequest('claude-opus-5-5', 4096, {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'max' },
-        });
-        expect(opus55).toMatchObject({
-            thinking: { type: 'adaptive', display: 'summarized' },
-            output_config: { effort: 'max' },
-        });
-
-        const sonnet55 = createGenerateRequest('claude-sonnet-5-5', 4096, {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'max' },
-        });
-        expect(sonnet55).toMatchObject({
-            thinking: { type: 'adaptive', display: 'summarized' },
-            output_config: { effort: 'max' },
-        });
+        for (const modelId of [
+            'claude-opus-5-5',
+            'claude-sonnet-5-5',
+            'claude-fable-5-1',
+            'claude-mythos-5-1',
+        ]) {
+            expect(
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    reasoning: { effort: 'max' },
+                })
+            ).toMatchObject({
+                thinking: { type: 'adaptive', display: 'summarized' },
+                output_config: { effort: 'max' },
+            });
+        }
     });
 
-    it('should reject forced tool choice on always-on thinking models', () => {
-        expect(() =>
-            createGenerateRequest('claude-opus-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'required',
-            })
-        ).toThrowError(ValidationError);
+    it.each([
+        'claude-opus-5-5',
+        'claude-sonnet-5-5',
+        'claude-fable-5-1',
+        'claude-mythos-5-1',
+    ])(
+        'should reject forced tool choice on every request for %s',
+        (modelId) => {
+            expect(() =>
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    toolChoice: 'required',
+                })
+            ).toThrowError(
+                new RegExp(
+                    `^Anthropic model "${modelId}" does not support toolChoice "required"$`
+                )
+            );
 
-        expect(() =>
-            createGenerateRequest('claude-opus-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: { type: 'tool', toolName: 'search' },
-            })
-        ).toThrowError(ValidationError);
+            expect(() =>
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    toolChoice: { type: 'tool', toolName: 'search' },
+                })
+            ).toThrowError(
+                new RegExp(
+                    `^Anthropic model "${modelId}" does not support toolChoice "tool"$`
+                )
+            );
 
-        expect(() =>
-            createGenerateRequest('claude-opus-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'auto',
-            })
-        ).not.toThrow();
+            expect(() =>
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    reasoning: { effort: 'high' },
+                    toolChoice: 'required',
+                })
+            ).toThrowError(
+                new RegExp(
+                    `^Anthropic model "${modelId}" does not support toolChoice "required"$`
+                )
+            );
 
-        expect(() =>
-            createGenerateRequest('claude-opus-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'required',
-            })
-        ).not.toThrow();
-    });
+            expect(() =>
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    toolChoice: 'auto',
+                })
+            ).not.toThrow();
 
-    it('should reject forced tool choice on claude-sonnet-5-5', () => {
-        expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'required',
-            })
-        ).toThrowError(ValidationError);
+            expect(() =>
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    toolChoice: 'none',
+                })
+            ).not.toThrow();
+        }
+    );
 
-        expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: { type: 'tool', toolName: 'search' },
-            })
-        ).toThrowError(ValidationError);
-
-        expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'high' },
-                toolChoice: 'required',
-            })
-        ).toThrowError(ValidationError);
-
-        expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'auto',
-            })
-        ).not.toThrow();
-
-        expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'none',
-            })
-        ).not.toThrow();
-
-        expect(() =>
-            createGenerateRequest('claude-sonnet-5', 4096, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                toolChoice: 'required',
-            })
-        ).not.toThrow();
-    });
+    it.each([
+        'claude-opus-5',
+        'claude-sonnet-5',
+        'claude-fable-5',
+        'claude-mythos-5',
+    ])(
+        'should allow forced tool choice when reasoning is omitted for %s',
+        (modelId) => {
+            expect(() =>
+                createGenerateRequest(modelId, 4096, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    toolChoice: 'required',
+                })
+            ).not.toThrow();
+        }
+    );
 
     it('should include cache_control when cacheControl provider option is set', () => {
         const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
@@ -954,6 +953,20 @@ describe('reasoning support', () => {
             createGenerateRequest('claude-sonnet-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-fable-5-1', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createGenerateRequest('claude-mythos-5-1', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 0.96,
             })
         ).toThrowError(ValidationError);
 
