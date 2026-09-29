@@ -4,6 +4,7 @@ import {
     getAnthropicThinkingMode,
     isAnthropicThinkingAlwaysOn,
     normalizeModelId,
+    rejectsAnthropicForcedToolChoiceAlways,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
     supportsAnthropicMaxEffort,
@@ -21,6 +22,12 @@ describe('normalizeModelId', () => {
             'claude-haiku-4-5'
         );
         expect(normalizeModelId('claude-opus-5-5')).toBe('claude-opus-5-5');
+        expect(normalizeModelId('claude-fable-5-1')).toBe('claude-fable-5-1');
+        expect(normalizeModelId('claude-mythos-5-1')).toBe('claude-mythos-5-1');
+        expect(normalizeModelId('claude-sonnet-5-5')).toBe('claude-sonnet-5-5');
+        expect(normalizeModelId('claude-sonnet-5-5-20260928')).toBe(
+            'claude-sonnet-5-5'
+        );
     });
 });
 
@@ -33,6 +40,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-8',
         'claude-opus-4-7',
         'claude-opus-4-6',
+        'claude-sonnet-5-5',
         'claude-sonnet-5',
         'claude-sonnet-4-6',
     ])('should resolve adaptive max-effort capabilities for %s', (modelId) => {
@@ -48,21 +56,23 @@ describe('getAnthropicModelCapabilities', () => {
         expect(isAnthropicThinkingAlwaysOn(modelId)).toBe(false);
     });
 
-    it('should resolve always-on adaptive thinking for claude-opus-5-5', () => {
-        const capabilities = getAnthropicModelCapabilities('claude-opus-5-5');
-        expect(capabilities.reasoning).toEqual({
-            mode: 'always-on',
-            supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
-            restrictsSamplingParams: true,
-            supportedToolChoices: ['auto', 'none'],
-        });
-        expect(getAnthropicThinkingMode('claude-opus-5-5')).toBe('adaptive');
-        expect(supportsAnthropicMaxEffort('claude-opus-5-5')).toBe(true);
-        expect(isAnthropicThinkingAlwaysOn('claude-opus-5-5')).toBe(true);
-        expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5-5')).toBe(
-            true
-        );
-    });
+    it.each(['claude-opus-5-5', 'claude-fable-5-1', 'claude-mythos-5-1'])(
+        'should resolve always-on adaptive thinking for %s',
+        (modelId) => {
+            const capabilities = getAnthropicModelCapabilities(modelId);
+            expect(capabilities.reasoning).toEqual({
+                mode: 'always-on',
+                supportedEfforts: ['minimal', 'low', 'medium', 'high', 'max'],
+                restrictsSamplingParams: true,
+                supportedToolChoices: ['auto', 'none'],
+            });
+            expect(getAnthropicThinkingMode(modelId)).toBe('adaptive');
+            expect(supportsAnthropicMaxEffort(modelId)).toBe(true);
+            expect(isAnthropicThinkingAlwaysOn(modelId)).toBe(true);
+            expect(restrictsAnthropicSamplingParamsAlways(modelId)).toBe(true);
+            expect(rejectsAnthropicForcedToolChoiceAlways(modelId)).toBe(true);
+        }
+    );
 
     it('should resolve manual thinking capabilities', () => {
         const capabilities = getAnthropicModelCapabilities('claude-opus-4-5');
@@ -80,6 +90,12 @@ describe('getAnthropicModelCapabilities', () => {
         expect(
             getAnthropicModelCapabilities('claude-opus-4-6-20260215')
         ).toEqual(getAnthropicModelCapabilities('claude-opus-4-6'));
+        expect(
+            getAnthropicModelCapabilities('claude-sonnet-5-5-20260928')
+        ).toEqual(getAnthropicModelCapabilities('claude-sonnet-5-5'));
+        expect(
+            getAnthropicModelCapabilities('claude-fable-5-1-20260915')
+        ).toEqual(getAnthropicModelCapabilities('claude-fable-5-1'));
         expect(supportsAnthropicMaxEffort('claude-opus-4-6-20260215')).toBe(
             true
         );
@@ -114,6 +130,8 @@ describe('getAnthropicModelCapabilities', () => {
     });
 
     it.each([
+        'claude-fable-5-1',
+        'claude-mythos-5-1',
         'claude-fable-5',
         'claude-mythos-5',
         'claude-mythos-preview',
@@ -122,6 +140,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-8',
         'claude-opus-4-7',
         'claude-opus-4-6',
+        'claude-sonnet-5-5',
         'claude-sonnet-5',
         'claude-sonnet-4-6',
         'claude-sonnet-4-5-20250929',
@@ -181,14 +200,51 @@ describe('interleaved thinking beta', () => {
     });
 });
 
+describe('forced tool choice', () => {
+    it.each([
+        'claude-opus-5-5',
+        'claude-sonnet-5-5',
+        'claude-fable-5-1',
+        'claude-mythos-5-1',
+        'claude-sonnet-5-5-20260928',
+    ])(
+        'should reject forced tool choice on every request for %s',
+        (modelId) => {
+            expect(rejectsAnthropicForcedToolChoiceAlways(modelId)).toBe(true);
+        }
+    );
+
+    it.each([
+        'claude-fable-5',
+        'claude-mythos-5',
+        'claude-opus-5',
+        'claude-sonnet-5',
+    ])(
+        'should allow forced tool choice when reasoning is omitted for %s',
+        (modelId) => {
+            expect(rejectsAnthropicForcedToolChoiceAlways(modelId)).toBe(false);
+            expect(isAnthropicThinkingAlwaysOn(modelId)).toBe(false);
+        }
+    );
+});
+
 describe('sampling restrictions', () => {
     it('should identify models that always reject non-default sampling', () => {
         expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5-5')).toBe(
             true
         );
+        expect(restrictsAnthropicSamplingParamsAlways('claude-fable-5-1')).toBe(
+            true
+        );
+        expect(
+            restrictsAnthropicSamplingParamsAlways('claude-mythos-5-1')
+        ).toBe(true);
         expect(restrictsAnthropicSamplingParamsAlways('claude-opus-5')).toBe(
             true
         );
+        expect(
+            restrictsAnthropicSamplingParamsAlways('claude-sonnet-5-5')
+        ).toBe(true);
         expect(restrictsAnthropicSamplingParamsAlways('claude-sonnet-5')).toBe(
             true
         );
