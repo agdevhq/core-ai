@@ -957,15 +957,11 @@ export async function* transformStream(
     };
 }
 
-// The SDK types `model_context_window_exceeded` only in its beta namespace,
-// but Claude 4.5 and newer return it without a beta header.
-function mapStopReason(
-    reason: StopReason | 'model_context_window_exceeded' | null
-): FinishReason {
+function mapStopReason(reason: StopReason | null): FinishReason {
     if (reason === 'end_turn' || reason === 'stop_sequence') {
         return 'stop';
     }
-    if (reason === 'max_tokens' || reason === 'model_context_window_exceeded') {
+    if (reason === 'max_tokens') {
         return 'length';
     }
     if (reason === 'tool_use') {
