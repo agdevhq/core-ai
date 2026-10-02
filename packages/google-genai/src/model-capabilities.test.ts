@@ -102,8 +102,44 @@ describe('reasoning mapping', () => {
         expect(toGoogleThinkingLevel('max')).toBe('HIGH');
     });
 
-    it('should map effort to thinking budget', () => {
-        expect(toGoogleThinkingBudget('minimal')).toBe(1024);
-        expect(toGoogleThinkingBudget('high')).toBe(32768);
+    it.each([
+        ['gemini-2.5-pro', 24_576, 32_768],
+        ['gemini-2.5-flash', 18_432, 24_576],
+        ['gemini-2.5-flash-lite', 18_432, 24_576],
+        ['gemini-custom', 24_576, 32_768],
+    ])(
+        'should derive high and max budgets from the range of %s',
+        (modelId, high, max) => {
+            const range =
+                getGoogleModelCapabilities(modelId).reasoning
+                    .thinkingBudgetRange;
+            expect(toGoogleThinkingBudget('minimal', range)).toBe(1024);
+            expect(toGoogleThinkingBudget('low', range)).toBe(4096);
+            expect(toGoogleThinkingBudget('medium', range)).toBe(16384);
+            expect(toGoogleThinkingBudget('high', range)).toBe(high);
+            expect(toGoogleThinkingBudget('max', range)).toBe(max);
+        }
+    );
+});
+
+describe('output ceilings', () => {
+    it.each([
+        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-pro-preview',
+        'gemini-3-pro',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+    ])('should report a 65,536 output ceiling for %s', (modelId) => {
+        expect(getGoogleModelCapabilities(modelId).output).toEqual({
+            maxTokens: 65_536,
+        });
+    });
+
+    it('should leave the ceiling unknown for unrecognized models', () => {
+        expect(getGoogleModelCapabilities('gemini-custom').output).toBe(
+            undefined
+        );
     });
 });

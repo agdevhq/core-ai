@@ -283,7 +283,39 @@ Gemini 3.x models use HIGH/LOW thinking control. Mapping: `minimal`/`low`/`mediu
 
 ### Thinking budget (Gemini 2.5)
 
-Token budgets: `minimal` -> 1,024, `low` -> 4,096, `medium` -> 16,384, `high`/`max` -> 32,768.
+Each Gemini 2.5 model accepts its own range of thinking budgets, as listed in
+[Google's thinking documentation](https://ai.google.dev/gemini-api/docs/generate-content/thinking).
+`max` uses the model's documented maximum and `high` 75% of it, so the two
+stay distinct. The lower efforts are the same on every model.
+
+| Model                   | Range        | `minimal` | `low` | `medium` | `high` | `max`  |
+| ----------------------- | ------------ | --------- | ----- | -------- | ------ | ------ |
+| `gemini-2.5-pro`        | 128–32,768   | 1,024     | 4,096 | 16,384   | 24,576 | 32,768 |
+| `gemini-2.5-flash`      | 0–24,576     | 1,024     | 4,096 | 16,384   | 18,432 | 24,576 |
+| `gemini-2.5-flash-lite` | 512–24,576   | 1,024     | 4,096 | 16,384   | 18,432 | 24,576 |
+
+`capabilities.reasoning.thinkingBudgetRange` exposes each model's range.
+
+### Output limits
+
+Gemini counts thought tokens against `maxOutputTokens`. When you omit
+`maxTokens`, the adapter leaves `maxOutputTokens` unset and Gemini uses the
+model's output limit (65,536 for Gemini 2.5 and 3, reported as
+`capabilities.output.maxTokens`).
+
+On Gemini 2.5, a `maxTokens` at or below the thinking budget throws a
+`ValidationError` instead of ending with an empty answer. The budget is never
+reduced to fit. Raise `maxTokens`, lower the effort, or omit `maxTokens`.
+
+```typescript
+// Throws: `max` on Gemini 2.5 Pro needs more than 32,768 tokens.
+await generate({
+    model: google.chatModel('gemini-2.5-pro'),
+    messages: [{ role: 'user', content: 'Analyze this carefully.' }],
+    reasoning: { effort: 'max' },
+    maxTokens: 32_768,
+});
+```
 
 <Note>
     `gemini-2.5-flash` and `gemini-2.5-flash-lite` can skip thinking by omitting

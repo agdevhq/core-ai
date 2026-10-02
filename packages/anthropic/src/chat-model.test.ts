@@ -8,8 +8,10 @@ import type {
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import {
     AbortedError,
+    ModelOverloadedError,
     ProviderError,
     RateLimitError,
+    StreamAbortedError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
@@ -59,7 +61,7 @@ describe('createAnthropicChatModel', () => {
 describe('generate', () => {
     it('should map text response', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [{ type: 'text', text: 'Hello!', citations: null }],
                 stop_reason: 'end_turn',
                 usage: {
@@ -96,7 +98,7 @@ describe('generate', () => {
 
     it('should normalize Anthropic cache read/write usage', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [{ type: 'text', text: 'Hello!', citations: null }],
                 stop_reason: 'end_turn',
                 usage: {
@@ -132,7 +134,7 @@ describe('generate', () => {
 
     it('should pass the caller abort signal to generate requests', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [{ type: 'text', text: 'Hello!', citations: null }],
                 stop_reason: 'end_turn',
                 usage: {
@@ -165,7 +167,7 @@ describe('generate', () => {
 
     it('should map tool use response', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [
                     {
                         type: 'tool_use',
@@ -206,7 +208,7 @@ describe('generate', () => {
 
     it('should generate a validated structured object', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [
                     {
                         type: 'text',
@@ -248,7 +250,7 @@ describe('generate', () => {
 
     it('should pass the caller abort signal to generateObject requests', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [
                     {
                         type: 'text',
@@ -293,7 +295,7 @@ describe('generate', () => {
 
     it('should throw validation error for invalid structured output', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [
                     {
                         type: 'text',
@@ -331,7 +333,7 @@ describe('generate', () => {
 
     it('should throw no-object error when structured output is refused', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [
                     {
                         type: 'text',
@@ -406,7 +408,7 @@ describe('generate', () => {
 
     it('should pass reasoning config and map reasoning parts', async () => {
         const create = vi.fn(async () =>
-            asMessage({
+            asMessageStream({
                 content: [
                     {
                         type: 'thinking',
@@ -450,7 +452,7 @@ describe('generate', () => {
     it('should send reasoning betas as headers instead of request fields', async () => {
         const create = vi.fn(
             async (_body: unknown, _requestOptions?: unknown) =>
-                asMessage({
+                asMessageStream({
                     content: [{ type: 'text', text: 'done', citations: null }],
                     stop_reason: 'end_turn',
                     usage: {
@@ -461,10 +463,7 @@ describe('generate', () => {
         );
         const model = createAnthropicChatModel(
             createMockClient(create),
-            'claude-sonnet-4-5',
-            {
-                defaultMaxTokens: 4096,
-            }
+            'claude-sonnet-4-5'
         );
 
         await model.generate({
@@ -486,6 +485,152 @@ describe('generate', () => {
                 'anthropic-beta': 'interleaved-thinking-2025-05-14',
             },
         });
+    });
+    it('should stream generate requests and size max_tokens from the model ceiling', async () => {
+        const create = vi.fn(async () => createTextResponse());
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6'
+        );
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ stream: true, max_tokens: 128_000 }),
+            expect.anything()
+        );
+    });
+
+    it('should prefer a configured defaultMaxTokens over the model ceiling', async () => {
+        const create = vi.fn(async () => createTextResponse());
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6',
+            { defaultMaxTokens: 2048 }
+        );
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ max_tokens: 2048 }),
+            expect.anything()
+        );
+    });
+
+    it('should fall back to 4096 max_tokens for models without a known ceiling', async () => {
+        const create = vi.fn(async () => createTextResponse());
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-future-9'
+        );
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(create).toHaveBeenCalledWith(
+            expect.objectContaining({ max_tokens: 4096 }),
+            expect.anything()
+        );
+    });
+
+    it('should keep thinking signatures and redacted thinking in generate results', async () => {
+        const create = vi.fn(async () =>
+            asMessageStream({
+                content: [
+                    {
+                        type: 'thinking',
+                        thinking: 'step-by-step',
+                        signature: 'sig_1',
+                    },
+                    { type: 'redacted_thinking', data: 'hidden_data' },
+                    { type: 'text', text: 'answer', citations: null },
+                ],
+                stop_reason: 'end_turn',
+                usage: {
+                    input_tokens: 10,
+                    output_tokens: 3,
+                    output_tokens_details: { thinking_tokens: 2 },
+                },
+            })
+        );
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-opus-4-6'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Explain' }],
+            reasoning: { effort: 'high' },
+        });
+
+        expect(result.parts).toEqual([
+            {
+                type: 'reasoning',
+                text: 'step-by-step',
+                providerMetadata: { anthropic: { signature: 'sig_1' } },
+            },
+            {
+                type: 'reasoning',
+                text: '',
+                providerMetadata: {
+                    anthropic: { redactedData: 'hidden_data' },
+                },
+            },
+            { type: 'text', text: 'answer' },
+        ]);
+        expect(result.reasoning).toBe('step-by-step');
+        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
+    });
+
+    it('should map overloaded errors sent mid-stream to ModelOverloadedError', async () => {
+        const source = createPushableAsyncIterable<RawMessageStreamEvent>();
+        const create = vi.fn(async () => source.iterable);
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4'
+        );
+
+        const request = model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        await vi.waitFor(() => expect(create).toHaveBeenCalled());
+        source.fail(
+            new APIError(
+                undefined,
+                { type: 'overloaded_error', message: 'Overloaded' },
+                'Overloaded',
+                undefined
+            )
+        );
+
+        await expect(request).rejects.toBeInstanceOf(ModelOverloadedError);
+        await expect(request).rejects.toMatchObject({ provider: 'anthropic' });
+    });
+
+    it('should reject with AbortedError when aborted mid-stream', async () => {
+        const source = createPushableAsyncIterable<RawMessageStreamEvent>();
+        const create = vi.fn(async () => source.iterable);
+        const model = createAnthropicChatModel(
+            createMockClient(create),
+            'claude-sonnet-4'
+        );
+        const controller = new AbortController();
+
+        const request = model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            signal: controller.signal,
+        });
+        await vi.waitFor(() => expect(create).toHaveBeenCalled());
+        controller.abort();
+
+        await expect(request).rejects.toBeInstanceOf(AbortedError);
+        await expect(request).rejects.not.toBeInstanceOf(StreamAbortedError);
+        await expect(request).rejects.toMatchObject({ provider: 'anthropic' });
     });
 });
 
@@ -1035,4 +1180,122 @@ function asMessage(value: {
             inference_geo: null,
         },
     } as unknown as Message;
+}
+
+/**
+ * Replays a complete message as the stream events the Messages API sends for
+ * it, so `generate()` fixtures can stay message-shaped.
+ */
+function asMessageStream(
+    value: Parameters<typeof asMessage>[0]
+): AsyncIterable<RawMessageStreamEvent> {
+    const message = asMessage(value);
+    const events: unknown[] = [
+        {
+            type: 'message_start',
+            message: { ...message, content: [], stop_reason: null },
+        },
+    ];
+
+    value.content.forEach((block, index) => {
+        const typedBlock = block as Record<string, unknown>;
+        switch (typedBlock['type']) {
+            case 'text':
+                events.push(
+                    {
+                        type: 'content_block_start',
+                        index,
+                        content_block: {
+                            type: 'text',
+                            text: '',
+                            citations: null,
+                        },
+                    },
+                    {
+                        type: 'content_block_delta',
+                        index,
+                        delta: { type: 'text_delta', text: typedBlock['text'] },
+                    }
+                );
+                break;
+            case 'tool_use':
+                events.push(
+                    {
+                        type: 'content_block_start',
+                        index,
+                        content_block: { ...typedBlock, input: {} },
+                    },
+                    {
+                        type: 'content_block_delta',
+                        index,
+                        delta: {
+                            type: 'input_json_delta',
+                            partial_json: JSON.stringify(typedBlock['input']),
+                        },
+                    }
+                );
+                break;
+            case 'thinking':
+                events.push(
+                    {
+                        type: 'content_block_start',
+                        index,
+                        content_block: {
+                            type: 'thinking',
+                            thinking: '',
+                            signature: '',
+                        },
+                    },
+                    {
+                        type: 'content_block_delta',
+                        index,
+                        delta: {
+                            type: 'thinking_delta',
+                            thinking: typedBlock['thinking'],
+                        },
+                    }
+                );
+                if (typeof typedBlock['signature'] === 'string') {
+                    events.push({
+                        type: 'content_block_delta',
+                        index,
+                        delta: {
+                            type: 'signature_delta',
+                            signature: typedBlock['signature'],
+                        },
+                    });
+                }
+                break;
+            default:
+                events.push({
+                    type: 'content_block_start',
+                    index,
+                    content_block: typedBlock,
+                });
+        }
+        events.push({ type: 'content_block_stop', index });
+    });
+
+    events.push(
+        {
+            type: 'message_delta',
+            delta: { stop_reason: value.stop_reason, stop_sequence: null },
+            usage: {
+                output_tokens: value.usage.output_tokens,
+                output_tokens_details:
+                    value.usage.output_tokens_details ?? null,
+            },
+        },
+        { type: 'message_stop' }
+    );
+
+    return toAsyncIterable(events as RawMessageStreamEvent[]);
+}
+
+function createTextResponse(): AsyncIterable<RawMessageStreamEvent> {
+    return asMessageStream({
+        content: [{ type: 'text', text: 'done', citations: null }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: 10, output_tokens: 2 },
+    });
 }

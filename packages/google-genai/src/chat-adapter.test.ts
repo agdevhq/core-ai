@@ -624,6 +624,67 @@ describe('reasoning support', () => {
         });
     });
 
+    it('should leave maxOutputTokens unset when maxTokens is omitted', () => {
+        const request = createGenerateRequest('gemini-2.5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+
+        expect(request.config).not.toHaveProperty('maxOutputTokens');
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingBudget: 32_768 },
+        });
+    });
+
+    it('should use the Flash budget range for Gemini 2.5 Flash', () => {
+        const request = createGenerateRequest('gemini-2.5-flash', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingBudget: 24_576 },
+        });
+    });
+
+    it('should send the thinking budget unchanged when maxTokens holds it', () => {
+        const request = createGenerateRequest('gemini-2.5-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+            maxTokens: 40_000,
+        });
+
+        expect(request.config).toMatchObject({
+            maxOutputTokens: 40_000,
+            thinkingConfig: { thinkingBudget: 32_768 },
+        });
+    });
+
+    it('should reject a maxTokens that cannot hold the thinking budget', () => {
+        expect(() =>
+            createGenerateRequest('gemini-2.5-pro', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+                maxTokens: 32_768,
+            })
+        ).toThrowError(
+            /needs maxTokens above the 32768-token thinking budget of reasoning effort "max", but maxTokens is 32768/
+        );
+    });
+
+    it('should not reject small limits for thinking-level models', () => {
+        const request = createGenerateRequest('gemini-3-pro', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'high' },
+            maxTokens: 1000,
+        });
+
+        expect(request.config).toMatchObject({
+            maxOutputTokens: 1000,
+            thinkingConfig: { thinkingLevel: 'HIGH' },
+        });
+    });
+
     it('should not allow provider reasoning config overrides', () => {
         const request = createGenerateRequest('gemini-3-pro', {
             messages: [{ role: 'user', content: 'Hi' }],

@@ -26,6 +26,7 @@ import type {
 } from '@core-ai/core-ai';
 import {
     getProviderMetadata,
+    ValidationError,
     validateInputModalities,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
@@ -385,7 +386,7 @@ export function createGenerateRequest(
             ? { toolConfig: convertToolChoice(options.toolChoice) }
             : {}),
         ...mapSamplingToConfig(options),
-        ...mapReasoningToConfig(options, capabilities),
+        ...mapReasoningToConfig(options, capabilities, modelId, provider),
         ...mapGoogleProviderOptionsToConfig(googleOptions),
         ...(options.signal ? { abortSignal: options.signal } : {}),
     };
@@ -657,9 +658,16 @@ export async function* transformStream(
     };
 }
 
+/**
+ * Gemini spends thought tokens out of `maxOutputTokens`. An explicit limit
+ * that cannot hold the thinking budget is rejected rather than worked around,
+ * since shrinking the budget would silently change the response.
+ */
 function mapReasoningToConfig(
     options: GenerateOptions,
-    capabilities: GoogleModelCapabilities
+    capabilities: GoogleModelCapabilities,
+    modelId: string,
+    provider: string
 ): Record<string, unknown> {
     if (!options.reasoning) {
         return {};
@@ -674,9 +682,24 @@ function mapReasoningToConfig(
         };
     }
 
+    const thinkingBudget = toGoogleThinkingBudget(
+        options.reasoning.effort,
+        capabilities.reasoning.thinkingBudgetRange
+    );
+    if (
+        options.maxTokens !== undefined &&
+        options.maxTokens <= thinkingBudget
+    ) {
+        throw new ValidationError(
+            `Google model "${modelId}" needs maxTokens above the ${thinkingBudget}-token thinking budget of reasoning effort "${options.reasoning.effort}", but maxTokens is ${options.maxTokens}. Raise maxTokens, lower the effort, or omit maxTokens to use the model's output limit.`,
+            undefined,
+            provider
+        );
+    }
+
     return {
         thinkingConfig: {
-            thinkingBudget: toGoogleThinkingBudget(options.reasoning.effort),
+            thinkingBudget,
             includeThoughts: true,
         },
     };

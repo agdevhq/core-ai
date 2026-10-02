@@ -50,8 +50,10 @@ const anthropicVertex = createAnthropicVertex({
     instance).
 </ParamField>
 
-<ParamField path="defaultMaxTokens" type="number" optional default="4096">
-    Default maximum tokens for completions. Can be overridden per request.
+<ParamField path="defaultMaxTokens" type="number" optional>
+    Default output limit for requests that omit `maxTokens`. When unset, each
+    request uses the model's output ceiling. See [Output
+    limits](/api/providers/anthropic#output-limits).
 </ParamField>
 
 ### Returns

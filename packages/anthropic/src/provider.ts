@@ -50,13 +50,12 @@ export function createAnthropicChatProvider(
             apiKey: options.apiKey,
             baseURL: options.baseURL,
         });
-    const defaultMaxTokens = options.defaultMaxTokens ?? 4096;
     const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
 
     return {
         chatModel: (modelId) =>
             createAnthropicChatModel(client, modelId, {
-                defaultMaxTokens,
+                defaultMaxTokens: options.defaultMaxTokens,
                 providerId,
             }),
     };

@@ -22,7 +22,6 @@ import { createAnthropic } from '@core-ai/anthropic';
 
 const anthropic = createAnthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
-    defaultMaxTokens: 4096,
 });
 ```
 
@@ -37,8 +36,10 @@ const anthropic = createAnthropic({
     Custom base URL for API requests.
 </ParamField>
 
-<ParamField path="defaultMaxTokens" type="number" optional default="4096">
-    Default maximum tokens for completions. Can be overridden per request.
+<ParamField path="defaultMaxTokens" type="number" optional>
+    Default output limit for requests that omit `maxTokens`. When unset, each
+    request uses the model's output ceiling. See [Output
+    limits](#output-limits).
 </ParamField>
 
 <ParamField path="client" type="AnthropicChatClient" optional>
@@ -210,7 +211,6 @@ const result = await generate({
     reasoning: {
         effort: 'max',
     },
-    maxTokens: 8192,
 });
 
 if (result.reasoning) {
@@ -326,10 +326,36 @@ const result = await generate({
 
 ### Manual thinking budget (Claude 4.5 and earlier)
 
-Token budgets: `minimal` -> 1,024, `low` -> 2,048, `medium` -> 8,192, `high` -> 32,768, `max` -> 65,536.
-The adapter caps the selected budget at `maxTokens - 1` because Anthropic
-requires the thinking budget to be lower than the total output limit.
-`maxTokens` must be greater than 1,024.
+Manual-thinking models take a token budget instead of an effort level. This
+library maps each effort to a budget. `high` and `max` are half and three
+quarters of the model's output ceiling:
+
+| Effort    | Budget                | Claude 4.5 (64,000 ceiling) | Opus 4 / 4.1 (32,000 ceiling) |
+| --------- | --------------------- | --------------------------- | ----------------------------- |
+| `minimal` | 1,024                 | 1,024                       | 1,024                         |
+| `low`     | 2,048                 | 2,048                       | 2,048                         |
+| `medium`  | 8,192                 | 8,192                       | 8,192                         |
+| `high`    | 50% of output ceiling | 32,000                      | 16,000                        |
+| `max`     | 75% of output ceiling | 48,000                      | 24,000                        |
+
+The budget is spent out of `maxTokens`. If you set `maxTokens` (or
+`defaultMaxTokens`) at or below the budget, the request throws a
+`ValidationError`. The budget is never reduced to fit. Omit `maxTokens` to use
+the model's output ceiling, which holds every budget.
+
+`claude-opus-4-5` also accepts Anthropic's `effort` parameter alongside manual
+thinking. To send it, pass it through `providerOptions`:
+
+```typescript
+const result = await generate({
+    model: anthropic.chatModel('claude-opus-4-5'),
+    messages: [{ role: 'user', content: 'Complex reasoning task...' }],
+    reasoning: { effort: 'high' },
+    providerOptions: {
+        anthropic: { outputConfig: { effort: 'medium' } },
+    },
+});
+```
 
 ```typescript
 const result = await generate({
@@ -340,6 +366,31 @@ const result = await generate({
     },
 });
 ```
+
+## Output limits
+
+`maxTokens` is the total output allowance: thinking and the visible answer
+together. When you omit it, the request uses the first of:
+
+1. `defaultMaxTokens`, if you set it on the provider
+2. The model's output ceiling (`model.capabilities.output.maxTokens`)
+3. 4,096, for model ids without a known ceiling
+
+| Models                                                                                                                                    | Output ceiling |
+| ----------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| Fable 5.1, Mythos 5.1, Fable 5, Mythos 5, Mythos Preview, Opus 5.5, Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 5.5, Sonnet 5, Sonnet 4.6 | 128,000        |
+| Opus 4.5, Sonnet 4.5, Haiku 4.5, Sonnet 4, Sonnet 3.7                                                                                     | 64,000         |
+| Opus 4.1, Opus 4                                                                                                                          | 32,000         |
+
+Anthropic's output-token rate limits count only generated tokens, so a high
+limit does not use up rate-limit capacity.
+
+`generate()` and `generateObject()` stream from the Messages API internally
+and return the same result as a non-streaming call. The Anthropic SDK requires
+streaming for requests whose output limit could take longer than ten minutes,
+which applies to these ceilings. A transient error that arrives mid-stream,
+such as `overloaded_error`, surfaces as the matching core-ai error
+(`ModelOverloadedError`) without an automatic SDK retry.
 
 ## Reasoning restrictions
 

@@ -115,7 +115,6 @@ import { createAnthropic } from '@core-ai/anthropic';
 
 const anthropic = createAnthropic({
     apiKey: process.env.ANTHROPIC_API_KEY,
-    defaultMaxTokens: 4096, // Optional: default max tokens for responses
 });
 ```
 
@@ -126,7 +125,7 @@ type AnthropicProviderOptions = {
     apiKey?: string;
     baseURL?: string;
     client?: AnthropicChatClient; // Optional: bring your own Anthropic client
-    defaultMaxTokens?: number; // Optional: defaults to 4096
+    defaultMaxTokens?: number; // Optional: defaults to the model's output ceiling
 };
 ```
 
@@ -138,9 +137,9 @@ const claudeOpus = anthropic.chatModel('claude-opus-4-6');
 ```
 
 <Note>
-    Anthropic requires a `maxTokens` value for all requests. The
-    `defaultMaxTokens` option sets a default value that can be overridden per
-    request.
+    Anthropic requires an output limit on every request. When you omit
+    `maxTokens`, the provider sends the model's output ceiling, or
+    `defaultMaxTokens` if you set it.
 </Note>
 
 ## Anthropic on Vertex AI
@@ -166,7 +165,7 @@ type AnthropicVertexProviderOptions = {
     region?: string; // Required unless client is provided
     credentials?: Record<string, unknown>; // Optional: service account JSON; falls back to ADC
     client?: AnthropicChatClient; // Optional: bring your own client
-    defaultMaxTokens?: number; // Optional: defaults to 4096
+    defaultMaxTokens?: number; // Optional: defaults to the model's output ceiling
 };
 ```
 

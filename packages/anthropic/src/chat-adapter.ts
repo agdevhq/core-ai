@@ -1,5 +1,4 @@
 import type {
-    Message as AnthropicMessage,
     RawMessageStreamEvent,
     StopReason,
     ToolUseBlock,
@@ -23,11 +22,9 @@ import {
 
 export { wrapAnthropicError } from './anthropic-error.ts';
 import type {
-    AssistantContentPart,
     FinishReason,
     GenerateObjectOptions,
     GenerateOptions,
-    GenerateResult,
     Message,
     ModelCapabilities,
     StreamEvent,
@@ -402,30 +399,23 @@ export type AnthropicAdapterOptions = {
     capabilities?: ModelCapabilities;
 };
 
-export function createGenerateRequest(
-    modelId: string,
-    defaultMaxTokens: number,
-    options: GenerateOptions,
-    provider = DEFAULT_PROVIDER_ID,
-    adapterOptions: AnthropicAdapterOptions = {}
-) {
-    const anthropicOptions = parseAnthropicGenerateProviderOptions(
-        options.providerOptions
-    );
-    const baseRequest = createRequestBase(
-        modelId,
-        defaultMaxTokens,
-        options,
-        anthropicOptions,
-        provider,
-        adapterOptions
-    );
-    return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
-}
+/**
+ * Fallback when neither the caller nor the model registry provides an output
+ * limit. Anthropic requires `max_tokens` on every request.
+ */
+const FALLBACK_MAX_TOKENS = 4096;
 
+/**
+ * Builds a streaming Messages request. `generate()` streams too: the SDK
+ * refuses non-streaming requests whose `max_tokens` could exceed ten minutes
+ * of generation, which the model ceilings used for omitted limits always do.
+ *
+ * `defaultMaxTokens` is the provider-level default the user configured, if
+ * any. It takes precedence over the model ceiling.
+ */
 export function createStreamRequest(
     modelId: string,
-    defaultMaxTokens: number,
+    defaultMaxTokens: number | undefined,
     options: GenerateOptions,
     provider = DEFAULT_PROVIDER_ID,
     adapterOptions: AnthropicAdapterOptions = {}
@@ -433,34 +423,22 @@ export function createStreamRequest(
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
         options.providerOptions
     );
-    const baseRequest = {
-        ...createRequestBase(
-            modelId,
-            defaultMaxTokens,
-            options,
-            anthropicOptions,
-            provider,
-            adapterOptions
-        ),
-        stream: true as const,
-    };
-    return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
-}
-
-function createRequestBase(
-    modelId: string,
-    defaultMaxTokens: number,
-    options: GenerateOptions,
-    anthropicOptions: AnthropicGenerateProviderOptions | undefined,
-    provider: string,
-    adapterOptions: AnthropicAdapterOptions
-) {
-    const maxTokens = options.maxTokens ?? defaultMaxTokens;
     const capabilities =
         adapterOptions.capabilities ?? getAnthropicModelCapabilities(modelId);
+    const maxTokens =
+        options.maxTokens ??
+        defaultMaxTokens ??
+        capabilities.output?.maxTokens ??
+        FALLBACK_MAX_TOKENS;
+    const thinkingBudget = getManualThinkingBudget(
+        modelId,
+        options,
+        capabilities
+    );
     validateAnthropicReasoningConfig(
         modelId,
         maxTokens,
+        thinkingBudget,
         options,
         anthropicOptions,
         provider,
@@ -473,12 +451,6 @@ function createRequestBase(
         providerId: provider,
     });
     const converted = convertMessages(options.messages);
-    const reasoningFields = mapReasoningToRequestFields(
-        modelId,
-        maxTokens,
-        options,
-        capabilities
-    );
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
@@ -488,7 +460,7 @@ function createRequestBase(
         });
     }
 
-    return {
+    const baseRequest = {
         model: modelId,
         messages: converted.messages,
         max_tokens: maxTokens,
@@ -499,9 +471,33 @@ function createRequestBase(
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...reasoningFields,
+        ...mapReasoningToRequestFields(
+            modelId,
+            thinkingBudget,
+            options,
+            capabilities
+        ),
         ...mapSamplingToRequestFields(options),
+        stream: true as const,
     };
+    return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
+}
+
+function getManualThinkingBudget(
+    modelId: string,
+    options: GenerateOptions,
+    capabilities: ModelCapabilities
+): number | undefined {
+    if (!options.reasoning || getAnthropicThinkingMode(modelId) !== 'manual') {
+        return undefined;
+    }
+    return toAnthropicManualBudget(
+        clampReasoningEffort(
+            options.reasoning.effort,
+            capabilities.reasoning.supportedEfforts
+        ),
+        capabilities.output?.maxTokens
+    );
 }
 
 function getRequestedToolChoiceMode(toolChoice: GenerateOptions['toolChoice']) {
@@ -526,6 +522,7 @@ function mapSamplingToRequestFields(
 function validateAnthropicReasoningConfig(
     modelId: string,
     maxTokens: number,
+    thinkingBudget: number | undefined,
     options: GenerateOptions,
     anthropicOptions: AnthropicGenerateProviderOptions | undefined,
     provider: string,
@@ -583,9 +580,11 @@ function validateAnthropicReasoningConfig(
         return;
     }
 
-    if (getAnthropicThinkingMode(modelId) === 'manual' && maxTokens <= 1024) {
+    // Shrinking the budget to fit would silently change the response, so a
+    // limit that cannot hold it is rejected instead.
+    if (thinkingBudget !== undefined && maxTokens <= thinkingBudget) {
         throw new ValidationError(
-            `Anthropic model "${modelId}" requires maxTokens greater than 1024 when reasoning is enabled`,
+            `Anthropic model "${modelId}" needs maxTokens above the ${thinkingBudget}-token thinking budget of reasoning effort "${options.reasoning?.effort}", but maxTokens is ${maxTokens}. Raise maxTokens, lower the effort, or omit maxTokens to use the model's output limit.`,
             undefined,
             provider
         );
@@ -635,7 +634,7 @@ function validateAnthropicReasoningConfig(
 
 function mapReasoningToRequestFields(
     modelId: string,
-    maxTokens: number,
+    thinkingBudget: number | undefined,
     options: GenerateOptions,
     capabilities: ModelCapabilities
 ) {
@@ -643,33 +642,32 @@ function mapReasoningToRequestFields(
         return {};
     }
 
-    const thinkingMode = getAnthropicThinkingMode(modelId);
+    if (thinkingBudget !== undefined) {
+        return {
+            thinking: {
+                type: 'enabled',
+                budget_tokens: thinkingBudget,
+                display: 'summarized',
+            },
+        };
+    }
+
     const effort = clampReasoningEffort(
         options.reasoning.effort,
         capabilities.reasoning.supportedEfforts
     );
-    const baseFields: Record<string, unknown> = {};
-
-    if (thinkingMode === 'adaptive') {
-        baseFields['thinking'] = {
+    return {
+        thinking: {
             type: 'adaptive',
             display: 'summarized',
-        };
-        baseFields['output_config'] = {
+        },
+        output_config: {
             effort: toAnthropicAdaptiveEffort(
                 effort,
                 supportsAnthropicMaxEffort(modelId)
             ),
-        };
-        return baseFields;
-    }
-
-    baseFields['thinking'] = {
-        type: 'enabled',
-        budget_tokens: toAnthropicManualBudget(effort, maxTokens),
-        display: 'summarized',
+        },
     };
-    return baseFields;
 }
 
 export function getAnthropicRequestBetas(
@@ -728,94 +726,6 @@ function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
     return mergedRequest as TRequest;
 }
 
-export function mapGenerateResponse(
-    response: AnthropicMessage
-): GenerateResult {
-    const parts: AssistantContentPart[] = [];
-    for (const block of response.content) {
-        if (block.type === 'text') {
-            parts.push({
-                type: 'text',
-                text: block.text,
-            });
-            continue;
-        }
-        if (block.type === 'tool_use') {
-            parts.push({
-                type: 'tool-call',
-                toolCall: {
-                    id: block.id,
-                    name: block.name,
-                    arguments: asObject(block.input),
-                },
-            });
-            continue;
-        }
-        if (block.type === 'thinking') {
-            const thinkingText =
-                typeof block.thinking === 'string'
-                    ? block.thinking
-                    : extractThinkingText(block.thinking);
-            const signature =
-                typeof block.signature === 'string'
-                    ? block.signature
-                    : undefined;
-            // 'anthropic' below is the shared reasoning-metadata namespace
-            // key (see the matching read side), not a provider id.
-            parts.push({
-                type: 'reasoning',
-                text: thinkingText,
-                providerMetadata: {
-                    anthropic: { ...(signature ? { signature } : {}) },
-                },
-            });
-            continue;
-        }
-        if (block.type === 'redacted_thinking') {
-            const redactedData =
-                typeof block.data === 'string' ? block.data : undefined;
-            parts.push({
-                type: 'reasoning',
-                text: '',
-                providerMetadata: {
-                    anthropic: { ...(redactedData ? { redactedData } : {}) },
-                },
-            });
-        }
-    }
-
-    const cacheReadTokens = response.usage.cache_read_input_tokens ?? 0;
-    const cacheWriteTokens = response.usage.cache_creation_input_tokens ?? 0;
-    const inputTokens =
-        response.usage.input_tokens + cacheReadTokens + cacheWriteTokens;
-    const content = parts
-        .flatMap((part) => (part.type === 'text' ? [part.text] : []))
-        .join('');
-    const reasoning = parts
-        .flatMap((part) => (part.type === 'reasoning' ? [part.text] : []))
-        .join('');
-    const toolCalls = parts.flatMap((part) =>
-        part.type === 'tool-call' ? [part.toolCall] : []
-    );
-
-    return {
-        parts,
-        content: content.length > 0 ? content : null,
-        reasoning: reasoning.length > 0 ? reasoning : null,
-        toolCalls,
-        finishReason: mapStopReason(response.stop_reason),
-        usage: {
-            inputTokens,
-            outputTokens: response.usage.output_tokens,
-            inputTokenDetails: {
-                cacheReadTokens,
-                cacheWriteTokens,
-            },
-            outputTokenDetails: mapAnthropicOutputTokenDetails(response.usage),
-        },
-    };
-}
-
 export async function* transformStream(
     stream: AsyncIterable<RawMessageStreamEvent>
 ): AsyncIterable<StreamEvent> {
@@ -867,6 +777,21 @@ export async function* transformStream(
             if (event.content_block.type === 'thinking') {
                 yield {
                     type: 'reasoning-start',
+                };
+                continue;
+            }
+            if (event.content_block.type === 'redacted_thinking') {
+                // Redacted blocks arrive whole; the opaque data must survive
+                // so the block can be sent back on the next turn.
+                const redactedData = event.content_block.data;
+                yield { type: 'reasoning-start' };
+                yield {
+                    type: 'reasoning-end',
+                    providerMetadata: {
+                        anthropic: {
+                            ...(redactedData ? { redactedData } : {}),
+                        },
+                    },
                 };
                 continue;
             }
@@ -1058,23 +983,4 @@ function mapAnthropicOutputTokenDetails(usage: unknown): {
 
 function uniqueStrings(values: string[]): string[] {
     return [...new Set(values)];
-}
-
-function extractThinkingText(value: unknown): string {
-    if (typeof value === 'string') {
-        return value;
-    }
-    if (!Array.isArray(value)) {
-        return '';
-    }
-
-    return value
-        .flatMap((item) => {
-            if (!item || typeof item !== 'object') {
-                return [];
-            }
-            const text = (item as { text?: unknown }).text;
-            return typeof text === 'string' ? [text] : [];
-        })
-        .join('');
 }
