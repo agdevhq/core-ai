@@ -29,9 +29,13 @@ const MAX_EFFORTS = [
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
     supportsStrictToolSchemas: boolean,
-    reasoningMode: 'optional' | 'always-on'
+    reasoningMode: 'optional' | 'always-on',
+    maxOutputTokens: number | undefined
 ): AnthropicModelCapabilities {
     return {
+        ...(maxOutputTokens === undefined
+            ? {}
+            : { output: { maxTokens: maxOutputTokens } }),
         reasoning: {
             mode: reasoningMode,
             supportedEfforts,
@@ -149,12 +153,46 @@ const ANTHROPIC_ADAPTIVE_EFFORT_MAP: Record<
     high: 'high',
 };
 
+/**
+ * Synchronous Messages API output ceilings, from the Models API (`max_tokens`)
+ * and Anthropic's model pages. Retired models stay listed because Bedrock and
+ * Vertex retire on their own schedules.
+ */
+const MAX_OUTPUT_TOKENS: Record<string, number> = {
+    'claude-fable-5-1': 128_000,
+    'claude-mythos-5-1': 128_000,
+    'claude-fable-5': 128_000,
+    'claude-mythos-5': 128_000,
+    'claude-mythos-preview': 128_000,
+    'claude-opus-5-5': 128_000,
+    'claude-opus-5': 128_000,
+    'claude-opus-4-8': 128_000,
+    'claude-opus-4-7': 128_000,
+    'claude-opus-4-6': 128_000,
+    'claude-sonnet-5-5': 128_000,
+    'claude-sonnet-5': 128_000,
+    'claude-sonnet-4-6': 128_000,
+    'claude-opus-4-5': 64_000,
+    'claude-sonnet-4-5': 64_000,
+    'claude-haiku-4-5': 64_000,
+    'claude-sonnet-4': 64_000,
+    'claude-sonnet-3-7': 64_000,
+    'claude-3-7-sonnet': 64_000,
+    'claude-opus-4-1': 32_000,
+    'claude-opus-4': 32_000,
+};
+
+/**
+ * core-ai's own effort ladder for manual thinking; Anthropic only requires
+ * 1,024 <= budget_tokens < max_tokens. `max` leaves 16k of the 64k ceiling of
+ * the current manual-thinking models for the visible answer.
+ */
 const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
     minimal: 1024,
     low: 2048,
     medium: 8192,
     high: 32768,
-    max: 65536,
+    max: 48000,
 };
 
 export function getAnthropicModelCapabilities(
@@ -169,7 +207,8 @@ export function getAnthropicModelCapabilities(
     return createCapabilities(
         supportedEfforts,
         supportsAnthropicStrictToolSchemas(modelId),
-        isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional'
+        isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional',
+        MAX_OUTPUT_TOKENS[normalizeModelId(modelId)]
     );
 }
 
@@ -227,12 +266,6 @@ export function toAnthropicAdaptiveEffort(
     return ANTHROPIC_ADAPTIVE_EFFORT_MAP[effort];
 }
 
-export function toAnthropicManualBudget(
-    effort: ReasoningEffort,
-    maxTokens?: number
-): number {
-    const targetBudget = ANTHROPIC_MANUAL_BUDGET_MAP[effort];
-    return maxTokens === undefined
-        ? targetBudget
-        : Math.min(targetBudget, maxTokens - 1);
+export function toAnthropicManualBudget(effort: ReasoningEffort): number {
+    return ANTHROPIC_MANUAL_BUDGET_MAP[effort];
 }

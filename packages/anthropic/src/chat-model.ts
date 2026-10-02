@@ -13,6 +13,8 @@ import type {
     ChatStream,
 } from '@core-ai/core-ai';
 import {
+    AbortedError,
+    StreamAbortedError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
@@ -21,11 +23,9 @@ import {
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
-    createGenerateRequest,
     createStreamRequest,
     DEFAULT_PROVIDER_ID,
     getAnthropicRequestBetas,
-    mapGenerateResponse,
     transformStream,
     wrapAnthropicError,
 } from './chat-adapter.ts';
@@ -38,6 +38,7 @@ export type AnthropicChatClient = {
 };
 
 export type AnthropicChatModelOptions = {
+    /** Overrides the model's output ceiling as the default `max_tokens`. */
     defaultMaxTokens?: number;
     providerId?: string;
 };
@@ -47,7 +48,7 @@ export function createAnthropicChatModel(
     modelId: string,
     modelOptions: AnthropicChatModelOptions = {}
 ): ChatModel {
-    const defaultMaxTokens = modelOptions.defaultMaxTokens ?? 4096;
+    const { defaultMaxTokens } = modelOptions;
     const provider = modelOptions.providerId ?? DEFAULT_PROVIDER_ID;
     const capabilities = getAnthropicModelCapabilities(modelId);
     const adapterOptions = { capabilities };
@@ -73,20 +74,19 @@ export function createAnthropicChatModel(
         }
     }
 
+    // Always streams; see createStreamRequest for why.
     async function generateChat(
         options: GenerateOptions
     ): Promise<GenerateResult> {
-        const request = createGenerateRequest(
-            modelId,
-            defaultMaxTokens,
-            options,
-            provider,
-            adapterOptions
-        );
-        const response = await callAnthropicMessagesApi<
-            Parameters<typeof mapGenerateResponse>[0]
-        >(request, getAnthropicRequestBetas(modelId, options), options.signal);
-        return mapGenerateResponse(response);
+        const stream = await streamChat(options);
+        try {
+            return await stream.result;
+        } catch (error) {
+            if (error instanceof StreamAbortedError) {
+                throw new AbortedError(error, provider);
+            }
+            throw error;
+        }
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {

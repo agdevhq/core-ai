@@ -14,14 +14,12 @@ import type {
     RawMessageStreamEvent,
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import {
-    createGenerateRequest,
     createStreamRequest,
     createStructuredOutputOptions,
     convertMessages,
     convertToolChoice,
     convertTools,
     getAnthropicRequestBetas,
-    mapGenerateResponse,
     transformStream,
 } from './chat-adapter.ts';
 import { getAnthropicModelCapabilities } from './model-capabilities.ts';
@@ -370,7 +368,7 @@ describe('strict tool validation', () => {
     it('should never mark tools strict without a per-tool opt-in', () => {
         const tools = createTools(1);
 
-        const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
+        const request = createStreamRequest('claude-sonnet-4-6', 4096, {
             messages,
             tools,
         });
@@ -383,7 +381,7 @@ describe('strict tool validation', () => {
 
         for (const modelId of ['claude-sonnet-4', 'claude-3-5-sonnet']) {
             expect(() =>
-                createGenerateRequest(modelId, 4096, { messages, tools })
+                createStreamRequest(modelId, 4096, { messages, tools })
             ).toThrowError(ToolSchemaStrictnessError);
         }
     });
@@ -391,7 +389,7 @@ describe('strict tool validation', () => {
     it('should forward explicit strictness for unknown and future models', () => {
         const tools = createTools(1, true);
 
-        const request = createGenerateRequest('claude-future-6', 4096, {
+        const request = createStreamRequest('claude-future-6', 4096, {
             messages,
             tools,
         });
@@ -401,14 +399,14 @@ describe('strict tool validation', () => {
 
     it('should allow 20 strict tools and reject 21', () => {
         expect(() =>
-            createGenerateRequest('claude-sonnet-4-6', 4096, {
+            createStreamRequest('claude-sonnet-4-6', 4096, {
                 messages,
                 tools: createTools(20, true),
             })
         ).not.toThrow();
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4-6', 4096, {
+            createStreamRequest('claude-sonnet-4-6', 4096, {
                 messages,
                 tools: createTools(21, true),
             })
@@ -417,7 +415,7 @@ describe('strict tool validation', () => {
 
     it('should not count plain tools toward the strict tool limit', () => {
         expect(() =>
-            createGenerateRequest('claude-sonnet-4-6', 4096, {
+            createStreamRequest('claude-sonnet-4-6', 4096, {
                 messages,
                 tools: createTools(25),
             })
@@ -471,7 +469,7 @@ describe('image input', () => {
         };
 
         expect(() =>
-            createGenerateRequest(
+            createStreamRequest(
                 'claude-sonnet-4-6',
                 4096,
                 { messages },
@@ -499,7 +497,7 @@ describe('image input', () => {
         ];
 
         expect(() =>
-            createGenerateRequest(
+            createStreamRequest(
                 'claude-sonnet-4-6',
                 4096,
                 { messages: audioMessages },
@@ -638,7 +636,7 @@ describe('reasoning support', () => {
         ]);
     });
 
-    it('should map adaptive and manual reasoning fields within maxTokens', () => {
+    it('should map adaptive and manual reasoning fields', () => {
         const adaptiveOptions = {
             messages: [{ role: 'user', content: 'Hi' }],
             tools: {
@@ -650,7 +648,7 @@ describe('reasoning support', () => {
             },
             reasoning: { effort: 'max' },
         } satisfies GenerateOptions;
-        const adaptive = createGenerateRequest(
+        const adaptive = createStreamRequest(
             'claude-opus-4-6',
             4096,
             adaptiveOptions
@@ -669,15 +667,16 @@ describe('reasoning support', () => {
             tools: adaptiveOptions.tools,
             reasoning: { effort: 'medium' },
         } satisfies GenerateOptions;
-        const manual = createGenerateRequest(
+        const manual = createStreamRequest(
             'claude-sonnet-4-5',
-            4096,
+            undefined,
             manualOptions
         );
         expect(manual).toMatchObject({
+            max_tokens: 64_000,
             thinking: {
                 type: 'enabled',
-                budget_tokens: 4095,
+                budget_tokens: 8192,
                 display: 'summarized',
             },
         });
@@ -686,7 +685,7 @@ describe('reasoning support', () => {
             getAnthropicRequestBetas('claude-sonnet-4-5', manualOptions)
         ).toEqual(['interleaved-thinking-2025-05-14']);
 
-        const clamped = createGenerateRequest('claude-future-5', 4096, {
+        const clamped = createStreamRequest('claude-future-5', 4096, {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'max' },
         });
@@ -699,7 +698,7 @@ describe('reasoning support', () => {
             'claude-mythos-5-1',
         ]) {
             expect(
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     reasoning: { effort: 'max' },
                 })
@@ -719,7 +718,7 @@ describe('reasoning support', () => {
         'should reject forced tool choice on every request for %s',
         (modelId) => {
             expect(() =>
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     toolChoice: 'required',
                 })
@@ -730,7 +729,7 @@ describe('reasoning support', () => {
             );
 
             expect(() =>
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     toolChoice: { type: 'tool', toolName: 'search' },
                 })
@@ -741,7 +740,7 @@ describe('reasoning support', () => {
             );
 
             expect(() =>
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     reasoning: { effort: 'high' },
                     toolChoice: 'required',
@@ -753,14 +752,14 @@ describe('reasoning support', () => {
             );
 
             expect(() =>
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     toolChoice: 'auto',
                 })
             ).not.toThrow();
 
             expect(() =>
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     toolChoice: 'none',
                 })
@@ -777,7 +776,7 @@ describe('reasoning support', () => {
         'should allow forced tool choice when reasoning is omitted for %s',
         (modelId) => {
             expect(() =>
-                createGenerateRequest(modelId, 4096, {
+                createStreamRequest(modelId, 4096, {
                     messages: [{ role: 'user', content: 'Hi' }],
                     toolChoice: 'required',
                 })
@@ -786,7 +785,7 @@ describe('reasoning support', () => {
     );
 
     it('should include cache_control when cacheControl provider option is set', () => {
-        const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
+        const request = createStreamRequest('claude-sonnet-4-6', 4096, {
             messages: [{ role: 'user', content: 'Hello' }],
             providerOptions: {
                 anthropic: {
@@ -799,7 +798,7 @@ describe('reasoning support', () => {
     });
 
     it('should pass ttl in cache_control when specified', () => {
-        const request = createGenerateRequest('claude-sonnet-4-6', 4096, {
+        const request = createStreamRequest('claude-sonnet-4-6', 4096, {
             messages: [{ role: 'user', content: 'Hello' }],
             providerOptions: {
                 anthropic: {
@@ -814,20 +813,6 @@ describe('reasoning support', () => {
         });
     });
 
-    it('should include cache_control in stream request', () => {
-        const request = createStreamRequest('claude-sonnet-4-6', 4096, {
-            messages: [{ role: 'user', content: 'Hello' }],
-            providerOptions: {
-                anthropic: {
-                    cacheControl: { type: 'ephemeral' },
-                },
-            },
-        });
-
-        expect(request).toHaveProperty('cache_control', { type: 'ephemeral' });
-        expect(request).toHaveProperty('stream', true);
-    });
-
     it('should keep provider betas out of the request body', () => {
         const options = {
             messages: [{ role: 'user' as const, content: 'Hello' }],
@@ -837,7 +822,7 @@ describe('reasoning support', () => {
                 },
             },
         };
-        const request = createGenerateRequest('claude-sonnet-5', 4096, options);
+        const request = createStreamRequest('claude-sonnet-5', 4096, options);
 
         expect(request).not.toHaveProperty('betas');
         expect(getAnthropicRequestBetas('claude-sonnet-5', options)).toEqual([
@@ -847,7 +832,7 @@ describe('reasoning support', () => {
 
     it('should validate incompatible config when reasoning is enabled', () => {
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 temperature: 0.2,
@@ -855,7 +840,7 @@ describe('reasoning support', () => {
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createStreamRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 topP: 0.9,
@@ -863,7 +848,7 @@ describe('reasoning support', () => {
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 toolChoice: { type: 'tool', toolName: 'search' },
@@ -871,7 +856,7 @@ describe('reasoning support', () => {
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 toolChoice: 'required',
@@ -879,7 +864,7 @@ describe('reasoning support', () => {
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 topP: 0.95,
@@ -887,7 +872,7 @@ describe('reasoning support', () => {
         ).not.toThrow();
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 toolChoice: 'auto',
@@ -896,7 +881,7 @@ describe('reasoning support', () => {
         ).not.toThrow();
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 toolChoice: 'none',
@@ -904,7 +889,7 @@ describe('reasoning support', () => {
         ).not.toThrow();
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', undefined, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'high' },
                 providerOptions: { anthropic: { topK: 5 } },
@@ -912,18 +897,74 @@ describe('reasoning support', () => {
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4-5', 1024, {
+            createStreamRequest('claude-sonnet-4-5', 1024, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort: 'minimal' },
             })
         ).toThrowError(ValidationError);
     });
 
+    it('should send the manual thinking budget unchanged when maxTokens holds it', () => {
+        const request = createStreamRequest('claude-sonnet-4-5', undefined, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'high' },
+            maxTokens: 40_000,
+        });
+
+        expect(request).toMatchObject({
+            max_tokens: 40_000,
+            thinking: { type: 'enabled', budget_tokens: 32_768 },
+        });
+    });
+
+    it('should fit the max manual thinking budget into the omitted limit', () => {
+        const request = createStreamRequest('claude-haiku-4-5', undefined, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+
+        expect(request).toMatchObject({
+            max_tokens: 64_000,
+            thinking: { type: 'enabled', budget_tokens: 48_000 },
+        });
+    });
+
+    it.each([
+        ['maxTokens', { maxTokens: 32_000 }, undefined],
+        ['defaultMaxTokens', {}, 32_000],
+    ])(
+        'should reject a %s that cannot hold the manual thinking budget',
+        (_label, limit, defaultMaxTokens) => {
+            expect(() =>
+                createStreamRequest('claude-sonnet-4-5', defaultMaxTokens, {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    reasoning: { effort: 'high' },
+                    ...limit,
+                })
+            ).toThrowError(
+                /needs maxTokens above the 32768-token thinking budget of reasoning effort "high", but maxTokens is 32000/
+            );
+        }
+    );
+
+    it('should not reject small limits for adaptive thinking', () => {
+        const request = createStreamRequest('claude-opus-4-6', undefined, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+            maxTokens: 1000,
+        });
+
+        expect(request).toMatchObject({
+            max_tokens: 1000,
+            output_config: { effort: 'max' },
+        });
+    });
+
     it('should attribute validation errors to a custom provider id', () => {
         expect.assertions(2);
 
         try {
-            createGenerateRequest(
+            createStreamRequest(
                 'claude-sonnet-4',
                 4096,
                 {
@@ -943,56 +984,56 @@ describe('reasoning support', () => {
 
     it('should reject non-default sampling for newer models without explicit reasoning', () => {
         expect(() =>
-            createGenerateRequest('claude-opus-5-5', 4096, {
+            createStreamRequest('claude-opus-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
+            createStreamRequest('claude-sonnet-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-fable-5-1', 4096, {
+            createStreamRequest('claude-fable-5-1', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-mythos-5-1', 4096, {
+            createStreamRequest('claude-mythos-5-1', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 topP: 0.96,
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
+            createStreamRequest('claude-sonnet-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 topP: 0.96,
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-5-5', 4096, {
+            createStreamRequest('claude-sonnet-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 providerOptions: { anthropic: { topK: 5 } },
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-5', 4096, {
+            createStreamRequest('claude-sonnet-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
             })
         ).toThrowError(ValidationError);
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-5', 4096, {
+            createStreamRequest('claude-sonnet-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 1,
                 topP: 1,
@@ -1006,7 +1047,7 @@ describe('reasoning support', () => {
         } as unknown as GenerateOptions['providerOptions'];
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 providerOptions: invalidProviderOptions,
             })
@@ -1019,68 +1060,40 @@ describe('reasoning support', () => {
         } as unknown as GenerateOptions['providerOptions'];
 
         expect(() =>
-            createGenerateRequest('claude-sonnet-4', 4096, {
+            createStreamRequest('claude-sonnet-4', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 providerOptions: invalidProviderOptions,
             })
         ).toThrowError(/expected object, received null/);
     });
 
-    it('should parse thinking and redacted_thinking blocks from responses', () => {
-        const response = asAnthropicMessage({
-            content: [
+    it('should emit redacted thinking blocks as reasoning with their data', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<RawMessageStreamEvent>([
                 {
-                    type: 'thinking',
-                    thinking: 'step-by-step',
-                    signature: 'sig_1',
+                    type: 'content_block_start',
+                    index: 0,
+                    content_block: {
+                        type: 'redacted_thinking',
+                        data: 'hidden_data',
+                    },
                 },
-                { type: 'redacted_thinking', data: 'hidden_data' },
-                { type: 'text', text: 'answer', citations: null },
-            ],
-            stop_reason: 'end_turn',
-            usage: {
-                input_tokens: 10,
-                output_tokens: 3,
-                output_tokens_details: { thinking_tokens: 2 },
-            },
-        });
+                { type: 'content_block_stop', index: 0 },
+            ])
+        )) {
+            events.push(event);
+        }
 
-        const result = mapGenerateResponse(response);
-        expect(result.reasoning).toBe('step-by-step');
-        expect(result.content).toBe('answer');
-        expect(result.parts[0]).toEqual({
-            type: 'reasoning',
-            text: 'step-by-step',
-            providerMetadata: {
-                anthropic: { signature: 'sig_1' },
+        expect(events.slice(0, 2)).toEqual([
+            { type: 'reasoning-start' },
+            {
+                type: 'reasoning-end',
+                providerMetadata: {
+                    anthropic: { redactedData: 'hidden_data' },
+                },
             },
-        });
-        expect(result.parts[1]).toEqual({
-            type: 'reasoning',
-            text: '',
-            providerMetadata: {
-                anthropic: { redactedData: 'hidden_data' },
-            },
-        });
-        expect(result.usage.outputTokenDetails.reasoningTokens).toBe(2);
-    });
-
-    it('should parse thinking block without signature', () => {
-        const response = asAnthropicMessage({
-            content: [
-                { type: 'thinking', thinking: 'bare thought' },
-                { type: 'text', text: 'answer', citations: null },
-            ],
-            stop_reason: 'end_turn',
-            usage: { input_tokens: 10, output_tokens: 3 },
-        });
-
-        const result = mapGenerateResponse(response);
-        expect(result.parts[0]).toEqual({
-            type: 'reasoning',
-            text: 'bare thought',
-            providerMetadata: { anthropic: {} },
-        });
+        ]);
     });
 
     it('should emit reasoning events from thinking deltas in streams', async () => {

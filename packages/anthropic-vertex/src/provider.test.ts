@@ -6,6 +6,7 @@ import {
     ToolSchemaStrictnessError,
 } from '@core-ai/core-ai';
 import type { AnthropicChatClient } from '@core-ai/anthropic';
+import { toAsyncIterable } from '@core-ai/testing';
 
 import { createAnthropicVertex } from './provider.ts';
 
@@ -27,20 +28,14 @@ vi.mock('@anthropic-ai/vertex-sdk', () => ({
 }));
 
 function createMessageResponse() {
-    return {
-        id: 'msg_1',
-        type: 'message',
-        role: 'assistant',
-        model: 'claude-sonnet-4-6',
-        stop_reason: 'end_turn',
-        stop_sequence: null,
-        content: [{ type: 'text', text: 'ok', citations: null }],
-        container: null,
-        usage: {
-            input_tokens: 1,
-            output_tokens: 1,
+    return toAsyncIterable([
+        {
+            type: 'message_delta',
+            delta: { stop_reason: 'end_turn', stop_sequence: null },
+            usage: { output_tokens: 1 },
         },
-    };
+        { type: 'message_stop' },
+    ]);
 }
 
 describe('createAnthropicVertex', () => {
