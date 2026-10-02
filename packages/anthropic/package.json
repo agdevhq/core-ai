@@ -44,7 +44,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@anthropic-ai/sdk": "^0.110.0",
+        "@anthropic-ai/sdk": "^0.114.0",
         "@core-ai/core-ai": "^0.29.0"
     },
     "peerDependencies": {
