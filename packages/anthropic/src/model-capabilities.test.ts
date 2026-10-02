@@ -179,10 +179,48 @@ describe('effort mapping', () => {
         expect(toAnthropicAdaptiveEffort('max', false)).toBe('high');
     });
 
-    it('should map manual budgets', () => {
-        expect(toAnthropicManualBudget('minimal')).toBe(1024);
-        expect(toAnthropicManualBudget('max')).toBe(65536);
-        expect(toAnthropicManualBudget('medium', 4096)).toBe(4095);
+    it('should map manual budgets from the model ceiling', () => {
+        expect(toAnthropicManualBudget('minimal', 64_000)).toBe(1024);
+        expect(toAnthropicManualBudget('medium', 64_000)).toBe(8192);
+        expect(toAnthropicManualBudget('high', 64_000)).toBe(32_000);
+        expect(toAnthropicManualBudget('max', 64_000)).toBe(48_000);
+        expect(toAnthropicManualBudget('high', 32_000)).toBe(16_000);
+        expect(toAnthropicManualBudget('max', 32_000)).toBe(24_000);
+    });
+});
+
+describe('output ceilings', () => {
+    it.each([
+        ['claude-fable-5-1', 128_000],
+        ['claude-mythos-5-1', 128_000],
+        ['claude-fable-5', 128_000],
+        ['claude-mythos-5', 128_000],
+        ['claude-mythos-preview', 128_000],
+        ['claude-opus-5-5', 128_000],
+        ['claude-opus-5', 128_000],
+        ['claude-opus-4-8', 128_000],
+        ['claude-opus-4-7', 128_000],
+        ['claude-opus-4-6', 128_000],
+        ['claude-sonnet-5-5', 128_000],
+        ['claude-sonnet-5', 128_000],
+        ['claude-sonnet-4-6', 128_000],
+        ['claude-opus-4-5-20251101', 64_000],
+        ['claude-sonnet-4-5-20250929', 64_000],
+        ['claude-haiku-4-5@20251001', 64_000],
+        ['claude-sonnet-4-20250514', 64_000],
+        ['claude-3-7-sonnet-20250219', 64_000],
+        ['claude-opus-4-1-20250805', 32_000],
+        ['claude-opus-4-20250514', 32_000],
+    ])('should report the output ceiling of %s', (modelId, maxTokens) => {
+        expect(getAnthropicModelCapabilities(modelId).output).toEqual({
+            maxTokens,
+        });
+    });
+
+    it('should leave the ceiling unknown for unrecognized models', () => {
+        expect(
+            getAnthropicModelCapabilities('claude-future-9').output
+        ).toBeUndefined();
     });
 });
 

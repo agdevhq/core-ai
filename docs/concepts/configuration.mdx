@@ -53,10 +53,11 @@ const factual = await generate({
 
 ### maxTokens
 
-Maximum number of tokens to generate in the response.
+Total output allowance for the response. Reasoning tokens and the visible
+answer share this allowance, matching how `usage.outputTokens` counts them.
 
 **Type:** `number`  
-**Range:** Varies by model and provider
+**Range:** Up to the model's output ceiling (`model.capabilities.output?.maxTokens`)
 
 ```typescript
 const result = await generate({
@@ -66,9 +67,16 @@ const result = await generate({
 });
 ```
 
-<Note>
-  Some providers (like Anthropic) require `maxTokens` to be set. The provider wrapper may set a default value if not specified.
-</Note>
+When you omit `maxTokens`, the model's output ceiling applies. Omit it on
+reasoning requests unless you need a hard cap, so the model has room to think
+and answer.
+
+Models steered by a thinking budget (Claude 4.5 and earlier, Gemini 2.5) spend
+that budget out of `maxTokens`. If you set `maxTokens` at or below the budget
+for the requested effort, the call throws a `ValidationError`. The budget is
+never reduced to fit. Effort-level models (current Claude, Gemini 3, OpenAI)
+have no fixed budget: a small `maxTokens` cuts the response off with
+`finishReason: 'length'`.
 
 **Token Estimation:**
 - 1 token ≈ 0.75 words (English)

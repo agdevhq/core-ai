@@ -6,6 +6,7 @@ import {
     ProviderError,
     ToolSchemaStrictnessError,
 } from '@core-ai/core-ai';
+import { toAsyncIterable } from '@core-ai/testing';
 
 import { createAnthropic, createAnthropicChatProvider } from './provider.ts';
 import type { AnthropicChatClient } from './chat-model.ts';
@@ -23,20 +24,7 @@ describe('createAnthropic', () => {
     });
 
     it('should use default max tokens in generated requests', async () => {
-        const create = vi.fn(async () => ({
-            id: 'msg_1',
-            type: 'message',
-            role: 'assistant',
-            model: 'claude-haiku-4-5',
-            stop_reason: 'end_turn',
-            stop_sequence: null,
-            content: [{ type: 'text', text: 'ok', citations: null }],
-            container: null,
-            usage: {
-                input_tokens: 1,
-                output_tokens: 1,
-            },
-        }));
+        const create = vi.fn(async () => createMockResponse());
         const provider = createAnthropic({
             client: createMockClient(create),
             defaultMaxTokens: 2048,
@@ -143,7 +131,7 @@ describe('createAnthropicChatProvider', () => {
         expect(create).toHaveBeenCalledTimes(1);
     });
 
-    it('should default to 4096 max tokens', async () => {
+    it("should default to the model's output ceiling", async () => {
         const create = vi.fn(async () => createMockResponse());
 
         const provider = createAnthropicChatProvider({
@@ -155,7 +143,7 @@ describe('createAnthropicChatProvider', () => {
             .generate({ messages: [{ role: 'user', content: 'hello' }] });
 
         expect(create).toHaveBeenCalledWith(
-            expect.objectContaining({ max_tokens: 4096 }),
+            expect.objectContaining({ max_tokens: 64_000 }),
             expect.objectContaining({ signal: undefined })
         );
     });
@@ -183,20 +171,14 @@ describe('createAnthropicChatProvider', () => {
 });
 
 function createMockResponse() {
-    return {
-        id: 'msg_1',
-        type: 'message',
-        role: 'assistant',
-        model: 'claude-haiku-4-5',
-        stop_reason: 'end_turn',
-        stop_sequence: null,
-        content: [{ type: 'text', text: 'ok', citations: null }],
-        container: null,
-        usage: {
-            input_tokens: 1,
-            output_tokens: 1,
+    return toAsyncIterable([
+        {
+            type: 'message_delta',
+            delta: { stop_reason: 'end_turn', stop_sequence: null },
+            usage: { output_tokens: 1 },
         },
-    };
+        { type: 'message_stop' },
+    ]);
 }
 
 function createMockClient(

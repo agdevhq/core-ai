@@ -204,6 +204,14 @@ export type ToolSchemaStrictnessCapabilities =
     | { supported: false }
     | { supported: true; maxStrictTools?: number };
 
+export type ModelOutputCapabilities = {
+    /**
+     * Verified ceiling for a single response, in tokens. Covers reasoning and
+     * visible output together, like `maxTokens`.
+     */
+    maxTokens: number;
+};
+
 export type ModelCapabilities = {
     reasoning: {
         mode: 'unsupported' | 'optional' | 'always-on';
@@ -227,6 +235,11 @@ export type ModelCapabilities = {
     tools: {
         strictSchemas: ToolSchemaStrictnessCapabilities;
     };
+    /**
+     * Present only when the provider has a verified output ceiling for this
+     * model id. Absent means unknown.
+     */
+    output?: ModelOutputCapabilities;
 };
 
 export type ChatModel = {
@@ -303,6 +316,14 @@ export type ImageModelMiddleware = {
 export type BaseGenerateOptions = {
     messages: Message[];
     temperature?: number;
+    /**
+     * Total output allowance for the response: reasoning tokens and visible
+     * output together. When omitted, the model's output ceiling applies
+     * (see the provider docs for models without a known ceiling). An
+     * explicit value that cannot hold the reasoning budget for the requested
+     * effort throws a `ValidationError`; adapters never shrink the reasoning
+     * budget to fit.
+     */
     maxTokens?: number;
     topP?: number;
     reasoning?: ReasoningConfig;
