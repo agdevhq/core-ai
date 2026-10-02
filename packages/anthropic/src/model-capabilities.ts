@@ -184,16 +184,21 @@ const MAX_OUTPUT_TOKENS: Record<string, number> = {
 
 /**
  * core-ai's own effort ladder for manual thinking; Anthropic only requires
- * 1,024 <= budget_tokens < max_tokens. `max` leaves 16k of the 64k ceiling of
- * the current manual-thinking models for the visible answer.
+ * 1,024 <= budget_tokens < max_tokens. The lower efforts are fixed. `high` and
+ * `max` take half and three quarters of the model's output ceiling, so every
+ * budget fits an omitted `maxTokens` and leaves room for the answer.
  */
-const ANTHROPIC_MANUAL_BUDGET_MAP: Record<ReasoningEffort, number> = {
+const ANTHROPIC_MANUAL_BUDGET_LADDER: Record<
+    'minimal' | 'low' | 'medium',
+    number
+> = {
     minimal: 1024,
     low: 2048,
     medium: 8192,
-    high: 32768,
-    max: 48000,
 };
+
+/** Ceiling assumed for manual-thinking models without a known one. */
+const FALLBACK_MANUAL_THINKING_CEILING = 64_000;
 
 export function getAnthropicModelCapabilities(
     modelId: string
@@ -266,6 +271,15 @@ export function toAnthropicAdaptiveEffort(
     return ANTHROPIC_ADAPTIVE_EFFORT_MAP[effort];
 }
 
-export function toAnthropicManualBudget(effort: ReasoningEffort): number {
-    return ANTHROPIC_MANUAL_BUDGET_MAP[effort];
+export function toAnthropicManualBudget(
+    effort: ReasoningEffort,
+    maxOutputTokens = FALLBACK_MANUAL_THINKING_CEILING
+): number {
+    if (effort === 'max') {
+        return Math.floor(maxOutputTokens * 0.75);
+    }
+    if (effort === 'high') {
+        return Math.floor(maxOutputTokens * 0.5);
+    }
+    return ANTHROPIC_MANUAL_BUDGET_LADDER[effort];
 }

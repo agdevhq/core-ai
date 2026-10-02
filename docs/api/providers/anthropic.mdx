@@ -327,20 +327,21 @@ const result = await generate({
 ### Manual thinking budget (Claude 4.5 and earlier)
 
 Manual-thinking models take a token budget instead of an effort level. This
-library maps each effort to a fixed budget:
+library maps each effort to a budget. `high` and `max` are half and three
+quarters of the model's output ceiling:
 
-| Effort    | `budget_tokens` |
-| --------- | --------------- |
-| `minimal` | 1,024           |
-| `low`     | 2,048           |
-| `medium`  | 8,192           |
-| `high`    | 32,768          |
-| `max`     | 48,000          |
+| Effort    | Budget                | Claude 4.5 (64,000 ceiling) | Opus 4 / 4.1 (32,000 ceiling) |
+| --------- | --------------------- | --------------------------- | ----------------------------- |
+| `minimal` | 1,024                 | 1,024                       | 1,024                         |
+| `low`     | 2,048                 | 2,048                       | 2,048                         |
+| `medium`  | 8,192                 | 8,192                       | 8,192                         |
+| `high`    | 50% of output ceiling | 32,000                      | 16,000                        |
+| `max`     | 75% of output ceiling | 48,000                      | 24,000                        |
 
 The budget is spent out of `maxTokens`. If you set `maxTokens` (or
 `defaultMaxTokens`) at or below the budget, the request throws a
 `ValidationError`. The budget is never reduced to fit. Omit `maxTokens` to use
-the model's 64,000-token ceiling, which holds every budget.
+the model's output ceiling, which holds every budget.
 
 `claude-opus-4-5` also accepts Anthropic's `effort` parameter alongside manual
 thinking. To send it, pass it through `providerOptions`:

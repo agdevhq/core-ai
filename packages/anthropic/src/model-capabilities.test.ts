@@ -179,22 +179,13 @@ describe('effort mapping', () => {
         expect(toAnthropicAdaptiveEffort('max', false)).toBe('high');
     });
 
-    it('should map manual budgets', () => {
-        expect(toAnthropicManualBudget('minimal')).toBe(1024);
-        expect(toAnthropicManualBudget('high')).toBe(32768);
-        expect(toAnthropicManualBudget('max')).toBe(48000);
-    });
-
-    it('should keep every manual budget below the manual-thinking ceiling', () => {
-        for (const modelId of [
-            'claude-opus-4-5',
-            'claude-sonnet-4-5',
-            'claude-haiku-4-5',
-        ]) {
-            const ceiling =
-                getAnthropicModelCapabilities(modelId).output?.maxTokens;
-            expect(toAnthropicManualBudget('max')).toBeLessThan(ceiling ?? 0);
-        }
+    it('should map manual budgets from the model ceiling', () => {
+        expect(toAnthropicManualBudget('minimal', 64_000)).toBe(1024);
+        expect(toAnthropicManualBudget('medium', 64_000)).toBe(8192);
+        expect(toAnthropicManualBudget('high', 64_000)).toBe(32_000);
+        expect(toAnthropicManualBudget('max', 64_000)).toBe(48_000);
+        expect(toAnthropicManualBudget('high', 32_000)).toBe(16_000);
+        expect(toAnthropicManualBudget('max', 32_000)).toBe(24_000);
     });
 });
 

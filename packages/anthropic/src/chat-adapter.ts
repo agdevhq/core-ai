@@ -495,7 +495,8 @@ function getManualThinkingBudget(
         clampReasoningEffort(
             options.reasoning.effort,
             capabilities.reasoning.supportedEfforts
-        )
+        ),
+        capabilities.output?.maxTokens
     );
 }
 

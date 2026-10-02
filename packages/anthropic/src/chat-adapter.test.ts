@@ -22,7 +22,10 @@ import {
     getAnthropicRequestBetas,
     transformStream,
 } from './chat-adapter.ts';
-import { getAnthropicModelCapabilities } from './model-capabilities.ts';
+import {
+    getAnthropicModelCapabilities,
+    toAnthropicManualBudget,
+} from './model-capabilities.ts';
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
@@ -913,21 +916,43 @@ describe('reasoning support', () => {
 
         expect(request).toMatchObject({
             max_tokens: 40_000,
-            thinking: { type: 'enabled', budget_tokens: 32_768 },
+            thinking: { type: 'enabled', budget_tokens: 32_000 },
         });
     });
 
-    it('should fit the max manual thinking budget into the omitted limit', () => {
-        const request = createStreamRequest('claude-haiku-4-5', undefined, {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'max' },
-        });
+    it.each(
+        [
+            'claude-opus-4-5',
+            'claude-sonnet-4-5',
+            'claude-haiku-4-5',
+            'claude-sonnet-4',
+            'claude-sonnet-3-7',
+            'claude-opus-4-1',
+            'claude-opus-4',
+        ].flatMap((modelId) =>
+            (['minimal', 'low', 'medium', 'high', 'max'] as const).map(
+                (effort) => [modelId, effort] as const
+            )
+        )
+    )(
+        'should fit the %s %s thinking budget into the omitted limit',
+        (modelId, effort) => {
+            const request = createStreamRequest(modelId, undefined, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort },
+            });
 
-        expect(request).toMatchObject({
-            max_tokens: 64_000,
-            thinking: { type: 'enabled', budget_tokens: 48_000 },
-        });
-    });
+            const ceiling =
+                getAnthropicModelCapabilities(modelId).output?.maxTokens ?? 0;
+            const budget = toAnthropicManualBudget(effort, ceiling);
+
+            expect(request).toMatchObject({
+                max_tokens: ceiling,
+                thinking: { type: 'enabled', budget_tokens: budget },
+            });
+            expect(budget).toBeLessThan(ceiling);
+        }
+    );
 
     it.each([
         ['maxTokens', { maxTokens: 32_000 }, undefined],
@@ -942,7 +967,7 @@ describe('reasoning support', () => {
                     ...limit,
                 })
             ).toThrowError(
-                /needs maxTokens above the 32768-token thinking budget of reasoning effort "high", but maxTokens is 32000/
+                /needs maxTokens above the 32000-token thinking budget of reasoning effort "high", but maxTokens is 32000/
             );
         }
     );

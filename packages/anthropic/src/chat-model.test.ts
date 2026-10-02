@@ -487,13 +487,7 @@ describe('generate', () => {
         });
     });
     it('should stream generate requests and size max_tokens from the model ceiling', async () => {
-        const create = vi.fn(async () =>
-            asMessageStream({
-                content: [{ type: 'text', text: 'done', citations: null }],
-                stop_reason: 'end_turn',
-                usage: { input_tokens: 10, output_tokens: 2 },
-            })
-        );
+        const create = vi.fn(async () => createTextResponse());
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-opus-4-6'
@@ -510,13 +504,7 @@ describe('generate', () => {
     });
 
     it('should prefer a configured defaultMaxTokens over the model ceiling', async () => {
-        const create = vi.fn(async () =>
-            asMessageStream({
-                content: [{ type: 'text', text: 'done', citations: null }],
-                stop_reason: 'end_turn',
-                usage: { input_tokens: 10, output_tokens: 2 },
-            })
-        );
+        const create = vi.fn(async () => createTextResponse());
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-opus-4-6',
@@ -534,13 +522,7 @@ describe('generate', () => {
     });
 
     it('should fall back to 4096 max_tokens for models without a known ceiling', async () => {
-        const create = vi.fn(async () =>
-            asMessageStream({
-                content: [{ type: 'text', text: 'done', citations: null }],
-                stop_reason: 'end_turn',
-                usage: { input_tokens: 10, output_tokens: 2 },
-            })
-        );
+        const create = vi.fn(async () => createTextResponse());
         const model = createAnthropicChatModel(
             createMockClient(create),
             'claude-future-9'
@@ -1308,4 +1290,12 @@ function asMessageStream(
     );
 
     return toAsyncIterable(events as RawMessageStreamEvent[]);
+}
+
+function createTextResponse(): AsyncIterable<RawMessageStreamEvent> {
+    return asMessageStream({
+        content: [{ type: 'text', text: 'done', citations: null }],
+        stop_reason: 'end_turn',
+        usage: { input_tokens: 10, output_tokens: 2 },
+    });
 }
