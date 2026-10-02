@@ -1,5 +1,20 @@
 # @core-ai/google-vertex
 
+## 0.29.0
+
+### Minor Changes
+
+- eb05b64: Re-export `GoogleThinkingBudgetRange`. Vertex-hosted Gemini 2.5 models use
+  their documented thinking budget ranges, and an explicit `maxTokens` at or
+  below the thinking budget throws `ValidationError`.
+
+### Patch Changes
+
+- Updated dependencies [eb05b64]
+- Updated dependencies [eb05b64]
+    - @core-ai/google-genai@0.29.0
+    - @core-ai/core-ai@0.29.0
+
 ## 0.28.1
 
 ### Patch Changes

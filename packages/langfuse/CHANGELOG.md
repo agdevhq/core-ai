@@ -1,5 +1,12 @@
 # @core-ai/langfuse
 
+## 0.29.0
+
+### Patch Changes
+
+- Updated dependencies [eb05b64]
+    - @core-ai/core-ai@0.29.0
+
 ## 0.28.1
 
 ### Patch Changes

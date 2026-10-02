@@ -1,5 +1,21 @@
 # @core-ai/anthropic-vertex
 
+## 0.29.0
+
+### Minor Changes
+
+- eb05b64: **Breaking:** `defaultMaxTokens` no longer defaults to 4,096. Requests that omit
+  `maxTokens` use the model's output ceiling, and `generate()` streams
+  internally. Manual thinking budgets throw `ValidationError` when `maxTokens`
+  cannot hold them instead of being shrunk.
+
+### Patch Changes
+
+- Updated dependencies [eb05b64]
+- Updated dependencies [eb05b64]
+    - @core-ai/anthropic@0.29.0
+    - @core-ai/core-ai@0.29.0
+
 ## 0.28.1
 
 ### Patch Changes
