@@ -17,4 +17,6 @@ Size omitted output limits from the model and stream every request.
   result. Mid-stream errors such as `overloaded_error` surface as
   `ModelOverloadedError`, and aborts as `AbortedError`.
 - Redacted thinking blocks are kept in streamed results.
+- A response cut off at the context window (`model_context_window_exceeded`)
+  now reports `finishReason: 'length'` instead of `'unknown'`.
 - Capabilities report `output.maxTokens` for known Claude models.
