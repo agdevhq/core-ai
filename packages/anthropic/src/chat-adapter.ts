@@ -1036,7 +1036,7 @@ function mapStopReason(reason: StopReason | null): FinishReason {
     if (reason === 'end_turn' || reason === 'stop_sequence') {
         return 'stop';
     }
-    if (reason === 'max_tokens') {
+    if (reason === 'max_tokens' || reason === 'model_context_window_exceeded') {
         return 'length';
     }
     if (reason === 'tool_use') {

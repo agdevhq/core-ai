@@ -1349,6 +1349,45 @@ describe('reasoning support', () => {
         const finish = events.find((event) => event.type === 'finish');
         expect(finish?.usage.outputTokenDetails.reasoningTokens).toBe(3);
     });
+
+    it('should map model_context_window_exceeded to a length finish', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toAsyncIterable<RawMessageStreamEvent>([
+                {
+                    type: 'message_start',
+                    message: asAnthropicMessage({
+                        content: [],
+                        stop_reason: null,
+                        usage: { input_tokens: 10, output_tokens: 0 },
+                    }),
+                },
+                {
+                    type: 'message_delta',
+                    delta: {
+                        stop_reason: 'model_context_window_exceeded',
+                        stop_sequence: null,
+                        container: null,
+                        stop_details: null,
+                    },
+                    usage: {
+                        input_tokens: 10,
+                        output_tokens: 2,
+                        cache_creation_input_tokens: null,
+                        cache_read_input_tokens: null,
+                        output_tokens_details: null,
+                        server_tool_use: null,
+                    },
+                },
+                { type: 'message_stop' },
+            ])
+        )) {
+            events.push(event);
+        }
+
+        const finish = events.find((event) => event.type === 'finish');
+        expect(finish?.finishReason).toBe('length');
+    });
 });
 
 function createTools(count: number, strict?: boolean): ToolSet {
