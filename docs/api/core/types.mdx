@@ -255,6 +255,9 @@ type ModelCapabilities = {
             | { supported: false }
             | { supported: true; maxStrictTools?: number };
     };
+    output?: {
+        maxTokens: number;
+    };
 };
 ```
 
@@ -268,6 +271,7 @@ type ModelCapabilities = {
 | `modalities.output`                  | Modalities the model can emit as assistant content                   |
 | `tools.strictSchemas.supported`      | Whether `strict: true` is available for tool schemas                 |
 | `tools.strictSchemas.maxStrictTools` | Optional per-request limit on the number of strict tools             |
+| `output.maxTokens`                   | Verified output ceiling for one response, reasoning included         |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
 option. The model may still return reasoning output. `optional` means callers
@@ -286,6 +290,10 @@ common presets `TEXT_ONLY_MODALITIES` (`text` in / `text` out) and
 `MULTIMODAL_INPUT_MODALITIES` (`text` + `image` + `file` in / `text` out).
 Providers that support `AudioPart` add `'audio'` to their input array. `'video'`
 is reserved until a dedicated user content part exists.
+
+`output` is present only when the provider has a verified output ceiling for
+the model id. It is the limit an omitted `maxTokens` resolves to. A missing
+`output` means the ceiling is unknown.
 
 Sending image, file, or audio parts when those modalities are not in
 `modalities.input` throws an `UnsupportedInputModalityError` before the

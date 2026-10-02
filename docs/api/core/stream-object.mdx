@@ -48,7 +48,7 @@ export type StreamObjectParams<TSchema extends z.ZodType> =
 </ParamField>
 
 <ParamField path="maxTokens" type="number">
-  Maximum number of tokens to generate.
+  Total output allowance for the response, covering reasoning tokens and the visible answer. When omitted, the model's output ceiling applies. If the value cannot hold the reasoning budget of the requested effort, the call throws a `ValidationError`. See [maxTokens](/concepts/configuration#maxtokens).
 </ParamField>
 
 <ParamField path="topP" type="number">
