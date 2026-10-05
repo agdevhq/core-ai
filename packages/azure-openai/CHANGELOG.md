@@ -1,5 +1,12 @@
 # @core-ai/azure-openai
 
+## 0.29.1
+
+### Patch Changes
+
+- @core-ai/core-ai@0.29.1
+- @core-ai/openai@0.29.1
+
 ## 0.29.0
 
 ### Patch Changes

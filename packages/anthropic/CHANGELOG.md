@@ -1,5 +1,16 @@
 # @core-ai/anthropic
 
+## 0.29.1
+
+### Patch Changes
+
+- 842a0d4: Report a response cut off at the context window as truncated.
+    - A response that stops with `model_context_window_exceeded` now reports
+      `finishReason: 'length'` instead of `'unknown'`.
+    - Upgrade `@anthropic-ai/sdk` to `^0.114.0`, the first version whose
+      `StopReason` type includes that value.
+    - @core-ai/core-ai@0.29.1
+
 ## 0.29.0
 
 ### Minor Changes
