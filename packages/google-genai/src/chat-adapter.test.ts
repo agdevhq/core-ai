@@ -596,6 +596,28 @@ describe('reasoning support', () => {
         ]);
     });
 
+    it('should send the native thinking level for a supported effort', () => {
+        const request = createGenerateRequest('gemini-3.5-flash', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingLevel: 'MEDIUM' },
+        });
+    });
+
+    it('should clamp an effort the model has no thinking level for', () => {
+        const request = createGenerateRequest('gemini-3.8-flash', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: { thinkingLevel: 'LOW' },
+        });
+    });
+
     it('should map reasoning config to thinkingLevel for Gemini 3', () => {
         const request = createGenerateRequest('gemini-3-pro', {
             messages: [{ role: 'user', content: 'Hi' }],
