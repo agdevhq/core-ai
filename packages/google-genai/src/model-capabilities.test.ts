@@ -19,14 +19,40 @@ describe('getGoogleModelCapabilities', () => {
         const capabilities = getGoogleModelCapabilities('gemini-3-pro');
         expect(capabilities.reasoning.mode).toBe('always-on');
         expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'low',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
+        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
+    });
+
+    it.each([
+        ['gemini-3.6-flash', ['minimal', 'low', 'medium', 'high']],
+        ['gemini-3.5-flash', ['minimal', 'low', 'medium', 'high']],
+        ['gemini-3.5-flash-lite', ['minimal', 'low', 'medium', 'high']],
+        ['gemini-3.1-flash-lite', ['minimal', 'low', 'medium', 'high']],
+        ['gemini-3.8-flash', ['low', 'medium', 'high']],
+        ['gemini-3.7-flash', ['low', 'medium', 'high']],
+        ['gemini-3.1-pro-preview', ['low', 'medium', 'high']],
+    ])(
+        'should report the thinking levels of %s as efforts',
+        (modelId, efforts) => {
+            expect(
+                getGoogleModelCapabilities(modelId).reasoning.supportedEfforts
+            ).toEqual(efforts);
+        }
+    );
+
+    it('should keep unknown models on optional thinking with every effort', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-custom');
+        expect(capabilities.reasoning.mode).toBe('optional');
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
             'minimal',
             'low',
             'medium',
             'high',
             'max',
         ]);
-        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
-        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
     });
 
     it.each([
@@ -97,10 +123,30 @@ describe('getGoogleModelCapabilities', () => {
 });
 
 describe('reasoning mapping', () => {
-    it('should map effort to thinking level', () => {
-        expect(toGoogleThinkingLevel('minimal')).toBe('LOW');
-        expect(toGoogleThinkingLevel('max')).toBe('HIGH');
-    });
+    it.each([
+        ['gemini-3.5-flash', 'minimal', 'MINIMAL'],
+        ['gemini-3.5-flash', 'low', 'LOW'],
+        ['gemini-3.5-flash', 'medium', 'MEDIUM'],
+        ['gemini-3.5-flash', 'high', 'HIGH'],
+        ['gemini-3.5-flash', 'max', 'HIGH'],
+        ['gemini-3.8-flash', 'minimal', 'LOW'],
+        ['gemini-3.8-flash', 'medium', 'MEDIUM'],
+        ['gemini-3.8-flash', 'max', 'HIGH'],
+        ['gemini-3-pro', 'minimal', 'LOW'],
+        ['gemini-3-pro', 'medium', 'LOW'],
+        ['gemini-3-pro', 'max', 'HIGH'],
+    ] as const)(
+        'should map %s effort %s to thinking level %s',
+        (modelId, effort, level) => {
+            expect(
+                toGoogleThinkingLevel(
+                    effort,
+                    getGoogleModelCapabilities(modelId).reasoning
+                        .supportedEfforts
+                )
+            ).toBe(level);
+        }
+    );
 
     it.each([
         ['gemini-2.5-pro', 24_576, 32_768],

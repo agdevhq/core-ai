@@ -1,4 +1,5 @@
 import {
+    clampReasoningEffort,
     stripModelDateSuffix,
     UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
     type ModelCapabilities,
@@ -27,6 +28,31 @@ const ALL_EFFORTS = [
     'max',
 ] as const satisfies readonly ReasoningEffort[];
 
+/**
+ * Thinking levels each Gemini 3 model accepts, expressed as the efforts that
+ * map onto them one to one. From
+ * https://ai.google.dev/gemini-api/docs/thinking and
+ * https://ai.google.dev/gemini-api/docs/gemini-3. An effort outside a model's
+ * list is clamped to the nearest level, so `max` always resolves to `high`.
+ */
+const FOUR_LEVEL_EFFORTS = [
+    'minimal',
+    'low',
+    'medium',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+
+const THREE_LEVEL_EFFORTS = [
+    'low',
+    'medium',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+
+const TWO_LEVEL_EFFORTS = [
+    'low',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+
 const GOOGLE_INPUT_MODALITIES = {
     input: ['text', 'image', 'file', 'audio'],
     output: ['text'],
@@ -35,6 +61,7 @@ const GOOGLE_INPUT_MODALITIES = {
 function createCapabilities(config: {
     thinkingParam: GoogleModelCapabilities['reasoning']['thinkingParam'];
     mode: GoogleModelCapabilities['reasoning']['mode'];
+    supportedEfforts?: readonly ReasoningEffort[];
     thinkingBudgetRange?: GoogleThinkingBudgetRange;
     maxOutputTokens?: number;
 }): GoogleModelCapabilities {
@@ -44,7 +71,7 @@ function createCapabilities(config: {
             : { output: { maxTokens: config.maxOutputTokens } }),
         reasoning: {
             mode: config.mode,
-            supportedEfforts: ALL_EFFORTS,
+            supportedEfforts: config.supportedEfforts ?? ALL_EFFORTS,
             restrictsSamplingParams: false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
@@ -85,35 +112,50 @@ const GEMINI_25_FLASH_LITE_CAPABILITIES = createCapabilities({
     thinkingBudgetRange: { min: 512, max: 24_576 },
     maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
-const THINKING_LEVEL_CAPABILITIES = createCapabilities({
-    thinkingParam: 'thinkingLevel',
-    mode: 'always-on',
-    maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
-});
+function createThinkingLevelCapabilities(
+    supportedEfforts: readonly ReasoningEffort[]
+): GoogleModelCapabilities {
+    return createCapabilities({
+        thinkingParam: 'thinkingLevel',
+        mode: 'always-on',
+        supportedEfforts,
+        maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+    });
+}
+const FOUR_LEVEL_CAPABILITIES =
+    createThinkingLevelCapabilities(FOUR_LEVEL_EFFORTS);
+const THREE_LEVEL_CAPABILITIES =
+    createThinkingLevelCapabilities(THREE_LEVEL_EFFORTS);
+const TWO_LEVEL_CAPABILITIES =
+    createThinkingLevelCapabilities(TWO_LEVEL_EFFORTS);
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
-    'gemini-3.8-flash': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.7-flash': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.6-flash': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.5-flash': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.5-flash-lite': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.1-pro': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.1-pro-preview': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.1-flash-lite': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3.1-flash-lite-preview': THINKING_LEVEL_CAPABILITIES,
-    'gemini-3-pro': THINKING_LEVEL_CAPABILITIES,
+    'gemini-3.8-flash': THREE_LEVEL_CAPABILITIES,
+    'gemini-3.7-flash': THREE_LEVEL_CAPABILITIES,
+    'gemini-3.6-flash': FOUR_LEVEL_CAPABILITIES,
+    'gemini-3.5-flash': FOUR_LEVEL_CAPABILITIES,
+    'gemini-3.5-flash-lite': FOUR_LEVEL_CAPABILITIES,
+    'gemini-3.1-pro': THREE_LEVEL_CAPABILITIES,
+    'gemini-3.1-pro-preview': THREE_LEVEL_CAPABILITIES,
+    'gemini-3.1-flash-lite': FOUR_LEVEL_CAPABILITIES,
+    'gemini-3.1-flash-lite-preview': FOUR_LEVEL_CAPABILITIES,
+    'gemini-3-pro': TWO_LEVEL_CAPABILITIES,
     'gemini-2.5-pro': GEMINI_25_PRO_CAPABILITIES,
     'gemini-2.5-flash': GEMINI_25_FLASH_CAPABILITIES,
     'gemini-2.5-flash-lite': GEMINI_25_FLASH_LITE_CAPABILITIES,
 };
 
-const GOOGLE_THINKING_LEVEL_MAP: Record<ReasoningEffort, 'LOW' | 'HIGH'> = {
-    minimal: 'LOW',
-    low: 'LOW',
-    medium: 'LOW',
-    high: 'HIGH',
-    max: 'HIGH',
-};
+export type GoogleThinkingLevel = 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH';
+
+/** Gemini has no level above `HIGH`, so `max` shares it. */
+const GOOGLE_THINKING_LEVEL_MAP: Record<ReasoningEffort, GoogleThinkingLevel> =
+    {
+        minimal: 'MINIMAL',
+        low: 'LOW',
+        medium: 'MEDIUM',
+        high: 'HIGH',
+        max: 'HIGH',
+    };
 
 /**
  * core-ai's own effort ladder; Google documents only the valid range. The
@@ -143,8 +185,18 @@ export function normalizeModelId(modelId: string): string {
     return stripModelDateSuffix(modelId);
 }
 
-export function toGoogleThinkingLevel(effort: ReasoningEffort): 'LOW' | 'HIGH' {
-    return GOOGLE_THINKING_LEVEL_MAP[effort];
+/**
+ * Resolves an effort to a thinking level the model accepts: the effort is
+ * clamped to the model's own levels first, since Gemini rejects a level the
+ * model does not have.
+ */
+export function toGoogleThinkingLevel(
+    effort: ReasoningEffort,
+    supportedEfforts: readonly ReasoningEffort[]
+): GoogleThinkingLevel {
+    return GOOGLE_THINKING_LEVEL_MAP[
+        clampReasoningEffort(effort, supportedEfforts)
+    ];
 }
 
 export function toGoogleThinkingBudget(

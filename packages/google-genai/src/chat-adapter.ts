@@ -676,7 +676,10 @@ function mapReasoningToConfig(
     if (capabilities.reasoning.thinkingParam === 'thinkingLevel') {
         return {
             thinkingConfig: {
-                thinkingLevel: toGoogleThinkingLevel(options.reasoning.effort),
+                thinkingLevel: toGoogleThinkingLevel(
+                    options.reasoning.effort,
+                    capabilities.reasoning.supportedEfforts
+                ),
                 includeThoughts: true,
             },
         };
