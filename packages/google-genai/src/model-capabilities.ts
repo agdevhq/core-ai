@@ -27,6 +27,15 @@ const ALL_EFFORTS = [
     'max',
 ] as const satisfies readonly ReasoningEffort[];
 
+/**
+ * Gemini 3 exposes only two thinking levels, so these are the efforts it can
+ * actually tell apart; the others collapse onto them.
+ */
+const THINKING_LEVEL_EFFORTS = [
+    'low',
+    'high',
+] as const satisfies readonly ReasoningEffort[];
+
 const GOOGLE_INPUT_MODALITIES = {
     input: ['text', 'image', 'file', 'audio'],
     output: ['text'],
@@ -35,6 +44,7 @@ const GOOGLE_INPUT_MODALITIES = {
 function createCapabilities(config: {
     thinkingParam: GoogleModelCapabilities['reasoning']['thinkingParam'];
     mode: GoogleModelCapabilities['reasoning']['mode'];
+    supportedEfforts?: readonly ReasoningEffort[];
     thinkingBudgetRange?: GoogleThinkingBudgetRange;
     maxOutputTokens?: number;
 }): GoogleModelCapabilities {
@@ -44,7 +54,7 @@ function createCapabilities(config: {
             : { output: { maxTokens: config.maxOutputTokens } }),
         reasoning: {
             mode: config.mode,
-            supportedEfforts: ALL_EFFORTS,
+            supportedEfforts: config.supportedEfforts ?? ALL_EFFORTS,
             restrictsSamplingParams: false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
@@ -88,6 +98,7 @@ const GEMINI_25_FLASH_LITE_CAPABILITIES = createCapabilities({
 const THINKING_LEVEL_CAPABILITIES = createCapabilities({
     thinkingParam: 'thinkingLevel',
     mode: 'always-on',
+    supportedEfforts: THINKING_LEVEL_EFFORTS,
     maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
 
@@ -107,6 +118,10 @@ const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
     'gemini-2.5-flash-lite': GEMINI_25_FLASH_LITE_CAPABILITIES,
 };
 
+/**
+ * Maps every effort onto Gemini 3's two thinking levels, so a caller that
+ * does not clamp against `supportedEfforts` first still gets a valid level.
+ */
 const GOOGLE_THINKING_LEVEL_MAP: Record<ReasoningEffort, 'LOW' | 'HIGH'> = {
     minimal: 'LOW',
     low: 'LOW',

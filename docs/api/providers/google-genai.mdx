@@ -279,6 +279,9 @@ Gemini models use either thinking levels or token budgets. Models whose
 
 Gemini 3.x models use HIGH/LOW thinking control. Mapping: `minimal`/`low`/`medium` -> LOW, `high`/`max` -> HIGH.
 
+Because only two levels exist, `capabilities.reasoning.supportedEfforts` is
+`['low', 'high']` for these models.
+
 <Note>Gemini 3 models cannot disable thinking completely.</Note>
 
 ### Thinking budget (Gemini 2.5)

@@ -19,14 +19,23 @@ describe('getGoogleModelCapabilities', () => {
         const capabilities = getGoogleModelCapabilities('gemini-3-pro');
         expect(capabilities.reasoning.mode).toBe('always-on');
         expect(capabilities.reasoning.supportedEfforts).toEqual([
+            'low',
+            'high',
+        ]);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
+        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
+    });
+
+    it('should keep unknown models on optional thinking with every effort', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-custom');
+        expect(capabilities.reasoning.mode).toBe('optional');
+        expect(capabilities.reasoning.supportedEfforts).toEqual([
             'minimal',
             'low',
             'medium',
             'high',
             'max',
         ]);
-        expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
-        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
     });
 
     it.each([
