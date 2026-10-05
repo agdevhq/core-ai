@@ -1,5 +1,12 @@
 # @core-ai/google-genai
 
+## 0.29.1
+
+### Patch Changes
+
+- 8080346: Use each Gemini 3 model's own thinking levels. `capabilities.reasoning.supportedEfforts` now lists the efforts a model has a level for, and a supported effort is sent as that level: `medium` sends `MEDIUM` and `minimal` sends `MINIMAL` where the model accepts them, instead of both collapsing to `LOW`. Efforts without a level are clamped to the nearest one, so `max` still resolves to `HIGH`.
+    - @core-ai/core-ai@0.29.1
+
 ## 0.29.0
 
 ### Minor Changes
