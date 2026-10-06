@@ -17,7 +17,7 @@ import { generate } from '@core-ai/core-ai';
 import { createGoogleGenAI } from '@core-ai/google-genai';
 
 const google = createGoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
-const model = google.chatModel('gemini-3-flash');
+const model = google.chatModel('gemini-3-flash-preview');
 
 const result = await generate({
     model,

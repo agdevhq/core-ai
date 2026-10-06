@@ -48,11 +48,6 @@ const THREE_LEVEL_EFFORTS = [
     'high',
 ] as const satisfies readonly ReasoningEffort[];
 
-const TWO_LEVEL_EFFORTS = [
-    'low',
-    'high',
-] as const satisfies readonly ReasoningEffort[];
-
 const GOOGLE_INPUT_MODALITIES = {
     input: ['text', 'image', 'file', 'audio'],
     output: ['text'],
@@ -126,8 +121,6 @@ const FOUR_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(FOUR_LEVEL_EFFORTS);
 const THREE_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(THREE_LEVEL_EFFORTS);
-const TWO_LEVEL_CAPABILITIES =
-    createThinkingLevelCapabilities(TWO_LEVEL_EFFORTS);
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
     'gemini-3.8-flash': THREE_LEVEL_CAPABILITIES,
@@ -135,11 +128,9 @@ const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
     'gemini-3.6-flash': FOUR_LEVEL_CAPABILITIES,
     'gemini-3.5-flash': FOUR_LEVEL_CAPABILITIES,
     'gemini-3.5-flash-lite': FOUR_LEVEL_CAPABILITIES,
-    'gemini-3.1-pro': THREE_LEVEL_CAPABILITIES,
     'gemini-3.1-pro-preview': THREE_LEVEL_CAPABILITIES,
     'gemini-3.1-flash-lite': FOUR_LEVEL_CAPABILITIES,
-    'gemini-3.1-flash-lite-preview': FOUR_LEVEL_CAPABILITIES,
-    'gemini-3-pro': TWO_LEVEL_CAPABILITIES,
+    'gemini-3-flash-preview': FOUR_LEVEL_CAPABILITIES,
     'gemini-2.5-pro': GEMINI_25_PRO_CAPABILITIES,
     'gemini-2.5-flash': GEMINI_25_FLASH_CAPABILITIES,
     'gemini-2.5-flash-lite': GEMINI_25_FLASH_LITE_CAPABILITIES,

@@ -61,9 +61,9 @@ const google = createGoogleGenAI({
     - **gemini-3.6-flash** - Token-efficient Flash model for agents and coding
     - **gemini-3.5-flash** - Previous generation Flash model
     - **gemini-3.5-flash-lite** - Cost-efficient model for high-volume tasks
-    - **gemini-3.1-pro** / **gemini-3.1-pro-preview** - Most capable multimodal model
-    - **gemini-3.1-flash-lite** / **gemini-3.1-flash-lite-preview** - Lightweight thinking-level model
-    - **gemini-3-pro** - Previous Gemini 3 generation
+    - **gemini-3.1-pro-preview** - Most capable multimodal model
+    - **gemini-3.1-flash-lite** - Lightweight thinking-level model
+    - **gemini-3-flash-preview** - Previous Gemini 3 generation Flash model
   </Accordion>
 
   <Accordion title="Gemini 2.5 (thinking budget)" icon="brain">
@@ -95,7 +95,7 @@ import { generate } from '@core-ai/core-ai';
 const google = createGoogleGenAI();
 
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro'),
+    model: google.chatModel('gemini-3.1-pro-preview'),
     messages: [{ role: 'user', content: 'Explain machine learning' }],
 });
 
@@ -106,7 +106,7 @@ console.log(result.content);
 
 ```typescript
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro'),
+    model: google.chatModel('gemini-3.1-pro-preview'),
     messages: [{ role: 'user', content: 'Analyze this complex scenario...' }],
     reasoning: {
         effort: 'high',
@@ -118,7 +118,7 @@ const result = await generate({
 
 ```typescript
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro'),
+    model: google.chatModel('gemini-3.1-pro-preview'),
     messages: [
         {
             role: 'user',
@@ -192,7 +192,7 @@ import { generate, defineTool } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro'),
+    model: google.chatModel('gemini-3.1-pro-preview'),
     messages: [
         {
             role: 'user',
@@ -226,7 +226,7 @@ import {
 } from '@core-ai/google-genai';
 
 const google = createGoogleGenAI();
-const model = google.chatModel('gemini-3.1-pro');
+const model = google.chatModel('gemini-3.1-pro-preview');
 
 if (model.capabilities.reasoning.mode !== 'unsupported') {
     const effort = clampReasoningEffort(
@@ -281,11 +281,10 @@ Gemini 3.x models steer thinking with named levels, and each model accepts
 its own subset. `capabilities.reasoning.supportedEfforts` lists the efforts a
 model has a level for:
 
-| Models                                                                                       | Supported efforts                  |
-| -------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`     | `minimal`, `low`, `medium`, `high` |
-| `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro`                                     | `low`, `medium`, `high`            |
-| `gemini-3-pro`                                                                               | `low`, `high`                      |
+| Models                                                                                                             | Supported efforts                  |
+| ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
+| `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-3-flash-preview` | `minimal`, `low`, `medium`, `high` |
+| `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro-preview`                                                   | `low`, `medium`, `high`            |
 
 A supported effort is sent as the level of the same name. Any other effort is
 clamped to the nearest supported one first, so `max` always resolves to
@@ -346,7 +345,7 @@ import { generate, getProviderMetadata } from '@core-ai/core-ai';
 import type { GoogleReasoningMetadata } from '@core-ai/google-genai';
 
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro'),
+    model: google.chatModel('gemini-3.1-pro-preview'),
     messages: [{ role: 'user', content: 'Search for something.' }],
     tools: {
         /* ... */
@@ -385,7 +384,7 @@ Options are namespaced under `google` in `providerOptions`:
 
 ```typescript
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro'),
+    model: google.chatModel('gemini-3.1-pro-preview'),
     messages: [{ role: 'user', content: 'Hello' }],
     providerOptions: {
         google: {
@@ -467,7 +466,7 @@ import { ProviderError } from '@core-ai/core-ai';
 
 try {
     const result = await generate({
-        model: google.chatModel('gemini-3.1-pro'),
+        model: google.chatModel('gemini-3.1-pro-preview'),
         messages: [{ role: 'user', content: 'Hello!' }],
     });
 } catch (error) {
@@ -482,9 +481,9 @@ try {
 
 | Model                         | Thinking Control | Can Disable | Best For                       |
 | ----------------------------- | ---------------- | ----------- | ------------------------------ |
-| Gemini 3.1 Pro                | Level            | No          | Complex multimodal             |
-| Gemini 3.1 Flash Lite Preview | Level            | No          | Cost-efficient with thinking   |
-| Gemini 3 Pro                  | Level            | No          | Previous generation multimodal |
+| Gemini 3.1 Pro Preview        | Level            | No          | Complex multimodal             |
+| Gemini 3.1 Flash Lite         | Level            | No          | Cost-efficient with thinking   |
+| Gemini 3 Flash Preview        | Level            | No          | Previous generation Flash      |
 | Gemini 2.5 Pro                | Budget (tokens)  | No          | Controlled reasoning           |
 | Gemini 2.5 Flash              | Budget (tokens)  | Yes         | Fast + flexible                |
 | Gemini 2.5 Flash Lite         | Budget (tokens)  | Yes         | Lightweight tasks              |

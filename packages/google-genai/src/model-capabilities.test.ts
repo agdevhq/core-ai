@@ -16,10 +16,13 @@ describe('normalizeModelId', () => {
 
 describe('getGoogleModelCapabilities', () => {
     it('should resolve known model capabilities', () => {
-        const capabilities = getGoogleModelCapabilities('gemini-3-pro');
+        const capabilities = getGoogleModelCapabilities(
+            'gemini-3.1-pro-preview'
+        );
         expect(capabilities.reasoning.mode).toBe('always-on');
         expect(capabilities.reasoning.supportedEfforts).toEqual([
             'low',
+            'medium',
             'high',
         ]);
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
@@ -33,6 +36,7 @@ describe('getGoogleModelCapabilities', () => {
         ['gemini-3.1-flash-lite', ['minimal', 'low', 'medium', 'high']],
         ['gemini-3.8-flash', ['low', 'medium', 'high']],
         ['gemini-3.7-flash', ['low', 'medium', 'high']],
+        ['gemini-3-flash-preview', ['minimal', 'low', 'medium', 'high']],
         ['gemini-3.1-pro-preview', ['low', 'medium', 'high']],
     ])(
         'should report the thinking levels of %s as efforts',
@@ -61,11 +65,9 @@ describe('getGoogleModelCapabilities', () => {
         'gemini-3.6-flash',
         'gemini-3.5-flash',
         'gemini-3.5-flash-lite',
-        'gemini-3.1-pro',
         'gemini-3.1-pro-preview',
         'gemini-3.1-flash-lite',
-        'gemini-3.1-flash-lite-preview',
-        'gemini-3-pro',
+        'gemini-3-flash-preview',
     ])('should resolve thinking-level capabilities for %s', (modelId) => {
         const capabilities = getGoogleModelCapabilities(modelId);
         expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
@@ -81,12 +83,12 @@ describe('getGoogleModelCapabilities', () => {
     });
 
     it('should resolve dated model IDs to the same capabilities', () => {
-        expect(getGoogleModelCapabilities('gemini-3-pro-20260215')).toEqual(
-            getGoogleModelCapabilities('gemini-3-pro')
+        expect(getGoogleModelCapabilities('gemini-3.5-flash-20260215')).toEqual(
+            getGoogleModelCapabilities('gemini-3.5-flash')
         );
     });
 
-    it.each(['gemini-3-pro', 'gemini-2.5-pro', 'gemini-custom'])(
+    it.each(['gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-custom'])(
         'should report multimodal input as supported for %s',
         (modelId) => {
             expect(
@@ -99,9 +101,9 @@ describe('getGoogleModelCapabilities', () => {
     );
 
     it.each([
-        'gemini-3.1-pro',
-        'gemini-3.1-flash-lite-preview',
-        'gemini-3-pro',
+        'gemini-3.1-pro-preview',
+        'gemini-3.1-flash-lite',
+        'gemini-3-flash-preview',
         'gemini-2.5-pro',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
@@ -132,9 +134,9 @@ describe('reasoning mapping', () => {
         ['gemini-3.8-flash', 'minimal', 'LOW'],
         ['gemini-3.8-flash', 'medium', 'MEDIUM'],
         ['gemini-3.8-flash', 'max', 'HIGH'],
-        ['gemini-3-pro', 'minimal', 'LOW'],
-        ['gemini-3-pro', 'medium', 'LOW'],
-        ['gemini-3-pro', 'max', 'HIGH'],
+        ['gemini-3-flash-preview', 'minimal', 'MINIMAL'],
+        ['gemini-3.1-pro-preview', 'minimal', 'LOW'],
+        ['gemini-3.1-pro-preview', 'max', 'HIGH'],
     ] as const)(
         'should map %s effort %s to thinking level %s',
         (modelId, effort, level) => {
@@ -173,7 +175,7 @@ describe('output ceilings', () => {
         'gemini-3.8-flash',
         'gemini-3.5-flash-lite',
         'gemini-3.1-pro-preview',
-        'gemini-3-pro',
+        'gemini-3-flash-preview',
         'gemini-2.5-pro',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
