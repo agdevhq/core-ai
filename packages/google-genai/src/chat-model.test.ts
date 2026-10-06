@@ -242,7 +242,7 @@ describe('generate', () => {
         });
         const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
-            'gemini-3-pro'
+            'gemini-3.1-pro-preview'
         );
 
         const result = await model.generate({
@@ -449,7 +449,7 @@ describe('generate', () => {
         });
         const model = createGoogleGenAIChatModel(
             createMockClient({ generateContent }),
-            'gemini-3-pro'
+            'gemini-3.1-pro-preview'
         );
 
         const result = await model.generate({

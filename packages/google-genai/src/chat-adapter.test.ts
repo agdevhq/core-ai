@@ -619,7 +619,7 @@ describe('reasoning support', () => {
     });
 
     it('should map reasoning config to thinkingLevel for Gemini 3', () => {
-        const request = createGenerateRequest('gemini-3-pro', {
+        const request = createGenerateRequest('gemini-3.1-pro-preview', {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
         });
@@ -695,7 +695,7 @@ describe('reasoning support', () => {
     });
 
     it('should not reject small limits for thinking-level models', () => {
-        const request = createGenerateRequest('gemini-3-pro', {
+        const request = createGenerateRequest('gemini-3.1-pro-preview', {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
             maxTokens: 1000,
@@ -708,7 +708,7 @@ describe('reasoning support', () => {
     });
 
     it('should not allow provider reasoning config overrides', () => {
-        const request = createGenerateRequest('gemini-3-pro', {
+        const request = createGenerateRequest('gemini-3.1-pro-preview', {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
         });
