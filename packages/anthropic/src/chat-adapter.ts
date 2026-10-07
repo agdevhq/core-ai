@@ -6,6 +6,7 @@ import type {
     MessageParam,
     Tool,
     ToolChoice,
+    TextBlockParam,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import type { z } from 'zod';
@@ -29,6 +30,7 @@ import type {
     Message,
     ModelCapabilities,
     StreamEvent,
+    SystemMessage,
     ToolSet,
     UserContentPart,
     ToolChoice as AgToolChoice,
@@ -47,6 +49,8 @@ import {
 } from './model-capabilities.ts';
 import {
     parseAnthropicGenerateProviderOptions,
+    parseAnthropicSystemMessageProviderOptions,
+    type AnthropicCacheControl,
     type AnthropicGenerateProviderOptions,
 } from './provider-options.ts';
 
@@ -74,21 +78,44 @@ const UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS = new Set([
     'maxItems',
 ]);
 
+export type AnthropicCacheTtl = NonNullable<AnthropicCacheControl['ttl']>;
+
 export type ConvertedAnthropicMessages = {
-    system: string | undefined;
+    system: TextBlockParam[] | undefined;
+    /** TTLs of explicit cache breakpoints, in render order. */
+    cacheTtls: AnthropicCacheTtl[];
     messages: MessageParam[];
 };
 
+/**
+ * System messages before the first non-system message become top-level
+ * `system` blocks; later ones stay in place as `role: 'system'` messages.
+ * Placement is validated beforehand against the model's capabilities.
+ */
 export function convertMessages(
-    messages: Message[]
+    messages: Message[],
+    provider = DEFAULT_PROVIDER_ID
 ): ConvertedAnthropicMessages {
-    const systemParts: string[] = [];
+    const system: TextBlockParam[] = [];
+    const cacheTtls: AnthropicCacheTtl[] = [];
     const convertedMessages: MessageParam[] = [];
     let previousInputWasTool = false;
 
     for (const message of messages) {
         if (message.role === 'system') {
-            systemParts.push(message.content);
+            const block = convertSystemMessage(message, provider);
+            if (block.cache_control) {
+                cacheTtls.push(block.cache_control.ttl ?? '5m');
+            }
+
+            if (convertedMessages.length === 0) {
+                system.push(block);
+            } else {
+                convertedMessages.push({
+                    role: 'system',
+                    content: block.cache_control ? [block] : block.text,
+                });
+            }
             previousInputWasTool = false;
             continue;
         }
@@ -209,8 +236,25 @@ export function convertMessages(
     }
 
     return {
-        system: systemParts.length > 0 ? systemParts.join('\n') : undefined,
+        system: system.length > 0 ? system : undefined,
+        cacheTtls,
         messages: convertedMessages,
+    };
+}
+
+function convertSystemMessage(
+    message: SystemMessage,
+    provider: string
+): TextBlockParam {
+    const cacheControl = parseAnthropicSystemMessageProviderOptions(
+        message.providerOptions,
+        provider
+    )?.cacheControl;
+
+    return {
+        type: 'text',
+        text: message.content,
+        ...(cacheControl ? { cache_control: cacheControl } : {}),
     };
 }
 
@@ -461,7 +505,7 @@ export function createStreamRequest(
         modelId,
         providerId: provider,
     });
-    const converted = convertMessages(options.messages);
+    const converted = convertMessages(options.messages, provider);
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
@@ -475,7 +519,7 @@ export function createStreamRequest(
         model: modelId,
         messages: converted.messages,
         max_tokens: maxTokens,
-        ...(converted.system ? { system: converted.system } : {}),
+        ...(converted.system !== undefined ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),

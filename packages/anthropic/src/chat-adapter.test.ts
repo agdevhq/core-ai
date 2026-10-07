@@ -29,7 +29,7 @@ import {
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
-    it('should extract system messages separately', () => {
+    it('should send leading system messages as top-level system blocks', () => {
         const messages: Message[] = [
             { role: 'system', content: 'You are helpful.' },
             { role: 'user', content: 'Hello' },
@@ -37,11 +37,14 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('You are helpful.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'You are helpful.' },
+        ]);
         expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+        expect(result.cacheTtls).toEqual([]);
     });
 
-    it('should concatenate multiple system messages', () => {
+    it('should emit one system block per leading message', () => {
         const messages: Message[] = [
             { role: 'system', content: 'Rule 1.' },
             { role: 'system', content: 'Rule 2.' },
@@ -50,7 +53,16 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('Rule 1.\nRule 2.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'Rule 1.' },
+            { type: 'text', text: 'Rule 2.' },
+        ]);
+    });
+
+    it('should omit system without system messages', () => {
+        const result = convertMessages([{ role: 'user', content: 'Hi' }]);
+
+        expect(result.system).toBeUndefined();
     });
 
     it('should ignore system message metadata', () => {
@@ -65,8 +77,118 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('You are helpful.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'You are helpful.' },
+        ]);
         expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+    });
+
+    it('should attach cache control to a leading system block', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'Stable instructions.',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            { role: 'system', content: 'More instructions.' },
+            { role: 'user', content: 'Hi' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([
+            {
+                type: 'text',
+                text: 'Stable instructions.',
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+            { type: 'text', text: 'More instructions.' },
+        ]);
+        expect(result.cacheTtls).toEqual(['1h']);
+    });
+
+    it('should ignore system message options addressed to another provider', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'Stable instructions.',
+                providerOptions: {
+                    'anthropic-vertex': {
+                        cacheControl: { type: 'ephemeral' },
+                    },
+                },
+            },
+            { role: 'user', content: 'Hi' },
+        ];
+
+        const result = convertMessages(messages, 'anthropic');
+
+        expect(result.system).toEqual([
+            { type: 'text', text: 'Stable instructions.' },
+        ]);
+        expect(result.cacheTtls).toEqual([]);
+    });
+
+    it('should keep later system messages in place', () => {
+        const messages: Message[] = [
+            { role: 'system', content: 'A' },
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', parts: [{ type: 'text', text: 'Hello!' }] },
+            { role: 'user', content: 'Escalate' },
+            { role: 'system', content: 'B' },
+            { role: 'system', content: 'C' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([{ type: 'text', text: 'A' }]);
+        expect(result.messages).toEqual([
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', content: 'Hello!' },
+            { role: 'user', content: 'Escalate' },
+            { role: 'system', content: 'B' },
+            { role: 'system', content: 'C' },
+        ]);
+    });
+
+    it('should attach cache control to a later system message', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'A',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            { role: 'user', content: 'Hi' },
+            {
+                role: 'system',
+                content: 'B',
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.messages.at(-1)).toEqual({
+            role: 'system',
+            content: [
+                {
+                    type: 'text',
+                    text: 'B',
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
+        });
+        expect(result.cacheTtls).toEqual(['1h', '5m']);
     });
 
     it('should convert user image and pdf content', () => {

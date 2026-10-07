@@ -30,15 +30,17 @@ describe('parseAnthropicSystemMessageProviderOptions', () => {
         ).toBeUndefined();
     });
 
+    // An untyped provider id lets these tests pass options the typed
+    // `anthropic` key would reject at compile time.
     it('should reject an unsupported TTL', () => {
         expect(() =>
             parseAnthropicSystemMessageProviderOptions(
                 {
-                    anthropic: {
+                    'custom-anthropic': {
                         cacheControl: { type: 'ephemeral', ttl: '2h' },
                     },
                 },
-                'anthropic'
+                'custom-anthropic'
             )
         ).toThrow();
     });
@@ -46,8 +48,8 @@ describe('parseAnthropicSystemMessageProviderOptions', () => {
     it('should reject unknown fields', () => {
         expect(() =>
             parseAnthropicSystemMessageProviderOptions(
-                { anthropic: { topK: 5 } },
-                'anthropic'
+                { 'custom-anthropic': { topK: 5 } },
+                'custom-anthropic'
             )
         ).toThrow();
     });
