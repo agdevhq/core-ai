@@ -32,10 +32,8 @@ describe('mapStreamErrors', () => {
         const sdkError = Object.assign(new Error('rate limited'), {
             code: 'rate_limit_exceeded',
         });
-        const mapped = mapStreamErrors(
-            failAfter(['a', 'b'], sdkError),
-            (error) =>
-                new RateLimitError('rate limited', 'openai', { cause: error })
+        const mapped = mapStreamErrors(failAfter(['a', 'b'], sdkError), (error) =>
+            new RateLimitError('rate limited', 'openai', { cause: error })
         );
         const received: string[] = [];
 

@@ -26,7 +26,10 @@ import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 function createOpenAIChatCompletionsModel(
     client: OpenAIChatClient,
     modelId: string,
-    modelOptions: Omit<OpenAIChatCompletionsModelOptions, 'capabilities'> = {}
+    modelOptions: Omit<
+        OpenAIChatCompletionsModelOptions,
+        'capabilities'
+    > = {}
 ) {
     return createModel(client, modelId, {
         ...modelOptions,

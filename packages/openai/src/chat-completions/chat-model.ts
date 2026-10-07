@@ -14,7 +14,10 @@ import type {
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
-import { createObjectStream, createChatStream } from '@core-ai/core-ai';
+import {
+    createObjectStream,
+    createChatStream,
+} from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
