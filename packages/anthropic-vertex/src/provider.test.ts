@@ -225,6 +225,51 @@ describe('createAnthropicVertex', () => {
         });
     });
 
+    it('should read system message cache control from the anthropic-vertex key only', async () => {
+        messagesCreate.mockResolvedValue(createMessageResponse());
+        const model = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('claude-sonnet-4-6');
+
+        await model.generate({
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Stable instructions.',
+                    providerOptions: {
+                        'anthropic-vertex': {
+                            cacheControl: { type: 'ephemeral', ttl: '1h' },
+                        },
+                    },
+                },
+                {
+                    role: 'system',
+                    content: 'More instructions.',
+                    providerOptions: {
+                        anthropic: { cacheControl: { type: 'ephemeral' } },
+                    },
+                },
+                { role: 'user', content: 'hello' },
+            ],
+        });
+
+        const [request] = messagesCreate.mock.calls[0] ?? [];
+        expect(request).toMatchObject({
+            system: [
+                {
+                    type: 'text',
+                    text: 'Stable instructions.',
+                    cache_control: { type: 'ephemeral', ttl: '1h' },
+                },
+                { type: 'text', text: 'More instructions.' },
+            ],
+        });
+        expect((request as { system: unknown[] }).system[1]).not.toHaveProperty(
+            'cache_control'
+        );
+    });
+
     it('should tag errors with provider "anthropic-vertex"', async () => {
         messagesCreate.mockRejectedValue(new Error('upstream failure'));
 
