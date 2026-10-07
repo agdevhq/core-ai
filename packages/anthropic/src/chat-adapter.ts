@@ -16,6 +16,7 @@ import {
     ValidationError,
     safeParseJsonObject,
     validateInputModalities,
+    validateSystemMessagePlacement,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
@@ -449,6 +450,12 @@ export function createStreamRequest(
         capabilities
     );
     validateInputModalities({
+        messages: options.messages,
+        capabilities,
+        modelId,
+        providerId: provider,
+    });
+    validateSystemMessagePlacement({
         messages: options.messages,
         capabilities,
         modelId,

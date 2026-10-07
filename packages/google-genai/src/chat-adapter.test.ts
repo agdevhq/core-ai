@@ -19,6 +19,7 @@ import { getGoogleModelCapabilities } from './model-capabilities.ts';
 import {
     defineTool,
     ToolSchemaStrictnessError,
+    UnsupportedSystemMessagePlacementError,
     ValidationError,
     type GenerateOptions,
     type Message,
@@ -1236,3 +1237,32 @@ function asGenerateContentResponse(
         ...value,
     } as GenerateContentResponse;
 }
+
+describe('system message placement', () => {
+    it('should reject a later system message before building the request', () => {
+        expect(() =>
+            createGenerateRequest('gemini-2.5-flash', {
+                messages: [
+                    { role: 'user', content: 'Hi' },
+                    {
+                        role: 'assistant',
+                        parts: [{ type: 'text', text: 'Hello!' }],
+                    },
+                    { role: 'system', content: 'Be brief.' },
+                    { role: 'user', content: 'How are you?' },
+                ],
+            })
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should keep leading system messages in the system instruction', () => {
+        const request = createGenerateRequest('gemini-2.5-flash', {
+            messages: [
+                { role: 'system', content: 'Be brief.' },
+                { role: 'user', content: 'Hi' },
+            ],
+        });
+
+        expect(request.config?.systemInstruction).toBe('Be brief.');
+    });
+});

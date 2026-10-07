@@ -31,6 +31,7 @@ import {
     safeParseJsonObject,
     ValidationError,
     validateInputModalities,
+    validateSystemMessagePlacement,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
@@ -297,6 +298,12 @@ function createRequestBase(
         adapterOptions.capabilities ?? getMistralModelCapabilities(modelId);
     const providerId = adapterOptions.providerId ?? 'mistral';
     validateInputModalities({
+        messages: options.messages,
+        capabilities,
+        modelId,
+        providerId,
+    });
+    validateSystemMessagePlacement({
         messages: options.messages,
         capabilities,
         modelId,

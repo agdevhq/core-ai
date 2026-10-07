@@ -22,6 +22,7 @@ import {
     getProviderMetadata,
     ValidationError,
     validateInputModalities,
+    validateSystemMessagePlacement,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
@@ -293,6 +294,12 @@ function createRequestBase(
         adapterOptions.providerId
     );
     validateInputModalities({
+        messages: options.messages,
+        capabilities: adapterOptions.capabilities,
+        modelId,
+        providerId: adapterOptions.providerId,
+    });
+    validateSystemMessagePlacement({
         messages: options.messages,
         capabilities: adapterOptions.capabilities,
         modelId,

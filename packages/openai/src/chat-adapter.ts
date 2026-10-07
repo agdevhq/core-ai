@@ -28,6 +28,7 @@ import {
     UnsupportedInputModalityError,
     ValidationError,
     validateInputModalities,
+    validateSystemMessagePlacement,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
@@ -360,6 +361,12 @@ function createRequestBase(
 ) {
     validateReasoningConfig(modelId, options, capabilities, providerId);
     validateResponsesInputModalities({
+        messages: options.messages,
+        capabilities,
+        modelId,
+        providerId,
+    });
+    validateSystemMessagePlacement({
         messages: options.messages,
         capabilities,
         modelId,

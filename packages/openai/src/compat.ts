@@ -1,4 +1,7 @@
-export { createOpenAICompat, createOpenAICompatChatProvider } from './compat/provider.ts';
+export {
+    createOpenAICompat,
+    createOpenAICompatChatProvider,
+} from './compat/provider.ts';
 export { createOpenAICompatChatModel } from './compat/chat-model.ts';
 export type {
     OpenAICompatProvider,
