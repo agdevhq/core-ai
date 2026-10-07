@@ -9,12 +9,15 @@ import {
     stream,
     StreamAbortedError,
     ToolSchemaStrictnessError,
+    UnsupportedSystemMessagePlacementError,
+    type Message,
 } from '../../../packages/core-ai/src/index.ts';
 import type { ProviderCapabilities } from './adapters/provider-adapter.ts';
 import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
 
 export type ProviderContractCaseId =
     | 'chatGenerate'
+    | 'chatLaterSystemMessage'
     | 'chatStrictTools'
     | 'chatStrictToolsUnsupported'
     | 'chatStream'
@@ -67,6 +70,36 @@ export const providerCases: ProviderContractCase[] = [
             expect(result.content?.trim().length ?? 0).toBeGreaterThan(0);
             expect(Array.isArray(result.toolCalls)).toBe(true);
             assertChatUsage(result.usage);
+        },
+    },
+    {
+        id: 'chatLaterSystemMessage',
+        name: 'a system message after the user turn applies or is rejected up front',
+        requiredCapability: 'chat',
+        run: async ({ adapter }) => {
+            const model = adapter.createChatModel();
+            // Valid under 'before-reply' and 'anywhere': directly after a
+            // user message, at the end.
+            const messages: Message[] = [
+                { role: 'user', content: 'Say hi.' },
+                { role: 'assistant', parts: [{ type: 'text', text: 'Hi!' }] },
+                { role: 'user', content: 'What is 2+2?' },
+                {
+                    role: 'system',
+                    content:
+                        'Reply with only the digit, wrapped in <n></n>, nothing else.',
+                },
+            ];
+
+            if (model.capabilities.messages.systemPlacement === 'leading') {
+                await expect(generate({ model, messages })).rejects.toThrow(
+                    UnsupportedSystemMessagePlacementError
+                );
+                return;
+            }
+
+            const result = await generate({ model, messages });
+            expect(result.content).toMatch(/<n>4<\/n>/);
         },
     },
     {

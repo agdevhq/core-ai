@@ -79,7 +79,7 @@ Optional model and endpoint overrides:
 - `AZURE_OPENAI_E2E_CHAT_DEPLOYMENT` (default: `gpt-5.6-luna`)
 - `AZURE_OPENAI_E2E_REASONING_DEPLOYMENT` (default: chat deployment)
 - `AZURE_OPENAI_E2E_STRICT_TOOL_SCHEMAS_ENABLED` (`true` to run the strict tool e2e case; leave unset when the deployment lacks structured outputs — the case is skipped)
-- `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
+- `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`; it accepts only leading system messages, so the `chatLaterSystemMessage` case only checks the up-front rejection. Use a model such as `claude-sonnet-5-5` to send a later system message live)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
 - `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; inline service account JSON or base64-encoded JSON. When unset, uses Application Default Credentials)
