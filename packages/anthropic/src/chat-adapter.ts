@@ -242,6 +242,82 @@ export function convertMessages(
     };
 }
 
+const MAX_CACHE_BREAKPOINTS = 4;
+
+export type ValidateCacheBreakpointsOptions = {
+    /** TTLs of explicit breakpoints, in render order. */
+    cacheTtls: readonly AnthropicCacheTtl[];
+    requestCacheControl: AnthropicCacheControl | undefined;
+    /** TTL of an explicit breakpoint on the request's last block, if any. */
+    lastBlockCacheTtl: AnthropicCacheTtl | undefined;
+    providerId: string;
+};
+
+/**
+ * Rejects cache breakpoints the Messages API refuses: more than 4 per
+ * request (request-level automatic caching included), a 1h breakpoint after
+ * a 5m one, and request-level caching whose TTL differs from an explicit
+ * breakpoint on the block it lands on.
+ */
+export function validateCacheBreakpoints({
+    cacheTtls,
+    requestCacheControl,
+    lastBlockCacheTtl,
+    providerId,
+}: ValidateCacheBreakpointsOptions): void {
+    const requestTtl = requestCacheControl
+        ? (requestCacheControl.ttl ?? '5m')
+        : undefined;
+    const ttls = requestTtl ? [...cacheTtls, requestTtl] : cacheTtls;
+
+    if (ttls.length > MAX_CACHE_BREAKPOINTS) {
+        throw new ValidationError(
+            `Anthropic accepts at most ${MAX_CACHE_BREAKPOINTS} cache breakpoints per request, request-level cacheControl included; this request has ${ttls.length}.`,
+            undefined,
+            providerId
+        );
+    }
+
+    const firstShortTtl = ttls.indexOf('5m');
+    if (firstShortTtl !== -1 && ttls.indexOf('1h', firstShortTtl) !== -1) {
+        throw new ValidationError(
+            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. System messages render in order, request-level cacheControl last.',
+            undefined,
+            providerId
+        );
+    }
+
+    if (
+        requestTtl !== undefined &&
+        lastBlockCacheTtl !== undefined &&
+        requestTtl !== lastBlockCacheTtl
+    ) {
+        throw new ValidationError(
+            `Request-level cacheControl (ttl ${requestTtl}) targets the last system message, whose own cacheControl has ttl ${lastBlockCacheTtl}; Anthropic requires matching TTLs.`,
+            undefined,
+            providerId
+        );
+    }
+}
+
+function getLastBlockCacheTtl(
+    messages: readonly MessageParam[]
+): AnthropicCacheTtl | undefined {
+    const content = messages.at(-1)?.content;
+    if (!Array.isArray(content)) {
+        return undefined;
+    }
+
+    const lastBlock = content.at(-1);
+    if (!lastBlock || !('cache_control' in lastBlock)) {
+        return undefined;
+    }
+
+    return lastBlock.cache_control
+        ? (lastBlock.cache_control.ttl ?? '5m')
+        : undefined;
+}
+
 function convertSystemMessage(
     message: SystemMessage,
     provider: string
@@ -506,6 +582,12 @@ export function createStreamRequest(
         providerId: provider,
     });
     const converted = convertMessages(options.messages, provider);
+    validateCacheBreakpoints({
+        cacheTtls: converted.cacheTtls,
+        requestCacheControl: anthropicOptions?.cacheControl,
+        lastBlockCacheTtl: getLastBlockCacheTtl(converted.messages),
+        providerId: provider,
+    });
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
