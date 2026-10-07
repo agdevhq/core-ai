@@ -28,9 +28,15 @@ type Message =
 type SystemMessage = {
     role: 'system';
     content: string;
+    /** Provider-specific options for this message, keyed by provider id. */
+    providerOptions?: SystemMessageProviderOptions;
     metadata?: Record<string, unknown>;
 };
 ```
+
+Where a system message may appear depends on the model. See
+`ModelCapabilities.messages.systemPlacement` below and
+[System message placement](/concepts/messages#system-message-placement).
 
 ### UserMessage
 
@@ -225,6 +231,8 @@ type ChatInputModality = 'text' | 'image' | 'file' | 'audio' | 'video';
 
 type ChatOutputModality = 'text' | 'image' | 'audio' | 'video';
 
+type SystemMessagePlacement = 'leading' | 'before-reply' | 'anywhere';
+
 type ModelCapabilities = {
     reasoning: {
         mode: 'unsupported' | 'optional' | 'always-on';
@@ -255,6 +263,9 @@ type ModelCapabilities = {
             | { supported: false }
             | { supported: true; maxStrictTools?: number };
     };
+    messages: {
+        systemPlacement: SystemMessagePlacement;
+    };
     output?: {
         maxTokens: number;
     };
@@ -271,6 +282,7 @@ type ModelCapabilities = {
 | `modalities.output`                  | Modalities the model can emit as assistant content                   |
 | `tools.strictSchemas.supported`      | Whether `strict: true` is available for tool schemas                 |
 | `tools.strictSchemas.maxStrictTools` | Optional per-request limit on the number of strict tools             |
+| `messages.systemPlacement`           | Where system messages may appear after the first non-system message  |
 | `output.maxTokens`                   | Verified output ceiling for one response, reasoning included         |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
@@ -316,6 +328,15 @@ tools are forwarded and the provider rejects them if the model genuinely lacks
 support. Strict tool schemas only govern tool arguments. They are separate
 from the response formats used by `generateObject()` and `streamObject()`.
 
+`messages.systemPlacement` describes where a model accepts a system message
+that comes after the first non-system message. `'leading'` accepts none,
+`'before-reply'` accepts one directly after a user or tool message when it is
+last or followed by an assistant message, and `'anywhere'` accepts any
+position. A system message that breaks the rule throws
+`UnsupportedSystemMessagePlacementError` before the provider request. Call
+`getSystemMessagePlacementIssues(messages, placement)` to check a conversation
+without sending it. Unknown Claude model IDs resolve to `'before-reply'`.
+
 Provider packages also export `get*ModelCapabilities(modelId)` helpers for
 registry data without constructing a `ChatModel`. A model factory can apply
 API- or endpoint-specific gates afterward; for example, OpenAI Responses has
@@ -360,6 +381,10 @@ Provider-specific options are namespaced by provider name and validated with Zod
 
 ```typescript
 interface GenerateProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+interface SystemMessageProviderOptions {
     [key: string]: Record<string, unknown> | undefined;
 }
 
