@@ -14,16 +14,54 @@ export type MistralModelCapabilities = ModelCapabilities;
 /** Mistral versions models with a `-YYMM` suffix, or the `-latest` alias. */
 const MISTRAL_VERSION_SUFFIX_PATTERN = /-(?:latest|\d{4})$/;
 
+const DATED_MODEL_ID_PATTERN = /^(mistral-small|mistral-medium)-(\d{4})$/;
+const LARGE_4_MODEL_ID_PATTERN = /^mistral-large-4(?:-\d+)?$/;
+
+/**
+ * Aliases that currently resolve to an adjustable-reasoning generation.
+ * Date-stamped pins are handled separately so older releases stay put.
+ */
+const ADJUSTABLE_REASONING_MODEL_IDS = new Set([
+    'mistral-small-latest',
+    'mistral-medium-latest',
+    'mistral-medium-3',
+    'mistral-medium-3-5',
+]);
+
+const TOOL_CHOICES = ['auto', 'none', 'required', 'tool'] as const;
+
+const NO_REASONING = {
+    mode: 'unsupported',
+    supportedEfforts: [],
+    restrictsSamplingParams: false,
+    supportedToolChoices: TOOL_CHOICES,
+} as const satisfies ModelCapabilities['reasoning'];
+
+/**
+ * Mistral's own adjustable models accept `none` and `high`. `minimal` is the
+ * off switch (`none`); `high` is the on switch.
+ */
+const ADJUSTABLE_REASONING = {
+    mode: 'optional',
+    supportedEfforts: ['minimal', 'high'],
+    restrictsSamplingParams: false,
+    supportedToolChoices: TOOL_CHOICES,
+} as const satisfies ModelCapabilities['reasoning'];
+
+/** GLM 5, hosted on the Mistral API, accepts `low`, `high`, and `max`. */
+const GLM_REASONING = {
+    mode: 'optional',
+    supportedEfforts: ['low', 'high', 'max'],
+    restrictsSamplingParams: false,
+    supportedToolChoices: TOOL_CHOICES,
+} as const satisfies ModelCapabilities['reasoning'];
+
 function createCapabilities(
-    modalities: ModelCapabilities['modalities']
+    modalities: ModelCapabilities['modalities'],
+    reasoning: ModelCapabilities['reasoning'] = NO_REASONING
 ): MistralModelCapabilities {
     return {
-        reasoning: {
-            mode: 'unsupported',
-            supportedEfforts: [],
-            restrictsSamplingParams: false,
-            supportedToolChoices: ['auto', 'none', 'required', 'tool'],
-        },
+        reasoning,
         modalities,
         tools: {
             // Mistral's SDK exposes a `strict` field on functions, but the API
@@ -36,11 +74,20 @@ function createCapabilities(
 
 const VISION_CAPABILITIES = createCapabilities(MULTIMODAL_INPUT_MODALITIES);
 const TEXT_ONLY_CAPABILITIES = createCapabilities(TEXT_ONLY_MODALITIES);
+const ADJUSTABLE_VISION_CAPABILITIES = createCapabilities(
+    MULTIMODAL_INPUT_MODALITIES,
+    ADJUSTABLE_REASONING
+);
+const GLM_CAPABILITIES = createCapabilities(
+    TEXT_ONLY_MODALITIES,
+    GLM_REASONING
+);
 
 /**
- * Keyed by version-less model ID, describing the generation that `-latest`
- * currently resolves to. Unknown models are treated as vision-capable so that
- * self-hosted and newly released models keep working.
+ * Keyed by version-less model ID. `-latest` and `-YYMM` normalize to these
+ * keys unless a more specific profile matches first. Unknown models are
+ * treated as vision-capable so that self-hosted and newly released models
+ * keep working.
  */
 const FAMILY_CAPABILITIES = {
     'mistral-large': VISION_CAPABILITIES,
@@ -99,6 +146,14 @@ export const MISTRAL_MODEL_CAPABILITIES = {
 export function getMistralModelCapabilities(
     modelId: string
 ): MistralModelCapabilities {
+    if (isZaiGlmModel(modelId)) {
+        return GLM_CAPABILITIES;
+    }
+
+    if (supportsAdjustableReasoning(modelId)) {
+        return ADJUSTABLE_VISION_CAPABILITIES;
+    }
+
     const registry: ModelCapabilitiesRegistry<MistralModelCapabilities> =
         MISTRAL_MODEL_CAPABILITIES;
 
@@ -108,6 +163,41 @@ export function getMistralModelCapabilities(
         registry[modelId] ??
         getRegisteredModelCapabilities(registry, normalizeModelId(modelId))!
     );
+}
+
+function isZaiGlmModel(modelId: string): boolean {
+    return (
+        modelId === 'zai-glm-latest' ||
+        modelId === 'zai-glm-5' ||
+        modelId.startsWith('zai-glm-5-')
+    );
+}
+
+/**
+ * Small 4, Medium 3.5, and Large 4 accept `reasoning_effort`. Later
+ * date-stamped small and medium releases follow them. Older pins do not.
+ */
+function supportsAdjustableReasoning(modelId: string): boolean {
+    if (
+        ADJUSTABLE_REASONING_MODEL_IDS.has(modelId) ||
+        LARGE_4_MODEL_ID_PATTERN.test(modelId)
+    ) {
+        return true;
+    }
+
+    const dated = DATED_MODEL_ID_PATTERN.exec(modelId);
+    const family = dated?.[1];
+    const versionText = dated?.[2];
+    if (family === undefined || versionText === undefined) {
+        return false;
+    }
+
+    const version = Number(versionText);
+    if (family === 'mistral-small') {
+        return version >= 2603;
+    }
+
+    return version >= 2604;
 }
 
 export function normalizeModelId(modelId: string): string {

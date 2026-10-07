@@ -602,18 +602,88 @@ describe('reasoning support', () => {
         ]);
     });
 
-    it('should accept reasoning config as a no-op in requests', () => {
-        const request = createGenerateRequest('magistral-medium-latest', {
+    it.each([
+        'magistral-medium-latest',
+        'mistral-large-latest',
+        'mistral-small-2506',
+        'mistral-medium-2508',
+        'codestral-latest',
+    ])('should accept reasoning config as a no-op for %s', (modelId) => {
+        const request = createGenerateRequest(modelId, {
             messages: [{ role: 'user', content: 'Hi' }],
             reasoning: { effort: 'high' },
             maxTokens: 256,
         });
 
         expect(request).toMatchObject({
-            model: 'magistral-medium-latest',
+            model: modelId,
             maxTokens: 256,
             messages: [{ role: 'user', content: 'Hi' }],
         });
+        expect(request).not.toHaveProperty('reasoningEffort');
+    });
+
+    it.each([
+        ['mistral-small-latest', 'minimal', 'none'],
+        ['mistral-small-2603', 'low', 'none'],
+        ['mistral-medium-3-5', 'medium', 'high'],
+        ['mistral-medium-latest', 'high', 'high'],
+        ['mistral-large-4', 'max', 'high'],
+        ['mistral-large-4-0', 'high', 'high'],
+        ['zai-glm-5-3', 'minimal', 'low'],
+        ['zai-glm-5-3', 'low', 'low'],
+        ['zai-glm-latest', 'medium', 'low'],
+        ['zai-glm-5', 'high', 'high'],
+        ['zai-glm-5-2', 'max', 'max'],
+    ] as const)(
+        'should map reasoning effort for %s (%s -> %s)',
+        (modelId, effort, reasoningEffort) => {
+            const request = createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort },
+            });
+
+            expect(request.reasoningEffort).toBe(reasoningEffort);
+        }
+    );
+
+    it('should omit reasoning_effort when reasoning is not configured', () => {
+        const request = createGenerateRequest('mistral-small-latest', {
+            messages: [{ role: 'user', content: 'Hi' }],
+        });
+
+        expect(request).not.toHaveProperty('reasoningEffort');
+    });
+
+    it('should replay native reasoning for adjustable models', () => {
+        const request = createGenerateRequest('mistral-small-2603', {
+            messages: [
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'reasoning',
+                            text: 'thoughts',
+                            providerMetadata: { mistral: {} },
+                        },
+                        { type: 'text', text: 'answer' },
+                    ],
+                },
+            ],
+        });
+
+        expect(request.messages).toEqual([
+            {
+                role: 'assistant',
+                content: [
+                    {
+                        type: 'thinking',
+                        thinking: [{ type: 'text', text: 'thoughts' }],
+                    },
+                    { type: 'text', text: 'answer' },
+                ],
+            },
+        ]);
     });
 
     it('should map namespaced mistral provider options', () => {
