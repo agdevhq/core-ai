@@ -185,6 +185,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-opus-4-8-20260101',
         'claude-sonnet-5-5',
         'claude-sonnet-5',
+        'claude-haiku-5-5',
         // Unknown/future ids resolve to the current generation's rule.
         'claude-future-6',
     ])('should accept system messages before a reply for %s', (modelId) => {

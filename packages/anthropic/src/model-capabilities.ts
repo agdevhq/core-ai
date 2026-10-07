@@ -106,7 +106,8 @@ const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
  * Models that reject `role: 'system'` inside `messages[]` (verified live
  * 2026-10-07 for the 4.5–4.7 generation; older ids follow). Unknown and
  * future ids resolve to `'before-reply'`: every model since Opus 4.8 and
- * Sonnet 5 accepts it, and a wrong guess surfaces as Anthropic's own 400.
+ * Sonnet 5 accepts it (Haiku 5.5 included), and a wrong guess surfaces as
+ * Anthropic's own 400.
  */
 const LEADING_SYSTEM_MESSAGE_MODELS = new Set([
     'claude-opus-4-7',
