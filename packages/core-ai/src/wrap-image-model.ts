@@ -1,4 +1,7 @@
-import { buildMiddlewareChain, normalizeMiddleware } from './wrap-model-utils.ts';
+import {
+    buildMiddlewareChain,
+    normalizeMiddleware,
+} from './wrap-model-utils.ts';
 import type {
     ImageGenerateOptions,
     ImageGenerateResult,

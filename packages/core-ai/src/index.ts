@@ -64,6 +64,7 @@ export type {
     ModelOverloadedErrorOptions,
     ServiceUnavailableErrorOptions,
     UnsupportedInputModalityErrorOptions,
+    UnsupportedSystemMessagePlacementErrorOptions,
     ToolSchemaStrictnessErrorOptions,
     ToolSchemaStrictnessErrorReason,
 } from './errors.ts';
@@ -71,6 +72,7 @@ export {
     CoreAIError,
     ValidationError,
     UnsupportedInputModalityError,
+    UnsupportedSystemMessagePlacementError,
     ToolSchemaStrictnessError,
     AbortedError,
     StreamAbortedError,
@@ -116,6 +118,13 @@ export {
 } from './model-capabilities.ts';
 export { validateInputModalities } from './validate-input-modalities.ts';
 export type { ValidateInputModalitiesOptions } from './validate-input-modalities.ts';
+export { getSystemMessagePlacementIssues } from './system-message-placement.ts';
+export type {
+    SystemMessagePlacementIssue,
+    SystemMessagePlacementIssueReason,
+} from './system-message-placement.ts';
+export { validateSystemMessagePlacement } from './validate-system-message-placement.ts';
+export type { ValidateSystemMessagePlacementOptions } from './validate-system-message-placement.ts';
 export { validateToolSchemaStrictness } from './validate-tool-schema-strictness.ts';
 export type { ValidateToolSchemaStrictnessOptions } from './validate-tool-schema-strictness.ts';
 export {

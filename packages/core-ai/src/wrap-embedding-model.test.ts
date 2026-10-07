@@ -13,7 +13,9 @@ function createEmbedResult(value: number): EmbedResult {
 
 describe('wrapEmbeddingModel', () => {
     it('passes through to the original model when no hooks are defined', async () => {
-        const embedMock = vi.fn<EmbeddingModel['embed']>(async () => createEmbedResult(1));
+        const embedMock = vi.fn<EmbeddingModel['embed']>(async () =>
+            createEmbedResult(1)
+        );
         const model: EmbeddingModel = {
             provider: 'test',
             modelId: 'embed-model',
@@ -36,7 +38,9 @@ describe('wrapEmbeddingModel', () => {
 
     it('allows embed middleware to modify options and results', async () => {
         const embedMock = vi.fn<EmbeddingModel['embed']>(async (options) =>
-            createEmbedResult(typeof options.input === 'string' ? options.input.length : 0)
+            createEmbedResult(
+                typeof options.input === 'string' ? options.input.length : 0
+            )
         );
         const model: EmbeddingModel = {
             provider: 'test',

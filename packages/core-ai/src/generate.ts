@@ -11,5 +11,7 @@ export async function generate(
 ): Promise<GenerateResult> {
     assertNonEmptyMessages(params.messages);
 
-    return callModelWithOptions(params, (model, options) => model.generate(options));
+    return callModelWithOptions(params, (model, options) =>
+        model.generate(options)
+    );
 }

@@ -1,4 +1,9 @@
 import type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
+import type {
+    SystemMessagePlacementIssue,
+    SystemMessagePlacementIssueReason,
+} from './system-message-placement.ts';
+import type { SystemMessagePlacement } from './types.ts';
 
 export class CoreAIError extends Error {
     public readonly cause?: unknown;
@@ -127,6 +132,61 @@ export class UnsupportedInputModalityError extends ValidationError {
         this.requestedModalities = options.requestedModalities;
         this.supportedModalities = options.supportedModalities;
         this.unsupportedModalities = options.unsupportedModalities;
+    }
+}
+
+export type UnsupportedSystemMessagePlacementErrorOptions = {
+    modelId: string;
+    providerId: string;
+    placement: SystemMessagePlacement;
+    issues: readonly SystemMessagePlacementIssue[];
+};
+
+const SYSTEM_PLACEMENT_RULES: Record<SystemMessagePlacement, string> = {
+    leading: 'only before the first non-system message',
+    'before-reply':
+        'after the first non-system message only directly after a user or tool message, followed by an assistant message or at the end',
+    anywhere: 'anywhere',
+};
+
+const SYSTEM_PLACEMENT_FIXES: Record<
+    SystemMessagePlacementIssueReason,
+    string
+> = {
+    'not-leading':
+        'must move before the first non-system message, or be sent as a user message',
+    'must-follow-user-or-tool':
+        'must directly follow a user or tool message: move it after the next user message',
+    'must-precede-assistant-or-end':
+        'must be the last message or be followed by an assistant message',
+};
+
+/**
+ * Thrown when a system message sits where the model does not accept one
+ * (see `ModelCapabilities.messages.systemPlacement`). Extends
+ * {@link ValidationError} so existing `instanceof ValidationError` checks
+ * still match.
+ */
+export class UnsupportedSystemMessagePlacementError extends ValidationError {
+    public readonly placement: SystemMessagePlacement;
+    public readonly issues: readonly SystemMessagePlacementIssue[];
+
+    constructor(options: UnsupportedSystemMessagePlacementErrorOptions) {
+        const fixes = options.issues
+            .map(
+                (issue) =>
+                    `Message ${issue.index} ${SYSTEM_PLACEMENT_FIXES[issue.reason]}.`
+            )
+            .join(' ');
+
+        super(
+            `${options.providerId} model "${options.modelId}" accepts system messages ${SYSTEM_PLACEMENT_RULES[options.placement]} (systemPlacement "${options.placement}"). ${fixes}`,
+            undefined,
+            options.providerId
+        );
+        this.name = 'UnsupportedSystemMessagePlacementError';
+        this.placement = options.placement;
+        this.issues = options.issues;
     }
 }
 

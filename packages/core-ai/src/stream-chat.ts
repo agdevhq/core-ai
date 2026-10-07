@@ -9,5 +9,7 @@ export type StreamParams = GenerateOptions & {
 export async function stream(params: StreamParams): Promise<ChatStream> {
     assertNonEmptyMessages(params.messages);
 
-    return callModelWithOptions(params, (model, options) => model.stream(options));
+    return callModelWithOptions(params, (model, options) =>
+        model.stream(options)
+    );
 }

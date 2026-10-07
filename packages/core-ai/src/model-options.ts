@@ -2,7 +2,9 @@ export function splitModelFromParams<
     TParams extends {
         model: unknown;
     },
->(params: TParams): {
+>(
+    params: TParams
+): {
     model: TParams['model'];
     options: Omit<TParams, 'model'>;
 } {

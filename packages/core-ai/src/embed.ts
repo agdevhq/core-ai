@@ -9,5 +9,7 @@ export type EmbedParams = EmbedOptions & {
 export async function embed(params: EmbedParams): Promise<EmbedResult> {
     assertNonEmptyEmbedInput(params.input);
 
-    return callModelWithOptions(params, (model, options) => model.embed(options));
+    return callModelWithOptions(params, (model, options) =>
+        model.embed(options)
+    );
 }
