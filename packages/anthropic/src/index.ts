@@ -14,7 +14,9 @@ export {
     anthropicCacheControlSchema,
     anthropicGenerateProviderOptionsSchema,
     anthropicProviderOptionsSchema,
+    anthropicSystemMessageProviderOptionsSchema,
     type AnthropicCacheControl,
     type AnthropicGenerateProviderOptions,
+    type AnthropicSystemMessageProviderOptions,
     type AnthropicProviderOptions as AnthropicModelProviderOptions,
 } from './provider-options.ts';
