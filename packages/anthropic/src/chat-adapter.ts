@@ -303,7 +303,8 @@ export function convertToolChoice(choice: AgToolChoice): ToolChoice {
 }
 
 export function createStructuredOutputOptions<TSchema extends z.ZodType>(
-    options: GenerateObjectOptions<TSchema>
+    options: GenerateObjectOptions<TSchema>,
+    provider = DEFAULT_PROVIDER_ID
 ): GenerateOptions {
     const schema = toAnthropicJsonSchema(options.schema);
     const schemaDescription = options.schemaDescription?.trim();
@@ -319,8 +320,8 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
         topP: options.topP,
         providerOptions: {
             ...(options.providerOptions ?? {}),
-            anthropic: {
-                ...(options.providerOptions?.anthropic ?? {}),
+            [provider]: {
+                ...(options.providerOptions?.[provider] ?? {}),
                 outputConfig: {
                     format: {
                         type: 'json_schema',
@@ -421,7 +422,8 @@ export function createStreamRequest(
     adapterOptions: AnthropicAdapterOptions = {}
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        provider
     );
     const capabilities =
         adapterOptions.capabilities ?? getAnthropicModelCapabilities(modelId);
@@ -672,10 +674,12 @@ function mapReasoningToRequestFields(
 
 export function getAnthropicRequestBetas(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    provider = DEFAULT_PROVIDER_ID
 ): string[] {
     const providerOptions = parseAnthropicGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        provider
     );
     const configuredBetas = providerOptions?.betas ?? [];
     const shouldEnableInterleavedThinking =
