@@ -28,7 +28,8 @@ export function createGoogleGenAIImageModel(
         ): Promise<ImageGenerateResult> {
             try {
                 const googleOptions = parseGoogleImageProviderOptions(
-                    options.providerOptions
+                    options.providerOptions,
+                    provider
                 );
                 return isGeminiImageModel(modelId)
                     ? await generateGeminiImages(

@@ -255,6 +255,39 @@ describe('createGoogleGenAIImageModel', () => {
         );
     });
 
+    it.each([
+        { providerId: 'google', foreignKey: 'google-vertex' },
+        { providerId: 'google-vertex', foreignKey: 'google' },
+    ])(
+        'should read $providerId options and ignore the $foreignKey key',
+        async ({ providerId, foreignKey }) => {
+            const generateImages = vi.fn(async () => ({
+                generatedImages: [],
+            }));
+            const model = createGoogleGenAIImageModel(
+                {
+                    models: { generateImages },
+                } as unknown as Pick<GoogleGenAI, 'models'>,
+                'imagen-4.0-generate-001',
+                providerId
+            );
+
+            await model.generate({
+                prompt: 'A cat with a top hat',
+                providerOptions: {
+                    [providerId]: { guidanceScale: 7 },
+                    [foreignKey]: { negativePrompt: 'ignored', unknown: true },
+                },
+            });
+
+            expect(generateImages).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    config: { guidanceScale: 7 },
+                })
+            );
+        }
+    );
+
     it('should reject raw google config for images', async () => {
         const generateImages = vi.fn(async () => ({
             generatedImages: [],

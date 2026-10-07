@@ -157,6 +157,50 @@ describe('createGoogleVertex', () => {
         expect(generateContent).not.toHaveBeenCalled();
     });
 
+    it('should read provider options from the google-vertex key only', async () => {
+        generateContent.mockResolvedValue({ candidates: [] });
+        embedContent.mockResolvedValue({ embeddings: [] });
+        generateImages.mockResolvedValue({ generatedImages: [] });
+        const provider = createGoogleVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        });
+
+        await provider.chatModel('gemini-2.5-flash').generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                'google-vertex': { seed: 42 },
+                google: { topK: 40 },
+            },
+        });
+        await provider.embeddingModel('gemini-embedding-001').embed({
+            input: 'hello',
+            providerOptions: {
+                'google-vertex': { taskType: 'RETRIEVAL_QUERY' },
+                google: { title: 'ignored' },
+            },
+        });
+        await provider.imageModel('imagen-4.0-generate-001').generate({
+            prompt: 'a cat',
+            providerOptions: {
+                'google-vertex': { guidanceScale: 7 },
+                google: { negativePrompt: 'ignored' },
+            },
+        });
+
+        const [chatRequest] = generateContent.mock.calls[0] ?? [];
+        expect(chatRequest.config).toMatchObject({ seed: 42 });
+        expect(chatRequest.config).not.toHaveProperty('topK');
+        expect(embedContent).toHaveBeenCalledWith(
+            expect.objectContaining({
+                config: { taskType: 'RETRIEVAL_QUERY' },
+            })
+        );
+        expect(generateImages).toHaveBeenCalledWith(
+            expect.objectContaining({ config: { guidanceScale: 7 } })
+        );
+    });
+
     it('should tag errors with provider "google-vertex"', async () => {
         generateContent.mockRejectedValue(new Error('upstream failure'));
         const provider = createGoogleVertex({
