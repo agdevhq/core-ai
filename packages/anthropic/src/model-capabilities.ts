@@ -5,6 +5,7 @@ import {
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
+    type SystemMessagePlacement,
 } from '@core-ai/core-ai';
 
 export type AnthropicModelCapabilities = ModelCapabilities;
@@ -30,6 +31,7 @@ function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
     supportsStrictToolSchemas: boolean,
     reasoningMode: 'optional' | 'always-on',
+    systemPlacement: SystemMessagePlacement,
     maxOutputTokens: number | undefined
 ): AnthropicModelCapabilities {
     return {
@@ -55,6 +57,7 @@ function createCapabilities(
                   }
                 : UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
         },
+        messages: { systemPlacement },
     };
 }
 
@@ -97,6 +100,22 @@ const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
     'claude-2',
     'claude-instant-1.2',
     'claude-instant-1',
+]);
+
+/**
+ * Models that reject `role: 'system'` inside `messages[]` (verified live
+ * 2026-10-07 for the 4.5–4.7 generation; older ids follow). Unknown and
+ * future ids resolve to `'before-reply'`: every model since Opus 4.8 and
+ * Sonnet 5 accepts it, and a wrong guess surfaces as Anthropic's own 400.
+ */
+const LEADING_SYSTEM_MESSAGE_MODELS = new Set([
+    'claude-opus-4-7',
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-opus-4-5',
+    'claude-sonnet-4-5',
+    'claude-haiku-4-5',
+    ...NON_STRICT_TOOL_SCHEMA_MODELS,
 ]);
 
 const MANUAL_THINKING_MODELS = new Set([
@@ -222,8 +241,15 @@ export function getAnthropicModelCapabilities(
         supportedEfforts,
         supportsAnthropicStrictToolSchemas(modelId),
         isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional',
+        getAnthropicSystemPlacement(modelId),
         MAX_OUTPUT_TOKENS[normalizeModelId(modelId)]
     );
+}
+
+function getAnthropicSystemPlacement(modelId: string): SystemMessagePlacement {
+    return LEADING_SYSTEM_MESSAGE_MODELS.has(normalizeModelId(modelId))
+        ? 'leading'
+        : 'before-reply';
 }
 
 export function normalizeModelId(modelId: string): string {

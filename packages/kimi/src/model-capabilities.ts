@@ -18,6 +18,7 @@ const UNKNOWN_MODEL_CAPABILITIES: ModelCapabilities = {
     tools: {
         strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
     },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
@@ -31,6 +32,7 @@ const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
     tools: {
         strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
     },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 export const KIMI_MODEL_CAPABILITIES = {

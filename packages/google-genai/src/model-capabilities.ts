@@ -78,6 +78,7 @@ function createCapabilities(config: {
         tools: {
             strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
         },
+        messages: { systemPlacement: 'leading' },
     };
 }
 

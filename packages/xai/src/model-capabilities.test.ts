@@ -57,6 +57,7 @@ describe('XAI_MODEL_CAPABILITIES', () => {
             expect(capabilities.tools.strictSchemas).toEqual({
                 supported: true,
             });
+            expect(capabilities.messages.systemPlacement).toBe('anywhere');
         }
     });
 

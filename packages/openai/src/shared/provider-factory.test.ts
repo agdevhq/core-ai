@@ -17,6 +17,7 @@ const CAPABILITIES: ModelCapabilities = {
     tools: {
         strictSchemas: { supported: false },
     },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 describe('createOpenAIProvider', () => {

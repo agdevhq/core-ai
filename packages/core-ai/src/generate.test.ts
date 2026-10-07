@@ -22,6 +22,7 @@ function createMockChatModel(result: GenerateResult): ChatModel {
             tools: {
                 strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
             },
+            messages: { systemPlacement: 'anywhere' },
         },
         generate: vi.fn(async () => result),
         stream: vi.fn(async () => {
