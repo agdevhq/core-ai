@@ -24,10 +24,16 @@ export type AnthropicGenerateProviderOptions = z.infer<
     typeof anthropicGenerateProviderOptionsSchema
 >;
 
+/**
+ * Reads the options namespaced under `providerId` (`model.provider`), so
+ * sibling providers such as `anthropic-vertex` own their key and ignore
+ * options addressed to `anthropic`.
+ */
 export function parseAnthropicGenerateProviderOptions(
-    providerOptions: GenerateProviderOptions | undefined
+    providerOptions: GenerateProviderOptions | undefined,
+    providerId: string
 ): AnthropicGenerateProviderOptions | undefined {
-    const rawOptions = providerOptions?.anthropic;
+    const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }

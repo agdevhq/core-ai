@@ -4,3 +4,4 @@ export type {
     AnthropicVertexProviderOptions,
     AnthropicVertexServiceAccountCredentials,
 } from './provider.ts';
+export type { AnthropicVertexGenerateProviderOptions } from './provider-options.ts';

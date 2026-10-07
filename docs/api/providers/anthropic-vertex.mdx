@@ -226,7 +226,7 @@ for await (const event of chatStream) {
 
 ## Provider-specific options and reasoning
 
-Provider options are namespaced under `anthropic` in `providerOptions`, matching `@core-ai/anthropic`:
+Provider options are namespaced under `anthropic-vertex` in `providerOptions` and accept the same fields as `@core-ai/anthropic`. Options under the `anthropic` key are ignored:
 
 ```typescript
 const result = await generate({
@@ -234,7 +234,7 @@ const result = await generate({
     messages: [{ role: 'user', content: 'Hello' }],
     maxTokens: 1024,
     providerOptions: {
-        anthropic: {
+        'anthropic-vertex': {
             stopSequences: ['\n\n'],
         },
     },

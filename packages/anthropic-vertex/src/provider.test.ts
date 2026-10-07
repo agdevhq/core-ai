@@ -199,6 +199,32 @@ describe('createAnthropicVertex', () => {
         expect(messagesCreate).not.toHaveBeenCalled();
     });
 
+    it('should read provider options from the anthropic-vertex key only', async () => {
+        messagesCreate.mockResolvedValue(createMessageResponse());
+        const model = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('claude-sonnet-4-6');
+
+        await model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+            providerOptions: {
+                'anthropic-vertex': {
+                    stopSequences: ['STOP'],
+                    betas: ['custom-beta'],
+                },
+                anthropic: { topK: 5, betas: ['ignored-beta'] },
+            },
+        });
+
+        const [request, requestOptions] = messagesCreate.mock.calls[0] ?? [];
+        expect(request).toMatchObject({ stop_sequences: ['STOP'] });
+        expect(request).not.toHaveProperty('top_k');
+        expect(requestOptions).toMatchObject({
+            headers: { 'anthropic-beta': 'custom-beta' },
+        });
+    });
+
     it('should tag errors with provider "anthropic-vertex"', async () => {
         messagesCreate.mockRejectedValue(new Error('upstream failure'));
 

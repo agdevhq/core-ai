@@ -104,7 +104,7 @@ export function createAnthropicChatModel(
                         AsyncIterable<RawMessageStreamEvent>
                     >(
                         request,
-                        getAnthropicRequestBetas(modelId, options),
+                        getAnthropicRequestBetas(modelId, options, provider),
                         options.signal
                     )
                 ),
@@ -124,7 +124,10 @@ export function createAnthropicChatModel(
         async generateObject<TSchema extends z.ZodType>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                options,
+                provider
+            );
             const result = await generateChat(structuredOptions);
             const object = extractStructuredObject(
                 result,
@@ -141,7 +144,10 @@ export function createAnthropicChatModel(
         async streamObject<TSchema extends z.ZodType>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                options,
+                provider
+            );
             const stream = await streamChat(structuredOptions);
 
             return createObjectStream(
