@@ -106,6 +106,39 @@ describe('createGoogleGenAIEmbeddingModel', () => {
         );
     });
 
+    it.each([
+        { providerId: 'google', foreignKey: 'google-vertex' },
+        { providerId: 'google-vertex', foreignKey: 'google' },
+    ])(
+        'should read $providerId options and ignore the $foreignKey key',
+        async ({ providerId, foreignKey }) => {
+            const embedContent = vi.fn(async () => ({
+                embeddings: [{ values: [0.1] }],
+            }));
+            const model = createGoogleGenAIEmbeddingModel(
+                {
+                    models: { embedContent },
+                } as unknown as Pick<GoogleGenAI, 'models'>,
+                'gemini-embedding-001',
+                providerId
+            );
+
+            await model.embed({
+                input: 'test',
+                providerOptions: {
+                    [providerId]: { taskType: 'RETRIEVAL_DOCUMENT' },
+                    [foreignKey]: { title: 'ignored', unknown: true },
+                },
+            });
+
+            expect(embedContent).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    config: { taskType: 'RETRIEVAL_DOCUMENT' },
+                })
+            );
+        }
+    );
+
     it('should reject raw google config for embeddings', async () => {
         const embedContent = vi.fn(async () => ({
             embeddings: [{ values: [0.1] }],

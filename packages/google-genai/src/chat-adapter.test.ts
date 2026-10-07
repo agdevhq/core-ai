@@ -742,6 +742,44 @@ describe('reasoning support', () => {
         });
     });
 
+    describe.each([
+        { providerId: 'google', foreignKey: 'google-vertex' },
+        { providerId: 'google-vertex', foreignKey: 'google' },
+    ])(
+        'provider options for provider id $providerId',
+        ({ providerId, foreignKey }) => {
+            const messages = [{ role: 'user' as const, content: 'Hi' }];
+
+            it('should read options under its own key', () => {
+                const request = createGenerateRequest(
+                    'gemini-2.5-pro',
+                    {
+                        messages,
+                        providerOptions: { [providerId]: { topK: 24 } },
+                    },
+                    providerId
+                );
+
+                expect(request.config).toMatchObject({ topK: 24 });
+            });
+
+            it('should ignore options under a foreign key', () => {
+                const request = createGenerateRequest(
+                    'gemini-2.5-pro',
+                    {
+                        messages,
+                        providerOptions: {
+                            [foreignKey]: { topK: 24, unknown: true },
+                        },
+                    },
+                    providerId
+                );
+
+                expect(request.config).not.toHaveProperty('topK');
+            });
+        }
+    );
+
     it('should reject invalid google provider options', () => {
         const invalidProviderOptions = {
             google: { topK: '24' },

@@ -356,7 +356,8 @@ export function createGenerateRequest(
     adapterOptions: GoogleAdapterOptions = {}
 ): GenerateContentParameters {
     const googleOptions = parseGoogleGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        provider
     );
     const capabilities =
         adapterOptions.capabilities ?? getGoogleModelCapabilities(modelId);

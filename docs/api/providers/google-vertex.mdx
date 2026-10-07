@@ -216,14 +216,14 @@ support `n`.
 
 ## Provider-specific options
 
-Provider options remain namespaced under `google`, matching `@core-ai/google-genai`:
+Provider options are namespaced under `google-vertex` in `providerOptions` and accept the same fields as `@core-ai/google-genai`, for chat, embedding, and image models alike. Options under the `google` key are ignored:
 
 ```typescript
 const result = await generate({
     model: googleVertex.chatModel('gemini-2.5-flash'),
     messages: [{ role: 'user', content: 'Hello' }],
     providerOptions: {
-        google: {
+        'google-vertex': {
             topK: 40,
             seed: 42,
         },

@@ -66,10 +66,14 @@ export type GoogleImageProviderOptions = z.infer<
     typeof googleImageProviderOptionsSchema
 >;
 
+// Parsers read the options namespaced under `providerId` (`model.provider`),
+// so sibling providers such as `google-vertex` own their key and ignore
+// options addressed to `google`.
 export function parseGoogleGenerateProviderOptions(
-    providerOptions: GenerateProviderOptions | undefined
+    providerOptions: GenerateProviderOptions | undefined,
+    providerId: string
 ): GoogleGenerateProviderOptions | undefined {
-    const rawOptions = providerOptions?.google;
+    const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }
@@ -78,9 +82,10 @@ export function parseGoogleGenerateProviderOptions(
 }
 
 export function parseGoogleEmbedProviderOptions(
-    providerOptions: EmbedProviderOptions | undefined
+    providerOptions: EmbedProviderOptions | undefined,
+    providerId: string
 ): GoogleEmbedProviderOptions | undefined {
-    const rawOptions = providerOptions?.google;
+    const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }
@@ -89,9 +94,10 @@ export function parseGoogleEmbedProviderOptions(
 }
 
 export function parseGoogleImageProviderOptions(
-    providerOptions: ImageProviderOptions | undefined
+    providerOptions: ImageProviderOptions | undefined,
+    providerId: string
 ): GoogleImageProviderOptions | undefined {
-    const rawOptions = providerOptions?.google;
+    const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }
