@@ -699,6 +699,7 @@ describe('reasoning support', () => {
             'claude-sonnet-5-5',
             'claude-fable-5-1',
             'claude-mythos-5-1',
+            'claude-haiku-5-5',
         ]) {
             expect(
                 createStreamRequest(modelId, 4096, {
@@ -775,6 +776,7 @@ describe('reasoning support', () => {
         'claude-sonnet-5',
         'claude-fable-5',
         'claude-mythos-5',
+        'claude-haiku-5-5',
     ])(
         'should allow forced tool choice when reasoning is omitted for %s',
         (modelId) => {
@@ -1164,6 +1166,64 @@ describe('reasoning support', () => {
                 topP: 1,
             })
         ).not.toThrow();
+    });
+
+    it('should apply Claude Haiku 5.5 sampling and tool-choice rules', () => {
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(/only supports the default temperature of 1/);
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 1,
+            })
+        ).toThrowError(/only supports the default topP of 0\.99/);
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 1,
+                topP: 0.99,
+            })
+        ).toThrowError(
+            /does not support setting temperature and topP together/
+        );
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 0.99,
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 1,
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'high' },
+                topP: 0.99,
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+                toolChoice: 'required',
+            })
+        ).toThrowError(
+            /does not support toolChoice "required" when reasoning is enabled/
+        );
     });
 
     it('should reject invalid anthropic provider options', () => {
