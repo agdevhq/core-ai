@@ -35,6 +35,8 @@ import type {
 import {
     getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
+    getAnthropicDefaultTopP,
+    rejectsAnthropicCombinedSamplingParams,
     rejectsAnthropicForcedToolChoiceAlways,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
@@ -543,13 +545,25 @@ function validateAnthropicReasoningConfig(
             provider
         );
     }
+    const defaultTopP = getAnthropicDefaultTopP(modelId);
     if (
         alwaysRestrictsSampling &&
         options.topP !== undefined &&
-        options.topP !== 1
+        options.topP !== defaultTopP
     ) {
         throw new ValidationError(
-            `Anthropic model "${modelId}" only supports the default topP of 1`,
+            `Anthropic model "${modelId}" only supports the default topP of ${defaultTopP}`,
+            undefined,
+            provider
+        );
+    }
+    if (
+        rejectsAnthropicCombinedSamplingParams(modelId) &&
+        options.temperature !== undefined &&
+        options.topP !== undefined
+    ) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" does not support setting temperature and topP together`,
             undefined,
             provider
         );

@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import {
+    getAnthropicDefaultTopP,
     getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
     isAnthropicThinkingAlwaysOn,
     normalizeModelId,
+    rejectsAnthropicCombinedSamplingParams,
     rejectsAnthropicForcedToolChoiceAlways,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
@@ -43,6 +45,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-sonnet-5-5',
         'claude-sonnet-5',
         'claude-sonnet-4-6',
+        'claude-haiku-5-5',
     ])('should resolve adaptive max-effort capabilities for %s', (modelId) => {
         const capabilities = getAnthropicModelCapabilities(modelId);
         expect(capabilities.reasoning).toEqual({
@@ -143,6 +146,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-sonnet-5-5',
         'claude-sonnet-5',
         'claude-sonnet-4-6',
+        'claude-haiku-5-5',
         'claude-sonnet-4-5-20250929',
         'claude-opus-4-5-20251101',
         'claude-haiku-4-5-20251001',
@@ -204,6 +208,7 @@ describe('output ceilings', () => {
         ['claude-sonnet-5-5', 128_000],
         ['claude-sonnet-5', 128_000],
         ['claude-sonnet-4-6', 128_000],
+        ['claude-haiku-5-5', 128_000],
         ['claude-opus-4-5-20251101', 64_000],
         ['claude-sonnet-4-5-20250929', 64_000],
         ['claude-haiku-4-5@20251001', 64_000],
@@ -257,6 +262,7 @@ describe('forced tool choice', () => {
         'claude-mythos-5',
         'claude-opus-5',
         'claude-sonnet-5',
+        'claude-haiku-5-5',
     ])(
         'should allow forced tool choice when reasoning is omitted for %s',
         (modelId) => {
@@ -286,6 +292,17 @@ describe('sampling restrictions', () => {
         expect(restrictsAnthropicSamplingParamsAlways('claude-sonnet-5')).toBe(
             true
         );
+        expect(restrictsAnthropicSamplingParamsAlways('claude-haiku-5-5')).toBe(
+            true
+        );
+        expect(getAnthropicDefaultTopP('claude-haiku-5-5')).toBe(0.99);
+        expect(rejectsAnthropicCombinedSamplingParams('claude-haiku-5-5')).toBe(
+            true
+        );
+        expect(getAnthropicDefaultTopP('claude-sonnet-5-5')).toBe(1);
+        expect(
+            rejectsAnthropicCombinedSamplingParams('claude-sonnet-5-5')
+        ).toBe(false);
         expect(
             restrictsAnthropicSamplingParamsAlways('claude-sonnet-4-6')
         ).toBe(false);
