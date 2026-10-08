@@ -253,8 +253,18 @@ function getAnthropicSystemPlacement(modelId: string): SystemMessagePlacement {
         : 'before-reply';
 }
 
+/**
+ * Anthropic aliases that point at a model listed under another id:
+ * `claude-3-7-sonnet-latest` → `claude-3-7-sonnet`,
+ * `claude-sonnet-4-0` → `claude-sonnet-4`.
+ */
+const ANTHROPIC_ALIAS_SUFFIX_PATTERN = /-(?:latest|0)$/;
+
 export function normalizeModelId(modelId: string): string {
-    return stripModelDateSuffix(modelId);
+    return stripModelDateSuffix(modelId).replace(
+        ANTHROPIC_ALIAS_SUFFIX_PATTERN,
+        ''
+    );
 }
 
 export function getAnthropicThinkingMode(

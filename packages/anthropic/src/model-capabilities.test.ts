@@ -31,6 +31,17 @@ describe('normalizeModelId', () => {
             'claude-sonnet-5-5'
         );
     });
+
+    it('should resolve -latest and -0 aliases', () => {
+        expect(normalizeModelId('claude-3-7-sonnet-latest')).toBe(
+            'claude-3-7-sonnet'
+        );
+        expect(normalizeModelId('claude-3-5-haiku-latest')).toBe(
+            'claude-3-5-haiku'
+        );
+        expect(normalizeModelId('claude-sonnet-4-0')).toBe('claude-sonnet-4');
+        expect(normalizeModelId('claude-opus-4-0')).toBe('claude-opus-4');
+    });
 });
 
 describe('getAnthropicModelCapabilities', () => {
@@ -203,6 +214,9 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-haiku-4-5-20251001',
         'claude-opus-4',
         'claude-3-5-haiku',
+        'claude-3-7-sonnet-latest',
+        'claude-sonnet-4-0',
+        'claude-opus-4-0',
     ])('should accept only leading system messages for %s', (modelId) => {
         expect(
             getAnthropicModelCapabilities(modelId).messages.systemPlacement
