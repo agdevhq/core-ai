@@ -1,5 +1,0 @@
----
-'@core-ai/anthropic': minor
----
-
-**Breaking:** system messages are no longer joined into the top-level `system` prompt. Leading system messages are sent as one `system` text block each, which causes one cache miss on the first request after upgrading. On models that report `systemPlacement: 'before-reply'` (Claude Opus 4.8, Sonnet 5, Haiku 5.5 and later, and unrecognized model IDs), a later system message is sent in place as a `role: 'system'` message. It must directly follow a user or tool message and be last or followed by an assistant message. On earlier models, which report `'leading'`, a later system message throws `UnsupportedSystemMessagePlacementError`. System messages accept `providerOptions.anthropic.cacheControl` for per-message cache breakpoints with their own TTL, and requests that exceed 4 breakpoints, place a `1h` breakpoint after a `5m` one, or mismatch the TTL of a breakpoint on the last block now throw `ValidationError` before the request. System messages without non-whitespace text are dropped, since Anthropic rejects empty text blocks; one that sets `cacheControl` throws `ValidationError`.

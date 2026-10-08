@@ -1,5 +1,19 @@
 # @core-ai/anthropic-vertex
 
+## 0.31.0
+
+### Minor Changes
+
+- 76d8ba6: System messages accept options under the `anthropic-vertex` key, including per-message `cacheControl` for cache breakpoints with their own TTL. Models from Claude Opus 4.8, Sonnet 5, and Haiku 5.5 on accept a system message directly after a user or tool message; earlier models accept system messages only at the start of the conversation.
+
+### Patch Changes
+
+- Updated dependencies [76d8ba6]
+- Updated dependencies [76d8ba6]
+- Updated dependencies [76d8ba6]
+    - @core-ai/anthropic@0.31.0
+    - @core-ai/core-ai@0.31.0
+
 ## 0.30.0
 
 ### Minor Changes

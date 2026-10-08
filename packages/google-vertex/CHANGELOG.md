@@ -1,5 +1,18 @@
 # @core-ai/google-vertex
 
+## 0.31.0
+
+### Minor Changes
+
+- 76d8ba6: **Breaking:** models report `systemPlacement: 'leading'`, and a system message after the first non-system message now throws `UnsupportedSystemMessagePlacementError` instead of being merged into `systemInstruction`.
+
+### Patch Changes
+
+- Updated dependencies [76d8ba6]
+- Updated dependencies [76d8ba6]
+    - @core-ai/core-ai@0.31.0
+    - @core-ai/google-genai@0.31.0
+
 ## 0.30.0
 
 ### Minor Changes
