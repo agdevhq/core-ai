@@ -217,6 +217,7 @@ describe('getAnthropicModelCapabilities', () => {
         'claude-3-7-sonnet-latest',
         'claude-sonnet-4-0',
         'claude-opus-4-0',
+        'claude-3-5-sonnet-v2@20241022',
     ])('should accept only leading system messages for %s', (modelId) => {
         expect(
             getAnthropicModelCapabilities(modelId).messages.systemPlacement

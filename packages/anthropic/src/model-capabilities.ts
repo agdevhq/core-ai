@@ -90,6 +90,7 @@ const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
     'claude-sonnet-4',
     'claude-sonnet-3-7',
     'claude-3-7-sonnet',
+    'claude-3-5-sonnet-v2',
     'claude-3-5-sonnet',
     'claude-3-5-haiku',
     'claude-3-opus',
