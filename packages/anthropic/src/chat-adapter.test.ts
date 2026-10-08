@@ -699,6 +699,7 @@ describe('reasoning support', () => {
             'claude-sonnet-5-5',
             'claude-fable-5-1',
             'claude-mythos-5-1',
+            'claude-haiku-5-5',
         ]) {
             expect(
                 createStreamRequest(modelId, 4096, {
@@ -775,6 +776,7 @@ describe('reasoning support', () => {
         'claude-sonnet-5',
         'claude-fable-5',
         'claude-mythos-5',
+        'claude-haiku-5-5',
     ])(
         'should allow forced tool choice when reasoning is omitted for %s',
         (modelId) => {
@@ -832,6 +834,106 @@ describe('reasoning support', () => {
             'custom-beta',
         ]);
     });
+
+    describe.each([
+        { providerId: 'anthropic', foreignKey: 'anthropic-vertex' },
+        { providerId: 'anthropic-vertex', foreignKey: 'anthropic' },
+    ])(
+        'provider options for provider id $providerId',
+        ({ providerId, foreignKey }) => {
+            const messages = [{ role: 'user' as const, content: 'Hello' }];
+            const providerFields = {
+                topK: 5,
+                betas: ['custom-beta'],
+                cacheControl: { type: 'ephemeral' as const },
+            };
+
+            it('should read options under its own key', () => {
+                const options = {
+                    messages,
+                    providerOptions: { [providerId]: providerFields },
+                };
+
+                expect(
+                    createStreamRequest(
+                        'claude-sonnet-4-5',
+                        4096,
+                        options,
+                        providerId
+                    )
+                ).toMatchObject({
+                    top_k: 5,
+                    cache_control: { type: 'ephemeral' },
+                });
+                expect(
+                    getAnthropicRequestBetas(
+                        'claude-sonnet-4-5',
+                        options,
+                        providerId
+                    )
+                ).toEqual(['custom-beta']);
+            });
+
+            it('should ignore options under a foreign key', () => {
+                const options = {
+                    messages,
+                    providerOptions: {
+                        [foreignKey]: { ...providerFields, unknown: true },
+                    },
+                };
+
+                const request = createStreamRequest(
+                    'claude-sonnet-4-5',
+                    4096,
+                    options,
+                    providerId
+                );
+
+                expect(request).not.toHaveProperty('top_k');
+                expect(request).not.toHaveProperty('cache_control');
+                expect(
+                    getAnthropicRequestBetas(
+                        'claude-sonnet-4-5',
+                        options,
+                        providerId
+                    )
+                ).toEqual([]);
+            });
+
+            it('should place structured output config under its own key', () => {
+                const result = createStructuredOutputOptions(
+                    {
+                        messages,
+                        schema: z.object({ city: z.string() }),
+                        providerOptions: {
+                            [providerId]: { topK: 5 },
+                            [foreignKey]: { topK: 7 },
+                        },
+                    },
+                    providerId
+                );
+
+                expect(result.providerOptions?.[providerId]).toMatchObject({
+                    topK: 5,
+                    outputConfig: { format: { type: 'json_schema' } },
+                });
+                expect(result.providerOptions?.[foreignKey]).toEqual({
+                    topK: 7,
+                });
+                expect(
+                    createStreamRequest(
+                        'claude-sonnet-4-5',
+                        4096,
+                        result,
+                        providerId
+                    )
+                ).toMatchObject({
+                    top_k: 5,
+                    output_config: { format: { type: 'json_schema' } },
+                });
+            });
+        }
+    );
 
     it('should validate incompatible config when reasoning is enabled', () => {
         expect(() =>
@@ -1064,6 +1166,64 @@ describe('reasoning support', () => {
                 topP: 1,
             })
         ).not.toThrow();
+    });
+
+    it('should apply Claude Haiku 5.5 sampling and tool-choice rules', () => {
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(/only supports the default temperature of 1/);
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 1,
+            })
+        ).toThrowError(/only supports the default topP of 0\.99/);
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 1,
+                topP: 0.99,
+            })
+        ).toThrowError(
+            /does not support setting temperature and topP together/
+        );
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 0.99,
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 1,
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'high' },
+                topP: 0.99,
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-haiku-5-5', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+                toolChoice: 'required',
+            })
+        ).toThrowError(
+            /does not support toolChoice "required" when reasoning is enabled/
+        );
     });
 
     it('should reject invalid anthropic provider options', () => {

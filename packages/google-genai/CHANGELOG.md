@@ -1,5 +1,16 @@
 # @core-ai/google-genai
 
+## 0.30.0
+
+### Minor Changes
+
+- 788e618: **Breaking:** chat, embedding, and image models now read `providerOptions` from the key matching the model's provider id (`model.provider`) instead of always reading `providerOptions.google`. Models from `createGoogleGenAI()` are unaffected; providers built on `createGoogleGenAIProvider()` with a custom `providerId` now read options only from their own key and ignore `google`.
+
+### Patch Changes
+
+- c234edc: Align the Gemini 3 capability table with the model ids Google serves. Add `gemini-3-flash-preview` with its four thinking levels; it previously fell back to the Gemini 2.5-style thinking-budget defaults. Remove `gemini-3-pro`, `gemini-3.1-pro` and `gemini-3.1-flash-lite-preview`, which are shut down or never existed under those ids, and update the docs and README examples to ids that resolve.
+    - @core-ai/core-ai@0.30.0
+
 ## 0.29.1
 
 ### Patch Changes

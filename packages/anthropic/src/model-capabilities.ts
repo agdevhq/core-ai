@@ -72,6 +72,7 @@ const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
     'claude-sonnet-5-5',
     'claude-sonnet-5',
     'claude-sonnet-4-6',
+    'claude-haiku-5-5',
 ]);
 
 /**
@@ -141,7 +142,14 @@ const ALWAYS_RESTRICTED_SAMPLING_MODELS = new Set([
     'claude-opus-4-7',
     'claude-sonnet-5-5',
     'claude-sonnet-5',
+    'claude-haiku-5-5',
 ]);
+
+/**
+ * Models that accept an explicit `top_p` only when it is 0.99, and that
+ * reject a request setting both `temperature` and `top_p`.
+ */
+const TOP_P_099_MODELS = new Set(['claude-haiku-5-5']);
 
 const ANTHROPIC_ADAPTIVE_EFFORT_MAP: Record<
     Exclude<ReasoningEffort, 'max'>,
@@ -172,6 +180,7 @@ const MAX_OUTPUT_TOKENS: Record<string, number> = {
     'claude-sonnet-5-5': 128_000,
     'claude-sonnet-5': 128_000,
     'claude-sonnet-4-6': 128_000,
+    'claude-haiku-5-5': 128_000,
     'claude-opus-4-5': 64_000,
     'claude-sonnet-4-5': 64_000,
     'claude-haiku-4-5': 64_000,
@@ -259,6 +268,16 @@ export function restrictsAnthropicSamplingParamsAlways(
     modelId: string
 ): boolean {
     return ALWAYS_RESTRICTED_SAMPLING_MODELS.has(normalizeModelId(modelId));
+}
+
+export function getAnthropicDefaultTopP(modelId: string): number {
+    return TOP_P_099_MODELS.has(normalizeModelId(modelId)) ? 0.99 : 1;
+}
+
+export function rejectsAnthropicCombinedSamplingParams(
+    modelId: string
+): boolean {
+    return TOP_P_099_MODELS.has(normalizeModelId(modelId));
 }
 
 export function toAnthropicAdaptiveEffort(

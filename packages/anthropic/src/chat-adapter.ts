@@ -35,6 +35,8 @@ import type {
 import {
     getAnthropicModelCapabilities,
     getAnthropicThinkingMode,
+    getAnthropicDefaultTopP,
+    rejectsAnthropicCombinedSamplingParams,
     rejectsAnthropicForcedToolChoiceAlways,
     requiresAnthropicInterleavedThinkingBeta,
     restrictsAnthropicSamplingParamsAlways,
@@ -303,7 +305,8 @@ export function convertToolChoice(choice: AgToolChoice): ToolChoice {
 }
 
 export function createStructuredOutputOptions<TSchema extends z.ZodType>(
-    options: GenerateObjectOptions<TSchema>
+    options: GenerateObjectOptions<TSchema>,
+    provider = DEFAULT_PROVIDER_ID
 ): GenerateOptions {
     const schema = toAnthropicJsonSchema(options.schema);
     const schemaDescription = options.schemaDescription?.trim();
@@ -319,8 +322,8 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
         topP: options.topP,
         providerOptions: {
             ...(options.providerOptions ?? {}),
-            anthropic: {
-                ...(options.providerOptions?.anthropic ?? {}),
+            [provider]: {
+                ...(options.providerOptions?.[provider] ?? {}),
                 outputConfig: {
                     format: {
                         type: 'json_schema',
@@ -421,7 +424,8 @@ export function createStreamRequest(
     adapterOptions: AnthropicAdapterOptions = {}
 ) {
     const anthropicOptions = parseAnthropicGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        provider
     );
     const capabilities =
         adapterOptions.capabilities ?? getAnthropicModelCapabilities(modelId);
@@ -541,13 +545,25 @@ function validateAnthropicReasoningConfig(
             provider
         );
     }
+    const defaultTopP = getAnthropicDefaultTopP(modelId);
     if (
         alwaysRestrictsSampling &&
         options.topP !== undefined &&
-        options.topP !== 1
+        options.topP !== defaultTopP
     ) {
         throw new ValidationError(
-            `Anthropic model "${modelId}" only supports the default topP of 1`,
+            `Anthropic model "${modelId}" only supports the default topP of ${defaultTopP}`,
+            undefined,
+            provider
+        );
+    }
+    if (
+        rejectsAnthropicCombinedSamplingParams(modelId) &&
+        options.temperature !== undefined &&
+        options.topP !== undefined
+    ) {
+        throw new ValidationError(
+            `Anthropic model "${modelId}" does not support setting temperature and topP together`,
             undefined,
             provider
         );
@@ -672,10 +688,12 @@ function mapReasoningToRequestFields(
 
 export function getAnthropicRequestBetas(
     modelId: string,
-    options: GenerateOptions
+    options: GenerateOptions,
+    provider = DEFAULT_PROVIDER_ID
 ): string[] {
     const providerOptions = parseAnthropicGenerateProviderOptions(
-        options.providerOptions
+        options.providerOptions,
+        provider
     );
     const configuredBetas = providerOptions?.betas ?? [];
     const shouldEnableInterleavedThinking =

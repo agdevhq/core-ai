@@ -35,7 +35,8 @@ export function createGoogleGenAIEmbeddingModel(
                         : {}),
                 };
                 const googleOptions = parseGoogleEmbedProviderOptions(
-                    options.providerOptions
+                    options.providerOptions,
+                    provider
                 );
                 const providerConfig =
                     mapGoogleEmbedProviderOptionsToConfig(googleOptions);

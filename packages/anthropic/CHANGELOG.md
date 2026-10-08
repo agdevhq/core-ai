@@ -1,5 +1,16 @@
 # @core-ai/anthropic
 
+## 0.30.0
+
+### Minor Changes
+
+- 8f72823: **Breaking:** the Anthropic adapter now reads `providerOptions` from the key matching the model's provider id (`model.provider`) instead of always reading `providerOptions.anthropic`. Models from `createAnthropic()` are unaffected; providers built on `createAnthropicChatProvider()` with a custom `providerId` now read options only from their own key and ignore `anthropic`. Structured output (`generateObject`/`streamObject`) also writes its output config under the provider's own key.
+
+### Patch Changes
+
+- 265f1ff: Add model capability support for `claude-haiku-5-5`. Adaptive thinking accepts `max` effort, the output ceiling is 128,000 tokens, and non-default sampling parameters are rejected on every request. The only accepted explicit `topP` is `0.99`, and `temperature` and `topP` cannot be set together. Forced tool choice stays valid when reasoning is omitted.
+    - @core-ai/core-ai@0.30.0
+
 ## 0.29.1
 
 ### Patch Changes

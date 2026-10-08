@@ -1,5 +1,18 @@
 # @core-ai/google-vertex
 
+## 0.30.0
+
+### Minor Changes
+
+- 788e618: **Breaking:** provider options for chat, embedding, and image models are now read from `providerOptions['google-vertex']` instead of `providerOptions.google`, matching the provider id. Options under the `google` key are now ignored — move them to `'google-vertex'` (same fields). The `'google-vertex'` key is typed on `GenerateProviderOptions`, `EmbedProviderOptions`, and `ImageProviderOptions`, and `GoogleVertexGenerateProviderOptions`, `GoogleVertexEmbedProviderOptions`, and `GoogleVertexImageProviderOptions` are exported.
+
+### Patch Changes
+
+- Updated dependencies [c234edc]
+- Updated dependencies [788e618]
+    - @core-ai/google-genai@0.30.0
+    - @core-ai/core-ai@0.30.0
+
 ## 0.29.1
 
 ### Patch Changes

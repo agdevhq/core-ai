@@ -1,5 +1,18 @@
 # @core-ai/anthropic-vertex
 
+## 0.30.0
+
+### Minor Changes
+
+- 8f72823: **Breaking:** provider options for Vertex-hosted Claude models are now read from `providerOptions['anthropic-vertex']` instead of `providerOptions.anthropic`, matching the provider id. Options under the `anthropic` key are now ignored — move them to `'anthropic-vertex'` (same fields). The `'anthropic-vertex'` key is typed on `GenerateProviderOptions`, and `AnthropicVertexGenerateProviderOptions` is exported.
+
+### Patch Changes
+
+- Updated dependencies [8f72823]
+- Updated dependencies [265f1ff]
+    - @core-ai/anthropic@0.30.0
+    - @core-ai/core-ai@0.30.0
+
 ## 0.29.1
 
 ### Patch Changes

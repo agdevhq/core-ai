@@ -66,14 +66,15 @@ const anthropic = createAnthropic({
 
   </Accordion>
 
-  <Accordion title="Claude Opus and Sonnet (adaptive thinking)" icon="brain">
-    Current Opus and Sonnet models use effort-based adaptive thinking.
+  <Accordion title="Claude Opus, Sonnet, and Haiku (adaptive thinking)" icon="brain">
+    Current Opus, Sonnet, and Haiku models use effort-based adaptive thinking.
 
     <ul>
       <li><strong>claude-opus-5-5</strong> - Current Opus model for long-running agentic coding and knowledge work. Adaptive thinking is always on</li>
       <li><strong>claude-opus-5</strong> - Opus model for complex agentic coding and enterprise work</li>
       <li><strong>claude-sonnet-5-5</strong> - Current Sonnet model for focused coding and knowledge work. Adaptive thinking is on by default, and forced tool choice is rejected on every request</li>
       <li><strong>claude-sonnet-5</strong> - Most agentic Sonnet model with near-Opus performance at lower cost</li>
+      <li><strong>claude-haiku-5-5</strong> - Fast model for high-volume, latency-sensitive work. Adaptive thinking accepts max effort, and the API default effort is medium</li>
       <li><strong>claude-opus-4-8</strong> - Opus model for complex reasoning and agentic coding</li>
       <li><strong>claude-opus-4-7</strong> - Opus model with max effort support</li>
       <li><strong>claude-opus-4-6</strong> - Opus model with max effort support</li>
@@ -313,15 +314,17 @@ const result = await generate({
 ```
 
 <Note>
-    `claude-fable-5-1`, `claude-mythos-5-1`, `claude-fable-5`, `claude-mythos-5`,
-    `claude-mythos-preview`, `claude-opus-5-5`, `claude-opus-5`,
-    `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-sonnet-5-5`,
-    `claude-sonnet-5`, and `claude-sonnet-4-6` support `'max'` effort directly.
-    On `claude-opus-5-5`, `claude-fable-5-1`, and `claude-mythos-5-1`, thinking
-    cannot be disabled. Omit `reasoning` to use the model's API default effort,
-    or pass `reasoning.effort` to send adaptive thinking at that level.
-    `claude-opus-5-5` defaults to `medium`. `claude-sonnet-5-5`,
-    `claude-fable-5-1`, and `claude-mythos-5-1` default to `high`.
+    `claude-fable-5-1`, `claude-mythos-5-1`, `claude-fable-5`,
+    `claude-mythos-5`, `claude-mythos-preview`, `claude-opus-5-5`,
+    `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`,
+    `claude-sonnet-5-5`, `claude-sonnet-5`, `claude-sonnet-4-6`, and
+    `claude-haiku-5-5` support `'max'` effort directly. On `claude-opus-5-5`,
+    `claude-fable-5-1`, and `claude-mythos-5-1`, thinking cannot be disabled.
+    Omit `reasoning` to use the model's API default effort, or pass
+    `reasoning.effort` to send adaptive thinking at that level.
+    `claude-opus-5-5` and `claude-haiku-5-5` default to `medium`.
+    `claude-sonnet-5-5`, `claude-fable-5-1`, and `claude-mythos-5-1` default to
+    `high`.
 </Note>
 
 ### Manual thinking budget (Claude 4.5 and earlier)
@@ -376,11 +379,11 @@ together. When you omit it, the request uses the first of:
 2. The model's output ceiling (`model.capabilities.output.maxTokens`)
 3. 4,096, for model ids without a known ceiling
 
-| Models                                                                                                                                    | Output ceiling |
-| ----------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
-| Fable 5.1, Mythos 5.1, Fable 5, Mythos 5, Mythos Preview, Opus 5.5, Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 5.5, Sonnet 5, Sonnet 4.6 | 128,000        |
-| Opus 4.5, Sonnet 4.5, Haiku 4.5, Sonnet 4, Sonnet 3.7                                                                                     | 64,000         |
-| Opus 4.1, Opus 4                                                                                                                          | 32,000         |
+| Models                                                                                                                                                | Output ceiling |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------- |
+| Fable 5.1, Mythos 5.1, Fable 5, Mythos 5, Mythos Preview, Opus 5.5, Opus 5, Opus 4.8, Opus 4.7, Opus 4.6, Sonnet 5.5, Sonnet 5, Sonnet 4.6, Haiku 5.5 | 128,000        |
+| Opus 4.5, Sonnet 4.5, Haiku 4.5, Sonnet 4, Sonnet 3.7                                                                                                 | 64,000         |
+| Opus 4.1, Opus 4                                                                                                                                      | 32,000         |
 
 Anthropic's output-token rate limits count only generated tokens, so a high
 limit does not use up rate-limit capacity.
@@ -406,10 +409,15 @@ Fable 5, Mythos 5, Mythos Preview, Opus 5, Opus 4.8, Opus 4.7, and Sonnet 5
 also reject non-default sampling parameters when you do not explicitly enable
 reasoning. For these models, use `temperature: 1`, `topP: 1`, and omit `topK`.
 
+Claude Haiku 5.5 rejects non-default sampling parameters on every request. Set
+`temperature` to `1` or `topP` to `0.99`, and omit `topK`. A request cannot
+include both `temperature` and `topP`.
+
 Claude Opus 5.5, Claude Sonnet 5.5, Claude Fable 5.1, and Claude Mythos 5.1
 reject `toolChoice: 'required'` and `toolChoice: { type: 'tool', toolName }` on
-every request. `'auto'` and `'none'` remain valid. Claude Fable 5 and Claude
-Mythos 5 accept forced tool choice when `reasoning` is omitted.
+every request. `'auto'` and `'none'` remain valid. Claude Fable 5, Claude
+Mythos 5, and Claude Haiku 5.5 accept forced tool choice when `reasoning` is
+omitted.
 
 <Warning>
     Violating these constraints throws a `ValidationError` before the request is

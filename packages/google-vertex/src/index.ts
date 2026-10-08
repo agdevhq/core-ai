@@ -1,5 +1,10 @@
 export { createGoogleVertex } from './provider.ts';
 export type {
+    GoogleVertexEmbedProviderOptions,
+    GoogleVertexGenerateProviderOptions,
+    GoogleVertexImageProviderOptions,
+} from './provider-options.ts';
+export type {
     GoogleVertexProvider,
     GoogleVertexProviderOptions,
     GoogleVertexServiceAccountCredentials,
