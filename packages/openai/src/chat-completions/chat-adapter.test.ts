@@ -1387,3 +1387,25 @@ async function collectEvents<T>(stream: AsyncIterable<T>): Promise<T[]> {
     }
     return events;
 }
+
+describe('system message placement', () => {
+    it('should keep a later system message in place', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [
+                { role: 'user', content: 'Hi' },
+                {
+                    role: 'assistant',
+                    parts: [{ type: 'text', text: 'Hello!' }],
+                },
+                { role: 'system', content: 'Be brief.' },
+                { role: 'user', content: 'How are you?' },
+            ],
+        });
+
+        expect(request.messages).toHaveLength(4);
+        expect(request.messages[2]).toEqual({
+            role: 'system',
+            content: 'Be brief.',
+        });
+    });
+});

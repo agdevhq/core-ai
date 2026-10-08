@@ -31,6 +31,17 @@ describe('normalizeModelId', () => {
             'claude-sonnet-5-5'
         );
     });
+
+    it('should resolve -latest and -0 aliases', () => {
+        expect(normalizeModelId('claude-3-7-sonnet-latest')).toBe(
+            'claude-3-7-sonnet'
+        );
+        expect(normalizeModelId('claude-3-5-haiku-latest')).toBe(
+            'claude-3-5-haiku'
+        );
+        expect(normalizeModelId('claude-sonnet-4-0')).toBe('claude-sonnet-4');
+        expect(normalizeModelId('claude-opus-4-0')).toBe('claude-opus-4');
+    });
 });
 
 describe('getAnthropicModelCapabilities', () => {
@@ -174,6 +185,43 @@ describe('getAnthropicModelCapabilities', () => {
         expect(
             getAnthropicModelCapabilities(modelId).tools.strictSchemas
         ).toEqual({ supported: false });
+    });
+
+    it.each([
+        'claude-fable-5-1',
+        'claude-mythos-5-1',
+        'claude-opus-5-5',
+        'claude-opus-5',
+        'claude-opus-4-8',
+        'claude-opus-4-8-20260101',
+        'claude-sonnet-5-5',
+        'claude-sonnet-5',
+        'claude-haiku-5-5',
+        // Unknown/future ids resolve to the current generation's rule.
+        'claude-future-6',
+    ])('should accept system messages before a reply for %s', (modelId) => {
+        expect(
+            getAnthropicModelCapabilities(modelId).messages.systemPlacement
+        ).toBe('before-reply');
+    });
+
+    it.each([
+        'claude-opus-4-7',
+        'claude-opus-4-6',
+        'claude-sonnet-4-6',
+        'claude-opus-4-5',
+        'claude-sonnet-4-5-20250929',
+        'claude-haiku-4-5-20251001',
+        'claude-opus-4',
+        'claude-3-5-haiku',
+        'claude-3-7-sonnet-latest',
+        'claude-sonnet-4-0',
+        'claude-opus-4-0',
+        'claude-3-5-sonnet-v2@20241022',
+    ])('should accept only leading system messages for %s', (modelId) => {
+        expect(
+            getAnthropicModelCapabilities(modelId).messages.systemPlacement
+        ).toBe('leading');
     });
 });
 

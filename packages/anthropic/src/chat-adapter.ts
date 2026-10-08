@@ -6,6 +6,7 @@ import type {
     MessageParam,
     Tool,
     ToolChoice,
+    TextBlockParam,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import type { z } from 'zod';
@@ -15,7 +16,7 @@ import {
     getProviderMetadata,
     ValidationError,
     safeParseJsonObject,
-    validateInputModalities,
+    validateMessages,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
@@ -28,6 +29,7 @@ import type {
     Message,
     ModelCapabilities,
     StreamEvent,
+    SystemMessage,
     ToolSet,
     UserContentPart,
     ToolChoice as AgToolChoice,
@@ -46,6 +48,8 @@ import {
 } from './model-capabilities.ts';
 import {
     parseAnthropicGenerateProviderOptions,
+    parseAnthropicSystemMessageProviderOptions,
+    type AnthropicCacheControl,
     type AnthropicGenerateProviderOptions,
 } from './provider-options.ts';
 
@@ -73,21 +77,47 @@ const UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS = new Set([
     'maxItems',
 ]);
 
+export type AnthropicCacheTtl = NonNullable<AnthropicCacheControl['ttl']>;
+
 export type ConvertedAnthropicMessages = {
-    system: string | undefined;
+    system: TextBlockParam[] | undefined;
+    /** TTLs of explicit cache breakpoints, in render order. */
+    cacheTtls: AnthropicCacheTtl[];
     messages: MessageParam[];
 };
 
+/**
+ * System messages before the first non-system message become top-level
+ * `system` blocks; later ones stay in place as `role: 'system'` messages.
+ * Placement is validated beforehand against the model's capabilities.
+ */
 export function convertMessages(
-    messages: Message[]
+    messages: Message[],
+    provider = DEFAULT_PROVIDER_ID
 ): ConvertedAnthropicMessages {
-    const systemParts: string[] = [];
+    const system: TextBlockParam[] = [];
+    const cacheTtls: AnthropicCacheTtl[] = [];
     const convertedMessages: MessageParam[] = [];
     let previousInputWasTool = false;
 
     for (const message of messages) {
         if (message.role === 'system') {
-            systemParts.push(message.content);
+            const block = convertSystemMessage(message, provider);
+            if (!block) {
+                continue;
+            }
+            if (block.cache_control) {
+                cacheTtls.push(block.cache_control.ttl ?? '5m');
+            }
+
+            if (convertedMessages.length === 0) {
+                system.push(block);
+            } else {
+                convertedMessages.push({
+                    role: 'system',
+                    content: block.cache_control ? [block] : block.text,
+                });
+            }
             previousInputWasTool = false;
             continue;
         }
@@ -208,8 +238,117 @@ export function convertMessages(
     }
 
     return {
-        system: systemParts.length > 0 ? systemParts.join('\n') : undefined,
+        system: system.length > 0 ? system : undefined,
+        cacheTtls,
         messages: convertedMessages,
+    };
+}
+
+const MAX_CACHE_BREAKPOINTS = 4;
+
+export type ValidateCacheBreakpointsOptions = {
+    /** TTLs of explicit breakpoints, in render order. */
+    cacheTtls: readonly AnthropicCacheTtl[];
+    requestCacheControl: AnthropicCacheControl | undefined;
+    /** TTL of an explicit breakpoint on the request's last block, if any. */
+    lastBlockCacheTtl: AnthropicCacheTtl | undefined;
+    providerId: string;
+};
+
+/**
+ * Rejects cache breakpoints the Messages API refuses: more than 4 per
+ * request (request-level automatic caching included), a 1h breakpoint after
+ * a 5m one, and request-level caching whose TTL differs from an explicit
+ * breakpoint on the block it lands on.
+ */
+export function validateCacheBreakpoints({
+    cacheTtls,
+    requestCacheControl,
+    lastBlockCacheTtl,
+    providerId,
+}: ValidateCacheBreakpointsOptions): void {
+    const requestTtl = requestCacheControl
+        ? (requestCacheControl.ttl ?? '5m')
+        : undefined;
+    const ttls = requestTtl ? [...cacheTtls, requestTtl] : cacheTtls;
+
+    if (ttls.length > MAX_CACHE_BREAKPOINTS) {
+        throw new ValidationError(
+            `Anthropic accepts at most ${MAX_CACHE_BREAKPOINTS} cache breakpoints per request, request-level cacheControl included; this request has ${ttls.length}.`,
+            undefined,
+            providerId
+        );
+    }
+
+    const firstShortTtl = ttls.indexOf('5m');
+    if (firstShortTtl !== -1 && ttls.indexOf('1h', firstShortTtl) !== -1) {
+        throw new ValidationError(
+            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. System messages render in order, request-level cacheControl last.',
+            undefined,
+            providerId
+        );
+    }
+
+    if (
+        requestTtl !== undefined &&
+        lastBlockCacheTtl !== undefined &&
+        requestTtl !== lastBlockCacheTtl
+    ) {
+        throw new ValidationError(
+            `Request-level cacheControl (ttl ${requestTtl}) targets the last system message, whose own cacheControl has ttl ${lastBlockCacheTtl}; Anthropic requires matching TTLs.`,
+            undefined,
+            providerId
+        );
+    }
+}
+
+function getLastBlockCacheTtl(
+    messages: readonly MessageParam[]
+): AnthropicCacheTtl | undefined {
+    const content = messages.at(-1)?.content;
+    if (!Array.isArray(content)) {
+        return undefined;
+    }
+
+    const lastBlock = content.at(-1);
+    if (!lastBlock || !('cache_control' in lastBlock)) {
+        return undefined;
+    }
+
+    return lastBlock.cache_control
+        ? (lastBlock.cache_control.ttl ?? '5m')
+        : undefined;
+}
+
+/**
+ * Anthropic rejects text blocks without non-whitespace text. Such a system
+ * message carries no instruction, so it is dropped (as other providers
+ * accept it) unless it marks a cache breakpoint, which needs a block.
+ */
+function convertSystemMessage(
+    message: SystemMessage,
+    provider: string
+): TextBlockParam | undefined {
+    const cacheControl = parseAnthropicSystemMessageProviderOptions(
+        message.providerOptions,
+        provider
+    )?.cacheControl;
+
+    if (message.content.trim() === '') {
+        if (cacheControl) {
+            throw new ValidationError(
+                'A system message with cacheControl must contain non-whitespace text; Anthropic cannot place a cache breakpoint on an empty block.',
+                undefined,
+                provider
+            );
+        }
+        return undefined;
+    }
+
+    return {
+        type: 'text',
+        text: message.content,
+        ...(cacheControl ? { cache_control: cacheControl } : {}),
     };
 }
 
@@ -448,13 +587,19 @@ export function createStreamRequest(
         provider,
         capabilities
     );
-    validateInputModalities({
+    validateMessages({
         messages: options.messages,
         capabilities,
         modelId,
         providerId: provider,
     });
-    const converted = convertMessages(options.messages);
+    const converted = convertMessages(options.messages, provider);
+    validateCacheBreakpoints({
+        cacheTtls: converted.cacheTtls,
+        requestCacheControl: anthropicOptions?.cacheControl,
+        lastBlockCacheTtl: getLastBlockCacheTtl(converted.messages),
+        providerId: provider,
+    });
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
@@ -468,7 +613,7 @@ export function createStreamRequest(
         model: modelId,
         messages: converted.messages,
         max_tokens: maxTokens,
-        ...(converted.system ? { system: converted.system } : {}),
+        ...(converted.system !== undefined ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),

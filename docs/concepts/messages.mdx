@@ -21,15 +21,18 @@ type Message =
 
 ### System Message
 
-System messages set the context and behavior for the assistant.
+System messages set the context and behavior for the assistant. Put them at the start of the conversation for standing instructions, or later in the conversation for instructions that apply from that point on. See [System message placement](#system-message-placement) for where each model accepts them.
 
 ```typescript
 type SystemMessage = {
     role: 'system';
     content: string;
+    providerOptions?: SystemMessageProviderOptions;
     metadata?: Record<string, unknown>;
 };
 ```
+
+`providerOptions` is keyed by provider id, like the request-level `providerOptions`. For example, Anthropic accepts a per-message `cacheControl`. See the [Anthropic provider reference](/api/providers/anthropic#system-message-cache-control).
 
 **Example:**
 
@@ -380,6 +383,66 @@ messages.push({
 });
 
 const result2 = await generate({ model, messages });
+```
+
+## System message placement
+
+System messages before the first non-system message are leading system messages. Every model accepts them. Anthropic and Google adapters send them as the top-level system prompt (Google joins them into one `systemInstruction`); the other adapters send them as messages.
+
+A system message after that is a later system message. It applies from its position on, which suits instructions that arrive mid-conversation, such as a mode switch. Models differ in where they accept one, and each model reports its rule in `model.capabilities.messages.systemPlacement`:
+
+| `systemPlacement` | Where later system messages are accepted                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `'leading'`       | Nowhere. All system messages must come first.                                                                                    |
+| `'before-reply'`  | Directly after a user or tool message, followed by an assistant message or at the end. Consecutive system messages count as one. |
+| `'anywhere'`      | Any position.                                                                                                                    |
+
+Each rule accepts everything the stricter rules accept.
+
+| Provider                                                    | `systemPlacement`                                                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| OpenAI, Azure OpenAI, Mistral, xAI, Kimi, OpenAI-compatible | `'anywhere'`                                                                                      |
+| Anthropic, Anthropic on Vertex                              | `'before-reply'` from Claude Opus 4.8, Sonnet 5, and Haiku 5.5 on; `'leading'` for earlier models |
+| Google GenAI, Google Vertex                                 | `'leading'`                                                                                       |
+
+Adapters send a later system message where you put it; they never move it or merge it into the leading system prompt. The Anthropic adapter drops system messages without non-whitespace text, which Anthropic rejects. When a system message breaks the model's rule, the request fails with `UnsupportedSystemMessagePlacementError` before anything is sent:
+
+```typescript
+import {
+    generate,
+    UnsupportedSystemMessagePlacementError,
+} from '@core-ai/core-ai';
+
+try {
+    await generate({ model, messages });
+} catch (error) {
+    if (error instanceof UnsupportedSystemMessagePlacementError) {
+        console.log(error.placement); // 'leading'
+        console.log(error.issues); // [{ index: 3, reason: 'not-leading' }]
+    }
+}
+```
+
+To add an instruction for the next reply on any model that accepts later system messages, append it directly after the latest user or tool message. On `'leading'` models, send the instruction as part of a user message instead:
+
+```typescript
+const instruction = 'Answer in one word.';
+
+if (model.capabilities.messages.systemPlacement === 'leading') {
+    messages.push({ role: 'user', content: `${question}\n\n${instruction}` });
+} else {
+    messages.push({ role: 'user', content: question });
+    messages.push({ role: 'system', content: instruction });
+}
+```
+
+To check a conversation without sending it, call `getSystemMessagePlacementIssues()`. Pass a stricter rule than your current model's to keep the conversation portable across models:
+
+```typescript
+import { getSystemMessagePlacementIssues } from '@core-ai/core-ai';
+
+const issues = getSystemMessagePlacementIssues(messages, 'before-reply');
+// [] when every later system message follows a user or tool message
 ```
 
 ## Helper functions

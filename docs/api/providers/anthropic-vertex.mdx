@@ -161,7 +161,7 @@ const otherCapabilities = getAnthropicModelCapabilities('claude-opus-5');
 ```
 
 The capability fields describe reasoning effort, sampling constraints, tool
-choices, and image input for the model ID. See the
+choices, image input, and system message placement for the model ID. See the
 [Anthropic model capabilities](/api/providers/anthropic#model-capabilities)
 section for their semantics.
 
@@ -240,6 +240,11 @@ const result = await generate({
     },
 });
 ```
+
+System messages take their options under the same key. For example, set a
+per-message cache breakpoint with
+`providerOptions: { 'anthropic-vertex': { cacheControl: { type: 'ephemeral', ttl: '1h' } } }`
+on a system message.
 
 See the [Anthropic Provider](/api/providers/anthropic#provider-specific-options) docs for the full list of available fields, reasoning restrictions, and prompt-caching behavior — they apply unchanged to Vertex-hosted Claude models.
 

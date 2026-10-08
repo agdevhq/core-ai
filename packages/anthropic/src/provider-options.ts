@@ -1,4 +1,7 @@
-import type { GenerateProviderOptions } from '@core-ai/core-ai';
+import type {
+    GenerateProviderOptions,
+    SystemMessageProviderOptions,
+} from '@core-ai/core-ai';
 import { z } from 'zod';
 
 export const anthropicCacheControlSchema = z
@@ -41,9 +44,39 @@ export function parseAnthropicGenerateProviderOptions(
     return anthropicGenerateProviderOptionsSchema.parse(rawOptions);
 }
 
+export const anthropicSystemMessageProviderOptionsSchema = z
+    .object({
+        cacheControl: anthropicCacheControlSchema.optional(),
+    })
+    .strict();
+
+export type AnthropicSystemMessageProviderOptions = z.infer<
+    typeof anthropicSystemMessageProviderOptionsSchema
+>;
+
+/**
+ * Reads the system message options namespaced under `providerId`
+ * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
+ */
+export function parseAnthropicSystemMessageProviderOptions(
+    providerOptions: SystemMessageProviderOptions | undefined,
+    providerId: string
+): AnthropicSystemMessageProviderOptions | undefined {
+    const rawOptions = providerOptions?.[providerId];
+    if (rawOptions === undefined) {
+        return undefined;
+    }
+
+    return anthropicSystemMessageProviderOptionsSchema.parse(rawOptions);
+}
+
 declare module '@core-ai/core-ai' {
     interface GenerateProviderOptions {
         anthropic?: AnthropicGenerateProviderOptions;
+    }
+
+    interface SystemMessageProviderOptions {
+        anthropic?: AnthropicSystemMessageProviderOptions;
     }
 }
 

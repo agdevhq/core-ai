@@ -9,7 +9,7 @@ const ANTHROPIC_REASONING_MODEL_ENV = 'ANTHROPIC_E2E_REASONING_MODEL';
 export function createAnthropicAdapter(): ProviderE2EAdapter {
     const chatModelId = getEnvOrDefault(
         ANTHROPIC_CHAT_MODEL_ENV,
-        'claude-haiku-4-5'
+        'claude-haiku-5-5'
     );
     const reasoningModelId = getEnvOrDefault(
         ANTHROPIC_REASONING_MODEL_ENV,

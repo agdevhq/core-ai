@@ -27,7 +27,7 @@ import type {
 import {
     getProviderMetadata,
     ValidationError,
-    validateInputModalities,
+    validateMessages,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
@@ -361,7 +361,7 @@ export function createGenerateRequest(
     );
     const capabilities =
         adapterOptions.capabilities ?? getGoogleModelCapabilities(modelId);
-    validateInputModalities({
+    validateMessages({
         messages: options.messages,
         capabilities,
         modelId,

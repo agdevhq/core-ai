@@ -9,6 +9,8 @@ export type Message =
 export type SystemMessage = {
     role: 'system';
     content: string;
+    /** Provider-specific options for this message, keyed by provider id. */
+    providerOptions?: SystemMessageProviderOptions;
     /**
      * Application-owned metadata for this message. Provider adapters ignore
      * this field and never serialize it to provider APIs.
@@ -204,6 +206,19 @@ export type ToolSchemaStrictnessCapabilities =
     | { supported: false }
     | { supported: true; maxStrictTools?: number };
 
+/**
+ * Where a model accepts system messages that come after the first
+ * non-system message. Leading system messages are accepted everywhere.
+ * - `'leading'`: nowhere; all system messages must come first.
+ * - `'before-reply'`: directly after a user or tool message, and followed
+ *   by an assistant message or at the end. Consecutive system messages
+ *   count as one.
+ * - `'anywhere'`: any position.
+ *
+ * Each rule allows everything the stricter ones allow.
+ */
+export type SystemMessagePlacement = 'leading' | 'before-reply' | 'anywhere';
+
 export type ModelOutputCapabilities = {
     /**
      * Verified ceiling for a single response, in tokens. Covers reasoning and
@@ -235,6 +250,9 @@ export type ModelCapabilities = {
     tools: {
         strictSchemas: ToolSchemaStrictnessCapabilities;
     };
+    messages: {
+        systemPlacement: SystemMessagePlacement;
+    };
     /**
      * Present only when the provider has a verified output ceiling for this
      * model id. Absent means unknown.
@@ -255,6 +273,15 @@ export type ChatModel = {
         options: StreamObjectOptions<TSchema>
     ): Promise<ObjectStream<TSchema>>;
 };
+
+/**
+ * Per-system-message provider options, keyed by provider id
+ * (`model.provider`). Provider packages augment this interface with their
+ * own key; adapters ignore every other key.
+ */
+export interface SystemMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
 
 export interface GenerateProviderOptions {
     [key: string]: Record<string, unknown> | undefined;

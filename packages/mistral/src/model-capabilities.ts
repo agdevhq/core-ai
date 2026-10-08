@@ -31,6 +31,7 @@ function createCapabilities(
             // until enforcement is verified (follow-up candidate).
             strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
         },
+        messages: { systemPlacement: 'anywhere' },
     };
 }
 

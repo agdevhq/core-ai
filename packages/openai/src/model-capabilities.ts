@@ -93,6 +93,7 @@ function createCapabilities({
         tools: {
             strictSchemas: strictToolSchemas,
         },
+        messages: { systemPlacement: 'anywhere' },
         chatCompletions: {
             maxTokensParameter,
             functionCalling,
@@ -184,6 +185,7 @@ function createNoReasoningCapabilities({
         tools: {
             strictSchemas: strictToolSchemas,
         },
+        messages: { systemPlacement: 'anywhere' },
         chatCompletions: {
             maxTokensParameter,
             functionCalling,

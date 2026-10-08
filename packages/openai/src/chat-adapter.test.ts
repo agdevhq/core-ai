@@ -1885,3 +1885,25 @@ function asResponse(value: unknown): Response {
 function asStreamEvent(value: unknown): ResponseStreamEvent {
     return value as ResponseStreamEvent;
 }
+
+describe('system message placement', () => {
+    it('should keep a later system message in place as a developer message', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [
+                { role: 'user', content: 'Hi' },
+                {
+                    role: 'assistant',
+                    parts: [{ type: 'text', text: 'Hello!' }],
+                },
+                { role: 'system', content: 'Be brief.' },
+                { role: 'user', content: 'How are you?' },
+            ],
+        });
+
+        expect(request.input).toHaveLength(4);
+        expect((request.input as unknown[])[2]).toEqual({
+            role: 'developer',
+            content: 'Be brief.',
+        });
+    });
+});

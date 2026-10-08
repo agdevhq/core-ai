@@ -5,6 +5,7 @@ import {
     stripModelDateSuffix,
     type ModelCapabilities,
     type ReasoningEffort,
+    type SystemMessagePlacement,
 } from '@core-ai/core-ai';
 
 export type AnthropicModelCapabilities = ModelCapabilities;
@@ -30,6 +31,7 @@ function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
     supportsStrictToolSchemas: boolean,
     reasoningMode: 'optional' | 'always-on',
+    systemPlacement: SystemMessagePlacement,
     maxOutputTokens: number | undefined
 ): AnthropicModelCapabilities {
     return {
@@ -55,6 +57,7 @@ function createCapabilities(
                   }
                 : UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
         },
+        messages: { systemPlacement },
     };
 }
 
@@ -87,6 +90,7 @@ const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
     'claude-sonnet-4',
     'claude-sonnet-3-7',
     'claude-3-7-sonnet',
+    'claude-3-5-sonnet-v2',
     'claude-3-5-sonnet',
     'claude-3-5-haiku',
     'claude-3-opus',
@@ -97,6 +101,23 @@ const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
     'claude-2',
     'claude-instant-1.2',
     'claude-instant-1',
+]);
+
+/**
+ * Models that reject `role: 'system'` inside `messages[]` (verified live
+ * 2026-10-07 for the 4.5–4.7 generation; older ids follow). Unknown and
+ * future ids resolve to `'before-reply'`: every model since Opus 4.8 and
+ * Sonnet 5 accepts it (Haiku 5.5 included), and a wrong guess surfaces as
+ * Anthropic's own 400.
+ */
+const LEADING_SYSTEM_MESSAGE_MODELS = new Set([
+    'claude-opus-4-7',
+    'claude-opus-4-6',
+    'claude-sonnet-4-6',
+    'claude-opus-4-5',
+    'claude-sonnet-4-5',
+    'claude-haiku-4-5',
+    ...NON_STRICT_TOOL_SCHEMA_MODELS,
 ]);
 
 const MANUAL_THINKING_MODELS = new Set([
@@ -222,12 +243,29 @@ export function getAnthropicModelCapabilities(
         supportedEfforts,
         supportsAnthropicStrictToolSchemas(modelId),
         isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional',
+        getAnthropicSystemPlacement(modelId),
         MAX_OUTPUT_TOKENS[normalizeModelId(modelId)]
     );
 }
 
+function getAnthropicSystemPlacement(modelId: string): SystemMessagePlacement {
+    return LEADING_SYSTEM_MESSAGE_MODELS.has(normalizeModelId(modelId))
+        ? 'leading'
+        : 'before-reply';
+}
+
+/**
+ * Anthropic aliases that point at a model listed under another id:
+ * `claude-3-7-sonnet-latest` → `claude-3-7-sonnet`,
+ * `claude-sonnet-4-0` → `claude-sonnet-4`.
+ */
+const ANTHROPIC_ALIAS_SUFFIX_PATTERN = /-(?:latest|0)$/;
+
 export function normalizeModelId(modelId: string): string {
-    return stripModelDateSuffix(modelId);
+    return stripModelDateSuffix(modelId).replace(
+        ANTHROPIC_ALIAS_SUFFIX_PATTERN,
+        ''
+    );
 }
 
 export function getAnthropicThinkingMode(

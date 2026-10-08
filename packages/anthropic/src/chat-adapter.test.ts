@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     ToolSchemaStrictnessError,
+    UnsupportedSystemMessagePlacementError,
     ValidationError,
     defineTool,
     type GenerateOptions,
@@ -21,6 +22,7 @@ import {
     convertTools,
     getAnthropicRequestBetas,
     transformStream,
+    validateCacheBreakpoints,
 } from './chat-adapter.ts';
 import {
     getAnthropicModelCapabilities,
@@ -29,7 +31,7 @@ import {
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
-    it('should extract system messages separately', () => {
+    it('should send leading system messages as top-level system blocks', () => {
         const messages: Message[] = [
             { role: 'system', content: 'You are helpful.' },
             { role: 'user', content: 'Hello' },
@@ -37,11 +39,14 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('You are helpful.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'You are helpful.' },
+        ]);
         expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+        expect(result.cacheTtls).toEqual([]);
     });
 
-    it('should concatenate multiple system messages', () => {
+    it('should emit one system block per leading message', () => {
         const messages: Message[] = [
             { role: 'system', content: 'Rule 1.' },
             { role: 'system', content: 'Rule 2.' },
@@ -50,7 +55,54 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('Rule 1.\nRule 2.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'Rule 1.' },
+            { type: 'text', text: 'Rule 2.' },
+        ]);
+    });
+
+    it('should omit system without system messages', () => {
+        const result = convertMessages([{ role: 'user', content: 'Hi' }]);
+
+        expect(result.system).toBeUndefined();
+    });
+
+    it('should drop system messages without non-whitespace text', () => {
+        const messages: Message[] = [
+            { role: 'system', content: '' },
+            { role: 'system', content: 'Rule 1.' },
+            { role: 'user', content: 'Hi' },
+            { role: 'system', content: ' \n ' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([{ type: 'text', text: 'Rule 1.' }]);
+        expect(result.messages).toEqual([{ role: 'user', content: 'Hi' }]);
+    });
+
+    it('should omit system when every system message is empty', () => {
+        const result = convertMessages([
+            { role: 'system', content: '' },
+            { role: 'user', content: 'Hi' },
+        ]);
+
+        expect(result.system).toBeUndefined();
+    });
+
+    it('should reject cache control on an empty system message', () => {
+        expect(() =>
+            convertMessages([
+                {
+                    role: 'system',
+                    content: ' ',
+                    providerOptions: {
+                        anthropic: { cacheControl: { type: 'ephemeral' } },
+                    },
+                },
+                { role: 'user', content: 'Hi' },
+            ])
+        ).toThrowError(ValidationError);
     });
 
     it('should ignore system message metadata', () => {
@@ -65,8 +117,118 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('You are helpful.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'You are helpful.' },
+        ]);
         expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+    });
+
+    it('should attach cache control to a leading system block', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'Stable instructions.',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            { role: 'system', content: 'More instructions.' },
+            { role: 'user', content: 'Hi' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([
+            {
+                type: 'text',
+                text: 'Stable instructions.',
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+            { type: 'text', text: 'More instructions.' },
+        ]);
+        expect(result.cacheTtls).toEqual(['1h']);
+    });
+
+    it('should ignore system message options addressed to another provider', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'Stable instructions.',
+                providerOptions: {
+                    'anthropic-vertex': {
+                        cacheControl: { type: 'ephemeral' },
+                    },
+                },
+            },
+            { role: 'user', content: 'Hi' },
+        ];
+
+        const result = convertMessages(messages, 'anthropic');
+
+        expect(result.system).toEqual([
+            { type: 'text', text: 'Stable instructions.' },
+        ]);
+        expect(result.cacheTtls).toEqual([]);
+    });
+
+    it('should keep later system messages in place', () => {
+        const messages: Message[] = [
+            { role: 'system', content: 'A' },
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', parts: [{ type: 'text', text: 'Hello!' }] },
+            { role: 'user', content: 'Escalate' },
+            { role: 'system', content: 'B' },
+            { role: 'system', content: 'C' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([{ type: 'text', text: 'A' }]);
+        expect(result.messages).toEqual([
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', content: 'Hello!' },
+            { role: 'user', content: 'Escalate' },
+            { role: 'system', content: 'B' },
+            { role: 'system', content: 'C' },
+        ]);
+    });
+
+    it('should attach cache control to a later system message', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'A',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            { role: 'user', content: 'Hi' },
+            {
+                role: 'system',
+                content: 'B',
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.messages.at(-1)).toEqual({
+            role: 'system',
+            content: [
+                {
+                    type: 'text',
+                    text: 'B',
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
+        });
+        expect(result.cacheTtls).toEqual(['1h', '5m']);
     });
 
     it('should convert user image and pdf content', () => {
@@ -1645,3 +1807,147 @@ function asAnthropicMessage(value: {
         },
     } as unknown as AnthropicMessage;
 }
+
+describe('system message placement', () => {
+    const laterSystemMessages: Message[] = [
+        { role: 'system', content: 'A' },
+        { role: 'user', content: 'Hi' },
+        { role: 'system', content: 'B' },
+    ];
+
+    it('should keep a later system message in place on before-reply models', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: laterSystemMessages,
+        });
+
+        expect(request.system).toEqual([{ type: 'text', text: 'A' }]);
+        expect(request.messages).toEqual([
+            { role: 'user', content: 'Hi' },
+            { role: 'system', content: 'B' },
+        ]);
+    });
+
+    it('should reject a later system message on leading-only models', () => {
+        expect(() =>
+            createStreamRequest('claude-sonnet-4-6', 4096, {
+                messages: laterSystemMessages,
+            })
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should reject a system message after an assistant message', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    { role: 'user', content: 'Hi' },
+                    {
+                        role: 'assistant',
+                        parts: [{ type: 'text', text: 'Hello!' }],
+                    },
+                    { role: 'system', content: 'B' },
+                    { role: 'user', content: 'More' },
+                ],
+            })
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should follow overridden capabilities', () => {
+        expect(() =>
+            createStreamRequest(
+                'claude-opus-5-5',
+                4096,
+                { messages: laterSystemMessages },
+                'anthropic',
+                {
+                    capabilities: {
+                        ...getAnthropicModelCapabilities('claude-opus-5-5'),
+                        messages: { systemPlacement: 'leading' },
+                    },
+                }
+            )
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should reject cache breakpoints Anthropic would refuse', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'A',
+                        providerOptions: {
+                            anthropic: { cacheControl: { type: 'ephemeral' } },
+                        },
+                    },
+                    { role: 'user', content: 'Hi' },
+                ],
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            })
+        ).toThrowError(ValidationError);
+    });
+});
+
+describe('validateCacheBreakpoints', () => {
+    function validate(
+        cacheTtls: Array<'5m' | '1h'>,
+        requestTtl?: '5m' | '1h' | 'default',
+        lastBlockCacheTtl?: '5m' | '1h'
+    ) {
+        validateCacheBreakpoints({
+            cacheTtls,
+            requestCacheControl:
+                requestTtl === undefined
+                    ? undefined
+                    : requestTtl === 'default'
+                      ? { type: 'ephemeral' }
+                      : { type: 'ephemeral', ttl: requestTtl },
+            lastBlockCacheTtl,
+            providerId: 'anthropic',
+        });
+    }
+
+    it('should accept a 1h breakpoint before 5m ones', () => {
+        expect(() => validate(['1h', '5m'], 'default')).not.toThrow();
+    });
+
+    it('should reject a 1h breakpoint after a 5m one', () => {
+        expect(() => validate(['5m', '1h'])).toThrowError(
+            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. System messages render in order, request-level cacheControl last.'
+        );
+    });
+
+    it('should reject a 1h request-level breakpoint after a 5m one', () => {
+        expect(() => validate(['5m'], '1h')).toThrowError(ValidationError);
+    });
+
+    it('should accept four breakpoints and reject five', () => {
+        expect(() => validate(['1h', '1h', '1h', '1h'])).not.toThrow();
+        expect(() => validate(['1h', '1h', '1h', '1h'], '1h')).toThrowError(
+            'Anthropic accepts at most 4 cache breakpoints per request, request-level cacheControl included; this request has 5.'
+        );
+        expect(() => validate(['1h', '1h', '1h', '1h', '1h'])).toThrowError(
+            ValidationError
+        );
+    });
+
+    it('should count request-level cacheControl even when it lands on a matching marked last block', () => {
+        // Anthropic documents a 400 for 4 explicit breakpoints plus
+        // automatic caching, without a same-TTL exception.
+        expect(() =>
+            validate(['1h', '1h', '1h', '1h'], '1h', '1h')
+        ).toThrowError(
+            'Anthropic accepts at most 4 cache breakpoints per request, request-level cacheControl included; this request has 5.'
+        );
+    });
+
+    it('should require a matching TTL when request-level cacheControl targets a marked last block', () => {
+        expect(() => validate(['5m'], 'default', '5m')).not.toThrow();
+        expect(() => validate(['1h'], 'default', '1h')).toThrowError(
+            'Request-level cacheControl (ttl 5m) targets the last system message, whose own cacheControl has ttl 1h; Anthropic requires matching TTLs.'
+        );
+    });
+});
