@@ -19,17 +19,66 @@ describe('normalizeModelId', () => {
     });
 });
 
+const NO_REASONING = {
+    mode: 'unsupported',
+    supportedEfforts: [],
+    restrictsSamplingParams: false,
+    supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+} as const;
+
+const ADJUSTABLE_REASONING = {
+    mode: 'optional',
+    supportedEfforts: ['minimal', 'high'],
+    restrictsSamplingParams: false,
+    supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+} as const;
+
+const GLM_REASONING = {
+    mode: 'optional',
+    supportedEfforts: ['low', 'high', 'max'],
+    restrictsSamplingParams: false,
+    supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+} as const;
+
 describe('getMistralModelCapabilities', () => {
-    it('should report reasoning effort as unsupported', () => {
-        expect(
-            getMistralModelCapabilities('mistral-large-latest').reasoning
-        ).toEqual({
-            mode: 'unsupported',
-            supportedEfforts: [],
-            restrictsSamplingParams: false,
-            supportedToolChoices: ['auto', 'none', 'required', 'tool'],
-        });
+    it.each([
+        'mistral-large-latest',
+        'mistral-large-2512',
+        'mistral-medium-2508',
+        'mistral-small-2506',
+        'magistral-medium-latest',
+        'codestral-latest',
+        'self-hosted-model',
+    ])('should report reasoning effort as unsupported for %s', (modelId) => {
+        expect(getMistralModelCapabilities(modelId).reasoning).toEqual(
+            NO_REASONING
+        );
     });
+
+    it.each([
+        'mistral-small-latest',
+        'mistral-small-2603',
+        'mistral-small-2701',
+        'mistral-medium-latest',
+        'mistral-medium-3',
+        'mistral-medium-3-5',
+        'mistral-medium-2604',
+        'mistral-large-4',
+        'mistral-large-4-0',
+    ])('should report adjustable reasoning for %s', (modelId) => {
+        expect(getMistralModelCapabilities(modelId).reasoning).toEqual(
+            ADJUSTABLE_REASONING
+        );
+    });
+
+    it.each(['zai-glm-5-3', 'zai-glm-5', 'zai-glm-latest', 'zai-glm-5-2'])(
+        'should report GLM reasoning efforts for %s',
+        (modelId) => {
+            expect(getMistralModelCapabilities(modelId).reasoning).toEqual(
+                GLM_REASONING
+            );
+        }
+    );
 
     it.each([
         'mistral-large-latest',
@@ -68,6 +117,10 @@ describe('getMistralModelCapabilities', () => {
         'ministral-3b-2512',
         'ministral-8b-latest',
         'ministral-14b-2512',
+        'mistral-large-4',
+        'mistral-large-4-0',
+        'mistral-medium-3-5',
+        'mistral-small-2603',
     ])('should report multimodal input as supported for %s', (modelId) => {
         expect(getMistralModelCapabilities(modelId).modalities.input).toEqual([
             'text',
@@ -86,6 +139,8 @@ describe('getMistralModelCapabilities', () => {
         'open-mistral-7b',
         'open-mistral-nemo',
         'open-mixtral-8x22b',
+        'zai-glm-5-3',
+        'zai-glm-latest',
     ])('should report text-only input for %s', (modelId) => {
         expect(getMistralModelCapabilities(modelId).modalities.input).toEqual([
             'text',
