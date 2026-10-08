@@ -1,5 +1,17 @@
 # @core-ai/anthropic
 
+## 0.31.0
+
+### Minor Changes
+
+- 76d8ba6: **Breaking:** system messages are no longer joined into the top-level `system` prompt. Leading system messages are sent as one `system` text block each, which causes one cache miss on the first request after upgrading. On models that report `systemPlacement: 'before-reply'` (Claude Opus 4.8, Sonnet 5, Haiku 5.5 and later, and unrecognized model IDs), a later system message is sent in place as a `role: 'system'` message. It must directly follow a user or tool message and be last or followed by an assistant message. On earlier models, which report `'leading'`, a later system message throws `UnsupportedSystemMessagePlacementError`. System messages accept `providerOptions.anthropic.cacheControl` for per-message cache breakpoints with their own TTL, and requests that exceed 4 breakpoints, place a `1h` breakpoint after a `5m` one, or mismatch the TTL of a breakpoint on the last block now throw `ValidationError` before the request. System messages without non-whitespace text are dropped, since Anthropic rejects empty text blocks; one that sets `cacheControl` throws `ValidationError`.
+
+### Patch Changes
+
+- 76d8ba6: Model ID aliases ending in `-latest` or `-0` (such as `claude-3-7-sonnet-latest` and `claude-sonnet-4-0`) now resolve to the capabilities of the model they point at, and the Vertex ID `claude-3-5-sonnet-v2` is recognized as Claude 3.5 Sonnet. Before, they fell back to the defaults for unknown models, including `systemPlacement`, thinking mode, strict tool schemas, and output ceiling.
+- Updated dependencies [76d8ba6]
+    - @core-ai/core-ai@0.31.0
+
 ## 0.30.0
 
 ### Minor Changes
