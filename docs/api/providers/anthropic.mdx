@@ -209,6 +209,10 @@ reject later system messages with
 [`UnsupportedSystemMessagePlacementError`](/api/core/errors#unsupportedsystemmessageplacementerror).
 Unrecognized model IDs resolve to `'before-reply'`.
 
+System messages that are empty or contain only whitespace are dropped, because
+Anthropic rejects empty text blocks. One that sets `cacheControl` throws
+`ValidationError`, since a cache breakpoint needs a block to attach to.
+
 ## Examples
 
 ### Basic chat

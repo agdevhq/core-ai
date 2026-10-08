@@ -67,6 +67,44 @@ describe('convertMessages', () => {
         expect(result.system).toBeUndefined();
     });
 
+    it('should drop system messages without non-whitespace text', () => {
+        const messages: Message[] = [
+            { role: 'system', content: '' },
+            { role: 'system', content: 'Rule 1.' },
+            { role: 'user', content: 'Hi' },
+            { role: 'system', content: ' \n ' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([{ type: 'text', text: 'Rule 1.' }]);
+        expect(result.messages).toEqual([{ role: 'user', content: 'Hi' }]);
+    });
+
+    it('should omit system when every system message is empty', () => {
+        const result = convertMessages([
+            { role: 'system', content: '' },
+            { role: 'user', content: 'Hi' },
+        ]);
+
+        expect(result.system).toBeUndefined();
+    });
+
+    it('should reject cache control on an empty system message', () => {
+        expect(() =>
+            convertMessages([
+                {
+                    role: 'system',
+                    content: ' ',
+                    providerOptions: {
+                        anthropic: { cacheControl: { type: 'ephemeral' } },
+                    },
+                },
+                { role: 'user', content: 'Hi' },
+            ])
+        ).toThrowError(ValidationError);
+    });
+
     it('should ignore system message metadata', () => {
         const messages: Message[] = [
             {

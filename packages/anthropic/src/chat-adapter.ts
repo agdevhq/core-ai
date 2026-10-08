@@ -104,6 +104,9 @@ export function convertMessages(
     for (const message of messages) {
         if (message.role === 'system') {
             const block = convertSystemMessage(message, provider);
+            if (!block) {
+                continue;
+            }
             if (block.cache_control) {
                 cacheTtls.push(block.cache_control.ttl ?? '5m');
             }
@@ -318,14 +321,30 @@ function getLastBlockCacheTtl(
         : undefined;
 }
 
+/**
+ * Anthropic rejects text blocks without non-whitespace text. Such a system
+ * message carries no instruction, so it is dropped (as other providers
+ * accept it) unless it marks a cache breakpoint, which needs a block.
+ */
 function convertSystemMessage(
     message: SystemMessage,
     provider: string
-): TextBlockParam {
+): TextBlockParam | undefined {
     const cacheControl = parseAnthropicSystemMessageProviderOptions(
         message.providerOptions,
         provider
     )?.cacheControl;
+
+    if (message.content.trim() === '') {
+        if (cacheControl) {
+            throw new ValidationError(
+                'A system message with cacheControl must contain non-whitespace text; Anthropic cannot place a cache breakpoint on an empty block.',
+                undefined,
+                provider
+            );
+        }
+        return undefined;
+    }
 
     return {
         type: 'text',
