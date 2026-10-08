@@ -1934,6 +1934,16 @@ describe('validateCacheBreakpoints', () => {
         );
     });
 
+    it('should count request-level cacheControl even when it lands on a matching marked last block', () => {
+        // Anthropic documents a 400 for 4 explicit breakpoints plus
+        // automatic caching, without a same-TTL exception.
+        expect(() =>
+            validate(['1h', '1h', '1h', '1h'], '1h', '1h')
+        ).toThrowError(
+            'Anthropic accepts at most 4 cache breakpoints per request, request-level cacheControl included; this request has 5.'
+        );
+    });
+
     it('should require a matching TTL when request-level cacheControl targets a marked last block', () => {
         expect(() => validate(['5m'], 'default', '5m')).not.toThrow();
         expect(() => validate(['1h'], 'default', '1h')).toThrowError(
