@@ -1,5 +1,12 @@
 # @core-ai/xai
 
+## 0.30.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.30.0
+- @core-ai/openai@0.30.0
+
 ## 0.29.1
 
 ### Patch Changes
