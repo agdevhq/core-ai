@@ -16,8 +16,7 @@ import {
     getProviderMetadata,
     ValidationError,
     safeParseJsonObject,
-    validateInputModalities,
-    validateSystemMessagePlacement,
+    validateMessages,
     validateToolSchemaStrictness,
     zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
@@ -588,13 +587,7 @@ export function createStreamRequest(
         provider,
         capabilities
     );
-    validateInputModalities({
-        messages: options.messages,
-        capabilities,
-        modelId,
-        providerId: provider,
-    });
-    validateSystemMessagePlacement({
+    validateMessages({
         messages: options.messages,
         capabilities,
         modelId,

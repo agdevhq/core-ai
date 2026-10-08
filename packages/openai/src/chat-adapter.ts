@@ -21,14 +21,14 @@ import type {
     StreamEvent,
     ToolCall,
     UserContentPart,
+    ValidateMessagesOptions,
 } from '@core-ai/core-ai';
 import {
     getProviderMetadata,
     clampReasoningEffort,
     UnsupportedInputModalityError,
     ValidationError,
-    validateInputModalities,
-    validateSystemMessagePlacement,
+    validateMessages,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
@@ -360,13 +360,7 @@ function createRequestBase(
     { capabilities, providerId }: ResolvedAdapterOptions
 ) {
     validateReasoningConfig(modelId, options, capabilities, providerId);
-    validateResponsesInputModalities({
-        messages: options.messages,
-        capabilities,
-        modelId,
-        providerId,
-    });
-    validateSystemMessagePlacement({
+    validateResponsesMessages({
         messages: options.messages,
         capabilities,
         modelId,
@@ -397,11 +391,9 @@ function createRequestBase(
     };
 }
 
-function validateResponsesInputModalities(
-    options: Parameters<typeof validateInputModalities>[0]
-): void {
+function validateResponsesMessages(options: ValidateMessagesOptions): void {
     try {
-        validateInputModalities(options);
+        validateMessages(options);
     } catch (error) {
         if (
             error instanceof UnsupportedInputModalityError &&

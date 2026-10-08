@@ -125,6 +125,8 @@ export type {
 } from './system-message-placement.ts';
 export { validateSystemMessagePlacement } from './validate-system-message-placement.ts';
 export type { ValidateSystemMessagePlacementOptions } from './validate-system-message-placement.ts';
+export { validateMessages } from './validate-messages.ts';
+export type { ValidateMessagesOptions } from './validate-messages.ts';
 export { validateToolSchemaStrictness } from './validate-tool-schema-strictness.ts';
 export type { ValidateToolSchemaStrictnessOptions } from './validate-tool-schema-strictness.ts';
 export {
