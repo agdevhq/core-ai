@@ -387,28 +387,31 @@ const result2 = await generate({ model, messages });
 
 ## System message placement
 
-System messages before the first non-system message are leading system messages. Every model accepts them, and adapters send them as the provider's top-level system prompt.
+System messages before the first non-system message are leading system messages. Every model accepts them. Anthropic and Google adapters send them as the top-level system prompt (Google joins them into one `systemInstruction`); the other adapters send them as messages.
 
 A system message after that is a later system message. It applies from its position on, which suits instructions that arrive mid-conversation, such as a mode switch. Models differ in where they accept one, and each model reports its rule in `model.capabilities.messages.systemPlacement`:
 
-| `systemPlacement` | Where later system messages are accepted |
-| --- | --- |
-| `'leading'` | Nowhere. All system messages must come first. |
-| `'before-reply'` | Directly after a user or tool message, followed by an assistant message or at the end. Consecutive system messages count as one. |
-| `'anywhere'` | Any position. |
+| `systemPlacement` | Where later system messages are accepted                                                                                         |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `'leading'`       | Nowhere. All system messages must come first.                                                                                    |
+| `'before-reply'`  | Directly after a user or tool message, followed by an assistant message or at the end. Consecutive system messages count as one. |
+| `'anywhere'`      | Any position.                                                                                                                    |
 
 Each rule accepts everything the stricter rules accept.
 
-| Provider | `systemPlacement` |
-| --- | --- |
-| OpenAI, Azure OpenAI, Mistral, xAI, Kimi, OpenAI-compatible | `'anywhere'` |
-| Anthropic, Anthropic on Vertex | `'before-reply'` from Claude Opus 4.8, Sonnet 5, and Haiku 5.5 on; `'leading'` for earlier models |
-| Google GenAI, Google Vertex | `'leading'` |
+| Provider                                                    | `systemPlacement`                                                                                 |
+| ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| OpenAI, Azure OpenAI, Mistral, xAI, Kimi, OpenAI-compatible | `'anywhere'`                                                                                      |
+| Anthropic, Anthropic on Vertex                              | `'before-reply'` from Claude Opus 4.8, Sonnet 5, and Haiku 5.5 on; `'leading'` for earlier models |
+| Google GenAI, Google Vertex                                 | `'leading'`                                                                                       |
 
-Adapters send every system message exactly where you put it. They never move or merge one. When a system message breaks the model's rule, the request fails with `UnsupportedSystemMessagePlacementError` before anything is sent:
+Adapters send a later system message where you put it; they never move it or merge it into the leading system prompt. The Anthropic adapter drops system messages without non-whitespace text, which Anthropic rejects. When a system message breaks the model's rule, the request fails with `UnsupportedSystemMessagePlacementError` before anything is sent:
 
 ```typescript
-import { generate, UnsupportedSystemMessagePlacementError } from '@core-ai/core-ai';
+import {
+    generate,
+    UnsupportedSystemMessagePlacementError,
+} from '@core-ai/core-ai';
 
 try {
     await generate({ model, messages });
