@@ -625,7 +625,8 @@ function mapUsage(usage: ResponseUsage | undefined): GenerateResult['usage'] {
         outputTokens: usage?.output_tokens ?? 0,
         inputTokenDetails: {
             cacheReadTokens: usage?.input_tokens_details?.cached_tokens ?? 0,
-            cacheWriteTokens: 0,
+            cacheWriteTokens:
+                usage?.input_tokens_details?.cache_write_tokens ?? 0,
         },
         outputTokenDetails: {
             ...(reasoningTokens !== undefined ? { reasoningTokens } : {}),
