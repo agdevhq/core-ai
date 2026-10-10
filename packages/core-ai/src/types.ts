@@ -21,6 +21,8 @@ export type SystemMessage = {
 export type UserMessage = {
     role: 'user';
     content: string | UserContentPart[];
+    /** Provider-specific options for this message, keyed by provider id. */
+    providerOptions?: UserMessageProviderOptions;
 };
 
 export type UserContentPart = TextPart | ImagePart | FilePart | AudioPart;
@@ -153,6 +155,8 @@ export type ToolResultMessage = {
     toolCallId: string;
     content: string;
     isError?: boolean;
+    /** Provider-specific options for this message, keyed by provider id. */
+    providerOptions?: ToolResultMessageProviderOptions;
     /**
      * Application-owned metadata for this tool result. Provider adapters ignore
      * this field and never serialize it to provider APIs.
@@ -280,6 +284,16 @@ export type ChatModel = {
  * own key; adapters ignore every other key.
  */
 export interface SystemMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+/** Per-user-message provider options, like {@link SystemMessageProviderOptions}. */
+export interface UserMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+/** Per-tool-result-message provider options, like {@link SystemMessageProviderOptions}. */
+export interface ToolResultMessageProviderOptions {
     [key: string]: Record<string, unknown> | undefined;
 }
 

@@ -241,10 +241,10 @@ const result = await generate({
 });
 ```
 
-System messages take their options under the same key. For example, set a
-per-message cache breakpoint with
+System, user, and tool result messages take their options under the same key.
+For example, set a per-message cache breakpoint with
 `providerOptions: { 'anthropic-vertex': { cacheControl: { type: 'ephemeral', ttl: '1h' } } }`
-on a system message.
+on any of them.
 
 See the [Anthropic Provider](/api/providers/anthropic#provider-specific-options) docs for the full list of available fields, reasoning restrictions, and prompt-caching behavior — they apply unchanged to Vertex-hosted Claude models.
 
