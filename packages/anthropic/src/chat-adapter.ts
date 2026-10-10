@@ -3,6 +3,8 @@ import type {
     StopReason,
     ToolUseBlock,
     ContentBlockParam,
+    DocumentBlockParam,
+    ImageBlockParam,
     MessageParam,
     Tool,
     ToolChoice,
@@ -30,8 +32,10 @@ import type {
     ModelCapabilities,
     StreamEvent,
     SystemMessage,
+    ToolResultMessage,
     ToolSet,
     UserContentPart,
+    UserMessage,
     ToolChoice as AgToolChoice,
 } from '@core-ai/core-ai';
 import {
@@ -49,6 +53,8 @@ import {
 import {
     parseAnthropicGenerateProviderOptions,
     parseAnthropicSystemMessageProviderOptions,
+    parseAnthropicToolResultMessageProviderOptions,
+    parseAnthropicUserMessageProviderOptions,
     type AnthropicCacheControl,
     type AnthropicGenerateProviderOptions,
 } from './provider-options.ts';
@@ -123,13 +129,14 @@ export function convertMessages(
         }
 
         if (message.role === 'user') {
-            convertedMessages.push({
-                role: 'user',
-                content:
-                    typeof message.content === 'string'
-                        ? message.content
-                        : message.content.map(convertUserContentPart),
-            });
+            const { content, cacheControl } = convertUserMessage(
+                message,
+                provider
+            );
+            if (cacheControl) {
+                cacheTtls.push(cacheControl.ttl ?? '5m');
+            }
+            convertedMessages.push({ role: 'user', content });
             previousInputWasTool = false;
             continue;
         }
@@ -211,12 +218,10 @@ export function convertMessages(
             continue;
         }
 
-        const toolResultBlock: ToolResultBlockParam = {
-            type: 'tool_result',
-            tool_use_id: message.toolCallId,
-            content: message.content,
-            ...(message.isError ? { is_error: true } : {}),
-        };
+        const toolResultBlock = convertToolResultMessage(message, provider);
+        if (toolResultBlock.cache_control) {
+            cacheTtls.push(toolResultBlock.cache_control.ttl ?? '5m');
+        }
 
         if (
             previousInputWasTool &&
@@ -283,7 +288,7 @@ export function validateCacheBreakpoints({
     const firstShortTtl = ttls.indexOf('5m');
     if (firstShortTtl !== -1 && ttls.indexOf('1h', firstShortTtl) !== -1) {
         throw new ValidationError(
-            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. System messages render in order, request-level cacheControl last.',
+            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. Message breakpoints apply in message order, request-level cacheControl last.',
             undefined,
             providerId
         );
@@ -295,7 +300,7 @@ export function validateCacheBreakpoints({
         requestTtl !== lastBlockCacheTtl
     ) {
         throw new ValidationError(
-            `Request-level cacheControl (ttl ${requestTtl}) targets the last system message, whose own cacheControl has ttl ${lastBlockCacheTtl}; Anthropic requires matching TTLs.`,
+            `Request-level cacheControl (ttl ${requestTtl}) targets the last message, whose own cacheControl has ttl ${lastBlockCacheTtl}; Anthropic requires matching TTLs.`,
             undefined,
             providerId
         );
@@ -352,7 +357,80 @@ function convertSystemMessage(
     };
 }
 
-function convertUserContentPart(part: UserContentPart): ContentBlockParam {
+type ConvertedUserMessage = {
+    content: MessageParam['content'];
+    cacheControl: AnthropicCacheControl | undefined;
+};
+
+/**
+ * A user message with `cacheControl` is sent as blocks, with the breakpoint
+ * on its last block. Without a block to mark, the breakpoint is rejected
+ * instead of silently dropped.
+ */
+function convertUserMessage(
+    message: UserMessage,
+    provider: string
+): ConvertedUserMessage {
+    const cacheControl = parseAnthropicUserMessageProviderOptions(
+        message.providerOptions,
+        provider
+    )?.cacheControl;
+
+    if (!cacheControl) {
+        return {
+            content:
+                typeof message.content === 'string'
+                    ? message.content
+                    : message.content.map(convertUserContentPart),
+            cacheControl: undefined,
+        };
+    }
+
+    const blocks =
+        typeof message.content === 'string'
+            ? message.content.trim() === ''
+                ? []
+                : [{ type: 'text' as const, text: message.content }]
+            : message.content.map(convertUserContentPart);
+    const lastBlock = blocks.at(-1);
+    if (!lastBlock) {
+        throw new ValidationError(
+            'A user message with cacheControl must contain non-whitespace text or at least one content part; Anthropic cannot place a cache breakpoint without a block.',
+            undefined,
+            provider
+        );
+    }
+
+    return {
+        content: [
+            ...blocks.slice(0, -1),
+            { ...lastBlock, cache_control: cacheControl },
+        ],
+        cacheControl,
+    };
+}
+
+function convertToolResultMessage(
+    message: ToolResultMessage,
+    provider: string
+): ToolResultBlockParam {
+    const cacheControl = parseAnthropicToolResultMessageProviderOptions(
+        message.providerOptions,
+        provider
+    )?.cacheControl;
+
+    return {
+        type: 'tool_result',
+        tool_use_id: message.toolCallId,
+        content: message.content,
+        ...(message.isError ? { is_error: true } : {}),
+        ...(cacheControl ? { cache_control: cacheControl } : {}),
+    };
+}
+
+function convertUserContentPart(
+    part: UserContentPart
+): TextBlockParam | ImageBlockParam | DocumentBlockParam {
     if (part.type === 'text') {
         return {
             type: 'text',

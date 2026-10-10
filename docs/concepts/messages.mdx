@@ -32,7 +32,7 @@ type SystemMessage = {
 };
 ```
 
-`providerOptions` is keyed by provider id, like the request-level `providerOptions`. For example, Anthropic accepts a per-message `cacheControl`. See the [Anthropic provider reference](/api/providers/anthropic#system-message-cache-control).
+`providerOptions` is keyed by provider id, like the request-level `providerOptions`. For example, Anthropic accepts a per-message `cacheControl`. See the [Anthropic provider reference](/api/providers/anthropic#message-cache-control). User and tool result messages accept `providerOptions` the same way.
 
 **Example:**
 
@@ -53,6 +53,7 @@ multi-modal content with images, files, and audio.
 type UserMessage = {
     role: 'user';
     content: string | UserContentPart[];
+    providerOptions?: UserMessageProviderOptions;
 };
 ```
 
@@ -120,6 +121,7 @@ type ToolResultMessage = {
     toolCallId: string;
     content: string;
     isError?: boolean;
+    providerOptions?: ToolResultMessageProviderOptions;
     metadata?: Record<string, unknown>;
 };
 ```

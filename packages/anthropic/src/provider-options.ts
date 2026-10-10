@@ -1,6 +1,8 @@
 import type {
     GenerateProviderOptions,
     SystemMessageProviderOptions,
+    ToolResultMessageProviderOptions,
+    UserMessageProviderOptions,
 } from '@core-ai/core-ai';
 import { z } from 'zod';
 
@@ -54,6 +56,26 @@ export type AnthropicSystemMessageProviderOptions = z.infer<
     typeof anthropicSystemMessageProviderOptionsSchema
 >;
 
+export const anthropicUserMessageProviderOptionsSchema = z
+    .object({
+        cacheControl: anthropicCacheControlSchema.optional(),
+    })
+    .strict();
+
+export type AnthropicUserMessageProviderOptions = z.infer<
+    typeof anthropicUserMessageProviderOptionsSchema
+>;
+
+export const anthropicToolResultMessageProviderOptionsSchema = z
+    .object({
+        cacheControl: anthropicCacheControlSchema.optional(),
+    })
+    .strict();
+
+export type AnthropicToolResultMessageProviderOptions = z.infer<
+    typeof anthropicToolResultMessageProviderOptionsSchema
+>;
+
 /**
  * Reads the system message options namespaced under `providerId`
  * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
@@ -62,12 +84,54 @@ export function parseAnthropicSystemMessageProviderOptions(
     providerOptions: SystemMessageProviderOptions | undefined,
     providerId: string
 ): AnthropicSystemMessageProviderOptions | undefined {
+    return parseMessageProviderOptions(
+        anthropicSystemMessageProviderOptionsSchema,
+        providerOptions,
+        providerId
+    );
+}
+
+/**
+ * Reads the user message options namespaced under `providerId`
+ * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
+ */
+export function parseAnthropicUserMessageProviderOptions(
+    providerOptions: UserMessageProviderOptions | undefined,
+    providerId: string
+): AnthropicUserMessageProviderOptions | undefined {
+    return parseMessageProviderOptions(
+        anthropicUserMessageProviderOptionsSchema,
+        providerOptions,
+        providerId
+    );
+}
+
+/**
+ * Reads the tool result message options namespaced under `providerId`
+ * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
+ */
+export function parseAnthropicToolResultMessageProviderOptions(
+    providerOptions: ToolResultMessageProviderOptions | undefined,
+    providerId: string
+): AnthropicToolResultMessageProviderOptions | undefined {
+    return parseMessageProviderOptions(
+        anthropicToolResultMessageProviderOptionsSchema,
+        providerOptions,
+        providerId
+    );
+}
+
+function parseMessageProviderOptions<TSchema extends z.ZodType>(
+    schema: TSchema,
+    providerOptions: Record<string, unknown> | undefined,
+    providerId: string
+): z.infer<TSchema> | undefined {
     const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }
 
-    return anthropicSystemMessageProviderOptionsSchema.parse(rawOptions);
+    return schema.parse(rawOptions);
 }
 
 declare module '@core-ai/core-ai' {
@@ -77,6 +141,14 @@ declare module '@core-ai/core-ai' {
 
     interface SystemMessageProviderOptions {
         anthropic?: AnthropicSystemMessageProviderOptions;
+    }
+
+    interface UserMessageProviderOptions {
+        anthropic?: AnthropicUserMessageProviderOptions;
+    }
+
+    interface ToolResultMessageProviderOptions {
+        anthropic?: AnthropicToolResultMessageProviderOptions;
     }
 }
 
