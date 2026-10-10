@@ -609,9 +609,13 @@ export function createStreamRequest(
         });
     }
 
-    const baseRequest = {
+    // Key order is load-bearing: the stable prompt prefix must serialize
+    // before `messages`. Vertex AI multi-region and global endpoints route
+    // cache lookups by the leading bytes of the JSON body, so a body that
+    // starts with the (growing) conversation misses the cache on every
+    // extended request. Anthropic's API itself is order-insensitive.
+    const prefixRequest = {
         model: modelId,
-        messages: converted.messages,
         max_tokens: maxTokens,
         ...(converted.system !== undefined ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
@@ -627,9 +631,15 @@ export function createStreamRequest(
             capabilities
         ),
         ...mapSamplingToRequestFields(options),
+    };
+    return {
+        ...mapAnthropicProviderOptionsToRequest(
+            prefixRequest,
+            anthropicOptions
+        ),
+        messages: converted.messages,
         stream: true as const,
     };
-    return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
 }
 
 function getManualThinkingBudget(
