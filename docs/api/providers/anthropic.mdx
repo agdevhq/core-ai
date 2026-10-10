@@ -516,9 +516,9 @@ and `cacheControl`.
 
 - `betas` are sent through the `anthropic-beta` request header.
 
-System messages accept their own options under the same key. The only field is
-`cacheControl`. See
-[System message cache control](/api/providers/anthropic#system-message-cache-control).
+System, user, and tool result messages accept their own options under the
+same key. The only field is `cacheControl`. See
+[Message cache control](/api/providers/anthropic#message-cache-control).
 
 ## Prompt caching
 
@@ -559,12 +559,12 @@ const result = await generate({
 });
 ```
 
-### System message cache control
+### Message cache control
 
-Set `cacheControl` on a system message to place an explicit cache breakpoint
-at the end of that message. Each breakpoint can use its own TTL. A common setup
-for agent loops caches the static system prompt for an hour and lets
-request-level caching follow the growing conversation:
+Set `cacheControl` on a system, user, or tool result message to place an
+explicit cache breakpoint at the end of that message. Each breakpoint can use
+its own TTL. A common setup for agent loops caches the static system prompt for
+an hour and lets request-level caching follow the growing conversation:
 
 ```typescript
 const result = await generate({
@@ -589,13 +589,54 @@ const result = await generate({
 });
 ```
 
+The breakpoint goes on the last content block the message produces:
+
+- A user message with string content is sent as a single text block that
+  carries the breakpoint.
+- A user message with content parts marks its last part.
+- A tool result message marks its `tool_result` block. Consecutive tool
+  results share one user turn, and each keeps its own breakpoint.
+
+A user message with `cacheControl` must have non-whitespace text or at least
+one content part. Otherwise it throws `ValidationError`, since a cache
+breakpoint needs a block to attach to.
+
+Request-level caching only looks back a limited number of blocks for an
+earlier cache entry. In agent loops with many tool calls per step, mark the
+last message the previous step sent so the next step can read it:
+
+```typescript
+const previousStepEnd =
+    messages.findLastIndex((message) => message.role === 'assistant') - 1;
+
+const result = await generate({
+    model: anthropic.chatModel('claude-sonnet-5-5'),
+    messages: messages.map((message, index) =>
+        index === previousStepEnd &&
+        (message.role === 'user' || message.role === 'tool')
+            ? {
+                  ...message,
+                  providerOptions: {
+                      anthropic: { cacheControl: { type: 'ephemeral' } },
+                  },
+              }
+            : message
+    ),
+    providerOptions: {
+        anthropic: {
+            cacheControl: { type: 'ephemeral' },
+        },
+    },
+});
+```
+
 Breakpoints follow Anthropic's limits, checked before the request:
 
 - At most 4 breakpoints per request, request-level `cacheControl` included.
-- A `1h` breakpoint cannot follow a `5m` one. System messages render in
-  order, and request-level `cacheControl` comes last.
-- When the conversation ends with a system message that sets `cacheControl`,
-  request-level `cacheControl` must use the same TTL.
+- A `1h` breakpoint cannot follow a `5m` one. Message breakpoints apply in
+  message order, and request-level `cacheControl` comes last.
+- When the last message sets `cacheControl`, request-level `cacheControl` must
+  use the same TTL.
 
 A request that breaks a limit throws `ValidationError`. A missing `ttl` means
 `5m`.

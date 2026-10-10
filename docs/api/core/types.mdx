@@ -44,6 +44,8 @@ Where a system message may appear depends on the model. See
 type UserMessage = {
     role: 'user';
     content: string | UserContentPart[];
+    /** Provider-specific options for this message, keyed by provider id. */
+    providerOptions?: UserMessageProviderOptions;
 };
 
 type UserContentPart = TextPart | ImagePart | FilePart | AudioPart;
@@ -159,6 +161,8 @@ type ToolResultMessage = {
     toolCallId: string;
     content: string;
     isError?: boolean;
+    /** Provider-specific options for this message, keyed by provider id. */
+    providerOptions?: ToolResultMessageProviderOptions;
     metadata?: Record<string, unknown>;
 };
 ```
@@ -385,6 +389,14 @@ interface GenerateProviderOptions {
 }
 
 interface SystemMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+interface UserMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+interface ToolResultMessageProviderOptions {
     [key: string]: Record<string, unknown> | undefined;
 }
 
