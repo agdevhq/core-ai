@@ -30,6 +30,8 @@ export type {
     BaseGenerateOptions,
     GenerateProviderOptions,
     SystemMessageProviderOptions,
+    UserMessageProviderOptions,
+    ToolResultMessageProviderOptions,
     EmbedProviderOptions,
     ImageProviderOptions,
     GenerateOptions,

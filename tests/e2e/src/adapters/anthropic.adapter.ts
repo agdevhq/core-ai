@@ -41,5 +41,9 @@ export function createAnthropicAdapter(): ProviderE2EAdapter {
             createAnthropic({
                 apiKey: getEnvValue(ANTHROPIC_API_KEY_ENV),
             }).chatModel(reasoningModelId),
+        createPromptCacheChatModel: () =>
+            createAnthropic({
+                apiKey: getEnvValue(ANTHROPIC_API_KEY_ENV),
+            }).chatModel(chatModelId),
     };
 }

@@ -7,4 +7,6 @@ export type {
 export type {
     AnthropicVertexGenerateProviderOptions,
     AnthropicVertexSystemMessageProviderOptions,
+    AnthropicVertexToolResultMessageProviderOptions,
+    AnthropicVertexUserMessageProviderOptions,
 } from './provider-options.ts';

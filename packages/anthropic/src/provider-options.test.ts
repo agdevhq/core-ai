@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { parseAnthropicSystemMessageProviderOptions } from './provider-options.ts';
+import { parseAnthropicMessageProviderOptions } from './provider-options.ts';
 
-describe('parseAnthropicSystemMessageProviderOptions', () => {
+describe('parseAnthropicMessageProviderOptions', () => {
     it('should return undefined without options', () => {
         expect(
-            parseAnthropicSystemMessageProviderOptions(undefined, 'anthropic')
+            parseAnthropicMessageProviderOptions(undefined, 'anthropic')
         ).toBeUndefined();
     });
 
     it('should read options under the provider id key', () => {
         expect(
-            parseAnthropicSystemMessageProviderOptions(
+            parseAnthropicMessageProviderOptions(
                 {
                     anthropic: {
                         cacheControl: { type: 'ephemeral', ttl: '1h' },
@@ -23,7 +23,7 @@ describe('parseAnthropicSystemMessageProviderOptions', () => {
 
     it('should ignore options under another provider id', () => {
         expect(
-            parseAnthropicSystemMessageProviderOptions(
+            parseAnthropicMessageProviderOptions(
                 { anthropic: { cacheControl: { type: 'ephemeral' } } },
                 'anthropic-vertex'
             )
@@ -34,7 +34,7 @@ describe('parseAnthropicSystemMessageProviderOptions', () => {
     // `anthropic` key would reject at compile time.
     it('should reject an unsupported TTL', () => {
         expect(() =>
-            parseAnthropicSystemMessageProviderOptions(
+            parseAnthropicMessageProviderOptions(
                 {
                     'custom-anthropic': {
                         cacheControl: { type: 'ephemeral', ttl: '2h' },
@@ -45,9 +45,19 @@ describe('parseAnthropicSystemMessageProviderOptions', () => {
         ).toThrow();
     });
 
-    it('should reject unknown fields', () => {
+    it('should reject unknown cache types and fields', () => {
         expect(() =>
-            parseAnthropicSystemMessageProviderOptions(
+            parseAnthropicMessageProviderOptions(
+                {
+                    'custom-anthropic': {
+                        cacheControl: { type: 'persistent' },
+                    },
+                },
+                'custom-anthropic'
+            )
+        ).toThrow();
+        expect(() =>
+            parseAnthropicMessageProviderOptions(
                 { 'custom-anthropic': { topK: 5 } },
                 'custom-anthropic'
             )

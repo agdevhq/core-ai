@@ -10,6 +10,7 @@ import type { ProviderE2EAdapter } from './provider-adapter.ts';
 
 const GOOGLE_VERTEX_PROJECT_ENV = 'GOOGLE_VERTEX_PROJECT';
 const GOOGLE_VERTEX_REGION_ENV = 'GOOGLE_VERTEX_REGION';
+const ANTHROPIC_VERTEX_CACHE_REGION_ENV = 'ANTHROPIC_VERTEX_E2E_CACHE_REGION';
 const GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV =
     'GOOGLE_APPLICATION_CREDENTIALS_JSON';
 const ANTHROPIC_VERTEX_CHAT_MODEL_ENV = 'ANTHROPIC_VERTEX_E2E_CHAT_MODEL';
@@ -54,12 +55,19 @@ export function createAnthropicVertexAdapter(): ProviderE2EAdapter {
             createAnthropicVertexProvider().chatModel(chatModelId),
         createReasoningChatModel: () =>
             createAnthropicVertexProvider().chatModel(reasoningModelId),
+        // Multi-region and global endpoints route requests between regions,
+        // which is where prompt caching can miss; single regions cannot.
+        createPromptCacheChatModel: () =>
+            createAnthropicVertexProvider(
+                getEnvOrDefault(ANTHROPIC_VERTEX_CACHE_REGION_ENV, 'global')
+            ).chatModel(chatModelId),
     };
 }
 
-function createAnthropicVertexProvider() {
+function createAnthropicVertexProvider(
+    region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1')
+) {
     const projectId = getEnvValue(GOOGLE_VERTEX_PROJECT_ENV);
-    const region = getEnvOrDefault(GOOGLE_VERTEX_REGION_ENV, 'europe-west1');
     const credentialsJson = getEnvValue(
         GOOGLE_APPLICATION_CREDENTIALS_JSON_ENV
     );

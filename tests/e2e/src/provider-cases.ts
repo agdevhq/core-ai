@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import {
@@ -18,6 +19,7 @@ import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
 export type ProviderContractCaseId =
     | 'chatGenerate'
     | 'chatLaterSystemMessage'
+    | 'chatMessageCacheControl'
     | 'chatStrictTools'
     | 'chatStrictToolsUnsupported'
     | 'chatStream'
@@ -42,6 +44,8 @@ export type ProviderContractCase = {
     timeoutMs?: number;
     run: (context: ProviderContractContext) => Promise<void>;
 };
+
+const AGENT_CACHE_STEPS = 4;
 
 const objectSchema = z.object({
     topic: z.string(),
@@ -100,6 +104,100 @@ export const providerCases: ProviderContractCase[] = [
 
             const result = await generate({ model, messages });
             expect(result.content).toMatch(/<n>4<\/n>/);
+        },
+    },
+    {
+        id: 'chatMessageCacheControl',
+        name: 'message cache breakpoints let each agent step read the previous step from cache',
+        requiredCapability: 'chat',
+        timeoutMs: 240_000,
+        run: async ({ adapter }) => {
+            const model = adapter.createPromptCacheChatModel?.();
+            if (!model) {
+                throw new Error(
+                    `Missing prompt cache chat model factory for ${adapter.id}`
+                );
+            }
+
+            const cacheControl = (ttl?: '1h') => ({
+                [model.provider]: {
+                    cacheControl: ttl
+                        ? { type: 'ephemeral', ttl }
+                        : { type: 'ephemeral' },
+                },
+            });
+            // A fresh nonce keeps cache entries from earlier runs out of
+            // reach, so step 0 always writes and later steps must read.
+            const nonce = randomUUID();
+            const history: Message[] = [
+                {
+                    role: 'system',
+                    content: createRecords(nonce, 'reference', 160),
+                    providerOptions: cacheControl('1h'),
+                },
+                {
+                    role: 'user',
+                    content:
+                        'Look up the requested records, then reply with one word.',
+                },
+            ];
+
+            let cachedPrefixTokens: number | undefined;
+            // The last message the previous step sent, where its
+            // request-level breakpoint was written: the user message on
+            // step 1, the last of the merged tool results after that.
+            let previousStepEnd = -1;
+            for (let step = 0; step < AGENT_CACHE_STEPS; step += 1) {
+                const result = await generate({
+                    model,
+                    tools: { lookup_record: lookupRecordTool },
+                    messages: history.map((message, index) =>
+                        index === previousStepEnd &&
+                        message.role !== 'assistant'
+                            ? { ...message, providerOptions: cacheControl() }
+                            : message
+                    ),
+                    providerOptions: cacheControl(),
+                    maxTokens: 64,
+                });
+
+                const { cacheReadTokens, cacheWriteTokens } =
+                    result.usage.inputTokenDetails;
+                if (cachedPrefixTokens === undefined) {
+                    expect(cacheWriteTokens).toBeGreaterThan(0);
+                } else {
+                    expect(
+                        cacheReadTokens,
+                        `step ${step} should read the previous step's prompt from cache`
+                    ).toBeGreaterThanOrEqual(cachedPrefixTokens);
+                }
+                cachedPrefixTokens = cacheReadTokens + cacheWriteTokens;
+
+                previousStepEnd = history.length - 1;
+                // Two parallel tool calls exercise tool results merged into
+                // one user turn.
+                const callIds = [`toolu_${step}_a`, `toolu_${step}_b`];
+                history.push(
+                    {
+                        role: 'assistant',
+                        parts: callIds.map((id) => ({
+                            type: 'tool-call' as const,
+                            toolCall: {
+                                id,
+                                name: 'lookup_record',
+                                arguments: { id },
+                            },
+                        })),
+                    },
+                    ...callIds.map(
+                        (id): Message => ({
+                            role: 'tool',
+                            toolCallId: id,
+                            content: createRecords(nonce, id, 12),
+                        })
+                    )
+                );
+            }
         },
     },
     {
@@ -480,6 +578,21 @@ export const providerCases: ProviderContractCase[] = [
         },
     },
 ];
+
+const lookupRecordTool = {
+    name: 'lookup_record',
+    description: 'Look up a record by id',
+    parameters: z.object({ id: z.string() }),
+};
+
+/** Deterministic filler text, about 40 tokens per line. */
+function createRecords(nonce: string, label: string, lines: number): string {
+    return Array.from(
+        { length: lines },
+        (_, index) =>
+            `[${nonce}] ${label} record ${index}: value ${index * 7} links to ${index * 13} and was last checked in cycle ${index % 11}.`
+    ).join('\n');
+}
 
 function assertChatUsage(usage: {
     inputTokens: number;

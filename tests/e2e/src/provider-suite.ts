@@ -72,6 +72,10 @@ function isContractCaseRunnable(
         );
     }
 
+    if (contractCase.id === 'chatMessageCacheControl') {
+        return adapter.createPromptCacheChatModel !== undefined;
+    }
+
     if (contractCase.id === 'chatStrictToolsUnsupported') {
         return (
             adapter.createChatModel().capabilities.tools.strictSchemas

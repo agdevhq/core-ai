@@ -1,6 +1,8 @@
 import type {
     GenerateProviderOptions,
     SystemMessageProviderOptions,
+    ToolResultMessageProviderOptions,
+    UserMessageProviderOptions,
 } from '@core-ai/core-ai';
 import { z } from 'zod';
 
@@ -44,30 +46,54 @@ export function parseAnthropicGenerateProviderOptions(
     return anthropicGenerateProviderOptionsSchema.parse(rawOptions);
 }
 
-export const anthropicSystemMessageProviderOptionsSchema = z
+/**
+ * Options shared by system, user and tool result messages. Each role gets
+ * its own exported name so the roles can diverge without a breaking change.
+ */
+const anthropicMessageProviderOptionsSchema = z
     .object({
         cacheControl: anthropicCacheControlSchema.optional(),
     })
     .strict();
 
-export type AnthropicSystemMessageProviderOptions = z.infer<
-    typeof anthropicSystemMessageProviderOptionsSchema
+type AnthropicMessageProviderOptions = z.infer<
+    typeof anthropicMessageProviderOptionsSchema
 >;
 
+export const anthropicSystemMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicSystemMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
+export const anthropicUserMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicUserMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
+export const anthropicToolResultMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicToolResultMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
 /**
- * Reads the system message options namespaced under `providerId`
- * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
+ * Reads system, user or tool result message options namespaced under
+ * `providerId` (`model.provider`), like
+ * {@link parseAnthropicGenerateProviderOptions}.
  */
-export function parseAnthropicSystemMessageProviderOptions(
-    providerOptions: SystemMessageProviderOptions | undefined,
+export function parseAnthropicMessageProviderOptions(
+    providerOptions:
+        | SystemMessageProviderOptions
+        | UserMessageProviderOptions
+        | ToolResultMessageProviderOptions
+        | undefined,
     providerId: string
-): AnthropicSystemMessageProviderOptions | undefined {
+): AnthropicMessageProviderOptions | undefined {
     const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }
 
-    return anthropicSystemMessageProviderOptionsSchema.parse(rawOptions);
+    return anthropicMessageProviderOptionsSchema.parse(rawOptions);
 }
 
 declare module '@core-ai/core-ai' {
@@ -77,6 +103,14 @@ declare module '@core-ai/core-ai' {
 
     interface SystemMessageProviderOptions {
         anthropic?: AnthropicSystemMessageProviderOptions;
+    }
+
+    interface UserMessageProviderOptions {
+        anthropic?: AnthropicUserMessageProviderOptions;
+    }
+
+    interface ToolResultMessageProviderOptions {
+        anthropic?: AnthropicToolResultMessageProviderOptions;
     }
 }
 
