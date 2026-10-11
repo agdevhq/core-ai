@@ -45,7 +45,7 @@ describe('Anthropic request body key order', () => {
         expect(bodies).toHaveLength(1);
         expectPromptBeforeSettings(
             Object.keys(bodies[0] ?? {}),
-            ['model', 'system', 'tools', 'messages'],
+            ['model', 'tools', 'system', 'messages'],
             [
                 'tool_choice',
                 'max_tokens',

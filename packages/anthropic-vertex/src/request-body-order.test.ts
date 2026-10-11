@@ -48,7 +48,7 @@ describe('Anthropic Vertex request body key order', () => {
         expect(bodies).toHaveLength(1);
         expectPromptBeforeSettings(
             Object.keys(bodies[0] ?? {}),
-            ['system', 'tools', 'messages'],
+            ['tools', 'system', 'messages'],
             [
                 'tool_choice',
                 'max_tokens',

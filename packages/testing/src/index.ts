@@ -84,6 +84,19 @@ export function createAnthropicCapturingFetch(text = 'ok'): CapturingFetch {
         }
         return createSseResponse([
             {
+                type: 'message_start',
+                message: {
+                    id: 'msg_test',
+                    type: 'message',
+                    role: 'assistant',
+                    model: 'claude-test',
+                    content: [],
+                    stop_reason: null,
+                    stop_sequence: null,
+                    usage: { input_tokens: 1, output_tokens: 0 },
+                },
+            },
+            {
                 type: 'content_block_start',
                 index: 0,
                 content_block: { type: 'text', text: '' },
