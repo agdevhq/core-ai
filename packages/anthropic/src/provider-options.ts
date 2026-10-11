@@ -46,92 +46,54 @@ export function parseAnthropicGenerateProviderOptions(
     return anthropicGenerateProviderOptionsSchema.parse(rawOptions);
 }
 
-export const anthropicSystemMessageProviderOptionsSchema = z
+/**
+ * Options shared by system, user and tool result messages. Each role gets
+ * its own exported name so the roles can diverge without a breaking change.
+ */
+const anthropicMessageProviderOptionsSchema = z
     .object({
         cacheControl: anthropicCacheControlSchema.optional(),
     })
     .strict();
 
-export type AnthropicSystemMessageProviderOptions = z.infer<
-    typeof anthropicSystemMessageProviderOptionsSchema
+type AnthropicMessageProviderOptions = z.infer<
+    typeof anthropicMessageProviderOptionsSchema
 >;
 
-export const anthropicUserMessageProviderOptionsSchema = z
-    .object({
-        cacheControl: anthropicCacheControlSchema.optional(),
-    })
-    .strict();
+export const anthropicSystemMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicSystemMessageProviderOptions =
+    AnthropicMessageProviderOptions;
 
-export type AnthropicUserMessageProviderOptions = z.infer<
-    typeof anthropicUserMessageProviderOptionsSchema
->;
+export const anthropicUserMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicUserMessageProviderOptions =
+    AnthropicMessageProviderOptions;
 
-export const anthropicToolResultMessageProviderOptionsSchema = z
-    .object({
-        cacheControl: anthropicCacheControlSchema.optional(),
-    })
-    .strict();
-
-export type AnthropicToolResultMessageProviderOptions = z.infer<
-    typeof anthropicToolResultMessageProviderOptionsSchema
->;
+export const anthropicToolResultMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicToolResultMessageProviderOptions =
+    AnthropicMessageProviderOptions;
 
 /**
- * Reads the system message options namespaced under `providerId`
- * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
+ * Reads system, user or tool result message options namespaced under
+ * `providerId` (`model.provider`), like
+ * {@link parseAnthropicGenerateProviderOptions}.
  */
-export function parseAnthropicSystemMessageProviderOptions(
-    providerOptions: SystemMessageProviderOptions | undefined,
+export function parseAnthropicMessageProviderOptions(
+    providerOptions:
+        | SystemMessageProviderOptions
+        | UserMessageProviderOptions
+        | ToolResultMessageProviderOptions
+        | undefined,
     providerId: string
-): AnthropicSystemMessageProviderOptions | undefined {
-    return parseMessageProviderOptions(
-        anthropicSystemMessageProviderOptionsSchema,
-        providerOptions,
-        providerId
-    );
-}
-
-/**
- * Reads the user message options namespaced under `providerId`
- * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
- */
-export function parseAnthropicUserMessageProviderOptions(
-    providerOptions: UserMessageProviderOptions | undefined,
-    providerId: string
-): AnthropicUserMessageProviderOptions | undefined {
-    return parseMessageProviderOptions(
-        anthropicUserMessageProviderOptionsSchema,
-        providerOptions,
-        providerId
-    );
-}
-
-/**
- * Reads the tool result message options namespaced under `providerId`
- * (`model.provider`), like {@link parseAnthropicGenerateProviderOptions}.
- */
-export function parseAnthropicToolResultMessageProviderOptions(
-    providerOptions: ToolResultMessageProviderOptions | undefined,
-    providerId: string
-): AnthropicToolResultMessageProviderOptions | undefined {
-    return parseMessageProviderOptions(
-        anthropicToolResultMessageProviderOptionsSchema,
-        providerOptions,
-        providerId
-    );
-}
-
-function parseMessageProviderOptions<TSchema extends z.ZodType>(
-    schema: TSchema,
-    providerOptions: Record<string, unknown> | undefined,
-    providerId: string
-): z.infer<TSchema> | undefined {
+): AnthropicMessageProviderOptions | undefined {
     const rawOptions = providerOptions?.[providerId];
     if (rawOptions === undefined) {
         return undefined;
     }
 
-    return schema.parse(rawOptions);
+    return anthropicMessageProviderOptionsSchema.parse(rawOptions);
 }
 
 declare module '@core-ai/core-ai' {

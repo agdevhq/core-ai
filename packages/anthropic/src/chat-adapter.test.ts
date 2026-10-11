@@ -8,6 +8,7 @@ import {
     type GenerateOptions,
     type Message,
     type ToolSet,
+    type UserMessage,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import type {
@@ -292,8 +293,16 @@ describe('convertMessages', () => {
         expect(result.cacheTtls).toEqual(['1h']);
     });
 
-    it('should reject cache control on a user message without content', () => {
-        for (const content of [' ', []]) {
+    it('should reject cache control on a user message without a block to mark', () => {
+        const contents: UserMessage['content'][] = [
+            ' ',
+            [],
+            [
+                { type: 'text', text: 'Describe this' },
+                { type: 'text', text: '  ' },
+            ],
+        ];
+        for (const content of contents) {
             expect(() =>
                 convertMessages([
                     {
@@ -305,7 +314,7 @@ describe('convertMessages', () => {
                     },
                 ])
             ).toThrowError(
-                'A user message with cacheControl must contain non-whitespace text or at least one content part; Anthropic cannot place a cache breakpoint without a block.'
+                'A user message with cacheControl must end with non-whitespace text or a non-text content part; Anthropic cannot place a cache breakpoint on an empty block.'
             );
         }
     });
