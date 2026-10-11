@@ -2,13 +2,14 @@ import Anthropic from '@anthropic-ai/sdk';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { defineTool, type Message } from '@core-ai/core-ai';
+import { createAnthropicCapturingFetch } from '@core-ai/testing';
 
 import { createAnthropic } from './provider.ts';
 
-// Vertex AI multi-region and global endpoints route cache lookups by the
-// leading bytes of the JSON body, so the stable prompt prefix must serialize
-// before `messages`. These tests pin the order of the body that actually
-// leaves the SDK.
+// Vertex AI multi-region and global endpoints were observed to route cache
+// lookups by the leading bytes of the JSON body, so the body must start with
+// the prompt prefix and end with `messages`. These tests check the body that
+// actually leaves the SDK.
 
 const messages: Message[] = [
     { role: 'system', content: 'You are terse.' },
@@ -25,7 +26,7 @@ const tools = {
 
 describe('Anthropic request body key order', () => {
     it('should serialize the prompt prefix before messages for chat requests', async () => {
-        const { fetch, bodies } = createCapturingFetch();
+        const { fetch, bodies } = createAnthropicCapturingFetch();
         const model = createAnthropic({
             client: new Anthropic({ apiKey: 'test', fetch, maxRetries: 0 }),
         }).chatModel('claude-sonnet-4-6');
@@ -44,23 +45,17 @@ describe('Anthropic request body key order', () => {
         });
 
         expect(bodies).toHaveLength(1);
-        expect(Object.keys(bodies[0] ?? {})).toEqual([
-            'model',
+        expectMessagesAfterPrefix(Object.keys(bodies[0] ?? {}), [
             'max_tokens',
-            'system',
-            'tools',
-            'tool_choice',
             'thinking',
             'output_config',
             'cache_control',
             'stop_sequences',
-            'messages',
-            'stream',
         ]);
     });
 
     it('should serialize the prompt prefix before messages for object requests', async () => {
-        const { fetch, bodies } = createCapturingFetch('{"answer":4}');
+        const { fetch, bodies } = createAnthropicCapturingFetch('{"answer":4}');
         const model = createAnthropic({
             client: new Anthropic({ apiKey: 'test', fetch, maxRetries: 0 }),
         }).chatModel('claude-sonnet-4-6');
@@ -73,61 +68,27 @@ describe('Anthropic request body key order', () => {
         });
 
         expect(bodies).toHaveLength(1);
-        expect(Object.keys(bodies[0] ?? {})).toEqual([
-            'model',
-            'max_tokens',
-            'system',
-            'temperature',
-            'top_k',
-            'output_config',
-            'messages',
-            'stream',
-        ]);
+        const keys = Object.keys(bodies[0] ?? {});
+        expect(keys.slice(0, 2)).toEqual(['model', 'system']);
+        expect(keys.slice(-2)).toEqual(['messages', 'stream']);
+        expect(keys).toEqual(
+            expect.arrayContaining([
+                'max_tokens',
+                'temperature',
+                'top_k',
+                'output_config',
+            ])
+        );
     });
 });
 
-function createCapturingFetch(text = 'ok') {
-    const bodies: Record<string, unknown>[] = [];
-    const fetch = async (
-        _input: string | URL | Request,
-        init?: RequestInit
-    ): Promise<Response> => {
-        if (typeof init?.body === 'string') {
-            bodies.push(JSON.parse(init.body) as Record<string, unknown>);
-        }
-        return createSseResponse([
-            {
-                type: 'content_block_start',
-                index: 0,
-                content_block: { type: 'text', text: '' },
-            },
-            {
-                type: 'content_block_delta',
-                index: 0,
-                delta: { type: 'text_delta', text },
-            },
-            { type: 'content_block_stop', index: 0 },
-            {
-                type: 'message_delta',
-                delta: { stop_reason: 'end_turn', stop_sequence: null },
-                usage: { output_tokens: 1 },
-            },
-            { type: 'message_stop' },
-        ]);
-    };
-    return { fetch, bodies };
-}
-
-function createSseResponse(
-    events: ({ type: string } & Record<string, unknown>)[]
-): Response {
-    const body = events
-        .map(
-            (event) =>
-                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
-        )
-        .join('');
-    return new Response(body, {
-        headers: { 'content-type': 'text/event-stream' },
-    });
+function expectMessagesAfterPrefix(keys: string[], settings: string[]) {
+    expect(keys.slice(0, 4)).toEqual([
+        'model',
+        'system',
+        'tools',
+        'tool_choice',
+    ]);
+    expect(keys.slice(-2)).toEqual(['messages', 'stream']);
+    expect(keys).toEqual(expect.arrayContaining(settings));
 }
