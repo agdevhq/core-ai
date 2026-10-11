@@ -53,6 +53,11 @@ export type ProviderE2EAdapter = {
      */
     isStrictToolsConfigured?: () => boolean;
     createReasoningChatModel?: () => ChatModel;
+    /**
+     * Chat model for the message cache control case. Set it only for
+     * providers that read per-message `cacheControl` options.
+     */
+    createPromptCacheChatModel?: () => ChatModel;
     createEmbeddingModel?: () => EmbeddingModel;
     createImageModel?: () => ImageModel;
 };
