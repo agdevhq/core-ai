@@ -609,27 +609,38 @@ export function createStreamRequest(
         });
     }
 
-    const baseRequest = {
+    // Key order is load-bearing. Vertex AI multi-region and global endpoints
+    // were observed (not documented) to route cache lookups by the leading
+    // bytes of the JSON body, so the body follows Anthropic's cache prefix
+    // order (`tools`, `system`, the growing `messages`) and puts per-request
+    // settings after it, where a changed setting cannot alter that prefix.
+    // Anthropic's API itself is order-insensitive.
+    const settings = mapAnthropicProviderOptionsToRequest(
+        {
+            ...(options.toolChoice
+                ? { tool_choice: convertToolChoice(options.toolChoice) }
+                : {}),
+            max_tokens: maxTokens,
+            ...mapReasoningToRequestFields(
+                modelId,
+                thinkingBudget,
+                options,
+                capabilities
+            ),
+            ...mapSamplingToRequestFields(options),
+        },
+        anthropicOptions
+    );
+    return {
         model: modelId,
-        messages: converted.messages,
-        max_tokens: maxTokens,
-        ...(converted.system !== undefined ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
-        ...(options.toolChoice
-            ? { tool_choice: convertToolChoice(options.toolChoice) }
-            : {}),
-        ...mapReasoningToRequestFields(
-            modelId,
-            thinkingBudget,
-            options,
-            capabilities
-        ),
-        ...mapSamplingToRequestFields(options),
+        ...(converted.system !== undefined ? { system: converted.system } : {}),
+        messages: converted.messages,
+        ...settings,
         stream: true as const,
     };
-    return mapAnthropicProviderOptionsToRequest(baseRequest, anthropicOptions);
 }
 
 function getManualThinkingBudget(
@@ -856,15 +867,15 @@ export function getAnthropicRequestBetas(
 }
 
 function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
-    baseRequest: TRequest,
+    settings: TRequest,
     providerOptions: AnthropicGenerateProviderOptions | undefined
 ): TRequest {
     if (!providerOptions) {
-        return baseRequest;
+        return settings;
     }
 
     const baseOutputConfig = asObject(
-        (baseRequest as { output_config?: unknown }).output_config
+        (settings as { output_config?: unknown }).output_config
     );
     const mergedOutputConfig = {
         ...baseOutputConfig,
@@ -872,7 +883,7 @@ function mapAnthropicProviderOptionsToRequest<TRequest extends object>(
     };
 
     const mergedRequest = {
-        ...baseRequest,
+        ...settings,
         ...(providerOptions.cacheControl
             ? { cache_control: providerOptions.cacheControl }
             : {}),
