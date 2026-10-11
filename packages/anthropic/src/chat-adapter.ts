@@ -611,34 +611,34 @@ export function createStreamRequest(
 
     // Key order is load-bearing. Vertex AI multi-region and global endpoints
     // were observed (not documented) to route cache lookups by the leading
-    // bytes of the JSON body, so the body starts with the prompt prefix that
-    // stays identical across turns: `system` and `tools` first, then
-    // per-request settings, then the growing `messages`. Anthropic's API
-    // itself is order-insensitive.
-    const prefixRequest = {
+    // bytes of the JSON body, so the body follows Anthropic's prompt order
+    // (`system`, `tools`, the growing `messages`) and puts per-request
+    // settings after it, where a changed setting cannot alter that prefix.
+    // Anthropic's API itself is order-insensitive.
+    const settings = mapAnthropicProviderOptionsToRequest(
+        {
+            ...(options.toolChoice
+                ? { tool_choice: convertToolChoice(options.toolChoice) }
+                : {}),
+            max_tokens: maxTokens,
+            ...mapReasoningToRequestFields(
+                modelId,
+                thinkingBudget,
+                options,
+                capabilities
+            ),
+            ...mapSamplingToRequestFields(options),
+        },
+        anthropicOptions
+    );
+    return {
         model: modelId,
         ...(converted.system !== undefined ? { system: converted.system } : {}),
         ...(options.tools && Object.keys(options.tools).length > 0
             ? { tools: convertTools(options.tools) }
             : {}),
-        ...(options.toolChoice
-            ? { tool_choice: convertToolChoice(options.toolChoice) }
-            : {}),
-        max_tokens: maxTokens,
-        ...mapReasoningToRequestFields(
-            modelId,
-            thinkingBudget,
-            options,
-            capabilities
-        ),
-        ...mapSamplingToRequestFields(options),
-    };
-    return {
-        ...mapAnthropicProviderOptionsToRequest(
-            prefixRequest,
-            anthropicOptions
-        ),
         messages: converted.messages,
+        ...settings,
         stream: true as const,
     };
 }

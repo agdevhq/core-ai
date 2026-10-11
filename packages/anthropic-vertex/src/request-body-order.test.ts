@@ -9,11 +9,9 @@ import {
 
 import { createAnthropicVertex } from './provider.ts';
 
-// Vertex AI multi-region and global endpoints were observed to route cache
-// lookups by the leading bytes of the JSON body, so the body must start with
-// the prompt prefix. The Vertex SDK re-serializes the body (dropping `model`,
-// appending `anthropic_version`), so these tests check the body that actually
-// goes over the wire.
+// See createStreamRequest in @core-ai/anthropic for why key order matters.
+// The Vertex SDK re-serializes the body (dropping `model`, appending
+// `anthropic_version`), so these tests check the body that goes over the wire.
 
 const messages: Message[] = [
     { role: 'system', content: 'You are terse.' },
@@ -29,7 +27,7 @@ const tools = {
 };
 
 describe('Anthropic Vertex request body key order', () => {
-    it('should serialize the prompt prefix before messages for chat requests', async () => {
+    it('should put the prompt before per-request settings for chat requests', async () => {
         const { fetch, bodies } = createAnthropicCapturingFetch();
         const model = createAnthropicVertex({
             client: createVertexClient(fetch),
@@ -48,24 +46,20 @@ describe('Anthropic Vertex request body key order', () => {
         });
 
         expect(bodies).toHaveLength(1);
-        const keys = Object.keys(bodies[0] ?? {});
-        expect(keys.slice(0, 3)).toEqual(['system', 'tools', 'tool_choice']);
-        expect(keys.slice(-3)).toEqual([
-            'messages',
-            'stream',
-            'anthropic_version',
-        ]);
-        expect(keys).toEqual(
-            expect.arrayContaining([
+        expectPromptBeforeSettings(
+            Object.keys(bodies[0] ?? {}),
+            ['system', 'tools', 'messages'],
+            [
+                'tool_choice',
                 'max_tokens',
                 'thinking',
                 'output_config',
                 'cache_control',
-            ])
+            ]
         );
     });
 
-    it('should serialize the prompt prefix before messages for object requests', async () => {
+    it('should put the prompt before per-request settings for object requests', async () => {
         const { fetch, bodies } = createAnthropicCapturingFetch('{"answer":4}');
         const model = createAnthropicVertex({
             client: createVertexClient(fetch),
@@ -77,18 +71,25 @@ describe('Anthropic Vertex request body key order', () => {
         });
 
         expect(bodies).toHaveLength(1);
-        const keys = Object.keys(bodies[0] ?? {});
-        expect(keys[0]).toBe('system');
-        expect(keys.slice(-3)).toEqual([
-            'messages',
-            'stream',
-            'anthropic_version',
-        ]);
-        expect(keys).toEqual(
-            expect.arrayContaining(['max_tokens', 'output_config'])
+        expectPromptBeforeSettings(
+            Object.keys(bodies[0] ?? {}),
+            ['system', 'messages'],
+            ['max_tokens', 'output_config']
         );
     });
 });
+
+function expectPromptBeforeSettings(
+    keys: string[],
+    prompt: string[],
+    settings: string[]
+) {
+    expect(keys.slice(0, prompt.length)).toEqual(prompt);
+    expect(keys.slice(-2)).toEqual(['stream', 'anthropic_version']);
+    expect(keys.slice(prompt.length, -2)).toEqual(
+        expect.arrayContaining(settings)
+    );
+}
 
 function createVertexClient(fetch: CapturingFetch['fetch']): AnthropicVertex {
     const authClient = {
