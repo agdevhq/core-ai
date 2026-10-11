@@ -622,7 +622,11 @@ const result = await generate({
                   ...message,
                   providerOptions: {
                       ...message.providerOptions,
-                      anthropic: { cacheControl: { type: 'ephemeral' } },
+                      anthropic: {
+                          // Keep an existing marker, such as a 1h one.
+                          cacheControl: message.providerOptions?.anthropic
+                              ?.cacheControl ?? { type: 'ephemeral' },
+                      },
                   },
               }
             : message

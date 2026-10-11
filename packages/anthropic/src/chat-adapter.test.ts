@@ -350,6 +350,78 @@ describe('convertMessages', () => {
         ]);
     });
 
+    it('should mark an image that ends a user message', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this' },
+                    {
+                        type: 'image',
+                        source: {
+                            type: 'url',
+                            url: 'https://example.com/a.png',
+                        },
+                    },
+                ],
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+        ]);
+
+        expect(result.messages[0]?.content).toEqual([
+            { type: 'text', text: 'Describe this' },
+            {
+                type: 'image',
+                source: { type: 'url', url: 'https://example.com/a.png' },
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+        ]);
+        expect(result.cacheTtls).toEqual(['1h']);
+    });
+
+    // An untyped provider id lets this test pass options the typed
+    // `anthropic` key would reject at compile time.
+    it('should reject unknown user and tool result message options', () => {
+        const providerOptions = { 'custom-anthropic': { topK: 5 } };
+        expect(() =>
+            convertMessages(
+                [{ role: 'user', content: 'Hi', providerOptions }],
+                'custom-anthropic'
+            )
+        ).toThrow();
+        expect(() =>
+            convertMessages(
+                [
+                    { role: 'user', content: 'Weather?' },
+                    {
+                        role: 'assistant',
+                        parts: [
+                            {
+                                type: 'tool-call',
+                                toolCall: {
+                                    id: 'tc_1',
+                                    name: 'weather',
+                                    arguments: {},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_1',
+                        content: 'Sunny',
+                        providerOptions,
+                    },
+                ],
+                'custom-anthropic'
+            )
+        ).toThrow();
+    });
+
     it('should mark a PDF document that ends a user message', () => {
         const result = convertMessages([
             {
