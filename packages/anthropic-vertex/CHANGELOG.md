@@ -1,5 +1,20 @@
 # @core-ai/anthropic-vertex
 
+## 0.32.0
+
+### Minor Changes
+
+- fbf70a5: User and tool result messages accept options under the `anthropic-vertex` key, including per-message `cacheControl` for cache breakpoints with their own TTL.
+
+### Patch Changes
+
+- 61df45c: Improve prompt-cache hit rates on Vertex AI multi-region (`eu`, `us`) and `global` endpoints, which were observed to route requests by the leading bytes of the body. Request bodies now start with `tools`, `system` and `messages`, the order Anthropic caches them in, with per-request settings after them. Before, every body started with the conversation, so extended requests were often routed to a region without the cache entry and rewrote the whole prefix.
+- Updated dependencies [61df45c]
+- Updated dependencies [fbf70a5]
+- Updated dependencies [fbf70a5]
+    - @core-ai/anthropic@0.32.0
+    - @core-ai/core-ai@0.32.0
+
 ## 0.31.0
 
 ### Minor Changes

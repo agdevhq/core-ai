@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.32.0
+
+### Minor Changes
+
+- fbf70a5: `UserMessage` and `ToolResultMessage` gain `providerOptions`, keyed by provider id, with the new `UserMessageProviderOptions` and `ToolResultMessageProviderOptions` interfaces for provider packages to augment.
+
 ## 0.31.0
 
 ### Minor Changes
