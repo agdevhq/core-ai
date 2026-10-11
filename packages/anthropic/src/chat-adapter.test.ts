@@ -295,11 +295,11 @@ describe('convertMessages', () => {
 
     it('should reject cache control on a user message without a block to mark', () => {
         const contents: UserMessage['content'][] = [
-            ' ',
+            '',
             [],
             [
                 { type: 'text', text: 'Describe this' },
-                { type: 'text', text: '  ' },
+                { type: 'text', text: '' },
             ],
         ];
         for (const content of contents) {
@@ -314,9 +314,68 @@ describe('convertMessages', () => {
                     },
                 ])
             ).toThrowError(
-                'A user message with cacheControl must end with non-whitespace text or a non-text content part; Anthropic cannot place a cache breakpoint on an empty block.'
+                'A user message with cacheControl must end with a non-empty content part; Anthropic cannot place a cache breakpoint on an empty text block.'
             );
         }
+    });
+
+    // Anthropic accepts a whitespace-only block with cache_control when the
+    // message has other text, so it is passed through.
+    it('should mark a whitespace-only last part', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this' },
+                    { type: 'text', text: '  ' },
+                ],
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages).toEqual([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this' },
+                    {
+                        type: 'text',
+                        text: '  ',
+                        cache_control: { type: 'ephemeral' },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should mark a PDF document that ends a user message', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Summarize' },
+                    {
+                        type: 'file',
+                        mimeType: 'application/pdf',
+                        data: 'JVBERi0=',
+                    },
+                ],
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages[0]?.content).toEqual([
+            { type: 'text', text: 'Summarize' },
+            expect.objectContaining({
+                type: 'document',
+                cache_control: { type: 'ephemeral' },
+            }),
+        ]);
+        expect(result.cacheTtls).toEqual(['5m']);
     });
 
     it('should ignore user message options addressed to another provider', () => {
@@ -2170,6 +2229,78 @@ describe('message cache breakpoints', () => {
                     : { type: 'ephemeral' as const, ttl },
         },
     });
+    const toolCalls = (...ids: string[]): Message => ({
+        role: 'assistant',
+        parts: ids.map((id) => ({
+            type: 'tool-call' as const,
+            toolCall: { id, name: 'weather', arguments: {} },
+        })),
+    });
+
+    it('should keep a marked user message after tool results in its own turn', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: [
+                { role: 'user', content: 'Weather?' },
+                toolCalls('tc_1'),
+                { role: 'tool', toolCallId: 'tc_1', content: 'Sunny' },
+                {
+                    role: 'user',
+                    content: 'And tomorrow?',
+                    providerOptions: cached(),
+                },
+            ],
+        });
+
+        expect(request.messages.slice(2)).toEqual([
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'tool_result',
+                        tool_use_id: 'tc_1',
+                        content: 'Sunny',
+                    },
+                ],
+            },
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'text',
+                        text: 'And tomorrow?',
+                        cache_control: { type: 'ephemeral' },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should only match request-level TTL against the last block of merged tool results', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: [
+                { role: 'user', content: 'Weather?' },
+                toolCalls('tc_1', 'tc_2'),
+                {
+                    role: 'tool',
+                    toolCallId: 'tc_1',
+                    content: 'Sunny',
+                    providerOptions: cached('1h'),
+                },
+                { role: 'tool', toolCallId: 'tc_2', content: 'Rainy' },
+            ],
+            providerOptions: cached('5m'),
+        });
+
+        expect(request.messages.at(-1)?.content).toEqual([
+            {
+                type: 'tool_result',
+                tool_use_id: 'tc_1',
+                content: 'Sunny',
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+            { type: 'tool_result', tool_use_id: 'tc_2', content: 'Rainy' },
+        ]);
+    });
 
     it('should count user and tool result breakpoints toward the limit', () => {
         const messages: Message[] = [
@@ -2381,7 +2512,24 @@ describe('message cache breakpoints', () => {
                 ],
                 providerOptions: cached('5m'),
             })
-        ).toThrowError(ValidationError);
+        ).toThrowError(
+            'Request-level cacheControl (ttl 5m) targets the last message, whose own cacheControl has ttl 1h; Anthropic requires matching TTLs.'
+        );
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    { role: 'user', content: 'Weather?' },
+                    toolCalls('tc_1'),
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_1',
+                        content: 'Sunny',
+                        providerOptions: cached('1h'),
+                    },
+                ],
+                providerOptions: cached('1h'),
+            })
+        ).not.toThrow();
     });
 });
 
@@ -2429,8 +2577,8 @@ describe('validateCacheBreakpoints', () => {
     });
 
     it('should count request-level cacheControl even when it lands on a matching marked last block', () => {
-        // Anthropic documents a 400 for 4 explicit breakpoints plus
-        // automatic caching, without a same-TTL exception.
+        // Anthropic rejects 4 explicit breakpoints plus automatic caching as
+        // 5 breakpoints, even when automatic caching lands on a marked block.
         expect(() =>
             validate(['1h', '1h', '1h', '1h'], '1h', '1h')
         ).toThrowError(

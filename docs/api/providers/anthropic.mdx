@@ -597,14 +597,18 @@ The breakpoint goes on the last content block the message produces:
 - A tool result message marks its `tool_result` block. Consecutive tool
   results share one user turn, and each keeps its own breakpoint.
 
-A user message with `cacheControl` must end with non-whitespace text or a
-non-text part such as an image. Otherwise it throws `ValidationError`, since
-Anthropic cannot place a cache breakpoint on an empty block.
+A user message with `cacheControl` must end with a non-empty part. An empty
+message or an empty last text part throws `ValidationError`, since Anthropic
+cannot place a cache breakpoint on an empty text block.
 
-Request-level caching only looks back a limited number of blocks for an
-earlier cache entry. In agent loops with many tool calls per step, mark the
-last message the previous step sent so the next step can read it. That message
-can be a user message, a tool result, or a system message:
+Request-level caching looks back at most 20 blocks for an earlier cache entry.
+A run of consecutive tool calls or tool results counts as one block, but an
+agent step that adds more blocks than that (interleaved thinking, text and
+tool calls, or many images) pushes the previous step's entry out of reach.
+Mark the last message the previous step sent so the next step can read it.
+That message can be a user message, a tool result, or a system message. Give
+the marker a TTL at least as long as the request-level one; with request-level
+`ttl: '1h'`, set `ttl: '1h'` on the marker too:
 
 ```typescript
 const previousStepEnd =

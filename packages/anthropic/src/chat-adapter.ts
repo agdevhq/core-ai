@@ -358,8 +358,9 @@ function convertSystemMessage(
 
 /**
  * A user message with `cacheControl` is sent as blocks, with the breakpoint
- * on its last block. Without a non-blank block to mark, the breakpoint is
- * rejected instead of silently dropped.
+ * on its last block. Anthropic rejects `cache_control` on an empty text
+ * block, so a message without a non-empty last block is rejected here
+ * instead of having its breakpoint silently dropped.
  */
 function convertUserMessage(
     message: UserMessage,
@@ -381,12 +382,9 @@ function convertUserMessage(
             ? [{ type: 'text' as const, text: message.content }]
             : message.content.map(convertUserContentPart);
     const lastBlock = blocks.at(-1);
-    if (
-        !lastBlock ||
-        (lastBlock.type === 'text' && lastBlock.text.trim() === '')
-    ) {
+    if (!lastBlock || (lastBlock.type === 'text' && lastBlock.text === '')) {
         throw new ValidationError(
-            'A user message with cacheControl must end with non-whitespace text or a non-text content part; Anthropic cannot place a cache breakpoint on an empty block.',
+            'A user message with cacheControl must end with a non-empty content part; Anthropic cannot place a cache breakpoint on an empty text block.',
             undefined,
             provider
         );
