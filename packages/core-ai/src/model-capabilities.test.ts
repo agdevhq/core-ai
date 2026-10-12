@@ -44,6 +44,7 @@ describe('modality helpers', () => {
             reasoning,
             modalities: MULTIMODAL_INPUT_MODALITIES,
             tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+            messages: { systemPlacement: 'anywhere' },
         };
 
         expect(supportsInputModality(capabilities, 'text')).toBe(true);
@@ -59,6 +60,7 @@ describe('modality helpers', () => {
             reasoning,
             modalities: TEXT_ONLY_MODALITIES,
             tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+            messages: { systemPlacement: 'anywhere' },
         };
 
         expect(supportsInputModality(capabilities, 'image')).toBe(false);

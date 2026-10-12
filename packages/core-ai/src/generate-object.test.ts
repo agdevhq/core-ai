@@ -42,6 +42,7 @@ describe('generateObject', () => {
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
                 },
+                messages: { systemPlacement: 'anywhere' },
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');
@@ -87,6 +88,7 @@ describe('generateObject', () => {
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
                 },
+                messages: { systemPlacement: 'anywhere' },
             },
             generate: vi.fn(async () => {
                 throw new Error('not implemented');

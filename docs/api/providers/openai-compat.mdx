@@ -116,6 +116,14 @@ are forwarded to the endpoint rather than rejected locally.
 The `reasoning` provider option controls extraction of nonstandard response
 fields; it does not change `model.capabilities`.
 
+### System messages
+
+Every model reports `model.capabilities.messages.systemPlacement` as
+`'anywhere'`, and system messages are sent exactly where they appear. The
+provider cannot see the endpoint's chat template, and some self-hosted chat
+templates reject a system message that is not first. Keep all system messages
+at the start of the conversation for those endpoints.
+
 ### Strict tool schemas
 
 Tools with `strict: true` are forwarded per tool with `strict: true` and a

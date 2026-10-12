@@ -19,12 +19,14 @@ const MULTIMODAL: ModelCapabilities = {
     reasoning: REASONING,
     modalities: MULTIMODAL_INPUT_MODALITIES,
     tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 const TEXT_ONLY: ModelCapabilities = {
     reasoning: REASONING,
     modalities: TEXT_ONLY_MODALITIES,
     tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 const URL_IMAGE_MESSAGES: Message[] = [
@@ -117,6 +119,7 @@ describe('validateInputModalities', () => {
                 output: ['text'],
             },
             tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+            messages: { systemPlacement: 'anywhere' },
         };
 
         expect(() =>

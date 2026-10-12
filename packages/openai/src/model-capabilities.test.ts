@@ -21,6 +21,17 @@ describe('normalizeModelId', () => {
 });
 
 describe('getOpenAIModelCapabilities', () => {
+    it.each([
+        'gpt-5.6-luna',
+        'gpt-4.1-mini',
+        'gpt-4o-audio-preview',
+        'unknown',
+    ])('should accept system messages anywhere for %s', (modelId) => {
+        expect(
+            getOpenAIModelCapabilities(modelId).messages.systemPlacement
+        ).toBe('anywhere');
+    });
+
     it.each(['gpt-6.1-sol', 'gpt-6-astra'])(
         'should return always-on max-range capabilities without Chat Completions tools for %s',
         (modelId) => {

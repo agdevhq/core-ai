@@ -1,4 +1,9 @@
-import type { GenerateProviderOptions } from '@core-ai/core-ai';
+import type {
+    GenerateProviderOptions,
+    SystemMessageProviderOptions,
+    ToolResultMessageProviderOptions,
+    UserMessageProviderOptions,
+} from '@core-ai/core-ai';
 import { z } from 'zod';
 
 export const anthropicCacheControlSchema = z
@@ -41,9 +46,71 @@ export function parseAnthropicGenerateProviderOptions(
     return anthropicGenerateProviderOptionsSchema.parse(rawOptions);
 }
 
+/**
+ * Options shared by system, user and tool result messages. Each role gets
+ * its own exported name so the roles can diverge without a breaking change.
+ */
+const anthropicMessageProviderOptionsSchema = z
+    .object({
+        cacheControl: anthropicCacheControlSchema.optional(),
+    })
+    .strict();
+
+type AnthropicMessageProviderOptions = z.infer<
+    typeof anthropicMessageProviderOptionsSchema
+>;
+
+export const anthropicSystemMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicSystemMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
+export const anthropicUserMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicUserMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
+export const anthropicToolResultMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicToolResultMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
+/**
+ * Reads system, user or tool result message options namespaced under
+ * `providerId` (`model.provider`), like
+ * {@link parseAnthropicGenerateProviderOptions}.
+ */
+export function parseAnthropicMessageProviderOptions(
+    providerOptions:
+        | SystemMessageProviderOptions
+        | UserMessageProviderOptions
+        | ToolResultMessageProviderOptions
+        | undefined,
+    providerId: string
+): AnthropicMessageProviderOptions | undefined {
+    const rawOptions = providerOptions?.[providerId];
+    if (rawOptions === undefined) {
+        return undefined;
+    }
+
+    return anthropicMessageProviderOptionsSchema.parse(rawOptions);
+}
+
 declare module '@core-ai/core-ai' {
     interface GenerateProviderOptions {
         anthropic?: AnthropicGenerateProviderOptions;
+    }
+
+    interface SystemMessageProviderOptions {
+        anthropic?: AnthropicSystemMessageProviderOptions;
+    }
+
+    interface UserMessageProviderOptions {
+        anthropic?: AnthropicUserMessageProviderOptions;
+    }
+
+    interface ToolResultMessageProviderOptions {
+        anthropic?: AnthropicToolResultMessageProviderOptions;
     }
 }
 

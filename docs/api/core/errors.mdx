@@ -14,7 +14,8 @@ core-ai provides a hierarchy of error classes for handling different types of fa
 CoreAIError
 ├── ValidationError
 │   ├── ToolSchemaStrictnessError
-│   └── UnsupportedInputModalityError
+│   ├── UnsupportedInputModalityError
+│   └── UnsupportedSystemMessagePlacementError
 ├── AbortedError
 │   └── StreamAbortedError
 ├── ProviderError
@@ -220,6 +221,59 @@ try {
 } catch (error) {
     if (error instanceof UnsupportedInputModalityError) {
         console.error(error.unsupportedModalities);
+    }
+}
+```
+
+## UnsupportedSystemMessagePlacementError
+
+Thrown when a system message sits where the model does not accept one,
+before the provider call. The rule comes from
+`model.capabilities.messages.systemPlacement`. Extends `ValidationError`.
+
+```typescript
+export class UnsupportedSystemMessagePlacementError extends ValidationError {
+    public readonly placement: 'leading' | 'before-reply' | 'anywhere';
+    public readonly issues: readonly SystemMessagePlacementIssue[];
+}
+
+type SystemMessagePlacementIssue = {
+    index: number;
+    reason:
+        | 'not-leading'
+        | 'must-follow-user-or-tool'
+        | 'must-precede-assistant-or-end';
+};
+```
+
+### Properties
+
+<ParamField path="placement" type="'leading' | 'before-reply' | 'anywhere'">
+    The model's rule for system messages after the first non-system message.
+</ParamField>
+
+<ParamField path="issues" type="readonly SystemMessagePlacementIssue[]">
+    Each offending system message, by its index in `messages`, with the rule it
+    breaks. The error message includes a fix for each one.
+</ParamField>
+
+To check a conversation without sending it, call the exported
+`getSystemMessagePlacementIssues(messages, placement)` helper. See
+[System message placement](/concepts/messages#system-message-placement).
+
+### Example
+
+```typescript
+import {
+    UnsupportedSystemMessagePlacementError,
+    generate,
+} from '@core-ai/core-ai';
+
+try {
+    await generate({ model, messages });
+} catch (error) {
+    if (error instanceof UnsupportedSystemMessagePlacementError) {
+        console.error(error.issues);
     }
 }
 ```

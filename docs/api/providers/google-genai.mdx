@@ -263,6 +263,15 @@ MB. Use base64 data only; core-ai does not upload audio through the Files API.
 `modalities.output` is `['text']` for chat models. Native image generation uses
 `imageModel()`.
 
+### System messages
+
+Gemini accepts system instructions only at the start of a conversation. Every
+model reports `model.capabilities.messages.systemPlacement` as `'leading'`.
+Leading system messages map to `systemInstruction`, and a system message after
+the first non-system message throws
+[`UnsupportedSystemMessagePlacementError`](/api/core/errors#unsupportedsystemmessageplacementerror)
+before the request. Send later instructions as part of a user message instead.
+
 ### Strict tool schemas
 
 Gemini has no strict tool mode: every model reports

@@ -62,3 +62,72 @@ export function createPushableAsyncIterable<T>(): {
         },
     };
 }
+
+export type CapturingFetch = {
+    fetch: (
+        input: string | URL | Request,
+        init?: RequestInit
+    ) => Promise<Response>;
+    /** Parsed JSON body of every request, in call order. */
+    bodies: Record<string, unknown>[];
+};
+
+/**
+ * A `fetch` for real Anthropic SDK clients: records each JSON request body
+ * and answers with a Messages API stream holding one text block.
+ */
+export function createAnthropicCapturingFetch(text = 'ok'): CapturingFetch {
+    const bodies: Record<string, unknown>[] = [];
+    const fetch: CapturingFetch['fetch'] = async (_input, init) => {
+        if (typeof init?.body === 'string') {
+            bodies.push(JSON.parse(init.body) as Record<string, unknown>);
+        }
+        return createSseResponse([
+            {
+                type: 'message_start',
+                message: {
+                    id: 'msg_test',
+                    type: 'message',
+                    role: 'assistant',
+                    model: 'claude-test',
+                    content: [],
+                    stop_reason: null,
+                    stop_sequence: null,
+                    usage: { input_tokens: 1, output_tokens: 0 },
+                },
+            },
+            {
+                type: 'content_block_start',
+                index: 0,
+                content_block: { type: 'text', text: '' },
+            },
+            {
+                type: 'content_block_delta',
+                index: 0,
+                delta: { type: 'text_delta', text },
+            },
+            { type: 'content_block_stop', index: 0 },
+            {
+                type: 'message_delta',
+                delta: { stop_reason: 'end_turn', stop_sequence: null },
+                usage: { output_tokens: 1 },
+            },
+            { type: 'message_stop' },
+        ]);
+    };
+    return { fetch, bodies };
+}
+
+function createSseResponse(
+    events: ({ type: string } & Record<string, unknown>)[]
+): Response {
+    const body = events
+        .map(
+            (event) =>
+                `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`
+        )
+        .join('');
+    return new Response(body, {
+        headers: { 'content-type': 'text/event-stream' },
+    });
+}

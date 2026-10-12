@@ -156,6 +156,9 @@ For registered Claude models:
   `modalities.output` is `['text']`.
 - `tools.strictSchemas` reports whether the model supports strict tool schemas.
   Supported models report `{ supported: true, maxStrictTools: 20 }`.
+- `messages.systemPlacement` is `'before-reply'` from Claude Opus 4.8,
+  Sonnet 5, and Haiku 5.5 on, and `'leading'` for earlier models. See
+  [System messages](/api/providers/anthropic#system-messages).
 
 ### Strict tool schemas
 
@@ -179,6 +182,36 @@ reach the model as hints. Strict tool schemas do not change Anthropic's
 structured response format for `generateObject()` and `streamObject()`. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
 contract, error reasons, and cross-provider behavior.
+
+### System messages
+
+Leading system messages become text blocks in Anthropic's top-level `system`
+field. Models that report `'before-reply'` also accept a system message later
+in the conversation, sent in place as a `role: 'system'` message. It must
+directly follow a user or tool message and be the last message or be followed
+by an assistant message:
+
+```typescript
+const result = await generate({
+    model: anthropic.chatModel('claude-sonnet-5-5'),
+    messages: [
+        { role: 'system', content: 'You are a support agent.' },
+        { role: 'user', content: 'I want a refund.' },
+        { role: 'system', content: 'Offer a manager callback.' },
+    ],
+});
+```
+
+A later system message keeps the cached conversation prefix intact, unlike a
+change to the leading system messages. Claude Opus 4.7, Opus 4.6, Sonnet 4.6,
+Opus 4.5, Sonnet 4.5, Haiku 4.5, and older models report `'leading'` and
+reject later system messages with
+[`UnsupportedSystemMessagePlacementError`](/api/core/errors#unsupportedsystemmessageplacementerror).
+Unrecognized model IDs resolve to `'before-reply'`.
+
+System messages that are empty or contain only whitespace are dropped, because
+Anthropic rejects empty text blocks. One that sets `cacheControl` throws
+`ValidationError`, since a cache breakpoint needs a block to attach to.
 
 ## Examples
 
@@ -483,6 +516,10 @@ and `cacheControl`.
 
 - `betas` are sent through the `anthropic-beta` request header.
 
+System, user, and tool result messages accept their own options under the
+same key. The only field is `cacheControl`. See
+[Message cache control](/api/providers/anthropic#message-cache-control).
+
 ## Prompt caching
 
 Use `cacheControl` to enable Anthropic prompt caching. This maps to Anthropic's top-level `cache_control` request field and uses automatic caching for the reusable prompt prefix.
@@ -521,6 +558,97 @@ const result = await generate({
     },
 });
 ```
+
+### Message cache control
+
+Set `cacheControl` on a system, user, or tool result message to place an
+explicit cache breakpoint at the end of that message. Each breakpoint can use
+its own TTL. A common setup for agent loops caches the static system prompt for
+an hour and lets request-level caching follow the growing conversation:
+
+```typescript
+const result = await generate({
+    model: anthropic.chatModel('claude-sonnet-5-5'),
+    messages: [
+        {
+            role: 'system',
+            content: largeStaticInstructions,
+            providerOptions: {
+                anthropic: {
+                    cacheControl: { type: 'ephemeral', ttl: '1h' },
+                },
+            },
+        },
+        ...conversation,
+    ],
+    providerOptions: {
+        anthropic: {
+            cacheControl: { type: 'ephemeral' },
+        },
+    },
+});
+```
+
+The breakpoint goes on the last content block the message produces:
+
+- A user message with string content is sent as a single text block that
+  carries the breakpoint.
+- A user message with content parts marks its last part.
+- A tool result message marks its `tool_result` block. Consecutive tool
+  results share one user turn, and each keeps its own breakpoint.
+
+A user message with `cacheControl` must end with a non-empty part. An empty
+message or an empty last text part throws `ValidationError`, since Anthropic
+cannot place a cache breakpoint on an empty text block.
+
+Request-level caching looks back at most 20 blocks for an earlier cache entry.
+A run of consecutive tool calls or tool results counts as one block, but an
+agent step that adds more blocks than that (interleaved thinking, text and
+tool calls, or many images) pushes the previous step's entry out of reach.
+Mark the last message the previous step sent so the next step can read it.
+That message can be a user message, a tool result, or a system message. Give
+the marker a TTL at least as long as the request-level one; with request-level
+`ttl: '1h'`, set `ttl: '1h'` on the marker too:
+
+```typescript
+const previousStepEnd =
+    messages.findLastIndex((message) => message.role === 'assistant') - 1;
+
+const result = await generate({
+    model: anthropic.chatModel('claude-sonnet-5-5'),
+    messages: messages.map((message, index) =>
+        index === previousStepEnd && message.role !== 'assistant'
+            ? {
+                  ...message,
+                  providerOptions: {
+                      ...message.providerOptions,
+                      anthropic: {
+                          // Keep an existing marker, such as a 1h one.
+                          cacheControl: message.providerOptions?.anthropic
+                              ?.cacheControl ?? { type: 'ephemeral' },
+                      },
+                  },
+              }
+            : message
+    ),
+    providerOptions: {
+        anthropic: {
+            cacheControl: { type: 'ephemeral' },
+        },
+    },
+});
+```
+
+Breakpoints follow Anthropic's limits, checked before the request:
+
+- At most 4 breakpoints per request, request-level `cacheControl` included.
+- A `1h` breakpoint cannot follow a `5m` one. Message breakpoints apply in
+  message order, and request-level `cacheControl` comes last.
+- When the last message sets `cacheControl`, request-level `cacheControl` must
+  use the same TTL.
+
+A request that breaks a limit throws `ValidationError`. A missing `ttl` means
+`5m`.
 
 Anthropic reports cache usage in `result.usage.inputTokenDetails`:
 

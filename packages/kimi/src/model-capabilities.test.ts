@@ -4,6 +4,15 @@ import { UNKNOWN_MODEL } from '@core-ai/core-ai';
 import { KIMI_MODEL_CAPABILITIES } from './model-capabilities.ts';
 
 describe('KIMI_MODEL_CAPABILITIES', () => {
+    it('should accept system messages anywhere on every model', () => {
+        for (const capabilities of [
+            ...Object.values(KIMI_MODEL_CAPABILITIES),
+            KIMI_MODEL_CAPABILITIES[UNKNOWN_MODEL],
+        ]) {
+            expect(capabilities.messages.systemPlacement).toBe('anywhere');
+        }
+    });
+
     it('should define K2.7 Code capabilities', () => {
         const capabilities = KIMI_MODEL_CAPABILITIES['kimi-k2.7-code'];
 

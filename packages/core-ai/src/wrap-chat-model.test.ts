@@ -136,6 +136,7 @@ function createMockChatModel(): {
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
                 },
+                messages: { systemPlacement: 'anywhere' },
             },
             generate: generateMock,
             stream: streamMock,

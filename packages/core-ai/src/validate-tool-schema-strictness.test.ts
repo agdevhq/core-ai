@@ -27,6 +27,7 @@ function createCapabilities(
         },
         modalities: TEXT_ONLY_MODALITIES,
         tools: { strictSchemas },
+        messages: { systemPlacement: 'anywhere' },
     };
 }
 

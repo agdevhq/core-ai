@@ -20,6 +20,7 @@ const KNOWN_CAPABILITIES: ModelCapabilities = {
     },
     modalities: MULTIMODAL_INPUT_MODALITIES,
     tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 const UNKNOWN_CAPABILITIES: ModelCapabilities = {
@@ -31,6 +32,7 @@ const UNKNOWN_CAPABILITIES: ModelCapabilities = {
     },
     modalities: MULTIMODAL_INPUT_MODALITIES,
     tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    messages: { systemPlacement: 'anywhere' },
 };
 
 const REGISTRY = {

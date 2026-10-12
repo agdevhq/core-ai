@@ -225,6 +225,143 @@ describe('createAnthropicVertex', () => {
         });
     });
 
+    it('should read system message cache control from the anthropic-vertex key only', async () => {
+        messagesCreate.mockResolvedValue(createMessageResponse());
+        const model = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('claude-sonnet-4-6');
+
+        await model.generate({
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Stable instructions.',
+                    providerOptions: {
+                        'anthropic-vertex': {
+                            cacheControl: { type: 'ephemeral', ttl: '1h' },
+                        },
+                    },
+                },
+                {
+                    role: 'system',
+                    content: 'More instructions.',
+                    providerOptions: {
+                        anthropic: { cacheControl: { type: 'ephemeral' } },
+                    },
+                },
+                { role: 'user', content: 'hello' },
+            ],
+        });
+
+        const [request] = messagesCreate.mock.calls[0] ?? [];
+        expect(request).toMatchObject({
+            system: [
+                {
+                    type: 'text',
+                    text: 'Stable instructions.',
+                    cache_control: { type: 'ephemeral', ttl: '1h' },
+                },
+                { type: 'text', text: 'More instructions.' },
+            ],
+        });
+        expect((request as { system: unknown[] }).system[1]).not.toHaveProperty(
+            'cache_control'
+        );
+    });
+
+    it('should read user and tool result cache control from the anthropic-vertex key only', async () => {
+        messagesCreate.mockResolvedValue(createMessageResponse());
+        const model = createAnthropicVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('claude-sonnet-4-6');
+
+        await model.generate({
+            messages: [
+                {
+                    role: 'user',
+                    content: 'Weather?',
+                    providerOptions: {
+                        'anthropic-vertex': {
+                            cacheControl: { type: 'ephemeral', ttl: '1h' },
+                        },
+                    },
+                },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'tool-call',
+                            toolCall: {
+                                id: 'tc_1',
+                                name: 'weather',
+                                arguments: {},
+                            },
+                        },
+                        {
+                            type: 'tool-call',
+                            toolCall: {
+                                id: 'tc_2',
+                                name: 'weather',
+                                arguments: {},
+                            },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool',
+                    toolCallId: 'tc_1',
+                    content: 'Sunny',
+                    providerOptions: {
+                        anthropic: { cacheControl: { type: 'ephemeral' } },
+                    },
+                },
+                {
+                    role: 'tool',
+                    toolCallId: 'tc_2',
+                    content: 'Rainy',
+                    providerOptions: {
+                        'anthropic-vertex': {
+                            cacheControl: { type: 'ephemeral' },
+                        },
+                    },
+                },
+            ],
+        });
+
+        const [request] = messagesCreate.mock.calls[0] ?? [];
+        expect((request as { messages: unknown[] }).messages).toEqual([
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'text',
+                        text: 'Weather?',
+                        cache_control: { type: 'ephemeral', ttl: '1h' },
+                    },
+                ],
+            },
+            expect.objectContaining({ role: 'assistant' }),
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'tool_result',
+                        tool_use_id: 'tc_1',
+                        content: 'Sunny',
+                    },
+                    {
+                        type: 'tool_result',
+                        tool_use_id: 'tc_2',
+                        content: 'Rainy',
+                        cache_control: { type: 'ephemeral' },
+                    },
+                ],
+            },
+        ]);
+    });
+
     it('should tag errors with provider "anthropic-vertex"', async () => {
         messagesCreate.mockRejectedValue(new Error('upstream failure'));
 

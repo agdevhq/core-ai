@@ -15,6 +15,15 @@ describe('normalizeModelId', () => {
 });
 
 describe('getGoogleModelCapabilities', () => {
+    it.each(['gemini-3.1-pro-preview', 'gemini-2.5-flash', 'unknown'])(
+        'should accept only leading system messages for %s',
+        (modelId) => {
+            expect(
+                getGoogleModelCapabilities(modelId).messages.systemPlacement
+            ).toBe('leading');
+        }
+    );
+
     it('should resolve known model capabilities', () => {
         const capabilities = getGoogleModelCapabilities(
             'gemini-3.1-pro-preview'

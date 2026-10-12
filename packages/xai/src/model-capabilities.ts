@@ -39,6 +39,7 @@ function createCapabilities(
         tools: {
             strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
         },
+        messages: { systemPlacement: 'anywhere' },
     };
 }
 

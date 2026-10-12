@@ -41,6 +41,15 @@ const GLM_REASONING = {
 } as const;
 
 describe('getMistralModelCapabilities', () => {
+    it.each(['mistral-large-latest', 'mistral-small-2506', 'unknown'])(
+        'should accept system messages anywhere for %s',
+        (modelId) => {
+            expect(
+                getMistralModelCapabilities(modelId).messages.systemPlacement
+            ).toBe('anywhere');
+        }
+    );
+
     it.each([
         'mistral-large-latest',
         'mistral-large-2512',

@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
     ToolSchemaStrictnessError,
+    UnsupportedSystemMessagePlacementError,
     ValidationError,
     defineTool,
     type GenerateOptions,
     type Message,
     type ToolSet,
+    type UserMessage,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
 import type {
@@ -21,6 +23,7 @@ import {
     convertTools,
     getAnthropicRequestBetas,
     transformStream,
+    validateCacheBreakpoints,
 } from './chat-adapter.ts';
 import {
     getAnthropicModelCapabilities,
@@ -29,7 +32,7 @@ import {
 import { toAsyncIterable } from '@core-ai/testing';
 
 describe('convertMessages', () => {
-    it('should extract system messages separately', () => {
+    it('should send leading system messages as top-level system blocks', () => {
         const messages: Message[] = [
             { role: 'system', content: 'You are helpful.' },
             { role: 'user', content: 'Hello' },
@@ -37,11 +40,14 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('You are helpful.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'You are helpful.' },
+        ]);
         expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+        expect(result.cacheTtls).toEqual([]);
     });
 
-    it('should concatenate multiple system messages', () => {
+    it('should emit one system block per leading message', () => {
         const messages: Message[] = [
             { role: 'system', content: 'Rule 1.' },
             { role: 'system', content: 'Rule 2.' },
@@ -50,7 +56,54 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('Rule 1.\nRule 2.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'Rule 1.' },
+            { type: 'text', text: 'Rule 2.' },
+        ]);
+    });
+
+    it('should omit system without system messages', () => {
+        const result = convertMessages([{ role: 'user', content: 'Hi' }]);
+
+        expect(result.system).toBeUndefined();
+    });
+
+    it('should drop system messages without non-whitespace text', () => {
+        const messages: Message[] = [
+            { role: 'system', content: '' },
+            { role: 'system', content: 'Rule 1.' },
+            { role: 'user', content: 'Hi' },
+            { role: 'system', content: ' \n ' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([{ type: 'text', text: 'Rule 1.' }]);
+        expect(result.messages).toEqual([{ role: 'user', content: 'Hi' }]);
+    });
+
+    it('should omit system when every system message is empty', () => {
+        const result = convertMessages([
+            { role: 'system', content: '' },
+            { role: 'user', content: 'Hi' },
+        ]);
+
+        expect(result.system).toBeUndefined();
+    });
+
+    it('should reject cache control on an empty system message', () => {
+        expect(() =>
+            convertMessages([
+                {
+                    role: 'system',
+                    content: ' ',
+                    providerOptions: {
+                        anthropic: { cacheControl: { type: 'ephemeral' } },
+                    },
+                },
+                { role: 'user', content: 'Hi' },
+            ])
+        ).toThrowError(ValidationError);
     });
 
     it('should ignore system message metadata', () => {
@@ -65,8 +118,518 @@ describe('convertMessages', () => {
 
         const result = convertMessages(messages);
 
-        expect(result.system).toBe('You are helpful.');
+        expect(result.system).toEqual([
+            { type: 'text', text: 'You are helpful.' },
+        ]);
         expect(result.messages).toEqual([{ role: 'user', content: 'Hello' }]);
+    });
+
+    it('should attach cache control to a leading system block', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'Stable instructions.',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            { role: 'system', content: 'More instructions.' },
+            { role: 'user', content: 'Hi' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([
+            {
+                type: 'text',
+                text: 'Stable instructions.',
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+            { type: 'text', text: 'More instructions.' },
+        ]);
+        expect(result.cacheTtls).toEqual(['1h']);
+    });
+
+    it('should ignore system message options addressed to another provider', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'Stable instructions.',
+                providerOptions: {
+                    'anthropic-vertex': {
+                        cacheControl: { type: 'ephemeral' },
+                    },
+                },
+            },
+            { role: 'user', content: 'Hi' },
+        ];
+
+        const result = convertMessages(messages, 'anthropic');
+
+        expect(result.system).toEqual([
+            { type: 'text', text: 'Stable instructions.' },
+        ]);
+        expect(result.cacheTtls).toEqual([]);
+    });
+
+    it('should keep later system messages in place', () => {
+        const messages: Message[] = [
+            { role: 'system', content: 'A' },
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', parts: [{ type: 'text', text: 'Hello!' }] },
+            { role: 'user', content: 'Escalate' },
+            { role: 'system', content: 'B' },
+            { role: 'system', content: 'C' },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.system).toEqual([{ type: 'text', text: 'A' }]);
+        expect(result.messages).toEqual([
+            { role: 'user', content: 'Hi' },
+            { role: 'assistant', content: 'Hello!' },
+            { role: 'user', content: 'Escalate' },
+            { role: 'system', content: 'B' },
+            { role: 'system', content: 'C' },
+        ]);
+    });
+
+    it('should attach cache control to a later system message', () => {
+        const messages: Message[] = [
+            {
+                role: 'system',
+                content: 'A',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            { role: 'user', content: 'Hi' },
+            {
+                role: 'system',
+                content: 'B',
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ];
+
+        const result = convertMessages(messages);
+
+        expect(result.messages.at(-1)).toEqual({
+            role: 'system',
+            content: [
+                {
+                    type: 'text',
+                    text: 'B',
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
+        });
+        expect(result.cacheTtls).toEqual(['1h', '5m']);
+    });
+
+    it('should attach cache control to a string user message', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: 'Hi',
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages).toEqual([
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'text',
+                        text: 'Hi',
+                        cache_control: { type: 'ephemeral' },
+                    },
+                ],
+            },
+        ]);
+        expect(result.cacheTtls).toEqual(['5m']);
+    });
+
+    it('should attach cache control to the last part of a user message', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this.' },
+                    {
+                        type: 'image',
+                        source: { type: 'url', url: 'https://x.test/a.png' },
+                    },
+                ],
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+        ]);
+
+        expect(result.messages).toEqual([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this.' },
+                    {
+                        type: 'image',
+                        source: { type: 'url', url: 'https://x.test/a.png' },
+                        cache_control: { type: 'ephemeral', ttl: '1h' },
+                    },
+                ],
+            },
+        ]);
+        expect(result.cacheTtls).toEqual(['1h']);
+    });
+
+    it('should reject cache control on a user message without a block to mark', () => {
+        const contents: UserMessage['content'][] = [
+            '',
+            [],
+            [
+                { type: 'text', text: 'Describe this' },
+                { type: 'text', text: '' },
+            ],
+        ];
+        for (const content of contents) {
+            expect(() =>
+                convertMessages([
+                    {
+                        role: 'user',
+                        content,
+                        providerOptions: {
+                            anthropic: { cacheControl: { type: 'ephemeral' } },
+                        },
+                    },
+                ])
+            ).toThrowError(
+                'A user message with cacheControl must end with a non-empty content part; Anthropic cannot place a cache breakpoint on an empty text block.'
+            );
+        }
+    });
+
+    // Anthropic accepts a whitespace-only block with cache_control when the
+    // message has other text, so it is passed through.
+    it('should mark a whitespace-only last part', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this' },
+                    { type: 'text', text: '  ' },
+                ],
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages).toEqual([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this' },
+                    {
+                        type: 'text',
+                        text: '  ',
+                        cache_control: { type: 'ephemeral' },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should mark an image that ends a user message', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Describe this' },
+                    {
+                        type: 'image',
+                        source: {
+                            type: 'url',
+                            url: 'https://example.com/a.png',
+                        },
+                    },
+                ],
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+        ]);
+
+        expect(result.messages[0]?.content).toEqual([
+            { type: 'text', text: 'Describe this' },
+            {
+                type: 'image',
+                source: { type: 'url', url: 'https://example.com/a.png' },
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+        ]);
+        expect(result.cacheTtls).toEqual(['1h']);
+    });
+
+    // An untyped provider id lets this test pass options the typed
+    // `anthropic` key would reject at compile time.
+    it('should reject unknown user and tool result message options', () => {
+        const providerOptions = { 'custom-anthropic': { topK: 5 } };
+        expect(() =>
+            convertMessages(
+                [{ role: 'user', content: 'Hi', providerOptions }],
+                'custom-anthropic'
+            )
+        ).toThrow();
+        expect(() =>
+            convertMessages(
+                [
+                    { role: 'user', content: 'Weather?' },
+                    {
+                        role: 'assistant',
+                        parts: [
+                            {
+                                type: 'tool-call',
+                                toolCall: {
+                                    id: 'tc_1',
+                                    name: 'weather',
+                                    arguments: {},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_1',
+                        content: 'Sunny',
+                        providerOptions,
+                    },
+                ],
+                'custom-anthropic'
+            )
+        ).toThrow();
+    });
+
+    it('should mark a PDF document that ends a user message', () => {
+        const result = convertMessages([
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: 'Summarize' },
+                    {
+                        type: 'file',
+                        mimeType: 'application/pdf',
+                        data: 'JVBERi0=',
+                    },
+                ],
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages[0]?.content).toEqual([
+            { type: 'text', text: 'Summarize' },
+            expect.objectContaining({
+                type: 'document',
+                cache_control: { type: 'ephemeral' },
+            }),
+        ]);
+        expect(result.cacheTtls).toEqual(['5m']);
+    });
+
+    it('should ignore user message options addressed to another provider', () => {
+        const result = convertMessages(
+            [
+                {
+                    role: 'user',
+                    content: 'Hi',
+                    providerOptions: {
+                        'anthropic-vertex': {
+                            cacheControl: { type: 'ephemeral' },
+                        },
+                    },
+                },
+            ],
+            'anthropic'
+        );
+
+        expect(result.messages).toEqual([{ role: 'user', content: 'Hi' }]);
+        expect(result.cacheTtls).toEqual([]);
+    });
+
+    it('should attach cache control to a tool result block', () => {
+        const result = convertMessages([
+            { role: 'user', content: 'Weather?' },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'weather',
+                            arguments: {},
+                        },
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                toolCallId: 'tc_1',
+                content: 'Sunny',
+                isError: false,
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages.at(-1)).toEqual({
+            role: 'user',
+            content: [
+                {
+                    type: 'tool_result',
+                    tool_use_id: 'tc_1',
+                    content: 'Sunny',
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
+        });
+        expect(result.cacheTtls).toEqual(['5m']);
+    });
+
+    it('should keep tool result cache control on its own block when merging consecutive results', () => {
+        const result = convertMessages([
+            { role: 'user', content: 'Weather?' },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'weather',
+                            arguments: {},
+                        },
+                    },
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_2',
+                            name: 'weather',
+                            arguments: {},
+                        },
+                    },
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_3',
+                            name: 'weather',
+                            arguments: {},
+                        },
+                    },
+                ],
+            },
+            { role: 'tool', toolCallId: 'tc_1', content: 'Sunny' },
+            {
+                role: 'tool',
+                toolCallId: 'tc_2',
+                content: 'Rainy',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            {
+                role: 'tool',
+                toolCallId: 'tc_3',
+                content: 'Windy',
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.messages).toHaveLength(3);
+        expect(result.messages.at(-1)).toEqual({
+            role: 'user',
+            content: [
+                { type: 'tool_result', tool_use_id: 'tc_1', content: 'Sunny' },
+                {
+                    type: 'tool_result',
+                    tool_use_id: 'tc_2',
+                    content: 'Rainy',
+                    cache_control: { type: 'ephemeral', ttl: '1h' },
+                },
+                {
+                    type: 'tool_result',
+                    tool_use_id: 'tc_3',
+                    content: 'Windy',
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
+        });
+        expect(result.cacheTtls).toEqual(['1h', '5m']);
+    });
+
+    it('should record breakpoints from every message role in message order', () => {
+        const result = convertMessages([
+            {
+                role: 'system',
+                content: 'Platform',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            {
+                role: 'user',
+                content: 'Weather?',
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'weather',
+                            arguments: {},
+                        },
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                toolCallId: 'tc_1',
+                content: 'Sunny',
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            },
+        ]);
+
+        expect(result.cacheTtls).toEqual(['1h', '1h', '5m']);
     });
 
     it('should convert user image and pdf content', () => {
@@ -1645,3 +2208,460 @@ function asAnthropicMessage(value: {
         },
     } as unknown as AnthropicMessage;
 }
+
+describe('system message placement', () => {
+    const laterSystemMessages: Message[] = [
+        { role: 'system', content: 'A' },
+        { role: 'user', content: 'Hi' },
+        { role: 'system', content: 'B' },
+    ];
+
+    it('should keep a later system message in place on before-reply models', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: laterSystemMessages,
+        });
+
+        expect(request.system).toEqual([{ type: 'text', text: 'A' }]);
+        expect(request.messages).toEqual([
+            { role: 'user', content: 'Hi' },
+            { role: 'system', content: 'B' },
+        ]);
+    });
+
+    it('should reject a later system message on leading-only models', () => {
+        expect(() =>
+            createStreamRequest('claude-sonnet-4-6', 4096, {
+                messages: laterSystemMessages,
+            })
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should reject a system message after an assistant message', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    { role: 'user', content: 'Hi' },
+                    {
+                        role: 'assistant',
+                        parts: [{ type: 'text', text: 'Hello!' }],
+                    },
+                    { role: 'system', content: 'B' },
+                    { role: 'user', content: 'More' },
+                ],
+            })
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should follow overridden capabilities', () => {
+        expect(() =>
+            createStreamRequest(
+                'claude-opus-5-5',
+                4096,
+                { messages: laterSystemMessages },
+                'anthropic',
+                {
+                    capabilities: {
+                        ...getAnthropicModelCapabilities('claude-opus-5-5'),
+                        messages: { systemPlacement: 'leading' },
+                    },
+                }
+            )
+        ).toThrowError(UnsupportedSystemMessagePlacementError);
+    });
+
+    it('should reject cache breakpoints Anthropic would refuse', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'A',
+                        providerOptions: {
+                            anthropic: { cacheControl: { type: 'ephemeral' } },
+                        },
+                    },
+                    { role: 'user', content: 'Hi' },
+                ],
+                providerOptions: {
+                    anthropic: {
+                        cacheControl: { type: 'ephemeral', ttl: '1h' },
+                    },
+                },
+            })
+        ).toThrowError(ValidationError);
+    });
+});
+
+describe('message cache breakpoints', () => {
+    const cached = (ttl?: '5m' | '1h') => ({
+        anthropic: {
+            cacheControl:
+                ttl === undefined
+                    ? { type: 'ephemeral' as const }
+                    : { type: 'ephemeral' as const, ttl },
+        },
+    });
+    const toolCalls = (...ids: string[]): Message => ({
+        role: 'assistant',
+        parts: ids.map((id) => ({
+            type: 'tool-call' as const,
+            toolCall: { id, name: 'weather', arguments: {} },
+        })),
+    });
+
+    it('should keep a marked user message after tool results in its own turn', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: [
+                { role: 'user', content: 'Weather?' },
+                toolCalls('tc_1'),
+                { role: 'tool', toolCallId: 'tc_1', content: 'Sunny' },
+                {
+                    role: 'user',
+                    content: 'And tomorrow?',
+                    providerOptions: cached(),
+                },
+            ],
+        });
+
+        expect(request.messages.slice(2)).toEqual([
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'tool_result',
+                        tool_use_id: 'tc_1',
+                        content: 'Sunny',
+                    },
+                ],
+            },
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'text',
+                        text: 'And tomorrow?',
+                        cache_control: { type: 'ephemeral' },
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('should only match request-level TTL against the last block of merged tool results', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: [
+                { role: 'user', content: 'Weather?' },
+                toolCalls('tc_1', 'tc_2'),
+                {
+                    role: 'tool',
+                    toolCallId: 'tc_1',
+                    content: 'Sunny',
+                    providerOptions: cached('1h'),
+                },
+                { role: 'tool', toolCallId: 'tc_2', content: 'Rainy' },
+            ],
+            providerOptions: cached('5m'),
+        });
+
+        expect(request.messages.at(-1)?.content).toEqual([
+            {
+                type: 'tool_result',
+                tool_use_id: 'tc_1',
+                content: 'Sunny',
+                cache_control: { type: 'ephemeral', ttl: '1h' },
+            },
+            { type: 'tool_result', tool_use_id: 'tc_2', content: 'Rainy' },
+        ]);
+    });
+
+    it('should count user and tool result breakpoints toward the limit', () => {
+        const messages: Message[] = [
+            { role: 'system', content: 'Platform', providerOptions: cached() },
+            { role: 'system', content: 'Tenant', providerOptions: cached() },
+            { role: 'user', content: 'Weather?', providerOptions: cached() },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'tc_1',
+                            name: 'weather',
+                            arguments: {},
+                        },
+                    },
+                ],
+            },
+            {
+                role: 'tool',
+                toolCallId: 'tc_1',
+                content: 'Sunny',
+                providerOptions: cached(),
+            },
+            { role: 'user', content: 'Thanks' },
+        ];
+
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, { messages })
+        ).not.toThrow();
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages,
+                providerOptions: cached(),
+            })
+        ).toThrowError(
+            'Anthropic accepts at most 4 cache breakpoints per request, request-level cacheControl included; this request has 5.'
+        );
+    });
+
+    it('should accept the agent tail pattern of three message breakpoints plus request-level caching', () => {
+        const request = createStreamRequest('claude-opus-5-5', 4096, {
+            messages: [
+                {
+                    role: 'system',
+                    content: 'Platform',
+                    providerOptions: cached(),
+                },
+                {
+                    role: 'system',
+                    content: 'Tenant',
+                    providerOptions: cached(),
+                },
+                { role: 'user', content: 'Weather?' },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'tool-call',
+                            toolCall: {
+                                id: 'tc_1',
+                                name: 'weather',
+                                arguments: {},
+                            },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool',
+                    toolCallId: 'tc_1',
+                    content: 'Sunny',
+                    providerOptions: cached(),
+                },
+                {
+                    role: 'assistant',
+                    parts: [{ type: 'text', text: 'It is sunny.' }],
+                },
+                { role: 'user', content: 'Thanks' },
+            ],
+            providerOptions: cached(),
+        });
+
+        expect(request).toMatchObject({
+            cache_control: { type: 'ephemeral' },
+        });
+        expect(request.messages[2]).toEqual({
+            role: 'user',
+            content: [
+                {
+                    type: 'tool_result',
+                    tool_use_id: 'tc_1',
+                    content: 'Sunny',
+                    cache_control: { type: 'ephemeral' },
+                },
+            ],
+        });
+    });
+
+    it('should reject a 1h user breakpoint after a 5m system breakpoint', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Platform',
+                        providerOptions: cached('5m'),
+                    },
+                    {
+                        role: 'user',
+                        content: 'Hi',
+                        providerOptions: cached('1h'),
+                    },
+                ],
+            })
+        ).toThrowError(
+            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. Message breakpoints apply in message order, request-level cacheControl last.'
+        );
+    });
+
+    it('should reject a 1h tool result breakpoint after a 5m one in the same turn', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    { role: 'user', content: 'Weather?' },
+                    {
+                        role: 'assistant',
+                        parts: [
+                            {
+                                type: 'tool-call',
+                                toolCall: {
+                                    id: 'tc_1',
+                                    name: 'weather',
+                                    arguments: {},
+                                },
+                            },
+                            {
+                                type: 'tool-call',
+                                toolCall: {
+                                    id: 'tc_2',
+                                    name: 'weather',
+                                    arguments: {},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_1',
+                        content: 'Sunny',
+                        providerOptions: cached('5m'),
+                    },
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_2',
+                        content: 'Rainy',
+                        providerOptions: cached('1h'),
+                    },
+                ],
+            })
+        ).toThrowError(ValidationError);
+    });
+
+    it('should require request-level cacheControl to match a breakpoint on the last user message', () => {
+        const messages: Message[] = [
+            { role: 'user', content: 'Hi', providerOptions: cached('1h') },
+        ];
+
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages,
+                providerOptions: cached('1h'),
+            })
+        ).not.toThrow();
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages,
+                providerOptions: cached(),
+            })
+        ).toThrowError(
+            'Request-level cacheControl (ttl 5m) targets the last message, whose own cacheControl has ttl 1h; Anthropic requires matching TTLs.'
+        );
+    });
+
+    it('should require request-level cacheControl to match a breakpoint on the last tool result', () => {
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    { role: 'user', content: 'Weather?' },
+                    {
+                        role: 'assistant',
+                        parts: [
+                            {
+                                type: 'tool-call',
+                                toolCall: {
+                                    id: 'tc_1',
+                                    name: 'weather',
+                                    arguments: {},
+                                },
+                            },
+                        ],
+                    },
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_1',
+                        content: 'Sunny',
+                        providerOptions: cached('1h'),
+                    },
+                ],
+                providerOptions: cached('5m'),
+            })
+        ).toThrowError(
+            'Request-level cacheControl (ttl 5m) targets the last message, whose own cacheControl has ttl 1h; Anthropic requires matching TTLs.'
+        );
+        expect(() =>
+            createStreamRequest('claude-opus-5-5', 4096, {
+                messages: [
+                    { role: 'user', content: 'Weather?' },
+                    toolCalls('tc_1'),
+                    {
+                        role: 'tool',
+                        toolCallId: 'tc_1',
+                        content: 'Sunny',
+                        providerOptions: cached('1h'),
+                    },
+                ],
+                providerOptions: cached('1h'),
+            })
+        ).not.toThrow();
+    });
+});
+
+describe('validateCacheBreakpoints', () => {
+    function validate(
+        cacheTtls: Array<'5m' | '1h'>,
+        requestTtl?: '5m' | '1h' | 'default',
+        lastBlockCacheTtl?: '5m' | '1h'
+    ) {
+        validateCacheBreakpoints({
+            cacheTtls,
+            requestCacheControl:
+                requestTtl === undefined
+                    ? undefined
+                    : requestTtl === 'default'
+                      ? { type: 'ephemeral' }
+                      : { type: 'ephemeral', ttl: requestTtl },
+            lastBlockCacheTtl,
+            providerId: 'anthropic',
+        });
+    }
+
+    it('should accept a 1h breakpoint before 5m ones', () => {
+        expect(() => validate(['1h', '5m'], 'default')).not.toThrow();
+    });
+
+    it('should reject a 1h breakpoint after a 5m one', () => {
+        expect(() => validate(['5m', '1h'])).toThrowError(
+            'Anthropic cache breakpoints must not increase in TTL: a 1h breakpoint cannot follow a 5m one. Message breakpoints apply in message order, request-level cacheControl last.'
+        );
+    });
+
+    it('should reject a 1h request-level breakpoint after a 5m one', () => {
+        expect(() => validate(['5m'], '1h')).toThrowError(ValidationError);
+    });
+
+    it('should accept four breakpoints and reject five', () => {
+        expect(() => validate(['1h', '1h', '1h', '1h'])).not.toThrow();
+        expect(() => validate(['1h', '1h', '1h', '1h'], '1h')).toThrowError(
+            'Anthropic accepts at most 4 cache breakpoints per request, request-level cacheControl included; this request has 5.'
+        );
+        expect(() => validate(['1h', '1h', '1h', '1h', '1h'])).toThrowError(
+            ValidationError
+        );
+    });
+
+    it('should count request-level cacheControl even when it lands on a matching marked last block', () => {
+        // Anthropic rejects 4 explicit breakpoints plus automatic caching as
+        // 5 breakpoints, even when automatic caching lands on a marked block.
+        expect(() =>
+            validate(['1h', '1h', '1h', '1h'], '1h', '1h')
+        ).toThrowError(
+            'Anthropic accepts at most 4 cache breakpoints per request, request-level cacheControl included; this request has 5.'
+        );
+    });
+
+    it('should require a matching TTL when request-level cacheControl targets a marked last block', () => {
+        expect(() => validate(['5m'], 'default', '5m')).not.toThrow();
+        expect(() => validate(['1h'], 'default', '1h')).toThrowError(
+            'Request-level cacheControl (ttl 5m) targets the last message, whose own cacheControl has ttl 1h; Anthropic requires matching TTLs.'
+        );
+    });
+});

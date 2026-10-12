@@ -79,12 +79,13 @@ Optional model and endpoint overrides:
 - `AZURE_OPENAI_E2E_CHAT_DEPLOYMENT` (default: `gpt-5.6-luna`)
 - `AZURE_OPENAI_E2E_REASONING_DEPLOYMENT` (default: chat deployment)
 - `AZURE_OPENAI_E2E_STRICT_TOOL_SCHEMAS_ENABLED` (`true` to run the strict tool e2e case; leave unset when the deployment lacks structured outputs — the case is skipped)
-- `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
+- `ANTHROPIC_E2E_CHAT_MODEL` (default: `claude-haiku-5-5`, which accepts later system messages, so the `chatLaterSystemMessage` case sends one live)
 - `ANTHROPIC_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
 - `GOOGLE_VERTEX_REGION` (default: `europe-west1`)
 - `GOOGLE_APPLICATION_CREDENTIALS_JSON` (optional; inline service account JSON or base64-encoded JSON. When unset, uses Application Default Credentials)
-- `ANTHROPIC_VERTEX_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`)
+- `ANTHROPIC_VERTEX_E2E_CHAT_MODEL` (default: `claude-haiku-4-5`; it accepts only leading system messages, so the `chatLaterSystemMessage` case only checks the up-front rejection. Set a model such as `claude-haiku-5-5` to send a later system message to Vertex live)
 - `ANTHROPIC_VERTEX_E2E_REASONING_MODEL` (default: `claude-sonnet-4-6`)
+- `ANTHROPIC_VERTEX_E2E_CACHE_REGION` (default: `global`; region for the `chatMessageCacheControl` case. Multi-region (`eu`, `us`) and `global` endpoints route requests between regions, which is where prompt caching can miss, so keep this on one of them)
 - `ANTHROPIC_VERTEX_E2E_STRICT_TOOL_SCHEMAS_ENABLED` (`true` to run the strict tool e2e case; requires the GCP org policy `constraints/vertexai.allowedPartnerModelFeatures` to allow `structured_outputs` — the case is skipped otherwise)
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
@@ -131,6 +132,15 @@ For OpenAI:
 - `openai` — Responses (`openai.chatModel()`)
 - `openai-chat` — strict Chat Completions (`openai.chat.chatModel()`)
 - `openai-compat` — compatibility-enabled Chat Completions (against OpenAI)
+
+## Prompt caching
+
+`chatMessageCacheControl` runs a four-step agent loop with a 1h breakpoint on
+the system prompt, a breakpoint on the last message of the previous step, and
+request-level caching. Each step must read the previous step's whole prompt
+from cache. A random nonce keeps earlier runs' cache entries out of reach. The
+case runs only for adapters that set `createPromptCacheChatModel`, which
+Anthropic and Vertex AI Anthropic do.
 
 ## Add a New Provider Adapter
 
