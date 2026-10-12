@@ -3,6 +3,167 @@ title: Releases
 description: Release history for all core-ai packages.
 ---
 
+<Update label="0.32.0" description="Per-message cache control on user and tool result messages" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - `UserMessage` and `ToolResultMessage` gain `providerOptions`, keyed by provider id, with the new `UserMessageProviderOptions` and `ToolResultMessageProviderOptions` interfaces for provider packages to augment.
+
+  ### @core-ai/anthropic
+
+  - User and tool result messages accept `providerOptions.anthropic.cacheControl` for explicit cache breakpoints with their own TTL. The breakpoint goes on the last content block the message produces. These breakpoints count toward the 4-breakpoint limit and the TTL ordering checks. A user message with `cacheControl` that is empty or ends with an empty text part throws `ValidationError`.
+  - Serialize Messages API request bodies in a cache-friendly key order: `tools`, `system`, and `messages` come first, followed by per-request settings. Gateways that route prompt-cache lookups by the leading bytes of the body now see an identical prefix across turns.
+
+  ### @core-ai/anthropic-vertex
+
+  - User and tool result messages accept options under the `anthropic-vertex` key, including per-message `cacheControl`.
+  - Improve prompt-cache hit rates on Vertex AI multi-region (`eu`, `us`) and `global` endpoints, which route requests by the leading bytes of the body.
+</Update>
+
+<Update label="0.31.0" description="System message placement capability and per-message cache control" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/core-ai`, `@core-ai/anthropic`, `@core-ai/google-genai`, and `@core-ai/google-vertex`.</Warning>
+
+  ### @core-ai/core-ai
+
+  - **Breaking:** `ModelCapabilities` gains a required `messages.systemPlacement` field (`'leading' | 'before-reply' | 'anywhere'`) describing where a model accepts system messages after the first non-system message. Custom `ChatModel` implementations and capability registries must add it.
+  - Add `validateSystemMessagePlacement()`, which provider adapters run before every request and which throws the new `UnsupportedSystemMessagePlacementError`, and `getSystemMessagePlacementIssues()` to check a conversation without sending it. `validateMessages()` runs every message-level capability check in one call.
+  - `SystemMessage` gains `providerOptions`, keyed by provider id.
+
+  ### @core-ai/anthropic
+
+  - **Breaking:** system messages are no longer joined into the top-level `system` prompt. Leading system messages are sent as one `system` text block each, which causes one cache miss on the first request after upgrading. On models that report `systemPlacement: 'before-reply'` (Claude Opus 4.8, Sonnet 5, Haiku 5.5 and later, and unrecognized model IDs), a later system message is sent in place. On earlier models, a later system message throws `UnsupportedSystemMessagePlacementError`.
+  - System messages accept `providerOptions.anthropic.cacheControl` for per-message cache breakpoints with their own TTL. Requests that exceed 4 breakpoints, place a `1h` breakpoint after a `5m` one, or mismatch the TTL of a breakpoint on the last block throw `ValidationError` before the request.
+  - Model ID aliases ending in `-latest` or `-0` now resolve to the capabilities of the model they point at, and the Vertex ID `claude-3-5-sonnet-v2` is recognized as Claude 3.5 Sonnet.
+
+  ### @core-ai/anthropic-vertex
+
+  - System messages accept options under the `anthropic-vertex` key, including per-message `cacheControl`. Claude Opus 4.8, Sonnet 5, Haiku 5.5, and later models accept a system message directly after a user or tool message.
+
+  ### @core-ai/google-genai, @core-ai/google-vertex
+
+  - **Breaking:** models report `systemPlacement: 'leading'`, and a system message after the first non-system message throws `UnsupportedSystemMessagePlacementError` instead of being merged into `systemInstruction`.
+
+  ### @core-ai/openai, @core-ai/kimi, @core-ai/mistral, @core-ai/xai
+
+  - Models report `systemPlacement: 'anywhere'`, and requests run the system message placement check. System messages are still sent where they appear.
+</Update>
+
+<Update label="0.30.0" description="Provider options keyed by provider id for Vertex wrappers" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/anthropic`, `@core-ai/anthropic-vertex`, `@core-ai/google-genai`, and `@core-ai/google-vertex`.</Warning>
+
+  ### @core-ai/anthropic
+
+  - **Breaking:** the adapter reads `providerOptions` from the key matching the model's provider id (`model.provider`). Models from `createAnthropic()` are unaffected; providers built on `createAnthropicChatProvider()` with a custom `providerId` read options only from their own key.
+  - Add model capability support for `claude-haiku-5-5`.
+
+  ### @core-ai/anthropic-vertex
+
+  - **Breaking:** provider options are read from `providerOptions['anthropic-vertex']` instead of `providerOptions.anthropic`. Move existing options to the `'anthropic-vertex'` key (same fields). `AnthropicVertexGenerateProviderOptions` is exported.
+
+  ### @core-ai/google-genai
+
+  - **Breaking:** chat, embedding, and image models read `providerOptions` from the key matching the model's provider id. Models from `createGoogleGenAI()` are unaffected; providers built on `createGoogleGenAIProvider()` with a custom `providerId` read options only from their own key.
+  - Align the Gemini 3 capability table with the model IDs Google serves. Add `gemini-3-flash-preview` with its four thinking levels, and remove `gemini-3-pro`, `gemini-3.1-pro`, and `gemini-3.1-flash-lite-preview`.
+
+  ### @core-ai/google-vertex
+
+  - **Breaking:** provider options for chat, embedding, and image models are read from `providerOptions['google-vertex']` instead of `providerOptions.google`. Move existing options to the `'google-vertex'` key (same fields). `GoogleVertexGenerateProviderOptions`, `GoogleVertexEmbedProviderOptions`, and `GoogleVertexImageProviderOptions` are exported.
+</Update>
+
+<Update label="0.29.1" description="Gemini 3 thinking levels and Anthropic context-window truncation" tags={["fix"]}>
+  ### @core-ai/anthropic
+
+  - A response that stops with `model_context_window_exceeded` reports `finishReason: 'length'` instead of `'unknown'`. Upgrade `@anthropic-ai/sdk` to `^0.114.0`.
+
+  ### @core-ai/google-genai
+
+  - Use each Gemini 3 model's own thinking levels. `capabilities.reasoning.supportedEfforts` lists the efforts a model has a level for, and `medium` and `minimal` send `MEDIUM` and `MINIMAL` where the model accepts them. Efforts without a level are clamped to the nearest one.
+</Update>
+
+<Update label="0.29.0" description="maxTokens contract and output ceilings" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/anthropic`, `@core-ai/anthropic-vertex`, `@core-ai/google-genai`, and `@core-ai/google-vertex`.</Warning>
+
+  ### @core-ai/core-ai
+
+  - Define `maxTokens` as the total output allowance, covering reasoning tokens and the visible answer. An omitted `maxTokens` means the model's output ceiling, and adapters reject an explicit limit that cannot hold the reasoning budget of the requested effort instead of shrinking the budget.
+  - Add optional `ModelCapabilities.output.maxTokens`, the verified output ceiling for a model ID.
+
+  ### @core-ai/anthropic
+
+  - **Breaking:** an omitted `maxTokens` uses `defaultMaxTokens` if you set it, otherwise the model's output ceiling (128,000 on Opus/Sonnet 4.6 and later, Fable, and Mythos; 64,000 on Claude 4.5), and 4,096 only for model IDs without a known ceiling.
+  - **Breaking:** manual thinking budgets (Claude 4.5 and earlier) are no longer shrunk to fit `maxTokens`; a limit at or below the budget throws `ValidationError`. The `high` and `max` budgets are 50% and 75% of the model's output ceiling.
+  - `generate()` and `generateObject()` stream internally and return the same result. Mid-stream errors such as `overloaded_error` surface as `ModelOverloadedError`, and aborts as `AbortedError`.
+  - Keep redacted thinking blocks in streamed results, and report `output.maxTokens` for known Claude models.
+
+  ### @core-ai/anthropic-vertex
+
+  - **Breaking:** `defaultMaxTokens` no longer defaults to 4,096. Requests that omit `maxTokens` use the model's output ceiling, and manual thinking budgets throw `ValidationError` when `maxTokens` cannot hold them.
+
+  ### @core-ai/google-genai
+
+  - Use each Gemini 2.5 model's documented thinking budget range: `max` maps to the documented maximum (32,768 on Pro, 24,576 on Flash and Flash-Lite) and `high` to 75% of it.
+  - **Breaking:** an explicit `maxTokens` at or below the Gemini 2.5 thinking budget throws `ValidationError` instead of returning an empty answer.
+  - Report `output.maxTokens` (65,536) for known Gemini 2.5 and 3 models and `reasoning.thinkingBudgetRange` for Gemini 2.5.
+
+  ### @core-ai/google-vertex
+
+  - Re-export `GoogleThinkingBudgetRange`. Gemini 2.5 models use their documented thinking budget ranges, and an explicit `maxTokens` at or below the thinking budget throws `ValidationError`.
+</Update>
+
+<Update label="0.28.1" description="New Claude and GPT model support" tags={["improvement"]}>
+  ### @core-ai/anthropic
+
+  - Add model capability support for `claude-sonnet-5-5`, `claude-fable-5-1`, and `claude-mythos-5-1`. Adaptive thinking accepts `max` effort and is always on for Fable 5.1 and Mythos 5.1. These models, along with `claude-opus-5-5`, reject forced tool choice and non-default sampling parameters.
+
+  ### @core-ai/openai
+
+  - Add model capability support for `gpt-6.1-sol`. Tool calling requires the Responses API; Chat Completions requests that include tools are rejected.
+</Update>
+
+<Update label="0.28.0" description="GPT-6 Chat Completions tool calling" tags={["breaking"]}>
+  <Warning>This release contains breaking changes to `@core-ai/openai`.</Warning>
+
+  ### @core-ai/openai
+
+  - **Breaking:** `gpt-6-sol` and `gpt-6-luna` report Chat Completions function calling as supported. Tool requests are forwarded as given, omitting `reasoning` no longer sets `reasoning_effort` to `none`, and combining tools with `reasoning` is no longer rejected.
+</Update>
+
+<Update label="0.27.1" description="GPT-6 model support" tags={["improvement"]}>
+  ### @core-ai/openai
+
+  - Add model capability support for `gpt-6-astra`, `gpt-6-sol`, and `gpt-6-luna`. These models reason by default and accept `low` through `max` effort. `temperature` and `topP` are rejected while reasoning is enabled.
+</Update>
+
+<Update label="0.27.0" description="Claude Opus 5.5 support" tags={["improvement"]}>
+  ### @core-ai/anthropic
+
+  - Add model capability support for `claude-opus-5-5`. Adaptive thinking is always on, `max` effort is supported, and non-default sampling parameters and forced tool choice are rejected.
+</Update>
+
+<Update label="0.26.0" description="xAI provider and provider options keyed by provider id" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/openai`, `@core-ai/azure-openai`, `@core-ai/openai-compat`, and `@core-ai/omnifact`.</Warning>
+
+  ### @core-ai/xai
+
+  - Add `@core-ai/xai`, a provider for xAI Grok models. Uses the Responses API by default with stateless encrypted-reasoning round trips, and exposes the Chat Completions API under `.chat`.
+
+  ### @core-ai/openai
+
+  - Add the `reasoningTokenAccounting` compatibility option and the `promptCacheKey` provider option. Encrypted reasoning is requested for always-on reasoning models, and the Responses API no longer sends a reasoning effort to models without configurable efforts.
+  - **Breaking:** `createOpenAIProvider` always reads provider options from `providerOptions[providerId]` on both APIs. The `providerOptionsKey` factory option is removed; use the new `responsesProviderOptionsSchema` factory option to validate a wrapper's Responses options.
+
+  ### @core-ai/azure-openai
+
+  - **Breaking:** provider options are read from `providerOptions['azure-openai']` on every API (v1 Responses, v1 Chat Completions, and classic). Move existing options from the `openai` key. Typed via `AzureOpenAIResponsesGenerateProviderOptions` and `AzureOpenAIChatGenerateProviderOptions`.
+
+  ### @core-ai/openai-compat
+
+  - **Breaking:** provider options are read from `providerOptions['openai-compat']`. Move existing options from the `openai` key. Typed via `OpenAICompatGenerateProviderOptions`.
+
+  ### @core-ai/omnifact
+
+  - **Breaking:** provider options are read from `providerOptions.omnifact`. Move existing options from the `openai` key. Typed via `OmnifactGenerateProviderOptions`.
+</Update>
+
 <Update label="0.25.0" description="Per-tool strict tool schemas" tags={["improvement"]}>
   ### @core-ai/core-ai
 
@@ -39,6 +200,171 @@ description: Release history for all core-ai packages.
   ### @core-ai/google-genai, @core-ai/google-vertex, @core-ai/mistral
 
   - Report per-tool strict schemas as unsupported; a tool with `strict: true` throws `ToolSchemaStrictnessError` before any provider I/O.
+</Update>
+
+<Update label="0.24.0" description="Provider quota errors and Responses API failure handling" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add `ProviderQuotaExceededError` for non-retryable provider billing and exhausted-credit failures.
+
+  ### @core-ai/openai
+
+  - Raise Responses API failures (`error` / `response.failed` stream events, and generate `status: 'failed'`) as provider errors instead of a successful result with `finishReason: 'unknown'`. `response.incomplete` ends the stream with the reported finish reason (`length` / `content-filter`) and usage.
+  - Map in-band Azure `no_capacity` stream errors to `ModelOverloadedError`.
+
+  ### @core-ai/mistral
+
+  - Map Mistral `service tier capacity exceeded` errors to `ModelOverloadedError`, aligning backend-capacity errors with Azure `NoCapacity` and Anthropic `overloaded_error`.
+
+  ### @core-ai/anthropic, @core-ai/openai, @core-ai/google-genai, @core-ai/mistral
+
+  - Normalize non-retryable billing and exhausted-credit failures to `ProviderQuotaExceededError`.
+
+  ### @core-ai/google-genai
+
+  - Add model capability support for `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.6-flash`, `gemini-3.5-flash`, and `gemini-3.5-flash-lite`.
+</Update>
+
+<Update label="0.23.0" description="Typed in-band stream errors" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add `ProviderError.code` so adapters can lift the provider's machine-readable error identifier, and `createChatStream({ mapError })` so in-band stream failures use the same typed errors as the initial request.
+
+  ### @core-ai/anthropic
+
+  - Wrap in-band stream errors as typed provider errors and expose the Anthropic error type as `ProviderError.code`. In-band `api_error` and `timeout_error` become a retryable `ServiceUnavailableError`.
+
+  ### @core-ai/openai
+
+  - Wrap in-band stream errors as typed provider errors and expose the OpenAI error `code` (including `insufficient_quota` and `credit_balance_exhausted`).
+  - Classify Azure OpenAI context-window responses without a machine-readable error code as `ContextLengthExceededError`.
+
+  ### @core-ai/google-genai
+
+  - Wrap in-band stream errors as typed provider errors and expose Google's gRPC status (for example `RESOURCE_EXHAUSTED`) as `ProviderError.code`.
+
+  ### @core-ai/mistral
+
+  - Wrap in-band stream errors as typed provider errors and expose the Mistral error type as `ProviderError.code`.
+</Update>
+
+<Update label="0.22.0" description="Metadata on media input parts" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Allow application-owned metadata on image, file, and audio input parts.
+</Update>
+
+<Update label="0.21.0" description="System message metadata" tags={["improvement"]}>
+  ### @core-ai/core-ai
+
+  - Add optional application-owned `metadata` to `SystemMessage`. Provider adapters ignore it and never serialize it to provider APIs.
+</Update>
+
+<Update label="0.20.0" description="Tool call provider metadata and reasoning namespaces" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/azure-openai`.</Warning>
+
+  ### @core-ai/core-ai
+
+  - Add `providerMetadata` to `ToolCallPart` and the `tool-call-end` stream event so provider-owned data attached to a tool call, such as a Google thought signature, survives aggregation and can be replayed with the call.
+
+  ### @core-ai/google-genai
+
+  - Round-trip thought signatures on function calls. Without this, Gemini 3 rejects multi-step tool calling with a 400 for a missing `thought_signature`. Assistant text is read from candidate parts instead of the SDK `.text` getter.
+
+  ### @core-ai/openai
+
+  - Namespace Responses API encrypted reasoning under each wrapper's `providerId` instead of always using `openai`. Foreign namespaces downgrade to thinking text; same-namespace ciphertext still round-trips.
+
+  ### @core-ai/azure-openai
+
+  - **Breaking:** Responses encrypted reasoning is stored under `azure-openai` instead of `openai`. Read metadata with `getProviderMetadata(..., 'azure-openai')`. Foreign `providerMetadata.openai` ciphertext is downgraded to thinking text on Azure continuation.
+</Update>
+
+<Update label="0.19.0" description="Chat modality capabilities and audio input" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/core-ai`.</Warning>
+
+  ### @core-ai/core-ai
+
+  - **Breaking:** add chat modality capabilities as directional arrays on the required `ModelCapabilities.modalities` field: `input` (`ChatInputModality[]`) and `output` (`ChatOutputModality[]`). Custom `ChatModel` implementations and capability registries must add it. Presets (`TEXT_ONLY_MODALITIES`, `MULTIMODAL_INPUT_MODALITIES`) and helpers (`supportsInputModality`, `supportsOutputModality`) are exported.
+  - Add `validateInputModalities`, which rejects user content parts whose modalities the model does not support with `UnsupportedInputModalityError`. Provider adapters run the same check before sending a request.
+  - **Breaking:** add base64 `AudioPart` user content. Code that exhaustively handles `UserContentPart` must add an `'audio'` branch.
+
+  ### @core-ai/openai
+
+  - Report chat modalities per model and reject images for text-only models (`gpt-3.5-turbo`, `o1-mini`, `o3-mini`) before calling the API.
+  - Accept WAV and MP3 audio input on supported Chat Completions audio models.
+  - The Responses adapter resolves capabilities and the provider id from the chat model, so wrappers such as `@core-ai/azure-openai` validate against their own capability registry.
+
+  ### @core-ai/anthropic
+
+  - Report chat modalities (`['text', 'image', 'file']` input) and reject audio user content before calling the API.
+
+  ### @core-ai/google-genai
+
+  - Report chat modalities and accept base64 audio input on Gemini chat models.
+
+  ### @core-ai/mistral
+
+  - Resolve capabilities per model. Vision families advertise image input, while text-only families (`codestral`, `devstral-*`, `open-mistral-*`, `open-mixtral-*`) reject images before the request is sent. Pinned versions from before a family gained vision are reported as text-only.
+  - Reject unsupported audio user content.
+
+  ### @core-ai/kimi
+
+  - Report chat modalities. K2.7 Code models are text-only and reject image and audio parts before the request is sent.
+
+  ### @core-ai/opentelemetry
+
+  - Serialize audio user content in recorded chat input attributes.
+</Update>
+
+<Update label="0.18.0" description="Claude Opus 5 support" tags={["improvement"]}>
+  ### @core-ai/anthropic
+
+  - Add model capability support for `claude-opus-5`.
+</Update>
+
+<Update label="0.17.0" description="Kimi provider, capabilities registry, and structured provider errors" tags={["breaking", "improvement"]}>
+  <Warning>This release contains breaking changes to `@core-ai/openai` and `@core-ai/openai-compat`.</Warning>
+
+  ### @core-ai/core-ai
+
+  - Add a reusable model capabilities registry with normalized model ID lookup, a fallback for unknown models, and explicit reasoning modes, sampling constraints, and supported tool choices.
+  - Add structured `ProviderError` subclasses (`ContextLengthExceededError`, `RateLimitError`, `ModelOverloadedError`, `ServiceUnavailableError`) with a `RetryableProviderError` base for transient failures, including `Retry-After` parsing.
+
+  ### @core-ai/kimi
+
+  - Add `@core-ai/kimi`, a provider for the Moonshot AI Kimi API built on the shared OpenAI-compatible implementation, with native `reasoning_content` support, preserved thinking round-trips, and structured output via `generateObject()` / `streamObject()`.
+
+  ### @core-ai/openai
+
+  - Add native reasoning round trips, JSON object structured output, capability-driven request validation, and capability overrides through a shared registry.
+  - **Breaking:** the `native` structured output mode is renamed to `json-schema`.
+  - Map SDK failures to structured `ProviderError` subclasses, including non-retryable `insufficient_quota` and Azure `NoCapacity` overload.
+  - Convert historical reasoning to assistant text for models that do not support reasoning input.
+
+  ### @core-ai/openai-compat
+
+  - **Breaking:** the `native` structured output mode is renamed to `json-schema`. Add a `json-object` mode for endpoints that support JSON Mode.
+
+  ### @core-ai/anthropic
+
+  - Map SDK failures to structured `ProviderError` subclasses, including Vertex error envelopes and correct rate-limit vs context-length discrimination.
+
+  ### @core-ai/google-genai
+
+  - Map SDK failures to structured `ProviderError` subclasses, including streaming error bodies and Vertex throttled overload.
+  - Report always-on reasoning for Gemini models whose thinking cannot be disabled.
+
+  ### @core-ai/mistral
+
+  - Map SDK failures to structured `ProviderError` subclasses.
+  - Preserve historical reasoning when sending conversation history. Native reasoning is replayed as a thinking chunk only when the target model supports it; otherwise it is injected as `<thinking>` text.
+</Update>
+
+<Update label="0.16.0" description="Mistral SDK v2" tags={["improvement"]}>
+  ### @core-ai/mistral
+
+  - Upgrade `@mistralai/mistralai` to v2.
 </Update>
 
 <Update label="0.15.0" description="Vertex providers, OpenAI Responses default, and openai-compat" tags={["improvement"]}>
