@@ -1,15 +1,17 @@
-import type {
-    ChatCompletionRequest,
-    ChatCompletionRequestMessage as MistralMessage,
-    ChatCompletionRequestToolChoice,
-    ChatCompletionResponse,
-    ChatCompletionStreamRequest,
-    CompletionEvent,
-    ContentChunk,
-    Tool,
-    ToolCall as MistralToolCall,
-    UsageInfo,
+import {
+    ReasoningEffort as MistralSdkReasoningEffort,
+    type ChatCompletionRequest,
+    type ChatCompletionRequestMessage as MistralMessage,
+    type ChatCompletionRequestToolChoice,
+    type ChatCompletionResponse,
+    type ChatCompletionStreamRequest,
+    type CompletionEvent,
+    type ContentChunk,
+    type Tool,
+    type ToolCall as MistralToolCall,
+    type UsageInfo,
 } from '@mistralai/mistralai/models/components';
+import { unrecognized } from '@mistralai/mistralai/types';
 import type { z } from 'zod';
 import type {
     AssistantContentPart,
@@ -19,6 +21,7 @@ import type {
     GenerateResult,
     Message,
     ModelCapabilities,
+    ReasoningEffort,
     StreamEvent,
     ToolCall,
     ToolChoice,
@@ -27,6 +30,7 @@ import type {
 } from '@core-ai/core-ai';
 import {
     asObject,
+    clampReasoningEffort,
     getProviderMetadata,
     safeParseJsonObject,
     ValidationError,
@@ -323,7 +327,49 @@ function createRequestBase(
             ? { toolChoice: convertToolChoice(options.toolChoice) }
             : {}),
         ...mapSamplingToRequestFields(options),
+        ...mapReasoningToRequestFields(options, capabilities),
     };
+}
+
+function mapReasoningToRequestFields(
+    options: GenerateOptions,
+    capabilities: ModelCapabilities
+): { reasoningEffort?: ChatCompletionRequest['reasoningEffort'] } {
+    if (
+        !options.reasoning ||
+        capabilities.reasoning.mode === 'unsupported' ||
+        capabilities.reasoning.supportedEfforts.length === 0
+    ) {
+        return {};
+    }
+
+    return {
+        reasoningEffort: toSdkReasoningEffort(
+            clampReasoningEffort(
+                options.reasoning.effort,
+                capabilities.reasoning.supportedEfforts
+            )
+        ),
+    };
+}
+
+function toSdkReasoningEffort(
+    effort: ReasoningEffort
+): NonNullable<ChatCompletionRequest['reasoningEffort']> {
+    switch (effort) {
+        case 'minimal':
+            return MistralSdkReasoningEffort.None;
+        case 'low':
+            return MistralSdkReasoningEffort.Low;
+        case 'medium':
+            return MistralSdkReasoningEffort.Medium;
+        case 'high':
+            return MistralSdkReasoningEffort.High;
+        case 'max':
+            // GLM 5 documents `max`. The SDK enum stops at `xhigh` and models
+            // the rest of the API as an open enum.
+            return unrecognized('max');
+    }
 }
 
 function mapSamplingToRequestFields(

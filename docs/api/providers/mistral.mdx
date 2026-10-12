@@ -48,25 +48,29 @@ const mistral = createMistral({
 ### Chat models
 
 <AccordionGroup>
-  <Accordion title="Large Models" icon="star">
-    - **mistral-large-2512** - Latest flagship model (Mistral Large 3)
-    - **mistral-large-2407** - Previous generation flagship
+  <Accordion title="Large models" icon="star">
+    - **mistral-large-4** and **mistral-large-4-0** — Mistral Large 4 (public
+      preview). Multimodal, 1M context, adjustable reasoning
+    - **mistral-large-latest** — latest general-availability Large model
+      (Large 3, `mistral-large-2512`)
   </Accordion>
 
-<Accordion title="Medium Models" icon="bolt">
-    - **mistral-medium-2508** - Strong performance at lower cost (Mistral Medium
-    3.1) - **magistral-medium-latest** - Reasoning-capable Magistral model
+<Accordion title="Medium models" icon="bolt">
+    - **mistral-medium-3-5**, **mistral-medium-3**, and
+    **mistral-medium-latest** — Mistral Medium 3.5. Multimodal, adjustable
+    reasoning
 </Accordion>
 
-<Accordion title="Small Models" icon="zap">
-    - **mistral-small-2506** - Balanced small model - **mistral-small** - Quick
-    responses - **mistral-tiny** - Ultra-fast, lightweight
+<Accordion title="Small models" icon="zap">
+    - **mistral-small-2603** and **mistral-small-latest** — Mistral Small 4.
+    Multimodal, adjustable reasoning
 </Accordion>
 
-  <Accordion title="Specialized Models" icon="sparkles">
-    - **codestral** - Optimized for code generation
-    - **mixtral-8x7b** - Mixture of experts architecture
-    - **mixtral-8x22b** - Larger mixture of experts
+  <Accordion title="Other chat models" icon="sparkles">
+    - **zai-glm-5-3**, **zai-glm-5**, and **zai-glm-latest** — Z.ai GLM 5.3,
+      hosted on the Mistral API. Text only, adjustable reasoning (`low`,
+      `high`, `max`)
+    - **codestral-latest** — code generation
   </Accordion>
 </AccordionGroup>
 
@@ -76,46 +80,57 @@ const mistral = createMistral({
 
 ## Provider support
 
-| Feature          | Support     |
-| ---------------- | ----------- |
-| Chat Completion  | Yes         |
-| Streaming        | Yes         |
-| Function Calling | Yes         |
-| Vision           | Yes         |
-| Reasoning        | Output only |
-| Embeddings       | Yes         |
-| Image Generation | No          |
+| Feature          | Support                                                 |
+| ---------------- | ------------------------------------------------------- |
+| Chat Completion  | Yes                                                     |
+| Streaming        | Yes                                                     |
+| Function Calling | Yes                                                     |
+| Vision           | Yes                                                     |
+| Reasoning        | Adjustable on Small 4, Medium 3.5, Large 4, and GLM 5.3 |
+| Embeddings       | Yes                                                     |
+| Image Generation | No                                                      |
 
 ## Model capabilities
 
-Mistral can return reasoning content from thinking-capable models, but the
-provider does not map `reasoning.effort` into requests. Consequently,
-`reasoning.mode` is `unsupported` and `supportedEfforts` is empty. The
-`reasoning` option is accepted as a no-op.
+`reasoning.mode` is `optional` when the model accepts `reasoning_effort`, and
+`unsupported` otherwise. Omitting `reasoning` does not send the parameter.
+
+| Models     | IDs                                                                                                      | `supportedEfforts`   | Sent as                                                               |
+| ---------- | -------------------------------------------------------------------------------------------------------- | -------------------- | --------------------------------------------------------------------- |
+| Small 4    | `mistral-small-latest`, `mistral-small-2603`, and later `mistral-small-YYMM`                             | `minimal`, `high`    | `minimal` and `low` → `none`; `medium`, `high`, and `max` → `high`    |
+| Medium 3.5 | `mistral-medium-latest`, `mistral-medium-3`, `mistral-medium-3-5`, and `mistral-medium-YYMM` from `2604` | `minimal`, `high`    | same mapping as Small 4                                               |
+| Large 4    | `mistral-large-4`, `mistral-large-4-0`                                                                   | `minimal`, `high`    | same mapping as Small 4                                               |
+| GLM 5.3    | `zai-glm-5-3`, `zai-glm-5`, `zai-glm-latest`, `zai-glm-5-2`                                              | `low`, `high`, `max` | `minimal` and `medium` → `low`; `low`, `high`, and `max` pass through |
+
+Every other model id reports `reasoning.mode: 'unsupported'`. `reasoning.effort`
+is ignored, and `reasoning_effort` is not sent. Thinking chunks in a response
+are still returned as reasoning parts.
 
 Inspect the model instance or use the exported helper:
 
 ```typescript
 import { getMistralModelCapabilities } from '@core-ai/mistral';
 
-const model = mistral.chatModel('magistral-medium-latest');
+const model = mistral.chatModel('mistral-small-latest');
 const capabilities = model.capabilities;
 
-const otherCapabilities = getMistralModelCapabilities('mistral-large-2512');
+const otherCapabilities = getMistralModelCapabilities('mistral-large-4');
 ```
 
 `modalities.input` is resolved per model. Vision families such as `mistral-large`,
 `mistral-medium`, `mistral-small`, `magistral-*`, `ministral-*`, and `pixtral-*`
 advertise `['text', 'image', 'file']` (image sources: `base64` and `url`);
-text-only families such as `codestral`, `devstral-*`, `open-mistral-*`, and
-`open-mixtral-*` advertise `['text']` and reject images. Unrecognized model
+text-only families such as `codestral`, `devstral-*`, `open-mistral-*`,
+`open-mixtral-*`, and `zai-glm-*` advertise `['text']` and reject images.
+Unrecognized model
 IDs are treated as multimodal capable. `modalities.output` is `['text']` for
 all chat models.
 
-Lookup prefers an exact model ID and falls back to the family, ignoring the
-`-latest` alias and the `-YYMM` version suffix. This matters because Mistral
-added vision to each family at a specific release, so pinning an older version
-reports the capabilities of that version rather than of `-latest`:
+Adjustable-reasoning ids are matched first. Everything else prefers an exact
+model ID and then falls back to the family, ignoring the `-latest` alias and
+the `-YYMM` version suffix. That family fallback is how vision is resolved:
+pinning an older version reports the capabilities of that version rather than
+of `-latest`:
 
 | Family         | Vision from             | Earlier versions reported text-only |
 | -------------- | ----------------------- | ----------------------------------- |
@@ -177,7 +192,7 @@ for await (const event of chatStream) {
 
 ```typescript
 const result = await generate({
-    model: mistral.chatModel('magistral-medium-latest'),
+    model: mistral.chatModel('mistral-small-latest'),
     messages: [
         {
             role: 'user',
@@ -193,9 +208,9 @@ console.log(result.reasoning);
 ```
 
 <Note>
-    `reasoning.effort` is not sent to the Mistral API. Thinking-capable models
-    decide their own reasoning behavior and the adapter extracts the resulting
-    reasoning parts.
+    `effort: 'high'` is sent as `reasoning_effort: 'high'`. `effort: 'minimal'`
+    is sent as `none`, which omits the thinking trace. Native Mistral reasoning
+    is replayed as a thinking chunk on the next turn.
 </Note>
 
 ### Tool calling
