@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -45,6 +46,48 @@ describe('wrapGoogleError', () => {
         expect((wrapped as ContextLengthExceededError).actualTokens).toBe(
             50000
         );
+    });
+
+    it('should map the image-count limit to ImageCountExceededError', () => {
+        const error = new ApiError({
+            message: JSON.stringify({
+                error: {
+                    code: 400,
+                    status: 'INVALID_ARGUMENT',
+                    message:
+                        'Please use fewer than 3600 images in your request to models/gemini-2.5-pro-preview-03-25',
+                },
+            }),
+            status: 400,
+        });
+
+        const wrapped = wrapGoogleError(error);
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        const classified = wrapped as ImageCountExceededError;
+        expect(classified.maxImages).toBe(3600);
+        expect(classified.statusCode).toBe(400);
+        expect(classified.code).toBe('INVALID_ARGUMENT');
+    });
+
+    it('should not map other invalid arguments to ImageCountExceededError', () => {
+        const error = new ApiError({
+            message: JSON.stringify({
+                error: {
+                    code: 400,
+                    status: 'INVALID_ARGUMENT',
+                    message:
+                        'Unable to submit request because it has 12 video files but the model only supports up to 10.',
+                },
+            }),
+            status: 400,
+        });
+
+        const wrapped = wrapGoogleError(error);
+
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
     it('should map token-limit wording without counts', () => {

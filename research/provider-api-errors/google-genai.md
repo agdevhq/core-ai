@@ -67,11 +67,16 @@ Empty counts observed: `The input token count () exceeds…` ([gemini-cli#10393]
 
 ### Image count
 
-No verbatim image-count error was found for the Gemini API or Vertex Gemini, so `wrapGoogleError` does not classify one. The official error reference only lists generic 400 `INVALID_ARGUMENT`.
+| Status | status             | Message                                                              | Confidence |
+| ------ | ------------------ | -------------------------------------------------------------------- | ---------- |
+| 400    | `INVALID_ARGUMENT` | `Please use fewer than {N} images in your request to models/{model}` | High       |
 
-- Documented limits are high: 3,600 image files per request on the Gemini API ([image understanding](https://ai.google.dev/gemini-api/docs/image-understanding)), 3,000 per prompt on Vertex Gemini 2.5 Flash.
-- Wordings seen with Gemini models come from intermediaries (GitHub Copilot's proxy, the Crush client), not from Google: `Too many images in request: 11 images provided, but the model supports a maximum of 10 images.`
-- Vertex has an analogous video template (`…it has 12 video files but the model only supports up to 10.`); no image equivalent was found.
+No dedicated `status`, so the message is the only signal. `{N}` is the model's documented per-request limit.
+
+- Gemini API payloads with `{N}` = 3600: [`gemini-2.5-pro-preview-03-25` via `google-genai`](https://discuss.ai.google.dev/t/mediaresolution-low-returns-an-error/83408), [`gemini-1.5-flash` via `v1beta` `generateContent`](https://discuss.ai.google.dev/t/using-gemini-api-to-extract-information-from-videos/34479). Both were hit through video input, where sampled frames count as images.
+- Documented limits: 3,600 image files per request on the Gemini API ([image understanding](https://ai.google.dev/gemini-api/docs/image-understanding)), 3,000 per prompt on Vertex Gemini 2.5 Flash.
+- No Vertex-specific image-count payload was found. Vertex has an analogous video template (`Unable to submit request because it has 12 video files but the model only supports up to 10.`), so its image wording may differ and is not classified.
+- Wordings seen with Gemini models through intermediaries (GitHub Copilot's proxy, the Crush client) are not Google's: `Too many images in request: 11 images provided, but the model supports a maximum of 10 images.`
 
 ### Rate limit / quota
 
