@@ -133,6 +133,23 @@ region, create separate providers for models hosted in different locations.
 Imagen models such as `imagen-4.0-generate-001` are also supported when they
 are available to the selected project and region.
 
+`gemini-4-argon` uses the same model id and capabilities as Google GenAI.
+Vertex serves it at `global`, `us`, and `eu`. `us` and `eu` are multi-region
+locations. `createGoogleVertex` sends them to
+`https://aiplatform.us.rep.googleapis.com/` and
+`https://aiplatform.eu.rep.googleapis.com/`. `global` uses
+`https://aiplatform.googleapis.com/`. Single regions such as `us-central1` and
+`europe-west1` do not serve this model.
+
+```typescript
+const us = createGoogleVertex({
+    projectId: process.env.GOOGLE_VERTEX_PROJECT,
+    region: 'us',
+});
+
+const model = us.chatModel('gemini-4-argon');
+```
+
 ## Model capabilities
 
 Vertex-hosted Gemini models use the same capability definitions as Google
