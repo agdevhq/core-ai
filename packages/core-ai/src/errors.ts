@@ -291,8 +291,7 @@ export type ImageCountExceededErrorOptions = ProviderErrorOptions & {
  * them and count what the provider counts as images. That includes video
  * frames (Gemini) and document pages rendered as images (Azure OpenAI), so
  * the error can occur for a request without image parts. Anthropic shares
- * the limit with document pages; there `maxImages` is the limit minus the
- * documents in the request.
+ * the limit with document pages; there `maxImages` is that shared limit.
  */
 export class ImageCountExceededError extends ProviderError {
     public readonly maxImages?: number;

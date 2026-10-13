@@ -223,7 +223,7 @@ try {
 **Subclass details:**
 
 - `ContextLengthExceededError` — optional `maxTokens` / `actualTokens` when token counts are parseable (string-length limits are classified without inventing token metadata)
-- `ImageCountExceededError` — optional `maxImages` / `actualImages` when the provider reports them; not retryable until images are removed from the messages. The counts are the provider's own: they can include video frames (Gemini) and document pages rendered as images (Azure OpenAI), so check your messages for image parts before you ask a user to remove images. On Anthropic, images share one limit with document pages, and `maxImages` is that limit minus the documents in the request.
+- `ImageCountExceededError` — optional `maxImages` / `actualImages` when the provider reports them; not retryable until images are removed from the messages. The counts are the provider's own: they can include video frames (Gemini) and document pages rendered as images (Azure OpenAI), so check your messages for image parts before you ask a user to remove images. On Anthropic, images share one limit with document pages, and `maxImages` is that shared limit.
 - `RateLimitError` — optional `retryAfterSeconds` from `Retry-After`, Azure `retry-after-ms`, or an HTTP-date `Retry-After` value
 - `ModelOverloadedError` — capacity / high-demand signal (wins over generic 5xx unavailable; Azure `NoCapacity` on 429 included)
 - `ServiceUnavailableError` — temporary unavailability, including HTTP 500/502/503/504

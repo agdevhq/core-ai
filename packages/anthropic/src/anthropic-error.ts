@@ -229,8 +229,8 @@ function getContextLengthDetails(
  * Classifies the shared media limit as an image-count failure only when
  * removing images can fix the request: it contains images and its documents
  * fit the limit on their own. Otherwise the overflow stays a plain
- * `ProviderError`. `maxImages` is the limit minus the documents, the number
- * of images this request had room for.
+ * `ProviderError`. `maxImages` is the shared limit as Anthropic reports it,
+ * so on a mixed overflow `actualImages` can be below it.
  */
 function getImageCountDetails(
     providerMessage: string | undefined,
@@ -256,7 +256,7 @@ function getImageCountDetails(
         return undefined;
     }
 
-    return { maxImages: mediaLimit - documentCount, actualImages };
+    return { maxImages: mediaLimit, actualImages };
 }
 
 /**

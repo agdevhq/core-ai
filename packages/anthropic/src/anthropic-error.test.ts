@@ -125,7 +125,7 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
-    it('should report the image budget left by documents on a mixed overflow', () => {
+    it('should report the shared limit on a mixed overflow', () => {
         const error = new APIError(
             400,
             {
@@ -140,7 +140,7 @@ describe('wrapAnthropicError', () => {
 
         expect(wrapped).toBeInstanceOf(ImageCountExceededError);
         const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBe(50);
+        expect(classified.maxImages).toBe(100);
         expect(classified.actualImages).toBe(60);
     });
 
