@@ -2,6 +2,7 @@ import {
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from './errors.ts';
+import { getErrorMessage } from './provider-error-utils.ts';
 import { normalizeSchema, type NormalizedSchema } from './schema.ts';
 import type { StandardSchemaV1 } from './standard-schema.ts';
 import type {
@@ -69,7 +70,20 @@ export async function validateStructuredOutput<TOutput>(
         return value as TOutput;
     }
 
-    const result = await schema.validate(value);
+    let result: StandardSchemaV1.Result<TOutput>;
+    try {
+        result = await schema.validate(value);
+    } catch (error) {
+        throw new StructuredOutputValidationError(
+            'structured output validation threw',
+            provider,
+            [`<root>: ${getErrorMessage(error)}`],
+            {
+                rawOutput,
+                cause: error,
+            }
+        );
+    }
     if (result.issues === undefined) {
         return result.value;
     }

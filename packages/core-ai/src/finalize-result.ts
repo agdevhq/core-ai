@@ -1,4 +1,6 @@
+import { getErrorMessage } from './provider-error-utils.ts';
 import { normalizeToolParameters } from './schema.ts';
+import type { StandardSchemaV1 } from './standard-schema.ts';
 import type {
     GenerateOptions,
     GenerateResult,
@@ -82,8 +84,18 @@ async function validateToolCall(
         return toolCall;
     }
 
-    return {
-        ...toolCall,
-        validation: await validate(toolCall.arguments),
-    };
+    let validation: StandardSchemaV1.Result<unknown>;
+    try {
+        validation = await validate(toolCall.arguments);
+    } catch (error) {
+        // A validator that throws (e.g. a transform calling `new URL()`) is
+        // reported like any other failure instead of failing the response.
+        validation = {
+            issues: [
+                { message: `validation threw: ${getErrorMessage(error)}` },
+            ],
+        };
+    }
+
+    return { ...toolCall, validation };
 }

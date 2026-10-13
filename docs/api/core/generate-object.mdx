@@ -202,7 +202,7 @@ console.log(result.object);
 
 `generateObject()` throws:
 
-- `StructuredOutputValidationError` when the output does not match a Standard Schema. `issues` holds the schema library's messages, formatted as `path.to.key: message`.
+- `StructuredOutputValidationError` when the output does not match a Standard Schema. `issues` holds the schema library's messages, formatted as `path.to.key: message`. When the schema's validator throws instead, such as a transform calling `new URL()`, its error is the `cause`.
 - `StructuredOutputParseError` when the output is not valid JSON.
 - `StructuredOutputNoObjectGeneratedError` when the model returns no object.
 - `ValidationError` when the schema cannot be converted to JSON Schema, before any provider call.

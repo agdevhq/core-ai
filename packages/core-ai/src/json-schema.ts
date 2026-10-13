@@ -107,11 +107,12 @@ function getNamedChildEntries(
 /**
  * Returns a shallow copy of `node` with every nested schema node (the same set
  * {@link getChildSchemaNodeEntries} and {@link getSchemaDefinitionEntries}
- * enumerate) replaced by `map(child)`.
+ * enumerate) replaced by `map(child, segment)`, where `segment` is the
+ * child's path segment as those functions report it.
  */
 export function mapChildSchemaNodes(
     node: Record<string, unknown>,
-    map: (child: unknown) => unknown
+    map: (child: unknown, segment: string) => unknown
 ): Record<string, unknown> {
     const result: Record<string, unknown> = { ...node };
 
@@ -119,19 +120,24 @@ export function mapChildSchemaNodes(
         const value = result[keyword];
         if (isPlainObject(value)) {
             result[keyword] = Object.fromEntries(
-                Object.entries(value).map(([key, child]) => [key, map(child)])
+                Object.entries(value).map(([key, child]) => [
+                    key,
+                    map(child, `${keyword}.${key}`),
+                ])
             );
         }
     }
     for (const keyword of NESTED_SINGLE_KEYWORDS) {
         if (result[keyword] !== undefined) {
-            result[keyword] = map(result[keyword]);
+            result[keyword] = map(result[keyword], keyword);
         }
     }
     for (const keyword of NESTED_LIST_KEYWORDS) {
         const value = result[keyword];
         if (Array.isArray(value)) {
-            result[keyword] = value.map((child) => map(child));
+            result[keyword] = value.map((child, index) =>
+                map(child, `${keyword}.${index}`)
+            );
         }
     }
 
@@ -140,14 +146,17 @@ export function mapChildSchemaNodes(
 
 /**
  * Normalizes the JSON Schema of a strict tool for providers whose strict mode
- * requires closed objects (OpenAI-style APIs). The transform preserves what
- * the tool's schema accepts:
+ * requires closed objects (OpenAI-style APIs). The result accepts no value
+ * the original schema rejects, except where noted:
  *
  * - drops `$schema` (metadata, not a constraint),
- * - sets `additionalProperties: false` on object nodes where absent, which
- *   matches `z.object()` semantics (unknown keys are stripped at parse time),
+ * - sets `additionalProperties: false` on object nodes where absent. This
+ *   matches `z.object()` semantics (unknown keys are stripped at parse
+ *   time); for plain JSON Schema, where an absent keyword allows unknown
+ *   keys, it narrows what the model may send,
  * - drops Zod's implicit safe-integer bounds on integer nodes (see
- *   {@link isImplicitSafeIntegerBound}),
+ *   {@link isImplicitSafeIntegerBound}), which admits only integers beyond
+ *   ±(2^53 - 1),
  * - rewrites `oneOf` to `anyOf`, the only composition keyword strict-capable
  *   providers accept. Both accept the same values when the branches are
  *   disjoint, as for `z.discriminatedUnion()`, the only construct Zod emits

@@ -20,6 +20,7 @@ import type {
     StreamObjectOptions,
     SchemaInput,
 } from '@core-ai/core-ai';
+import { resultToMessage } from '@core-ai/core-ai';
 
 type TraceObservation = LangfuseGeneration | LangfuseEmbedding;
 type ObservationAttributes = Record<string, unknown>;
@@ -133,10 +134,16 @@ function createEmbeddingUsageDetails(
     };
 }
 
+/**
+ * Tool call validation is left out: it repeats the arguments, and its value
+ * may not serialize.
+ */
 function createChatOutput(result: GenerateResult): ObservationAttributes {
     return {
-        parts: result.parts,
-        toolCalls: result.toolCalls,
+        parts: resultToMessage(result).parts,
+        toolCalls: result.toolCalls.map(
+            ({ validation: _validation, ...toolCall }) => toolCall
+        ),
         finishReason: result.finishReason,
         ...(result.content !== null ? { content: result.content } : {}),
         ...(result.reasoning !== null ? { reasoning: result.reasoning } : {}),

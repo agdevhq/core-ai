@@ -332,7 +332,7 @@ const user: User = result.object;
 
 `generateObject()` and `streamObject()` throw these structured output errors:
 
-- `StructuredOutputValidationError` when the output does not match a Standard Schema. `issues` lists the schema library's messages as `path.to.key: message`.
+- `StructuredOutputValidationError` when the output does not match a Standard Schema. `issues` lists the schema library's messages as `path.to.key: message`. When the schema's validator throws instead, such as a transform calling `new URL()`, its error is the `cause`.
 - `StructuredOutputParseError` when the output is not valid JSON.
 - `StructuredOutputNoObjectGeneratedError` when the model returns no object.
 

@@ -366,7 +366,7 @@ describe('strict tool schemas', () => {
                     },
                 },
             })
-        ).toThrowError(/use \.nullable\(\) instead of \.optional\(\)/);
+        ).toThrowError(/is optional; strict schemas require every key/);
     });
 
     it.each(['gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4o-2024-05-13'])(

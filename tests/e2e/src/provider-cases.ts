@@ -255,6 +255,9 @@ export const providerCases: ProviderContractCase[] = [
             expect(
                 parameters.safeParse(result.toolCalls[0]?.arguments).success
             ).toBe(true);
+            expect(result.toolCalls[0]?.validation).toEqual({
+                value: parameters.parse(result.toolCalls[0]?.arguments),
+            });
         },
     },
     {

@@ -562,6 +562,70 @@ describe('stream', () => {
         expect(response.finishReason).toBe('stop');
     });
 
+    it('should validate streamed tool calls against Standard Schema parameters', async () => {
+        const create = vi.fn(async (_request: unknown) =>
+            toAsyncIterable<ResponseStreamEvent>([
+                asStreamEvent({
+                    type: 'response.output_item.done',
+                    output_index: 0,
+                    item: {
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'search',
+                        arguments: '{"limit":"many"}',
+                    },
+                }),
+                asStreamEvent({
+                    type: 'response.output_item.done',
+                    output_index: 1,
+                    item: {
+                        type: 'function_call',
+                        call_id: 'tc_2',
+                        name: 'lookup',
+                        arguments: '{"id":7}',
+                    },
+                }),
+                asStreamEvent({
+                    type: 'response.completed',
+                    response: asResponse({ output: [], status: 'completed' }),
+                }),
+            ])
+        );
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'Search' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({ limit: z.number() }),
+                },
+                lookup: {
+                    name: 'lookup',
+                    description: 'Look up a record',
+                    parameters: {
+                        type: 'object',
+                        properties: { id: { type: 'string' } },
+                        required: ['id'],
+                    },
+                },
+            },
+        });
+
+        const endedToolCalls = (await chatStream.events).flatMap((event) =>
+            event.type === 'tool-call-end' ? [event.toolCall] : []
+        );
+        expect(endedToolCalls[0]?.validation?.issues).toHaveLength(1);
+        expect(endedToolCalls[1]).not.toHaveProperty('validation');
+        const { toolCalls } = await chatStream.result;
+        expect(toolCalls[0]?.validation?.issues).toHaveLength(1);
+        expect(toolCalls[1]).not.toHaveProperty('validation');
+    });
+
     it('should reject iteration and result on abort while preserving partial events', async () => {
         const source = createPushableAsyncIterable<ResponseStreamEvent>();
         const create = vi.fn(async () => source.iterable);

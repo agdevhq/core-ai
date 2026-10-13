@@ -288,9 +288,10 @@ contract and error reasons.
 `generateObject()` and `streamObject()` send the schema as a strict JSON Schema
 response format, which requires an object root and closed objects with every
 key required. core-ai makes a key required when that keeps the schema's
-meaning: when the key declares a `default` or also accepts `null`. Any other
-optional key throws a `ValidationError` naming the schema before the request.
-In Zod, use `.nullable()` instead of `.optional()`.
+meaning: when the key declares a `default` or also accepts `null` (through
+`type: 'null'`, a `type` array that includes `'null'`, or an `anyOf` branch).
+Any other optional key throws a `ValidationError` before the request, listing
+the path of each such key. In Zod, use `.nullable()` instead of `.optional()`.
 
 ### Reasoning support
 

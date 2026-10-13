@@ -67,6 +67,27 @@ describe('validateStructuredOutput', () => {
         });
     });
 
+    it('wraps a validator that throws in StructuredOutputValidationError', async () => {
+        const schema = normalizeSchema(
+            z.object({ url: z.string().transform((url) => new URL(url)) })
+        );
+
+        const error = await validateStructuredOutput(
+            schema,
+            { url: 'not a url' },
+            'test',
+            '{"url":"not a url"}'
+        ).catch((caught: unknown) => caught);
+
+        expect(error).toBeInstanceOf(StructuredOutputValidationError);
+        expect(error).toMatchObject({
+            provider: 'test',
+            rawOutput: '{"url":"not a url"}',
+            issues: ['<root>: Invalid URL'],
+            cause: expect.any(TypeError),
+        });
+    });
+
     it('awaits asynchronous validators', async () => {
         const schema = {
             jsonSchema: { type: 'object' },

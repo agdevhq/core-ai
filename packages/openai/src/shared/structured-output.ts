@@ -1,5 +1,3 @@
-import type { JSONSchema } from 'openai/lib/jsonschema';
-import { toStrictJsonSchema } from 'openai/lib/transform';
 import type {
     ChatStream,
     GenerateObjectOptions,
@@ -12,8 +10,6 @@ import type {
     SchemaInput,
 } from '@core-ai/core-ai';
 import {
-    asObject,
-    getErrorMessage,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
@@ -96,14 +92,15 @@ export function createStructuredOutputRequestOptions<
     }
 
     if (mode === 'json-object') {
-        const format = createOpenAIStructuredOutputFormat(options, provider);
-        const description =
-            format.description ?? DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION;
+        // The provider enforces only JSON syntax here, so the schema is shown
+        // as is, optional keys included, rather than in its strict form.
+        const { $schema: _schema, ...schema } =
+            normalizeStructuredOutputSchema(options).jsonSchema;
         const instruction = [
             'Return only a valid JSON object.',
-            `Schema name: ${format.name}.`,
-            `Description: ${description}`,
-            `JSON Schema: ${JSON.stringify(format.schema)}`,
+            `Schema name: ${getStructuredOutputName(options)}.`,
+            `Description: ${options.schemaDescription || DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION}`,
+            `JSON Schema: ${JSON.stringify(schema)}`,
             'Do not include markdown, prose, or any text outside the JSON object.',
         ].join('\n');
 
@@ -169,53 +166,112 @@ function createOpenAIStructuredOutputFormat<TSchema extends SchemaInput>(
 }
 
 /**
- * Structured Outputs requires a strict schema: closed objects whose keys are
- * all required. Optional keys that also accept `null` or declare a `default`
- * become required, so the model always supplies them with a value the schema
- * accepts; other optional keys are rejected here rather than by the API.
+ * Structured Outputs requires a strict schema: an object root and closed
+ * objects whose keys are all required. On top of
+ * {@link normalizeStrictJsonSchema}, optional keys that accept `null` or
+ * declare a `default` become required, so the model always supplies a value
+ * the schema accepts. (Zod's input schema leaves `.default()` keys optional.)
+ * Any other optional key is rejected here, by path, rather than by the API.
  */
 function toOpenAIStrictJsonSchema(
     schema: JsonSchema,
     name: string,
     provider: string
 ): JsonSchema {
-    try {
-        return toStrictJsonSchema(
-            requireDefaultedKeys(
-                normalizeStrictJsonSchema(schema)
-            ) as JSONSchema
-        ) as JsonSchema;
-    } catch (error) {
-        throw new ValidationError(
-            `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: ${getErrorMessage(error)}`,
-            error,
+    const normalized = normalizeStrictJsonSchema(schema);
+    if (normalized.type !== 'object') {
+        throw createStrictSchemaError(
+            name,
+            'the root must be an object schema (type: "object")',
             provider
         );
     }
+
+    const optionalKeyPaths: string[] = [];
+    const strict = requireEveryKey(normalized, '', optionalKeyPaths);
+    if (optionalKeyPaths.length > 0) {
+        throw createStrictSchemaError(
+            name,
+            `optional keys at ${optionalKeyPaths.join(', ')}; strict mode requires every key, so make each one required or let it accept null (e.g. Zod's .nullable())`,
+            provider
+        );
+    }
+
+    return strict;
 }
 
-/**
- * Zod's input schema leaves `.default()` keys optional. Requiring them keeps
- * the schema the model sees as it was before Standard Schema support, when
- * these keys were serialized from the output type.
- */
-function requireDefaultedKeys(node: JsonSchema): JsonSchema {
-    const result = mapChildSchemaNodes(node, (child) =>
-        child !== null && typeof child === 'object' && !Array.isArray(child)
-            ? requireDefaultedKeys(asObject(child))
+function requireEveryKey(
+    node: JsonSchema,
+    path: string,
+    optionalKeyPaths: string[]
+): JsonSchema {
+    if (isPlainObject(node.properties)) {
+        const required = Array.isArray(node.required) ? node.required : [];
+        for (const [key, property] of Object.entries(node.properties)) {
+            if (
+                !required.includes(key) &&
+                !acceptsNull(property) &&
+                !(isPlainObject(property) && Object.hasOwn(property, 'default'))
+            ) {
+                optionalKeyPaths.push(
+                    joinSchemaPath(path, `properties.${key}`)
+                );
+            }
+        }
+    }
+
+    const result = mapChildSchemaNodes(node, (child, segment) =>
+        isPlainObject(child)
+            ? requireEveryKey(
+                  child,
+                  joinSchemaPath(path, segment),
+                  optionalKeyPaths
+              )
             : child
     );
-    const properties = asObject(result.properties);
-    const required = Array.isArray(result.required) ? result.required : [];
-    const defaultedKeys = Object.keys(properties).filter(
-        (key) =>
-            !required.includes(key) &&
-            Object.hasOwn(asObject(properties[key]), 'default')
-    );
+    // A `null` default adds nothing once a nullable key is required.
+    if (result.default === null) {
+        delete result.default;
+    }
 
-    return defaultedKeys.length > 0
-        ? { ...result, required: [...required, ...defaultedKeys] }
+    return isPlainObject(result.properties)
+        ? { ...result, required: Object.keys(result.properties) }
         : result;
+}
+
+function acceptsNull(schema: unknown): boolean {
+    if (!isPlainObject(schema)) {
+        return false;
+    }
+    if (
+        schema.type === 'null' ||
+        (Array.isArray(schema.type) && schema.type.includes('null'))
+    ) {
+        return true;
+    }
+    return [schema.anyOf, schema.oneOf].some(
+        (branches) => Array.isArray(branches) && branches.some(acceptsNull)
+    );
+}
+
+function createStrictSchemaError(
+    name: string,
+    reason: string,
+    provider: string
+): ValidationError {
+    return new ValidationError(
+        `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: ${reason}`,
+        undefined,
+        provider
+    );
+}
+
+function joinSchemaPath(path: string, segment: string): string {
+    return path === '' ? segment : `${path}.${segment}`;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export async function extractStructuredObject<TOutput>(

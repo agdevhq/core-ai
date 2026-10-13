@@ -376,7 +376,9 @@ tool's `parameters`:
 - **Standard Schema**: core-ai validates each call against the schema and
   stores the outcome in `ToolCall.validation`. It is `{ value }`, holding the
   schema's output, or `{ issues }`, listing each problem with a `message` and
-  an optional `path`. An invalid call is reported, never thrown.
+  an optional `path`. An invalid call is reported, never thrown. So is a
+  validator that throws, such as a transform calling `new URL()`: its error
+  message becomes the only issue.
 - **Plain JSON Schema**: core-ai sends the schema as is and does not validate
   calls. Validate `ToolCall.arguments` yourself.
 

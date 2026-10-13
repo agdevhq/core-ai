@@ -127,7 +127,7 @@ export function getStrictToolSchemaViolations(
             toolName,
             path: 'type',
             message:
-                'tool parameters must be an object at the root; wrap the schema in z.object()',
+                'tool parameters must be an object schema (type: "object") at the root, e.g. a z.object()',
         });
     }
 
@@ -285,7 +285,7 @@ function validateObjectShape(
             violations.push({
                 toolName,
                 path: joinPath(path, `properties.${key}`),
-                message: `"${key}" is optional; strict schemas require every key — use .nullable() instead of .optional() (note that .default() also makes a key optional)`,
+                message: `"${key}" is optional; strict schemas require every key — make it required, and let it accept null where it may be absent (in Zod, .nullable() instead of .optional(); .default() also makes a key optional)`,
             });
         }
     }

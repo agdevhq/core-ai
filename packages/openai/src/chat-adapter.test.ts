@@ -518,7 +518,7 @@ describe('createGenerateRequest', () => {
                     },
                 },
             })
-        ).toThrowError(/use \.nullable\(\) instead of \.optional\(\)/);
+        ).toThrowError(/is optional; strict schemas require every key/);
     });
 
     it('should reject explicit strict tools on legacy Responses models', () => {

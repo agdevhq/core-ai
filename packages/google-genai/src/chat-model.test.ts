@@ -3,6 +3,7 @@ import { z } from 'zod';
 import {
     ApiError,
     FinishReason as GoogleFinishReason,
+    type FunctionCall,
     type GenerateContentResponse,
     type GoogleGenAI,
 } from '@google/genai';
@@ -11,6 +12,7 @@ import {
     RateLimitError,
     StructuredOutputValidationError,
     ToolSchemaStrictnessError,
+    type ToolSet,
 } from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.ts';
 import { getGoogleModelCapabilities } from './model-capabilities.ts';
@@ -210,6 +212,27 @@ describe('generate', () => {
                 arguments: { query: 'weather' },
             },
         ]);
+    });
+
+    it('should validate tool calls against Standard Schema parameters', async () => {
+        const generateContent = vi.fn(async () =>
+            asGenerateContentResponse({
+                functionCalls: createValidationFunctionCalls(),
+                candidates: [{ finishReason: GoogleFinishReason.STOP }],
+            })
+        );
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContent }),
+            'gemini-2.5-flash'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Search' }],
+            tools: createValidationTools(),
+        });
+
+        expect(result.toolCalls[0]?.validation?.issues).toHaveLength(1);
+        expect(result.toolCalls[1]).not.toHaveProperty('validation');
     });
 
     it('should keep tool call thought signatures on the assistant parts', async () => {
@@ -674,6 +697,35 @@ describe('stream', () => {
         ]);
     });
 
+    it('should validate streamed tool calls against Standard Schema parameters', async () => {
+        const generateContentStream = vi.fn(async () =>
+            toAsyncIterable<GenerateContentResponse>([
+                asGenerateContentResponse({
+                    functionCalls: createValidationFunctionCalls(),
+                    candidates: [{ finishReason: GoogleFinishReason.STOP }],
+                }),
+            ])
+        );
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'Search' }],
+            tools: createValidationTools(),
+        });
+
+        const endedToolCalls = (await chatStream.events).flatMap((event) =>
+            event.type === 'tool-call-end' ? [event.toolCall] : []
+        );
+        expect(endedToolCalls[0]?.validation?.issues).toHaveLength(1);
+        expect(endedToolCalls[1]).not.toHaveProperty('validation');
+        const { toolCalls } = await chatStream.result;
+        expect(toolCalls[0]?.validation?.issues).toHaveLength(1);
+        expect(toolCalls[1]).not.toHaveProperty('validation');
+    });
+
     it('should stream and aggregate structured object output', async () => {
         const generateContentStream = vi.fn(async () => {
             return toAsyncIterable<GenerateContentResponse>([
@@ -872,4 +924,32 @@ function asGenerateContentResponse(
         candidates: [],
         ...value,
     } as GenerateContentResponse;
+}
+
+/** One Standard Schema tool and one plain JSON Schema tool. */
+function createValidationTools(): ToolSet {
+    return {
+        search: {
+            name: 'search',
+            description: 'Search',
+            parameters: z.object({ limit: z.number() }),
+        },
+        lookup: {
+            name: 'lookup',
+            description: 'Look up a record',
+            parameters: {
+                type: 'object',
+                properties: { id: { type: 'string' } },
+                required: ['id'],
+            },
+        },
+    };
+}
+
+/** Calls both {@link createValidationTools} tools with mistyped arguments. */
+function createValidationFunctionCalls(): FunctionCall[] {
+    return [
+        { id: 'tc_1', name: 'search', args: { limit: 'many' } },
+        { id: 'tc_2', name: 'lookup', args: { id: 7 } },
+    ];
 }

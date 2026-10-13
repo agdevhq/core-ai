@@ -26,6 +26,12 @@ const tools = {
     },
 } satisfies ToolSet;
 
+const urlTool = {
+    name: 'open',
+    description: 'Open a page',
+    parameters: z.object({ url: z.string().transform((url) => new URL(url)) }),
+};
+
 const usage: GenerateResult['usage'] = {
     inputTokens: 1,
     outputTokens: 1,
@@ -90,6 +96,19 @@ describe('finalizeGenerateResult', () => {
 
         expect(result.toolCalls[0]?.validation?.issues).toHaveLength(1);
     });
+
+    it('reports a validator that throws as a failed validation', async () => {
+        const result = await finalizeGenerateResult(
+            createResult([
+                { id: '1', name: 'open', arguments: { url: 'not a url' } },
+            ]),
+            { tools: { open: urlTool } }
+        );
+
+        expect(result.toolCalls[0]?.validation).toEqual({
+            issues: [{ message: 'validation threw: Invalid URL' }],
+        });
+    });
 });
 
 describe('createChatStream with a request', () => {
@@ -133,5 +152,27 @@ describe('createChatStream with a request', () => {
         expect(result.toolCalls[0]?.validation).toEqual({
             value: { limit: 2 },
         });
+    });
+
+    it('keeps streaming when a validator throws', async () => {
+        const toolCall = {
+            id: '1',
+            name: 'open',
+            arguments: { url: 'not a url' },
+        };
+        const stream = createChatStream(
+            toAsyncIterable<StreamEvent>([
+                { type: 'tool-call-end', toolCall },
+                { type: 'finish', finishReason: 'tool-calls', usage },
+            ]),
+            { request: { tools: { open: urlTool } } }
+        );
+
+        const result = await stream.result;
+
+        expect(result.toolCalls[0]?.validation?.issues).toEqual([
+            { message: 'validation threw: Invalid URL' },
+        ]);
+        expect(result.finishReason).toBe('tool-calls');
     });
 });

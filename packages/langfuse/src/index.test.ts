@@ -276,6 +276,45 @@ describe('@core-ai/langfuse', () => {
         expect(observation.end).toHaveBeenCalledTimes(1);
     });
 
+    it('leaves tool call validation out of the recorded output', async () => {
+        const toolCall = { id: 'tc_1', name: 'count', arguments: { n: '1' } };
+        const model = createMockChatModel({
+            generate: async () => ({
+                ...createGenerateResult(''),
+                content: null,
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: { ...toolCall, validation: { value: 1n } },
+                    },
+                ],
+                toolCalls: [{ ...toolCall, validation: { value: 1n } }],
+                finishReason: 'tool-calls',
+            }),
+        });
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createLangfuseMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [{ role: 'user', content: 'Count' }],
+        });
+
+        const observation = expectDefined(observations[0]);
+        expect(observation.update).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                output: {
+                    parts: [{ type: 'tool-call', toolCall }],
+                    toolCalls: [toolCall],
+                    finishReason: 'tool-calls',
+                },
+            })
+        );
+    });
+
     it('omits input and output content by default', async () => {
         const model = createMockChatModel();
         const wrappedModel = wrapChatModel({
