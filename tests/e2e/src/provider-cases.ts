@@ -565,7 +565,7 @@ export const providerCases: ProviderContractCase[] = [
 
             const result = await generateImage({
                 model,
-                prompt: 'A tiny blue square icon on a white background, flat style.',
+                prompt: 'A watercolor painting of a small orange robot watering a cactus on a windowsill.',
                 size: '1024x1024',
             });
 

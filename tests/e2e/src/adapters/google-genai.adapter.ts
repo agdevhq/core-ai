@@ -23,7 +23,7 @@ export function createGoogleGenAIAdapter(): ProviderE2EAdapter {
     );
     const imageModelId = getEnvOrDefault(
         GOOGLE_IMAGE_MODEL_ENV,
-        'imagen-4.0-generate-001'
+        'gemini-nano-banana-2.1'
     );
 
     return {

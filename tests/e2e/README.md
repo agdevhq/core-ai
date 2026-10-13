@@ -90,7 +90,7 @@ Optional model and endpoint overrides:
 - `GOOGLE_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
-- `GOOGLE_E2E_IMAGE_MODEL` (default: `imagen-4.0-generate-001`)
+- `GOOGLE_E2E_IMAGE_MODEL` (default: `gemini-nano-banana-2.1`)
 - `GOOGLE_VERTEX_E2E_CHAT_MODEL` (default: `gemini-2.5-flash`)
 - `GOOGLE_VERTEX_E2E_REASONING_MODEL` (default: `gemini-2.5-pro`)
 - `GOOGLE_VERTEX_E2E_EMBED_MODEL` (default: `gemini-embedding-001`)
@@ -107,11 +107,6 @@ Optional model and endpoint overrides:
 - `XAI_E2E_CHAT_MODEL` (default: `grok-4.7`)
 - `XAI_E2E_REASONING_MODEL` (default: `grok-4.7`)
 - `XAI_BASE_URL` — optional; overrides the xAI API endpoint (default: `https://api.x.ai/v1`)
-
-Google image model IDs select the upstream API: `gemini-*` uses Gemini native
-image generation, while `imagen-*` uses Imagen. The direct Google default
-covers Imagen and the Vertex default covers Gemini; override the corresponding
-image model environment variable to test another available model.
 
 Reasoning overrides select the model used by reasoning-specific contract cases
 (`createReasoningChatModel`); reasoning behavior itself is still enabled via the

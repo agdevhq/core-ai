@@ -6,7 +6,7 @@ description: 'Create and configure the Google provider for Gemini, embedding, an
 ## Overview
 
 The Google on Vertex AI provider gives you access to Gemini chat, embedding,
-and native image models as well as Imagen through Google Cloud. It uses the
+and native image models through Google Cloud. It uses the
 same model behavior as `@core-ai/google-genai`, while configuring the Google
 SDK for Vertex AI authentication and regional endpoints.
 
@@ -131,8 +131,6 @@ const image = googleVertex.imageModel('gemini-2.5-flash-image');
 
 Model availability varies by region. Since a provider instance targets one
 region, create separate providers for models hosted in different locations.
-Imagen models such as `imagen-4.0-generate-001` are also supported when they
-are available to the selected project and region.
 
 `gemini-4-argon` uses the same model id and capabilities as Google GenAI.
 Vertex serves it at `global` and at the multi-region locations `us` and `eu`,
@@ -231,8 +229,7 @@ const result = await generateImage({
 ```
 
 Gemini image models return base64 image data and do not support requesting
-multiple outputs with `n`. Imagen model IDs use the dedicated Imagen API and
-support `n`.
+multiple outputs with `n`.
 
 ## Provider-specific options
 

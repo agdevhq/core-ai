@@ -29,13 +29,13 @@ console.log(result.content);
 
 ## Image generation
 
-`imageModel()` supports Gemini native image models and dedicated Imagen models:
+`imageModel()` supports Gemini native image models:
 
 ```ts
 import { generateImage } from '@core-ai/core-ai';
 
 const result = await generateImage({
-    model: google.imageModel('gemini-2.5-flash-image'),
+    model: google.imageModel('gemini-nano-banana-2.1'),
     prompt: 'A watercolor robot in a mountain cabin at sunrise',
     size: '1024x1024',
 });
@@ -43,6 +43,5 @@ const result = await generateImage({
 console.log(result.images[0]?.base64);
 ```
 
-Gemini model IDs use native multimodal generation and return base64 image
-data. Imagen model IDs such as `imagen-4.0-generate-001` use the dedicated
-Imagen API and also support generating multiple images with `n`.
+Gemini image models use native multimodal generation and return base64 image
+data.
