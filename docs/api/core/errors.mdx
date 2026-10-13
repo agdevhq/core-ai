@@ -372,7 +372,7 @@ export class RetryableProviderError extends ProviderError {}
 | Class                        | Extends                  | Extra fields                  |
 | ---------------------------- | ------------------------ | ----------------------------- |
 | `ContextLengthExceededError` | `ProviderError`          | `maxTokens?`, `actualTokens?` |
-| `ImageCountExceededError`    | `ProviderError`          | `maxImages?`, `actualImages?` |
+| `ImageCountExceededError`    | `ProviderError`          | `maxImages`, `actualImages?`  |
 | `RateLimitError`             | `RetryableProviderError` | `retryAfterSeconds?`          |
 | `ModelOverloadedError`       | `RetryableProviderError` | —                             |
 | `ServiceUnavailableError`    | `RetryableProviderError` | —                             |

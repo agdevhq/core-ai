@@ -215,6 +215,19 @@ describe('wrapOpenAIError', () => {
             expect((wrapped as ImageCountExceededError).maxImages).toBe(50);
         });
 
+        it('should not map image-count wording that states no limit', () => {
+            const wrapped = wrapOpenAIError({
+                error: {
+                    type: 'invalid_request_error',
+                    message:
+                        'Exceeded maximum number of images allowed in the request.',
+                },
+            });
+
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+        });
+
         it('should not map image-count wording on a non-400 status', () => {
             const error = APIError.generate(
                 429,

@@ -280,27 +280,28 @@ export class ContextLengthExceededError extends ProviderError {
 }
 
 export type ImageCountExceededErrorOptions = ProviderErrorOptions & {
-    maxImages?: number;
+    maxImages: number;
     actualImages?: number;
 };
 
 /**
  * The request carries more images than the provider or model accepts in one
  * request. Not retryable: the same messages fail again until images are
- * removed. `maxImages` and `actualImages` are set when the provider reports
- * them and count what the provider counts as images, which can include
+ * removed. `maxImages` is always set: a failure is only classified when the
+ * provider states the limit. `actualImages` is set when the provider reports
+ * it. Both count what the provider counts as images, which can include
  * inputs other than image parts, such as document pages. The error can
  * therefore occur for a request with few or no image parts. Anthropic shares
  * the limit with document pages; there `maxImages` is that shared limit.
  */
 export class ImageCountExceededError extends ProviderError {
-    public readonly maxImages?: number;
+    public readonly maxImages: number;
     public readonly actualImages?: number;
 
     constructor(
         message: string,
         provider: string,
-        options: ImageCountExceededErrorOptions = {}
+        options: ImageCountExceededErrorOptions
     ) {
         super(message, provider, {
             statusCode: options.statusCode,
