@@ -1,5 +1,17 @@
 # @core-ai/google-genai
 
+## 0.34.0
+
+### Minor Changes
+
+- 40aa23c: Add model capability support for `gemini-4-argon`. Thinking is always on and uses levels `low`, `medium`, and `high`; other efforts clamp to the nearest level. `temperature`, `topP`, `topK`, `frequencyPenalty`, and `presencePenalty` throw `ValidationError`: the model ignores the first three and rejects the penalties. The synchronous output ceiling is 65,536 tokens.
+- 44e040f: Remove Imagen support. Google retired Imagen on the Gemini API and Vertex AI, so `imageModel()` now sends every model id, including aliases such as `nano-banana-pro-preview`, through Gemini native image generation. Image provider options are now `aspectRatio`, `imageSize`, and `seed`; the Imagen-only options (`negativePrompt`, `guidanceScale`, `outputGcsUri`, `safetyFilterLevel`, `personGeneration`, `includeSafetyAttributes`, `includeRaiReason`, `language`, `outputMimeType`, `outputCompressionQuality`, `addWatermark`, `labels`, `enhancePrompt`) are rejected.
+- 40aa23c: Upgrade `@google/genai` to 2.x. A `client` passed to `createGoogleGenAI` must come from `@google/genai` 2.x.
+
+### Patch Changes
+
+- @core-ai/core-ai@0.34.0
+
 ## 0.33.0
 
 ### Patch Changes
