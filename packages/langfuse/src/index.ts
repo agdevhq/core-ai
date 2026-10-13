@@ -1,6 +1,5 @@
 import { startActiveObservation } from '@langfuse/tracing';
 import type { LangfuseEmbedding, LangfuseGeneration } from '@langfuse/tracing';
-import type { z } from 'zod';
 import type {
     ChatModel,
     ChatModelMiddleware,
@@ -19,6 +18,7 @@ import type {
     ImageModelMiddleware,
     ObjectStream,
     StreamObjectOptions,
+    SchemaInput,
 } from '@core-ai/core-ai';
 
 type TraceObservation = LangfuseGeneration | LangfuseEmbedding;
@@ -80,7 +80,7 @@ function createObservationAttributes(config: {
 }
 
 function createModelParameters(
-    options: GenerateOptions | GenerateObjectOptions<z.ZodType>
+    options: GenerateOptions | GenerateObjectOptions<SchemaInput>
 ): Record<string, unknown> | undefined {
     return compactRecord({
         temperature: options.temperature,
@@ -334,7 +334,7 @@ export function createLangfuseMiddleware(
                 execute,
                 getResult: (chatStream) => chatStream.result,
             }),
-        generateObject: <TSchema extends z.ZodType>(args: {
+        generateObject: <TSchema extends SchemaInput>(args: {
             execute: (
                 options?: GenerateObjectOptions<TSchema>
             ) => Promise<GenerateObjectResult<TSchema>>;
@@ -364,7 +364,7 @@ export function createLangfuseMiddleware(
                 execute,
             });
         },
-        streamObject: <TSchema extends z.ZodType>(args: {
+        streamObject: <TSchema extends SchemaInput>(args: {
             execute: (
                 options?: StreamObjectOptions<TSchema>
             ) => Promise<ObjectStream<TSchema>>;

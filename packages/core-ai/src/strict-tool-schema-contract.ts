@@ -8,7 +8,7 @@ import {
 
 /**
  * A single violation of the strict-capable schema contract, reported against
- * the JSON Schema derived from the tool's Zod `parameters`.
+ * the JSON Schema of the tool's `parameters` (see `toJsonSchema`).
  */
 export type StrictToolSchemaViolation = {
     toolName: string;

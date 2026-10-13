@@ -33,16 +33,16 @@ Switch between OpenAI, Anthropic, Google Gemini, and Mistral without changing yo
     Write once, run on any provider. Switch between OpenAI, Anthropic, Mistral, and Google GenAI without code changes.
   </Card>
   <Card title="Full type safety" icon="shield-check">
-    Strict TypeScript types, Zod-based tool definitions, and zero `any` types for complete type safety.
+    Strict TypeScript types across the whole API and zero `any` types for complete type safety.
   </Card>
   <Card title="Streaming support" icon="water">
     Replayable async iterable streams with `.result` and `.events` for both text (`ChatStream`) and structured outputs (`ObjectStream`).
   </Card>
   <Card title="Structured outputs" icon="table">
-    Schema-validated object generation and streaming with `z.infer<TSchema>` for type-safe results.
+    Schema-validated object generation and streaming, with results typed from your schema.
   </Card>
   <Card title="Tool calling" icon="wrench">
-    Define tools with Zod schemas that automatically convert to JSON Schema for any provider.
+    Define tools with any Standard Schema library, such as Zod, or plain JSON Schema, and send them to any provider.
   </Card>
   <Card title="Multi-modal" icon="image">
     Support for text, images (base64 and URL), and file inputs across compatible providers.

@@ -11,16 +11,16 @@ import type {
     TextBlockParam,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
-import type { z } from 'zod';
 import {
     asObject,
     clampReasoningEffort,
     getProviderMetadata,
+    getToolJsonSchema,
+    normalizeStructuredOutputSchema,
     ValidationError,
     safeParseJsonObject,
     validateMessages,
     validateToolSchemaStrictness,
-    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
 export { wrapAnthropicError } from './anthropic-error.ts';
@@ -28,8 +28,10 @@ import type {
     FinishReason,
     GenerateObjectOptions,
     GenerateOptions,
+    JsonSchema,
     Message,
     ModelCapabilities,
+    SchemaInput,
     StreamEvent,
     SystemMessage,
     ToolResultMessage,
@@ -478,9 +480,10 @@ function convertUserContentPart(
 export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
         const strict = tool.strict === true;
+        const jsonSchema = getToolJsonSchema(tool);
         const schema = strict
-            ? toAnthropicJsonSchema(tool.parameters)
-            : zodSchemaToJsonSchema(tool.parameters);
+            ? normalizeAnthropicJsonSchema(jsonSchema)
+            : jsonSchema;
 
         return {
             name: tool.name,
@@ -507,11 +510,13 @@ export function convertToolChoice(choice: AgToolChoice): ToolChoice {
     };
 }
 
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>,
     provider = DEFAULT_PROVIDER_ID
 ): GenerateOptions {
-    const schema = toAnthropicJsonSchema(options.schema);
+    const schema = normalizeAnthropicJsonSchema(
+        normalizeStructuredOutputSchema(options).jsonSchema
+    );
     const schemaDescription = options.schemaDescription?.trim();
     if (schemaDescription && schemaDescription.length > 0) {
         schema.description = schemaDescription;
@@ -539,11 +544,7 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
     };
 }
 
-function toAnthropicJsonSchema(schema: z.ZodType): Record<string, unknown> {
-    return normalizeAnthropicJsonSchema(zodSchemaToJsonSchema(schema));
-}
-
-function normalizeAnthropicJsonSchema(value: unknown): Record<string, unknown> {
+function normalizeAnthropicJsonSchema(value: JsonSchema): JsonSchema {
     const normalized = normalizeAnthropicJsonValue(value);
     return isJsonObject(normalized) ? normalized : {};
 }

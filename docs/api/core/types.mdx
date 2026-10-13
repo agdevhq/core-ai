@@ -150,8 +150,18 @@ type ToolCall = {
     name: string;
     arguments: Record<string, unknown>;
     metadata?: Record<string, unknown>;
+    validation?: StandardSchemaV1.Result<unknown>;
 };
 ```
+
+`arguments` holds the arguments exactly as the model sent them.
+
+`validation` is set on results when the tool's `parameters` are a Standard Schema. It is the outcome of validating `arguments` against that schema:
+
+- `{ value }` on success. `value` is the schema's output, which can differ from `arguments`, for example when a transform turns a date string into a `Date`.
+- `{ issues }` on failure, where each issue has a `message` and an optional `path`.
+
+An invalid tool call is reported here and never thrown. `validation` is not part of the replayable message: [`resultToMessage()`](/api/core/utilities#resulttomessage) omits it, adapters never send it, and you should not persist it. Tools with plain JSON Schema `parameters` have no `validation`; validate their `arguments` yourself. See [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 ### ToolResultMessage
 
@@ -169,18 +179,54 @@ type ToolResultMessage = {
 
 `metadata` on message parts, tool calls, and tool results is for your application and middleware. It stays in conversation history and generated results, but core-ai does not send it to provider APIs.
 
+## Schema types
+
+### SchemaInput
+
+The schema type for tool parameters and structured outputs.
+
+```typescript
+type SchemaInput = StandardSchemaWithJson | JsonSchema;
+
+type JsonSchema = Record<string, unknown>;
+
+type StandardSchemaWithJson<Input = unknown, Output = Input> = StandardSchemaV1<
+    Input,
+    Output
+> &
+    StandardJSONSchemaV1<Input, Output>;
+```
+
+- `StandardSchemaWithJson` is a [Standard Schema](https://standardschema.dev) that can also produce JSON Schema, such as a Zod 4.2+ schema. core-ai converts it to the JSON Schema of its input type and validates model output with it.
+- `JsonSchema` is a plain JSON Schema object. core-ai sends it as is and never validates against it.
+
+See [Schemas](/guides/structured-outputs#schemas) for the supported libraries. `@core-ai/core-ai` also exports the Standard Schema type namespaces `StandardSchemaV1`, `StandardJSONSchemaV1`, and `StandardTypedV1`.
+
+### InferSchemaOutput
+
+```typescript
+type InferSchemaOutput<TSchema extends SchemaInput> =
+    TSchema extends StandardSchemaV1
+        ? StandardSchemaV1.InferOutput<TSchema>
+        : unknown;
+```
+
+The value a schema validates to: the Standard Schema's output type, or `unknown` for plain JSON Schema.
+
 ## Tool types
 
 ### ToolDefinition
 
 ```typescript
-type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
+type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
     name: string;
     description: string;
     parameters: TParameters;
     strict?: boolean;
 };
 ```
+
+`parameters` is a Standard Schema with JSON Schema support, such as a Zod 4.2+ schema, or plain JSON Schema. core-ai validates calls to tools with Standard Schema parameters (see [`ToolCall`](#toolcall)).
 
 `strict: true` opts the tool into provider-enforced adherence to its parameter
 schema; the schema must fit the strict-capable contract described in the
@@ -214,10 +260,10 @@ type ChatModel = {
     readonly capabilities: ModelCapabilities;
     generate(options: GenerateOptions): Promise<GenerateResult>;
     stream(options: GenerateOptions): Promise<ChatStream>;
-    generateObject<TSchema extends z.ZodType>(
+    generateObject<TSchema extends SchemaInput>(
         options: GenerateObjectOptions<TSchema>
     ): Promise<GenerateObjectResult<TSchema>>;
-    streamObject<TSchema extends z.ZodType>(
+    streamObject<TSchema extends SchemaInput>(
         options: StreamObjectOptions<TSchema>
     ): Promise<ObjectStream<TSchema>>;
 };
@@ -381,7 +427,7 @@ type ReasoningEffort = 'minimal' | 'low' | 'medium' | 'high' | 'max';
 
 ## Provider options types
 
-Provider-specific options are namespaced by provider name and validated with Zod schemas by each provider adapter.
+Provider-specific options are namespaced by provider name and validated by each provider adapter.
 
 ```typescript
 interface GenerateProviderOptions {
@@ -453,17 +499,20 @@ type GenerateOptions = BaseGenerateOptions & {
 ### GenerateObjectOptions
 
 ```typescript
-type GenerateObjectOptions<TSchema extends z.ZodType> = BaseGenerateOptions & {
-    schema: TSchema;
-    schemaName?: string;
-    schemaDescription?: string;
-};
+type GenerateObjectOptions<TSchema extends SchemaInput> =
+    BaseGenerateOptions & {
+        schema: TSchema;
+        schemaName?: string;
+        schemaDescription?: string;
+    };
 ```
+
+`schema` is a Standard Schema with JSON Schema support, whose validated output becomes `object`, or plain JSON Schema, whose parsed JSON is returned without validation.
 
 ### StreamObjectOptions
 
 ```typescript
-type StreamObjectOptions<TSchema extends z.ZodType> =
+type StreamObjectOptions<TSchema extends SchemaInput> =
     GenerateObjectOptions<TSchema>;
 ```
 
@@ -485,12 +534,14 @@ type GenerateResult = {
 ### GenerateObjectResult
 
 ```typescript
-type GenerateObjectResult<TSchema extends z.ZodType> = {
-    object: z.infer<TSchema>;
+type GenerateObjectResult<TSchema extends SchemaInput> = {
+    object: InferSchemaOutput<TSchema>;
     finishReason: FinishReason;
     usage: ChatUsage;
 };
 ```
+
+`object` is the schema's validated output for a Standard Schema and the parsed JSON, typed `unknown`, for plain JSON Schema.
 
 ### FinishReason
 
@@ -540,12 +591,14 @@ type StreamEvent =
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
 
+The `toolCall` of a `tool-call-end` event carries [`validation`](#toolcall) when the tool's parameters are a Standard Schema.
+
 ### ObjectStream
 
 Replayable handle for a structured object streaming operation.
 
 ```typescript
-type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
+type ObjectStream<TSchema extends SchemaInput> = AsyncIterable<
     ObjectStreamEvent<TSchema>
 > & {
     readonly result: Promise<GenerateObjectResult<TSchema>>;
@@ -556,9 +609,9 @@ type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
 ### ObjectStreamEvent
 
 ```typescript
-type ObjectStreamEvent<TSchema extends z.ZodType> =
+type ObjectStreamEvent<TSchema extends SchemaInput> =
     | { type: 'object-delta'; text: string }
-    | { type: 'object'; object: z.infer<TSchema> }
+    | { type: 'object'; object: InferSchemaOutput<TSchema> }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
 

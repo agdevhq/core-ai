@@ -47,9 +47,6 @@
         "@core-ai/core-ai": "^0.34.0",
         "@core-ai/openai": "^0.34.0"
     },
-    "peerDependencies": {
-        "zod": "^4.0.0"
-    },
     "devDependencies": {
         "@core-ai/eslint-config": "*",
         "@core-ai/testing": "*",

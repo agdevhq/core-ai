@@ -1,17 +1,3 @@
-import { z } from 'zod';
-
-/**
- * Convert a Zod schema to a JSON Schema object using Zod 4's native
- * `z.toJSONSchema()`.
- */
-export function zodSchemaToJsonSchema(
-    schema: z.ZodType
-): Record<string, unknown> {
-    return z.toJSONSchema(schema, {
-        io: 'input',
-    }) as Record<string, unknown>;
-}
-
 const MAX_SAFE_INTEGER_BOUND = 9007199254740991;
 
 export function isPlainObject(
@@ -154,22 +140,22 @@ export function mapChildSchemaNodes(
 
 /**
  * Normalizes the JSON Schema of a strict tool for providers whose strict mode
- * requires closed objects (OpenAI-style APIs). The transform is semantics
- * preserving with respect to the tool's Zod schema:
+ * requires closed objects (OpenAI-style APIs). The transform preserves what
+ * the tool's schema accepts:
  *
  * - drops `$schema` (metadata, not a constraint),
  * - sets `additionalProperties: false` on object nodes where absent, which
  *   matches `z.object()` semantics (unknown keys are stripped at parse time),
  * - drops Zod's implicit safe-integer bounds on integer nodes (see
  *   {@link isImplicitSafeIntegerBound}),
- * - rewrites `oneOf` to `anyOf`. Zod emits `oneOf` only for
- *   `z.discriminatedUnion()`, whose branches are disjoint by construction, so
- *   the two keywords accept the same values there — and strict-capable
- *   providers accept `anyOf` only.
+ * - rewrites `oneOf` to `anyOf`, the only composition keyword strict-capable
+ *   providers accept. Both accept the same values when the branches are
+ *   disjoint, as for `z.discriminatedUnion()`, the only construct Zod emits
+ *   `oneOf` for. Overlapping `oneOf` branches in hand-written JSON Schema
+ *   are widened to `anyOf`.
  *
- * It never widens or narrows what the user's Zod schema accepts; schemas that
- * cannot be expressed in the strict subset are rejected by the contract
- * validator instead of being rewritten.
+ * Schemas that cannot be expressed in the strict subset are rejected by the
+ * contract validator instead of being rewritten.
  */
 export function normalizeStrictJsonSchema(
     schema: Record<string, unknown>

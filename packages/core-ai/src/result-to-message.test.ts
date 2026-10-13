@@ -98,6 +98,30 @@ describe('resultToMessage', () => {
 
         expect(message.parts).toEqual(result.parts);
     });
+
+    it('should omit tool call validation from the replayable message', () => {
+        const toolCall = {
+            id: 'tool-1',
+            name: 'schedule',
+            arguments: { at: '2026-10-13T09:00:00Z' },
+            validation: { value: { at: new Date('2026-10-13T09:00:00Z') } },
+        };
+        const result = createGenerateResult();
+        result.parts = [{ type: 'tool-call', toolCall }];
+        result.toolCalls = [toolCall];
+
+        expect(resultToMessage(result).parts).toEqual([
+            {
+                type: 'tool-call',
+                toolCall: {
+                    id: 'tool-1',
+                    name: 'schedule',
+                    arguments: { at: '2026-10-13T09:00:00Z' },
+                },
+            },
+        ]);
+        expect(result.toolCalls[0]?.validation).toBeDefined();
+    });
 });
 
 describe('assistantMessage', () => {

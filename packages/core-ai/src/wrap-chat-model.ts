@@ -1,4 +1,3 @@
-import type { z } from 'zod';
 import {
     buildMiddlewareChain,
     normalizeMiddleware,
@@ -12,19 +11,20 @@ import type {
     GenerateOptions,
     GenerateResult,
     ObjectStream,
+    SchemaInput,
     StreamObjectOptions,
 } from './types.ts';
 
 type GenerateOperation = NonNullable<ChatModelMiddleware['generate']>;
 type StreamOperation = NonNullable<ChatModelMiddleware['stream']>;
-type GenerateObjectOperation<TSchema extends z.ZodType> = (args: {
+type GenerateObjectOperation<TSchema extends SchemaInput> = (args: {
     execute: (
         options?: GenerateObjectOptions<TSchema>
     ) => Promise<GenerateObjectResult<TSchema>>;
     options: GenerateObjectOptions<TSchema>;
     model: ChatModel;
 }) => Promise<GenerateObjectResult<TSchema>>;
-type StreamObjectOperation<TSchema extends z.ZodType> = (args: {
+type StreamObjectOperation<TSchema extends SchemaInput> = (args: {
     execute: (
         options?: StreamObjectOptions<TSchema>
     ) => Promise<ObjectStream<TSchema>>;
@@ -64,7 +64,7 @@ export function wrapChatModel(config: {
                 finalExecute: (opts) => model.stream(opts),
             })(options);
         },
-        generateObject<TSchema extends z.ZodType>(
+        generateObject<TSchema extends SchemaInput>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
             const operations: GenerateObjectOperation<TSchema>[] =
@@ -82,7 +82,7 @@ export function wrapChatModel(config: {
                 finalExecute: (opts) => model.generateObject(opts),
             })(options);
         },
-        streamObject<TSchema extends z.ZodType>(
+        streamObject<TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
             const operations: StreamObjectOperation<TSchema>[] =

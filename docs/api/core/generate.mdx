@@ -89,7 +89,7 @@ Returns a `Promise<GenerateResult>` with the following properties:
 </ResponseField>
 
 <ResponseField name="toolCalls" type="ToolCall[]">
-  Array of tool calls made by the model.
+  Array of tool calls made by the model. Calls to tools with Standard Schema parameters carry the validation outcome in `validation`. See [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 </ResponseField>
 
 <ResponseField name="finishReason" type="FinishReason">

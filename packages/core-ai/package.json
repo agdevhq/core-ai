@@ -44,14 +44,12 @@
         "test": "vitest run",
         "test:watch": "vitest"
     },
-    "dependencies": {
-        "zod": "^4.0.0"
-    },
     "devDependencies": {
         "@core-ai/eslint-config": "*",
         "@core-ai/testing": "*",
         "@core-ai/typescript-config": "*",
         "typescript": "^5.7.3",
-        "vitest": "^3.2.4"
+        "vitest": "^3.2.4",
+        "zod": "^4.2.0"
     }
 }

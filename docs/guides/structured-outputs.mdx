@@ -1,9 +1,9 @@
 ---
 title: Structured Outputs
-description: Generate type-safe JSON with generateObject() and streamObject() using Zod schemas
+description: Generate type-safe JSON with generateObject() and streamObject() from a Standard Schema or plain JSON Schema
 ---
 
-core-ai provides strongly-typed structured outputs using Zod schemas, ensuring your responses match expected formats with full TypeScript type inference.
+core-ai generates structured outputs from a schema you provide. Pass a [Standard Schema](https://standardschema.dev) with JSON Schema support, such as a Zod 4.2+ schema, to get a validated object with full TypeScript type inference. Pass plain JSON Schema to get the parsed JSON and validate it yourself.
 
 ## Generate Structured Objects
 
@@ -85,19 +85,69 @@ console.log('\nFinal object:', response.object);
 console.log('Finish reason:', response.finishReason);
 ```
 
+## Schemas
+
+`schema` accepts two kinds of schemas. Tool `parameters` accept the same two kinds.
+
+| Schema                                   | JSON Schema                             | Validated by core-ai | `object` type            |
+| ---------------------------------------- | --------------------------------------- | -------------------- | ------------------------ |
+| Standard Schema with JSON Schema support | Converted from the schema's input type  | Yes                  | The schema's output type |
+| Plain JSON Schema                        | Used as is                              | No                   | `unknown`                |
+
+core-ai converts a Standard Schema with its `~standard.jsonSchema.input()` method (draft 2020-12), once per schema object. Because the input type is converted, transforms such as `z.string().transform(Number)` work, and `object` holds their output. A schema that cannot be converted, such as one containing `z.date()`, throws a `ValidationError` before any provider call. Call [`toJsonSchema()`](/api/core/utilities#tojsonschema) to see the JSON Schema core-ai sends.
+
+### Supported libraries
+
+| Library       | Version                             | Notes                                                |
+| ------------- | ----------------------------------- | ---------------------------------------------------- |
+| Zod           | 4.2+                                | Not `zod/mini`                                       |
+| ArkType       | 2.1.28+                             |                                                      |
+| Joi           | 18.1+                               |                                                      |
+| VineJS        | 4.3+                                |                                                      |
+| Valibot       | With `@valibot/to-json-schema` 1.5+ | Wrap schemas with `toStandardJsonSchema()`           |
+| Effect Schema | 4+                                  | Wrap schemas with its Standard JSON Schema functions |
+
+Libraries without Standard JSON Schema support, such as TypeBox, Yup, Superstruct, io-ts, `zod/mini`, and Zod before 4.2, work through plain JSON Schema. Pass the JSON Schema they produce, for example `z.toJSONSchema(schema)` for an older Zod version, and validate the result with the library yourself.
+
+### Plain JSON Schema
+
+core-ai uses plain JSON Schema as is and never validates the output against it. `object` is the parsed JSON, typed `unknown`:
+
+```typescript
+import { generateObject } from '@core-ai/core-ai';
+
+const result = await generateObject({
+  model,
+  messages: [{ role: 'user', content: 'Return a weather report for Berlin.' }],
+  schema: {
+    type: 'object',
+    properties: {
+      city: { type: 'string' },
+      temperatureC: { type: 'number' },
+    },
+    required: ['city', 'temperatureC'],
+    additionalProperties: false,
+  },
+});
+
+const report: unknown = result.object; // validate before use
+```
+
+core-ai does not ship a JSON Schema validator. To have core-ai validate the output, wrap your validator, such as Ajv, in the Standard Schema interface (see [JSON Schema tools](/guides/tool-calling#json-schema-tools) for an example).
+
 ## Object stream events
 
 The `streamObject()` function returns an `ObjectStream` -- an async iterable with `.result` and `.events`. It emits these event types:
 
 ```typescript
-type ObjectStreamEvent<TSchema extends z.ZodType> =
-  | { type: 'object-delta'; text: string }      // Raw JSON text chunks
-  | { type: 'object'; object: z.infer<TSchema> } // Final validated object
+type ObjectStreamEvent<TSchema extends SchemaInput> =
+  | { type: 'object-delta'; text: string }                 // Raw JSON text chunks
+  | { type: 'object'; object: InferSchemaOutput<TSchema> } // Final object
   | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
 
 <Note>
-  The `object` event is emitted once, when the full object payload has been validated. Use `object-delta` events for progressive UI updates while JSON is still streaming.
+  The `object` event is emitted once, when the full object payload has been parsed and, for a Standard Schema, validated. `object-delta` events carry raw, unvalidated text. Use them for progressive UI updates while JSON is still streaming.
 </Note>
 
 ## Complex Schema Examples
@@ -254,7 +304,7 @@ const result = await generateObject({
 
 ## Type Inference
 
-TypeScript automatically infers types from Zod schemas:
+`result.object` is typed with the Standard Schema's output type (`InferSchemaOutput<TSchema>`). For plain JSON Schema it is `unknown`.
 
 ```typescript
 const userSchema = z.object({
@@ -265,7 +315,7 @@ const userSchema = z.object({
 });
 
 // Type is automatically inferred!
-type User = z.infer<typeof userSchema>;
+type User = z.output<typeof userSchema>;
 // { id: number; name: string; email: string; role: 'admin' | 'user' | 'guest' }
 
 const result = await generateObject({
@@ -280,7 +330,13 @@ const user: User = result.object;
 
 ## Error Handling
 
-Handle validation and parsing errors:
+`generateObject()` and `streamObject()` throw these structured output errors:
+
+- `StructuredOutputValidationError` when the output does not match a Standard Schema. `issues` lists the schema library's messages as `path.to.key: message`.
+- `StructuredOutputParseError` when the output is not valid JSON.
+- `StructuredOutputNoObjectGeneratedError` when the model returns no object.
+
+Plain JSON Schema output is never validated, so it raises only the parse and no-object errors.
 
 ```typescript
 import {
@@ -416,7 +472,7 @@ const result = await generateObject({
   </Accordion>
 
   <Accordion title="Validate complex constraints">
-    Add custom validation after generation:
+    Add validation for constraints the schema does not express:
 
     ```typescript
     const result = await generateObject({
@@ -445,7 +501,7 @@ const result = await generateObject({
   <Card title="Streaming" icon="water" href="/guides/streaming">
     Stream regular text responses
   </Card>
-  <Card title="Zod Documentation" icon="link" href="https://zod.dev">
-    Learn more about Zod schemas
+  <Card title="Standard Schema" icon="link" href="https://standardschema.dev">
+    Find schema libraries that implement Standard Schema
   </Card>
 </CardGroup>

@@ -68,14 +68,14 @@ type ChatModelMiddleware = {
         options: GenerateOptions;
         model: ChatModel;
     }) => Promise<ChatStream>;
-    generateObject?: <TSchema extends z.ZodType>(args: {
+    generateObject?: <TSchema extends SchemaInput>(args: {
         execute: (
             options?: GenerateObjectOptions<TSchema>
         ) => Promise<GenerateObjectResult<TSchema>>;
         options: GenerateObjectOptions<TSchema>;
         model: ChatModel;
     }) => Promise<GenerateObjectResult<TSchema>>;
-    streamObject?: <TSchema extends z.ZodType>(args: {
+    streamObject?: <TSchema extends SchemaInput>(args: {
         execute: (
             options?: StreamObjectOptions<TSchema>
         ) => Promise<ObjectStream<TSchema>>;

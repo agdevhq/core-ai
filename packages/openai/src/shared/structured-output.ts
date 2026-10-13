@@ -1,16 +1,26 @@
-import type { z } from 'zod';
-import { zodTextFormat } from 'openai/helpers/zod';
+import type { JSONSchema } from 'openai/lib/jsonschema';
+import { toStrictJsonSchema } from 'openai/lib/transform';
 import type {
     ChatStream,
     GenerateObjectOptions,
     GenerateOptions,
     GenerateResult,
+    InferSchemaOutput,
+    JsonSchema,
+    NormalizedSchema,
     ObjectStreamEvent,
+    SchemaInput,
 } from '@core-ai/core-ai';
 import {
+    asObject,
+    getErrorMessage,
+    mapChildSchemaNodes,
+    normalizeStrictJsonSchema,
+    normalizeStructuredOutputSchema,
+    parseStructuredOutput,
     StructuredOutputNoObjectGeneratedError,
-    StructuredOutputParseError,
-    StructuredOutputValidationError,
+    validateStructuredOutput,
+    ValidationError,
 } from '@core-ai/core-ai';
 
 const DEFAULT_STRUCTURED_OUTPUT_NAME = 'core_ai_generate_object';
@@ -36,15 +46,23 @@ export type OpenAIRequestOptions = GenerateOptions & {
     structuredOutputFormat?: OpenAIStructuredOutputFormat;
 };
 
-export function getStructuredOutputName<TSchema extends z.ZodType>(
+export function getStructuredOutputName<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): string {
     return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_NAME;
 }
 
-export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
+/**
+ * The tool mode declares the schema as plain JSON Schema, so the generated
+ * call is validated once, by {@link extractStructuredObject}, instead of also
+ * as an ordinary tool call.
+ */
+export function createStructuredOutputRequestOptions<
+    TSchema extends SchemaInput,
+>(
     options: GenerateObjectOptions<TSchema>,
-    mode: OpenAIStructuredOutputMode = 'json-schema'
+    mode: OpenAIStructuredOutputMode = 'json-schema',
+    provider = 'openai'
 ): OpenAIRequestOptions {
     const baseOptions: GenerateOptions = {
         messages: options.messages,
@@ -66,7 +84,8 @@ export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
                     description:
                         options.schemaDescription ??
                         DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION,
-                    parameters: options.schema,
+                    parameters:
+                        normalizeStructuredOutputSchema(options).jsonSchema,
                 },
             },
             toolChoice: {
@@ -77,7 +96,7 @@ export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
     }
 
     if (mode === 'json-object') {
-        const format = createOpenAIStructuredOutputFormat(options);
+        const format = createOpenAIStructuredOutputFormat(options, provider);
         const description =
             format.description ?? DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION;
         const instruction = [
@@ -102,7 +121,10 @@ export function createStructuredOutputRequestOptions<TSchema extends z.ZodType>(
 
     return {
         ...baseOptions,
-        structuredOutputFormat: createOpenAIStructuredOutputFormat(options),
+        structuredOutputFormat: createOpenAIStructuredOutputFormat(
+            options,
+            provider
+        ),
     };
 }
 
@@ -125,17 +147,11 @@ function insertStructuredOutputSystemMessage(
     ];
 }
 
-function createOpenAIStructuredOutputFormat<TSchema extends z.ZodType>(
-    options: GenerateObjectOptions<TSchema>
+function createOpenAIStructuredOutputFormat<TSchema extends SchemaInput>(
+    options: GenerateObjectOptions<TSchema>,
+    provider: string
 ): Extract<OpenAIStructuredOutputFormat, { type: 'json_schema' }> {
     const name = getStructuredOutputName(options);
-    const format = zodTextFormat(
-        options.schema,
-        name,
-        options.schemaDescription
-            ? { description: options.schemaDescription }
-            : undefined
-    );
 
     return {
         type: 'json_schema',
@@ -144,16 +160,70 @@ function createOpenAIStructuredOutputFormat<TSchema extends z.ZodType>(
             ? { description: options.schemaDescription }
             : {}),
         strict: true,
-        schema: format.schema,
+        schema: toOpenAIStrictJsonSchema(
+            normalizeStructuredOutputSchema(options).jsonSchema,
+            name,
+            provider
+        ),
     };
 }
 
-export function extractStructuredObject<TSchema extends z.ZodType>(
+/**
+ * Structured Outputs requires a strict schema: closed objects whose keys are
+ * all required. Optional keys that also accept `null` or declare a `default`
+ * become required, so the model always supplies them with a value the schema
+ * accepts; other optional keys are rejected here rather than by the API.
+ */
+function toOpenAIStrictJsonSchema(
+    schema: JsonSchema,
+    name: string,
+    provider: string
+): JsonSchema {
+    try {
+        return toStrictJsonSchema(
+            requireDefaultedKeys(
+                normalizeStrictJsonSchema(schema)
+            ) as JSONSchema
+        ) as JsonSchema;
+    } catch (error) {
+        throw new ValidationError(
+            `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: ${getErrorMessage(error)}`,
+            error,
+            provider
+        );
+    }
+}
+
+/**
+ * Zod's input schema leaves `.default()` keys optional. Requiring them keeps
+ * the schema the model sees as it was before Standard Schema support, when
+ * these keys were serialized from the output type.
+ */
+function requireDefaultedKeys(node: JsonSchema): JsonSchema {
+    const result = mapChildSchemaNodes(node, (child) =>
+        child !== null && typeof child === 'object' && !Array.isArray(child)
+            ? requireDefaultedKeys(asObject(child))
+            : child
+    );
+    const properties = asObject(result.properties);
+    const required = Array.isArray(result.required) ? result.required : [];
+    const defaultedKeys = Object.keys(properties).filter(
+        (key) =>
+            !required.includes(key) &&
+            Object.hasOwn(asObject(properties[key]), 'default')
+    );
+
+    return defaultedKeys.length > 0
+        ? { ...result, required: [...required, ...defaultedKeys] }
+        : result;
+}
+
+export async function extractStructuredObject<TOutput>(
     result: GenerateResult,
-    schema: TSchema,
+    schema: NormalizedSchema<TOutput>,
     provider: string,
     structuredOutputName: string
-): z.infer<TSchema> {
+): Promise<TOutput> {
     const structuredToolCall = result.toolCalls.find(
         (toolCall) => toolCall.name === structuredOutputName
     );
@@ -167,7 +237,7 @@ export function extractStructuredObject<TSchema extends z.ZodType>(
 
     const rawOutput = result.content?.trim();
     if (rawOutput && rawOutput.length > 0) {
-        return parseAndValidateStructuredPayload(schema, rawOutput, provider);
+        return parseStructuredOutput(schema, rawOutput, provider);
     }
 
     throw new StructuredOutputNoObjectGeneratedError(
@@ -177,14 +247,14 @@ export function extractStructuredObject<TSchema extends z.ZodType>(
 }
 
 export async function* transformStructuredOutputStream<
-    TSchema extends z.ZodType,
+    TSchema extends SchemaInput,
 >(
     stream: ChatStream,
-    schema: TSchema,
+    schema: NormalizedSchema<InferSchemaOutput<TSchema>>,
     provider: string,
     structuredOutputName: string
 ): AsyncIterable<ObjectStreamEvent<TSchema>> {
-    let validatedObject: z.infer<TSchema> | undefined;
+    let validated: { object: InferSchemaOutput<TSchema> } | undefined;
     let contentBuffer = '';
     const toolArgumentDeltas = new Map<string, string>();
 
@@ -216,20 +286,22 @@ export async function* transformStructuredOutputStream<
             event.type === 'tool-call-end' &&
             event.toolCall.name === structuredOutputName
         ) {
-            validatedObject = validateStructuredToolArguments(
-                schema,
-                event.toolCall.arguments,
-                provider
-            );
+            validated = {
+                object: await validateStructuredToolArguments(
+                    schema,
+                    event.toolCall.arguments,
+                    provider
+                ),
+            };
             yield {
                 type: 'object',
-                object: validatedObject,
+                object: validated.object,
             };
             continue;
         }
 
         if (event.type === 'finish') {
-            if (validatedObject === undefined) {
+            if (validated === undefined) {
                 const fallbackPayload = getFallbackStructuredPayload(
                     contentBuffer,
                     toolArgumentDeltas
@@ -242,14 +314,16 @@ export async function* transformStructuredOutputStream<
                     );
                 }
 
-                validatedObject = parseAndValidateStructuredPayload(
-                    schema,
-                    fallbackPayload,
-                    provider
-                );
+                validated = {
+                    object: await parseStructuredOutput(
+                        schema,
+                        fallbackPayload,
+                        provider
+                    ),
+                };
                 yield {
                     type: 'object',
-                    object: validatedObject,
+                    object: validated.object,
                 };
             }
 
@@ -281,75 +355,15 @@ function getFallbackStructuredPayload(
     return undefined;
 }
 
-function validateStructuredToolArguments<TSchema extends z.ZodType>(
-    schema: TSchema,
+function validateStructuredToolArguments<TOutput>(
+    schema: NormalizedSchema<TOutput>,
     toolArguments: Record<string, unknown>,
     provider: string
-): z.infer<TSchema> {
-    return validateStructuredObject(
+): Promise<TOutput> {
+    return validateStructuredOutput(
         schema,
         toolArguments,
         provider,
         JSON.stringify(toolArguments)
     );
-}
-
-function parseAndValidateStructuredPayload<TSchema extends z.ZodType>(
-    schema: TSchema,
-    rawPayload: string,
-    provider: string
-): z.infer<TSchema> {
-    const parsedPayload = parseJson(rawPayload, provider);
-    return validateStructuredObject(
-        schema,
-        parsedPayload,
-        provider,
-        rawPayload
-    );
-}
-
-function parseJson(rawOutput: string, provider: string): unknown {
-    try {
-        return JSON.parse(rawOutput);
-    } catch (error) {
-        throw new StructuredOutputParseError(
-            'failed to parse structured output as JSON',
-            provider,
-            {
-                rawOutput,
-                cause: error,
-            }
-        );
-    }
-}
-
-function validateStructuredObject<TSchema extends z.ZodType>(
-    schema: TSchema,
-    value: unknown,
-    provider: string,
-    rawOutput?: string
-): z.infer<TSchema> {
-    const parsed = schema.safeParse(value);
-    if (parsed.success) {
-        return parsed.data;
-    }
-
-    throw new StructuredOutputValidationError(
-        'structured output does not match schema',
-        provider,
-        formatZodIssues(parsed.error.issues),
-        {
-            rawOutput,
-        }
-    );
-}
-
-function formatZodIssues(issues: z.ZodIssue[]): string[] {
-    return issues.map((issue) => {
-        const path =
-            issue.path.length > 0
-                ? issue.path.map((segment) => String(segment)).join('.')
-                : '<root>';
-        return `${path}: ${issue.message}`;
-    });
 }

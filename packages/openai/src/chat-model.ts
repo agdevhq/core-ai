@@ -1,5 +1,4 @@
 import type OpenAI from 'openai';
-import type { z } from 'zod';
 import type {
     Response,
     ResponseCreateParamsNonStreaming,
@@ -12,11 +11,17 @@ import type {
     GenerateObjectResult,
     GenerateResult,
     ModelCapabilities,
+    SchemaInput,
     StreamObjectOptions,
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
-import { createObjectStream, createChatStream } from '@core-ai/core-ai';
+import {
+    createObjectStream,
+    createChatStream,
+    finalizeGenerateResult,
+    normalizeStructuredOutputSchema,
+} from '@core-ai/core-ai';
 import {
     createGenerateRequest,
     createStreamRequest,
@@ -79,11 +84,13 @@ export function createOpenAIChatModel(
             request,
             options.signal
         );
+        let result: GenerateResult;
         try {
-            return mapGenerateResponse(response, { providerId: provider });
+            result = mapGenerateResponse(response, { providerId: provider });
         } catch (error) {
             throw wrapOpenAIError(error, provider);
         }
+        return finalizeGenerateResult(result, options);
     }
 
     async function streamChat(
@@ -101,6 +108,7 @@ export function createOpenAIChatModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapOpenAIError(error, provider),
+                request: options,
             }
         );
     }
@@ -111,16 +119,19 @@ export function createOpenAIChatModel(
         capabilities,
         generate: generateChat,
         stream: streamChat,
-        async generateObject<TSchema extends z.ZodType>(
+        async generateObject<TSchema extends SchemaInput>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
-            const structuredOptions =
-                createStructuredOutputRequestOptions(options);
+            const structuredOptions = createStructuredOutputRequestOptions(
+                options,
+                'json-schema',
+                provider
+            );
             const result = await generateChat(structuredOptions);
             const structuredOutputName = getStructuredOutputName(options);
-            const object = extractStructuredObject(
+            const object = await extractStructuredObject(
                 result,
-                options.schema,
+                normalizeStructuredOutputSchema(options),
                 provider,
                 structuredOutputName
             );
@@ -131,18 +142,21 @@ export function createOpenAIChatModel(
                 usage: result.usage,
             };
         },
-        async streamObject<TSchema extends z.ZodType>(
+        async streamObject<TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
-            const structuredOptions =
-                createStructuredOutputRequestOptions(options);
+            const structuredOptions = createStructuredOutputRequestOptions(
+                options,
+                'json-schema',
+                provider
+            );
             const stream = await streamChat(structuredOptions);
             const structuredOutputName = getStructuredOutputName(options);
 
             return createObjectStream(
-                transformStructuredOutputStream(
+                transformStructuredOutputStream<TSchema>(
                     stream,
-                    options.schema,
+                    normalizeStructuredOutputSchema(options),
                     provider,
                     structuredOutputName
                 ),

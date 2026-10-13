@@ -5,9 +5,9 @@ import type {
     ToolSet,
 } from '@core-ai/core-ai';
 import {
+    getToolJsonSchema,
     normalizeStrictJsonSchema,
     validateToolSchemaStrictness,
-    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
 export type ConvertToolsOptions = {
@@ -61,7 +61,7 @@ export function convertResponseTools(
  * tools keep the raw converted schema.
  */
 function convertToolParameters(tool: ToolDefinition): Record<string, unknown> {
-    const schema = zodSchemaToJsonSchema(tool.parameters);
+    const schema = getToolJsonSchema(tool);
     return tool.strict === true ? normalizeStrictJsonSchema(schema) : schema;
 }
 

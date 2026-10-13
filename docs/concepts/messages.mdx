@@ -341,10 +341,13 @@ type ToolCall = {
     name: string;
     arguments: Record<string, unknown>;
     metadata?: Record<string, unknown>;
+    validation?: StandardSchemaV1.Result<unknown>;
 };
 ```
 
 Pass tool call parts back into the next request unchanged. Some providers put data on them that has to return verbatim: Gemini 3 rejects a request when a function call from the current turn is replayed without its thought signature.
+
+`validation` exists only on results. It holds the outcome of validating `arguments` against a Standard Schema (see [Validate tool calls](/guides/tool-calling#validate-tool-calls)). `resultToMessage()` drops it and keeps every other field.
 
 ## Part metadata
 
@@ -457,6 +460,7 @@ Here's a complete example of handling tool calls:
 
 ```typescript
 import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
+import type { Message } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const tools = {
@@ -480,7 +484,14 @@ messages.push(resultToMessage(result1));
 if (result1.toolCalls.length > 0) {
     // Step 2: Execute tool and provide result
     const toolCall = result1.toolCalls[0];
-    const weatherData = await getWeather(toolCall.arguments.location);
+    const { validation } = toolCall;
+    if (!validation || validation.issues) {
+        // Or send the issues back to the model as an error tool result
+        throw new Error(`Invalid call to ${toolCall.name}`);
+    }
+
+    const { location } = validation.value as { location: string };
+    const weatherData = await getWeather(location);
 
     messages.push({
         role: 'tool',

@@ -1,22 +1,26 @@
 import type { GenerateContentResponse } from '@google/genai';
-import type { z } from 'zod';
 import type {
     ChatModel,
     GenerateObjectOptions,
     GenerateObjectResult,
     GenerateOptions,
     GenerateResult,
+    InferSchemaOutput,
+    NormalizedSchema,
     ObjectStreamEvent,
+    SchemaInput,
     StreamObjectOptions,
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
 import {
     StructuredOutputNoObjectGeneratedError,
-    StructuredOutputParseError,
-    StructuredOutputValidationError,
     createObjectStream,
     createChatStream,
+    finalizeGenerateResult,
+    normalizeStructuredOutputSchema,
+    parseStructuredOutput,
+    validateStructuredOutput,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -67,7 +71,7 @@ export function createGoogleGenAIChatModel(
             adapterOptions
         );
         const response = await callGenerateContentApi(request);
-        return mapGenerateResponse(response);
+        return finalizeGenerateResult(mapGenerateResponse(response), options);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
@@ -83,6 +87,7 @@ export function createGoogleGenAIChatModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapGoogleError(error, provider),
+                request: options,
             }
         );
     }
@@ -93,15 +98,15 @@ export function createGoogleGenAIChatModel(
         capabilities,
         generate: generateChat,
         stream: streamChat,
-        async generateObject<TSchema extends z.ZodType>(
+        async generateObject<TSchema extends SchemaInput>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
             const structuredOptions = createStructuredOutputOptions(options);
             const result = await generateChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
-            const object = extractStructuredObject(
+            const object = await extractStructuredObject(
                 result,
-                options.schema,
+                normalizeStructuredOutputSchema(options),
                 provider,
                 toolName
             );
@@ -112,7 +117,7 @@ export function createGoogleGenAIChatModel(
                 usage: result.usage,
             };
         },
-        async streamObject<TSchema extends z.ZodType>(
+        async streamObject<TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
             const structuredOptions = createStructuredOutputOptions(options);
@@ -120,9 +125,9 @@ export function createGoogleGenAIChatModel(
             const toolName = getStructuredOutputToolName(options);
 
             return createObjectStream(
-                transformStructuredOutputStream(
+                transformStructuredOutputStream<TSchema>(
                     stream,
-                    options.schema,
+                    normalizeStructuredOutputSchema(options),
                     provider,
                     toolName
                 ),
@@ -134,12 +139,12 @@ export function createGoogleGenAIChatModel(
     };
 }
 
-function extractStructuredObject<TSchema extends z.ZodType>(
+function extractStructuredObject<TOutput>(
     result: GenerateResult,
-    schema: TSchema,
+    schema: NormalizedSchema<TOutput>,
     provider: string,
     toolName: string
-): z.infer<TSchema> {
+): Promise<TOutput> {
     const structuredToolCall = result.toolCalls.find(
         (toolCall) => toolCall.name === toolName
     );
@@ -153,7 +158,7 @@ function extractStructuredObject<TSchema extends z.ZodType>(
 
     const rawOutput = result.content?.trim();
     if (rawOutput && rawOutput.length > 0) {
-        return parseAndValidateStructuredPayload(schema, rawOutput, provider);
+        return parseStructuredOutput(schema, rawOutput, provider);
     }
 
     throw new StructuredOutputNoObjectGeneratedError(
@@ -162,13 +167,13 @@ function extractStructuredObject<TSchema extends z.ZodType>(
     );
 }
 
-async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
+async function* transformStructuredOutputStream<TSchema extends SchemaInput>(
     stream: ChatStream,
-    schema: TSchema,
+    schema: NormalizedSchema<InferSchemaOutput<TSchema>>,
     provider: string,
     toolName: string
 ): AsyncIterable<ObjectStreamEvent<TSchema>> {
-    let validatedObject: z.infer<TSchema> | undefined;
+    let validated: { object: InferSchemaOutput<TSchema> } | undefined;
     let contentBuffer = '';
     const toolArgumentDeltas = new Map<string, string>();
 
@@ -200,20 +205,22 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
             event.type === 'tool-call-end' &&
             event.toolCall.name === toolName
         ) {
-            validatedObject = validateStructuredToolArguments(
-                schema,
-                event.toolCall.arguments,
-                provider
-            );
+            validated = {
+                object: await validateStructuredToolArguments(
+                    schema,
+                    event.toolCall.arguments,
+                    provider
+                ),
+            };
             yield {
                 type: 'object',
-                object: validatedObject,
+                object: validated.object,
             };
             continue;
         }
 
         if (event.type === 'finish') {
-            if (validatedObject === undefined) {
+            if (validated === undefined) {
                 const fallbackPayload = getFallbackStructuredPayload(
                     contentBuffer,
                     toolArgumentDeltas
@@ -226,14 +233,16 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
                     );
                 }
 
-                validatedObject = parseAndValidateStructuredPayload(
-                    schema,
-                    fallbackPayload,
-                    provider
-                );
+                validated = {
+                    object: await parseStructuredOutput(
+                        schema,
+                        fallbackPayload,
+                        provider
+                    ),
+                };
                 yield {
                     type: 'object',
-                    object: validatedObject,
+                    object: validated.object,
                 };
             }
 
@@ -265,75 +274,15 @@ function getFallbackStructuredPayload(
     return undefined;
 }
 
-function validateStructuredToolArguments<TSchema extends z.ZodType>(
-    schema: TSchema,
+function validateStructuredToolArguments<TOutput>(
+    schema: NormalizedSchema<TOutput>,
     toolArguments: Record<string, unknown>,
     provider: string
-): z.infer<TSchema> {
-    return validateStructuredObject(
+): Promise<TOutput> {
+    return validateStructuredOutput(
         schema,
         toolArguments,
         provider,
         JSON.stringify(toolArguments)
     );
-}
-
-function parseAndValidateStructuredPayload<TSchema extends z.ZodType>(
-    schema: TSchema,
-    rawPayload: string,
-    provider: string
-): z.infer<TSchema> {
-    const parsedPayload = parseJson(rawPayload, provider);
-    return validateStructuredObject(
-        schema,
-        parsedPayload,
-        provider,
-        rawPayload
-    );
-}
-
-function parseJson(rawOutput: string, provider: string): unknown {
-    try {
-        return JSON.parse(rawOutput) as unknown;
-    } catch (error) {
-        throw new StructuredOutputParseError(
-            'failed to parse structured output as JSON',
-            provider,
-            {
-                rawOutput,
-                cause: error,
-            }
-        );
-    }
-}
-
-function validateStructuredObject<TSchema extends z.ZodType>(
-    schema: TSchema,
-    value: unknown,
-    provider: string,
-    rawOutput?: string
-): z.infer<TSchema> {
-    const parsed = schema.safeParse(value);
-    if (parsed.success) {
-        return parsed.data;
-    }
-
-    throw new StructuredOutputValidationError(
-        'structured output does not match schema',
-        provider,
-        formatZodIssues(parsed.error.issues),
-        {
-            rawOutput,
-        }
-    );
-}
-
-function formatZodIssues(issues: z.ZodIssue[]): string[] {
-    return issues.map((issue) => {
-        const path =
-            issue.path.length > 0
-                ? issue.path.map((segment) => String(segment)).join('.')
-                : '<root>';
-        return `${path}: ${issue.message}`;
-    });
 }

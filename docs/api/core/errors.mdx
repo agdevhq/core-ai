@@ -52,6 +52,8 @@ export class CoreAIError extends Error {
 
 Thrown when core-ai rejects invalid caller input or local request configuration before calling a provider.
 
+This includes schemas core-ai cannot use: a tool's `parameters` or a structured output `schema` that cannot be converted to JSON Schema, a Standard Schema without JSON Schema support, or a value that is neither kind of schema. The message names the tool or schema, and `cause` holds the schema library's conversion error when there is one.
+
 ```typescript
 export class ValidationError extends CoreAIError {
     constructor(message: string, cause?: unknown, provider?: string) {
@@ -181,8 +183,9 @@ See [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the
 strict-capable schema contract and provider support.
 
 This error validates request configuration. It does not report invalid
-arguments returned by a model. Continue to validate `ToolCall.arguments` with
-the tool's Zod schema before execution.
+arguments returned by a model: core-ai reports those in `ToolCall.validation`
+for Standard Schema tools, and you validate them yourself for plain JSON Schema
+tools. See [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 ## UnsupportedInputModalityError
 
@@ -547,7 +550,7 @@ try {
 
 ## StructuredOutputValidationError
 
-Thrown when the model's output doesn't match the Zod schema.
+Thrown when the model's output doesn't match a Standard Schema passed as `schema` to `generateObject()` or `streamObject()`. Plain JSON Schema output is never validated by core-ai, so it never raises this error.
 
 ```typescript
 export class StructuredOutputValidationError extends StructuredOutputError {
@@ -569,7 +572,8 @@ export class StructuredOutputValidationError extends StructuredOutputError {
 ### Properties
 
 <ParamField path="issues" type="string[]">
-    Array of validation error messages from Zod.
+    Validation messages from the schema library, each formatted as
+    `path.to.key: message`. Issues at the root use `<root>` as the path.
 </ParamField>
 
 ### Example

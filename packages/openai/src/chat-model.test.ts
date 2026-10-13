@@ -238,6 +238,72 @@ describe('generate', () => {
         );
     });
 
+    it('should validate tool calls against Standard Schema parameters', async () => {
+        const lookupParameters = {
+            type: 'object',
+            properties: { id: { type: 'string', format: 'uuid' } },
+            required: ['id'],
+        };
+        const create = vi.fn(async (_request: unknown) =>
+            asResponse({
+                output: [
+                    {
+                        type: 'function_call',
+                        call_id: 'tc_1',
+                        name: 'search',
+                        arguments: '{"limit":"many"}',
+                    },
+                    {
+                        type: 'function_call',
+                        call_id: 'tc_2',
+                        name: 'lookup',
+                        arguments: '{"id":7}',
+                    },
+                ],
+                status: 'completed',
+            })
+        );
+        const model = createOpenAIChatModel(
+            createMockClient(create),
+            'gpt-5-mini'
+        );
+
+        const result = await model.generate({
+            messages: [{ role: 'user', content: 'Search' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({ limit: z.number() }),
+                },
+                lookup: {
+                    name: 'lookup',
+                    description: 'Look up a record',
+                    parameters: lookupParameters,
+                },
+            },
+        });
+
+        expect(result.toolCalls[0]?.validation?.issues).toHaveLength(1);
+        expect(result.toolCalls[1]).not.toHaveProperty('validation');
+        expect(result.parts[0]).toEqual({
+            type: 'tool-call',
+            toolCall: result.toolCalls[0],
+        });
+        const request = create.mock.calls[0]?.[0] as {
+            tools: { name: string; parameters: unknown }[];
+        };
+        expect(request.tools[1]?.parameters).toBe(lookupParameters);
+        expect(resultToMessage(result).parts[0]).toEqual({
+            type: 'tool-call',
+            toolCall: {
+                id: 'tc_1',
+                name: 'search',
+                arguments: { limit: 'many' },
+            },
+        });
+    });
+
     it('should pass the caller abort signal to generateObject requests', async () => {
         const create = vi.fn(async (_request: unknown) =>
             asResponse({

@@ -5,76 +5,13 @@ import {
     getSchemaDefinitionEntries,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
-    zodSchemaToJsonSchema,
 } from './json-schema.ts';
-
-describe('zodSchemaToJsonSchema', () => {
-    it('should convert a basic object schema', () => {
-        const schema = z.object({
-            name: z.string(),
-            age: z.number(),
-        });
-
-        const jsonSchema = zodSchemaToJsonSchema(schema);
-
-        expect(jsonSchema).toMatchObject({
-            type: 'object',
-            properties: {
-                name: { type: 'string' },
-                age: { type: 'number' },
-            },
-            required: ['name', 'age'],
-        });
-    });
-
-    it('should treat .default() fields as optional (input mode)', () => {
-        const schema = z.object({
-            query: z.string(),
-            limit: z.number().default(10),
-        });
-
-        const jsonSchema = zodSchemaToJsonSchema(schema);
-
-        expect(jsonSchema).toMatchObject({
-            type: 'object',
-            properties: {
-                query: { type: 'string' },
-                limit: { type: 'number' },
-            },
-        });
-        const required = jsonSchema['required'] as string[];
-        expect(required).toContain('query');
-        expect(required).not.toContain('limit');
-    });
-
-    it('should serialize the input type for transforms', () => {
-        const schema = z.object({
-            value: z.string().transform((val) => val.length),
-        });
-
-        const jsonSchema = zodSchemaToJsonSchema(schema);
-
-        expect(jsonSchema).toMatchObject({
-            type: 'object',
-            properties: {
-                value: { type: 'string' },
-            },
-        });
-    });
-
-    it('should throw for unrepresentable types like z.date()', () => {
-        const schema = z.object({
-            timestamp: z.date(),
-        });
-
-        expect(() => zodSchemaToJsonSchema(schema)).toThrow();
-    });
-});
+import { toJsonSchema } from './schema.ts';
 
 describe('normalizeStrictJsonSchema', () => {
     it('strips $schema and closes the root object', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.object({ query: z.string() }))
+            toJsonSchema(z.object({ query: z.string() }))
         );
 
         expect(normalized).not.toHaveProperty('$schema');
@@ -86,7 +23,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('closes nested objects in properties, items, and unions', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(
+            toJsonSchema(
                 z.object({
                     filter: z.object({ field: z.string() }),
                     entries: z.array(z.object({ id: z.string() })),
@@ -118,7 +55,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('preserves an existing additionalProperties: false', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.strictObject({ value: z.string() }))
+            toJsonSchema(z.strictObject({ value: z.string() }))
         );
 
         expect(normalized['additionalProperties']).toBe(false);
@@ -126,7 +63,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('drops the implicit safe-integer bounds of z.int()', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.object({ count: z.int() }))
+            toJsonSchema(z.object({ count: z.int() }))
         );
 
         const count = (
@@ -139,7 +76,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('drops an implicit safe-integer bound independently of its pair', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.object({ count: z.int().min(0) }))
+            toJsonSchema(z.object({ count: z.int().min(0) }))
         );
 
         const count = (
@@ -151,7 +88,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('rewrites oneOf from z.discriminatedUnion to anyOf at every depth', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(
+            toJsonSchema(
                 z.object({
                     action: z.discriminatedUnion('kind', [
                         z.object({ kind: z.literal('open'), path: z.string() }),
@@ -185,7 +122,7 @@ describe('normalizeStrictJsonSchema', () => {
     });
 
     it('does not touch the input schema object', () => {
-        const source = zodSchemaToJsonSchema(
+        const source = toJsonSchema(
             z.object({ nested: z.object({ value: z.string() }) })
         );
         const before = JSON.parse(JSON.stringify(source)) as unknown;

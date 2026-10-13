@@ -10,7 +10,6 @@ import {
     type Tool,
     type ToolConfig,
 } from '@google/genai';
-import type { z } from 'zod';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -18,6 +17,7 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
+    SchemaInput,
     StreamEvent,
     ToolCall,
     ToolChoice,
@@ -26,10 +26,11 @@ import type {
 } from '@core-ai/core-ai';
 import {
     getProviderMetadata,
+    getToolJsonSchema,
+    normalizeStructuredOutputSchema,
     ValidationError,
     validateMessages,
     validateToolSchemaStrictness,
-    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
     getGoogleModelCapabilities,
@@ -223,7 +224,7 @@ export function convertTools(tools: ToolSet): Tool[] {
         tools
     ).map((tool) => {
         const { $schema: _schema, ...parametersJsonSchema } =
-            zodSchemaToJsonSchema(tool.parameters);
+            getToolJsonSchema(tool);
 
         return {
             name: tool.name,
@@ -274,13 +275,13 @@ export function convertToolChoice(choice: ToolChoice): ToolConfig {
     };
 }
 
-export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+export function getStructuredOutputToolName<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): string {
     return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): GenerateOptions {
     const toolName = getStructuredOutputToolName(options);
@@ -294,7 +295,7 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
                 description:
                     options.schemaDescription ??
                     DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
-                parameters: options.schema,
+                parameters: normalizeStructuredOutputSchema(options).jsonSchema,
             },
         },
         toolChoice: {

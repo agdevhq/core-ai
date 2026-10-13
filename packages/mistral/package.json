@@ -44,9 +44,7 @@
     },
     "dependencies": {
         "@core-ai/core-ai": "^0.34.0",
-        "@mistralai/mistralai": "^2.4.1"
-    },
-    "peerDependencies": {
+        "@mistralai/mistralai": "^2.4.1",
         "zod": "^4.0.0"
     },
     "devDependencies": {

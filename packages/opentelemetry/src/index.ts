@@ -1,6 +1,5 @@
 import { SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/api';
-import type { z } from 'zod';
 import type {
     ChatModel,
     ChatModelMiddleware,
@@ -10,6 +9,7 @@ import type {
     ImageModelMiddleware,
     ObjectStream,
     StreamObjectOptions,
+    SchemaInput,
 } from '@core-ai/core-ai';
 import {
     createChatSpanName,
@@ -156,7 +156,7 @@ export function createOtelMiddleware(
                 }
             );
         },
-        generateObject: async <TSchema extends z.ZodType>(args: {
+        generateObject: async <TSchema extends SchemaInput>(args: {
             execute: (
                 options?: GenerateObjectOptions<TSchema>
             ) => Promise<GenerateObjectResult<TSchema>>;
@@ -200,7 +200,7 @@ export function createOtelMiddleware(
                 }
             );
         },
-        streamObject: async <TSchema extends z.ZodType>(args: {
+        streamObject: async <TSchema extends SchemaInput>(args: {
             execute: (
                 options?: StreamObjectOptions<TSchema>
             ) => Promise<ObjectStream<TSchema>>;
