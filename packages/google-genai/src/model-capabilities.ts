@@ -29,10 +29,9 @@ const ALL_EFFORTS = [
 ] as const satisfies readonly ReasoningEffort[];
 
 /**
- * Thinking levels each Gemini 3 model accepts, expressed as the efforts that
- * map onto them one to one. From
- * https://ai.google.dev/gemini-api/docs/thinking and
- * https://ai.google.dev/gemini-api/docs/gemini-3. An effort outside a model's
+ * Thinking levels each Gemini 3 and 4 model accepts, expressed as the efforts
+ * that map onto them one to one. From
+ * https://ai.google.dev/gemini-api/docs/thinking. An effort outside a model's
  * list is clamped to the nearest level, so `max` always resolves to `high`.
  */
 const FOUR_LEVEL_EFFORTS = [
@@ -59,6 +58,7 @@ function createCapabilities(config: {
     supportedEfforts?: readonly ReasoningEffort[];
     thinkingBudgetRange?: GoogleThinkingBudgetRange;
     maxOutputTokens?: number;
+    restrictsSamplingParams?: boolean;
 }): GoogleModelCapabilities {
     return {
         ...(config.maxOutputTokens === undefined
@@ -67,7 +67,7 @@ function createCapabilities(config: {
         reasoning: {
             mode: config.mode,
             supportedEfforts: config.supportedEfforts ?? ALL_EFFORTS,
-            restrictsSamplingParams: false,
+            restrictsSamplingParams: config.restrictsSamplingParams ?? false,
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
             thinkingParam: config.thinkingParam,
             ...(config.thinkingBudgetRange === undefined
@@ -82,7 +82,7 @@ function createCapabilities(config: {
     };
 }
 
-/** `outputTokenLimit` of every Gemini 2.5 and 3 text model (Models API). */
+/** Synchronous output ceiling of known Gemini text models (Models API). */
 const GEMINI_MAX_OUTPUT_TOKENS = 65_536;
 
 const DEFAULT_CAPABILITIES = createCapabilities({
@@ -109,21 +109,30 @@ const GEMINI_25_FLASH_LITE_CAPABILITIES = createCapabilities({
     maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
 });
 function createThinkingLevelCapabilities(
-    supportedEfforts: readonly ReasoningEffort[]
+    supportedEfforts: readonly ReasoningEffort[],
+    options?: { restrictsSamplingParams?: boolean }
 ): GoogleModelCapabilities {
     return createCapabilities({
         thinkingParam: 'thinkingLevel',
         mode: 'always-on',
         supportedEfforts,
         maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS,
+        restrictsSamplingParams: options?.restrictsSamplingParams,
     });
 }
 const FOUR_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(FOUR_LEVEL_EFFORTS);
 const THREE_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(THREE_LEVEL_EFFORTS);
+// Sampling parameters are ignored. `MINIMAL` and `thinkingBudget` return 400.
+// https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
+const GEMINI_4_ARGON_CAPABILITIES = createThinkingLevelCapabilities(
+    THREE_LEVEL_EFFORTS,
+    { restrictsSamplingParams: true }
+);
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
+    'gemini-4-argon': GEMINI_4_ARGON_CAPABILITIES,
     'gemini-3.8-flash': THREE_LEVEL_CAPABILITIES,
     'gemini-3.7-flash': THREE_LEVEL_CAPABILITIES,
     'gemini-3.6-flash': FOUR_LEVEL_CAPABILITIES,

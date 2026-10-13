@@ -376,6 +376,13 @@ export function createGenerateRequest(
         });
     }
     const convertedMessages = convertMessages(options.messages);
+    rejectIgnoredSamplingParams(
+        modelId,
+        options,
+        capabilities,
+        googleOptions,
+        provider
+    );
     const requestConfig = {
         ...(convertedMessages.systemInstruction
             ? { systemInstruction: convertedMessages.systemInstruction }
@@ -397,6 +404,43 @@ export function createGenerateRequest(
         contents: convertedMessages.contents,
         config: requestConfig,
     };
+}
+
+/**
+ * Gemini 4 Argon ignores `temperature`, `topP`, and `topK`. Thinking cannot
+ * be turned off, so the restriction applies even when `reasoning` is omitted.
+ */
+function rejectIgnoredSamplingParams(
+    modelId: string,
+    options: GenerateOptions,
+    capabilities: GoogleModelCapabilities,
+    googleOptions: GoogleGenerateProviderOptions | undefined,
+    provider: string
+): void {
+    const reasoningActive =
+        options.reasoning !== undefined ||
+        capabilities.reasoning.mode === 'always-on';
+    if (!reasoningActive || !capabilities.reasoning.restrictsSamplingParams) {
+        return;
+    }
+
+    const restricted = [
+        ['temperature', options.temperature],
+        ['topP', options.topP],
+        ['topK', googleOptions?.topK],
+    ] as const;
+
+    for (const [name, value] of restricted) {
+        if (value === undefined) {
+            continue;
+        }
+
+        throw new ValidationError(
+            `Google model "${modelId}" does not support ${name}`,
+            undefined,
+            provider
+        );
+    }
 }
 
 function mapSamplingToConfig(
