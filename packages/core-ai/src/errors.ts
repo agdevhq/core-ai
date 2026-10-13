@@ -288,8 +288,11 @@ export type ImageCountExceededErrorOptions = ProviderErrorOptions & {
  * The request carries more images than the provider or model accepts in one
  * request. Not retryable: the same messages fail again until images are
  * removed. `maxImages` and `actualImages` are set when the provider reports
- * them; some providers share the limit with other media (Anthropic counts
- * document pages against it).
+ * them and count what the provider counts as images. That includes video
+ * frames (Gemini) and document pages rendered as images (Azure OpenAI), so
+ * the error can occur for a request without image parts. Anthropic shares
+ * the limit with document pages; there `maxImages` is the limit minus the
+ * documents in the request.
  */
 export class ImageCountExceededError extends ProviderError {
     public readonly maxImages?: number;
