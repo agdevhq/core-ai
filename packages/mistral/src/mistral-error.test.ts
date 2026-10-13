@@ -3,6 +3,7 @@ import { RequestTimeoutError } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -39,6 +40,52 @@ describe('wrapMistralError', () => {
         const classified = wrapped as ContextLengthExceededError;
         expect(classified.maxTokens).toBe(32768);
         expect(classified.actualTokens).toBe(218875);
+    });
+
+    it('should map the image-count limit to ImageCountExceededError', () => {
+        const body = JSON.stringify({
+            object: 'error',
+            message: 'Total number of images exceeds the maximum allowed of 8.',
+            type: 'invalid_request_invalid_args',
+            param: null,
+            code: '3051',
+            raw_status_code: 400,
+        });
+        const error = {
+            body,
+            message: `API error occurred: Status 400. Body: ${body}`,
+            statusCode: 400,
+        };
+
+        const wrapped = wrapMistralError(error);
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        const classified = wrapped as ImageCountExceededError;
+        expect(classified.maxImages).toBe(8);
+        expect(classified.statusCode).toBe(400);
+        expect(classified.code).toBe('invalid_request_invalid_args');
+    });
+
+    it('should not map other invalid image arguments to ImageCountExceededError', () => {
+        const body = JSON.stringify({
+            object: 'error',
+            message: 'Image input is not enabled for this model',
+            type: 'invalid_request_invalid_args',
+            param: null,
+            code: '3051',
+            raw_status_code: 400,
+        });
+        const error = {
+            body,
+            message: `API error occurred: Status 400. Body: ${body}`,
+            statusCode: 400,
+        };
+
+        const wrapped = wrapMistralError(error);
+
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
     it('should map too-large-for-model without counts', () => {

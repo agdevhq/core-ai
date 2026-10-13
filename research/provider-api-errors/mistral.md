@@ -56,10 +56,24 @@ Do not treat generic 400/422 as context length.
 
 ### Image count
 
-No verbatim image-count error was found, so `wrapMistralError` does not classify one. A live probe above the limit is needed to capture the payload.
+| Status | type                           | code   | Message                                                      | Confidence |
+| ------ | ------------------------------ | ------ | ------------------------------------------------------------ | ---------- |
+| 400    | `invalid_request_invalid_args` | `3051` | `Total number of images exceeds the maximum allowed of {N}.` | High       |
 
-- Documented limit: 8 images per request ([vision](https://docs.mistral.ai/capabilities/vision)); the known-limitations page instead says it depends on the model and token budget.
-- The failure could be a 400 `invalid_request_error` or a 422 validation error (`{"detail":[{"type":"value_error",…}]}`); one report describes requests above 8 images failing with a 422 and no usable body ([open-webui#10227](https://github.com/open-webui/open-webui/discussions/10227)).
+Captured with a live probe on 2026-10-13: 9 images in one user message to `mistral-small-latest` returned `{N}` = 8.
+
+```json
+{
+    "object": "error",
+    "message": "Total number of images exceeds the maximum allowed of 8.",
+    "type": "invalid_request_invalid_args",
+    "param": null,
+    "code": "3051",
+    "raw_status_code": 400
+}
+```
+
+Code `3051` is not specific to this limit — `Image input is not enabled for this model` carries the same type and code ([mistral-vibe#1172](https://github.com/mistralai/mistral-vibe/issues/1172)) — so the message is the only signal. The documented limit is 8 images per request ([vision](https://docs.mistral.ai/capabilities/vision)).
 
 ### Rate limit
 

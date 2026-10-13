@@ -6,6 +6,7 @@ import {
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -23,6 +24,14 @@ import {
 
 /** Only honor capacity wording on 5xx — not ordinary 4xx / 429. */
 const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
+
+/**
+ * Image-count limit: HTTP 400 `invalid_request_invalid_args` with the generic
+ * code `3051`, so the message is the only signal:
+ * "Total number of images exceeds the maximum allowed of 8."
+ */
+const IMAGE_COUNT_MESSAGE_PATTERN =
+    /total number of images exceeds the maximum allowed of (\d+)/i;
 
 type ContextLengthDetails = {
     maxTokens?: number;
@@ -57,6 +66,14 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
         return new ContextLengthExceededError(message, 'mistral', {
             ...options,
             ...contextLength,
+        });
+    }
+
+    const maxImages = getImageCountLimit(body, message, statusCode);
+    if (maxImages !== undefined) {
+        return new ImageCountExceededError(message, 'mistral', {
+            ...options,
+            maxImages,
         });
     }
 
@@ -167,6 +184,20 @@ function getContextLengthDetails(
         maxTokens: parseInt(maxTokens, 10),
         actualTokens: parseInt(actualTokens, 10),
     };
+}
+
+function getImageCountLimit(
+    body: { message?: string } | undefined,
+    message: string,
+    statusCode: number | undefined
+): number | undefined {
+    if (statusCode !== undefined && statusCode !== 400) {
+        return undefined;
+    }
+
+    const errorMessage = resolveMistralMessageText(body?.message ?? message);
+    const limit = errorMessage.match(IMAGE_COUNT_MESSAGE_PATTERN)?.[1];
+    return limit === undefined ? undefined : parseInt(limit, 10);
 }
 
 function resolveMistralMessageText(message: string): string {
