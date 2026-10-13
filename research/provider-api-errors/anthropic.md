@@ -91,7 +91,7 @@ TS SDK also exposes `APIError.type` (parsed from nested `error.type`). Prefer th
 | 400    | `invalid_request_error` | `too many images and documents: {images} + {docs} > {max}`         | High       |
 | 400    | `invalid_request_error` | `Too much media: {pages} document pages + {images} images > {max}` | High       |
 
-Images and documents share one limit, so both messages also fire when documents alone exceed it. Classify as an image-count failure only when the image count is above zero.
+Images and documents share one limit, so both messages also fire when documents alone exceed it. Classify as an image-count failure only when removing images can fix the request: the image count is above zero and `{docs}` / `{pages}` is at most `{max}`. The image budget for such a request is `{max}` minus the document count.
 
 - Pasted payloads with `{max}` = 100: [claude-code#19822](https://github.com/anthropics/claude-code/issues/19822) (both wordings), [claude-code#26188](https://github.com/anthropics/claude-code/issues/26188).
 - Documented limits ([vision](https://platform.claude.com/docs/en/build-with-claude/vision)): 100 images per request for 200k-context models, 600 for other models. No payload showing the 600 limit or a Vertex-specific envelope was found.

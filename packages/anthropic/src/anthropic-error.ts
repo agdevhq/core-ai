@@ -227,9 +227,11 @@ function getContextLengthDetails(
 }
 
 /**
- * Classifies the shared media limit as an image-count failure only when the
- * request contains images; a documents-only overflow stays a plain
- * `ProviderError`.
+ * Classifies the shared media limit as an image-count failure only when
+ * removing images can fix the request: it contains images and its documents
+ * fit the limit on their own. Otherwise the overflow stays a plain
+ * `ProviderError`. `maxImages` is the limit minus the documents, the number
+ * of images this request had room for.
  */
 function getImageCountDetails(
     providerMessage: string | undefined,
@@ -241,18 +243,21 @@ function getImageCountDetails(
 
     const imagesFirst = providerMessage.match(IMAGES_AND_DOCUMENTS_PATTERN);
     const pagesFirst = providerMessage.match(MEDIA_PAGES_AND_IMAGES_PATTERN);
-    const actual = imagesFirst?.[1] ?? pagesFirst?.[2];
+    const images = imagesFirst?.[1] ?? pagesFirst?.[2];
+    const documents = imagesFirst?.[2] ?? pagesFirst?.[1];
     const max = imagesFirst?.[3] ?? pagesFirst?.[3];
-    if (actual === undefined || max === undefined) {
+    if (images === undefined || documents === undefined || max === undefined) {
         return undefined;
     }
 
-    const actualImages = parseInt(actual, 10);
-    if (actualImages === 0) {
+    const actualImages = parseInt(images, 10);
+    const documentCount = parseInt(documents, 10);
+    const mediaLimit = parseInt(max, 10);
+    if (actualImages === 0 || documentCount > mediaLimit) {
         return undefined;
     }
 
-    return { maxImages: parseInt(max, 10), actualImages };
+    return { maxImages: mediaLimit - documentCount, actualImages };
 }
 
 /**

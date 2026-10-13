@@ -125,6 +125,42 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
+    it('should report the image budget left by documents on a mixed overflow', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'too many images and documents: 60 + 50 > 100',
+            },
+            'too many images and documents: 60 + 50 > 100',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        const classified = wrapped as ImageCountExceededError;
+        expect(classified.maxImages).toBe(50);
+        expect(classified.actualImages).toBe(60);
+    });
+
+    it('should not map a mixed overflow when documents alone exceed the limit', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'Too much media: 120 document pages + 1 images > 100',
+            },
+            'Too much media: 120 document pages + 1 images > 100',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+    });
+
     it('should not map image dimension errors to ImageCountExceededError', () => {
         const message =
             'messages.100.content.2.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels';
