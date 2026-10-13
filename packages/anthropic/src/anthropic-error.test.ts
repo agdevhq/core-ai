@@ -161,6 +161,45 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
+    it('should map an in-band media-count error without HTTP status', () => {
+        const error = new APIError(
+            undefined,
+            {
+                type: 'error',
+                error: {
+                    type: 'invalid_request_error',
+                    message: 'too many images and documents: 110 + 0 > 100',
+                },
+            },
+            undefined,
+            new Headers(),
+            'invalid_request_error'
+        );
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect((wrapped as ImageCountExceededError).maxImages).toBe(100);
+        expect((wrapped as ImageCountExceededError).actualImages).toBe(110);
+    });
+
+    it('should not map media-count wording on a non-400 status', () => {
+        const error = new APIError(
+            429,
+            {
+                type: 'rate_limit_error',
+                message: 'too many images and documents: 110 + 0 > 100',
+            },
+            'too many images and documents: 110 + 0 > 100',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+    });
+
     it('should not map image dimension errors to ImageCountExceededError', () => {
         const message =
             'messages.100.content.2.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels';

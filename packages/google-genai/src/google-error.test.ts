@@ -71,6 +71,37 @@ describe('wrapGoogleError', () => {
         expect(classified.code).toBe('INVALID_ARGUMENT');
     });
 
+    it('should map an in-band image-count error without HTTP status', () => {
+        const wrapped = wrapGoogleError(
+            new Error(
+                'Please use fewer than 3600 images in your request to models/gemini-2.5-flash'
+            )
+        );
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect((wrapped as ImageCountExceededError).maxImages).toBe(3600);
+        expect((wrapped as ImageCountExceededError).statusCode).toBeUndefined();
+    });
+
+    it('should not map image-count wording on a non-400 status', () => {
+        const error = new ApiError({
+            message: JSON.stringify({
+                error: {
+                    code: 429,
+                    status: 'RESOURCE_EXHAUSTED',
+                    message:
+                        'Please use fewer than 3600 images in your request to models/gemini-2.5-flash',
+                },
+            }),
+            status: 429,
+        });
+
+        const wrapped = wrapGoogleError(error);
+
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+    });
+
     it('should not map other invalid arguments to ImageCountExceededError', () => {
         const error = new ApiError({
             message: JSON.stringify({

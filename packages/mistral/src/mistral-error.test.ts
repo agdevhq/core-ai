@@ -67,6 +67,26 @@ describe('wrapMistralError', () => {
         expect(classified.code).toBe('invalid_request_invalid_args');
     });
 
+    it('should map an in-band image-count error without status', () => {
+        const wrapped = wrapMistralError({
+            message: 'Total number of images exceeds the maximum allowed of 8.',
+        });
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect((wrapped as ImageCountExceededError).maxImages).toBe(8);
+        expect((wrapped as ImageCountExceededError).statusCode).toBeUndefined();
+    });
+
+    it('should not map image-count wording on a non-400 status', () => {
+        const wrapped = wrapMistralError({
+            message: 'Total number of images exceeds the maximum allowed of 8.',
+            statusCode: 429,
+        });
+
+        expect(wrapped).toBeInstanceOf(RateLimitError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+    });
+
     it('should not map other invalid image arguments to ImageCountExceededError', () => {
         const body = JSON.stringify({
             object: 'error',
