@@ -668,30 +668,40 @@ describe('reasoning support', () => {
         }
     );
 
-    it('should reject topK for Gemini 4 Argon under the provider key', () => {
-        expect(() =>
-            createGenerateRequest(
-                'gemini-4-argon',
-                {
-                    messages: [{ role: 'user', content: 'Hi' }],
-                    providerOptions: { 'google-vertex': { topK: 24 } },
-                },
-                'google-vertex'
-            )
-        ).toThrowError(/does not support topK/);
-    });
+    it.each([
+        ['topK', 24],
+        ['frequencyPenalty', 0.5],
+        ['presencePenalty', 0.3],
+    ] as const)(
+        'should reject %s for Gemini 4 Argon under the provider key',
+        (name, value) => {
+            expect(() =>
+                createGenerateRequest(
+                    'gemini-4-argon',
+                    {
+                        messages: [{ role: 'user', content: 'Hi' }],
+                        providerOptions: { 'google-vertex': { [name]: value } },
+                    },
+                    'google-vertex'
+                )
+            ).toThrowError(new RegExp(`does not support ${name}`));
+        }
+    );
 
-    it('should ignore topK addressed to another provider on Gemini 4 Argon', () => {
+    it('should ignore restricted options addressed to another provider on Gemini 4 Argon', () => {
         const request = createGenerateRequest(
             'gemini-4-argon',
             {
                 messages: [{ role: 'user', content: 'Hi' }],
-                providerOptions: { google: { topK: 24 } },
+                providerOptions: {
+                    google: { topK: 24, frequencyPenalty: 0.5 },
+                },
             },
             'google-vertex'
         );
 
         expect(request.config).not.toHaveProperty('topK');
+        expect(request.config).not.toHaveProperty('frequencyPenalty');
     });
 
     it('should still send non-sampling provider options for Gemini 4 Argon', () => {

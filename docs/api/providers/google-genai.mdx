@@ -253,9 +253,9 @@ const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 Gemini 2.5 and Gemini 3 models accept `temperature`, `topP`, and `topK` while
 reasoning is enabled. `gemini-4-argon` reports
 `reasoning.restrictsSamplingParams` as `true`. Passing `temperature`, `topP`,
-or `providerOptions.google.topK` throws `ValidationError` before the request,
-including when you omit `reasoning`, because thinking stays on. All unified
-tool-choice modes remain supported.
+or the `topK`, `frequencyPenalty`, or `presencePenalty` provider options throws
+`ValidationError` before the request, including when you omit `reasoning`,
+because thinking stays on. All unified tool-choice modes remain supported.
 
 `modalities.input` is `['text', 'image', 'file', 'audio']` for every Gemini
 chat model. Image sources accept both `base64` and `url`. A URL maps to
@@ -418,8 +418,8 @@ const result = await generate({
 });
 ```
 
-`gemini-4-argon` rejects `topK`, along with `temperature` and `topP`. The
-other fields still apply.
+`gemini-4-argon` rejects `topK`, `frequencyPenalty`, and `presencePenalty`,
+along with `temperature` and `topP`. `stopSequences` and `seed` still apply.
 
 ### Embed options
 

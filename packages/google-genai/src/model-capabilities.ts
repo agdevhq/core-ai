@@ -124,7 +124,8 @@ const FOUR_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(FOUR_LEVEL_EFFORTS);
 const THREE_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(THREE_LEVEL_EFFORTS);
-// Sampling parameters are ignored. `MINIMAL` and `thinkingBudget` return 400.
+// `temperature`, `topP`, and `topK` are ignored. Penalties, `MINIMAL`, and
+// `thinkingBudget` return 400.
 // https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
 const GEMINI_4_ARGON_CAPABILITIES = createThinkingLevelCapabilities(
     THREE_LEVEL_EFFORTS,

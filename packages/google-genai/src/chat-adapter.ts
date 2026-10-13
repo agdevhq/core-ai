@@ -367,6 +367,13 @@ export function createGenerateRequest(
         modelId,
         providerId: provider,
     });
+    rejectRestrictedSamplingParams(
+        modelId,
+        options,
+        capabilities,
+        googleOptions,
+        provider
+    );
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
@@ -376,13 +383,6 @@ export function createGenerateRequest(
         });
     }
     const convertedMessages = convertMessages(options.messages);
-    rejectIgnoredSamplingParams(
-        modelId,
-        options,
-        capabilities,
-        googleOptions,
-        provider
-    );
     const requestConfig = {
         ...(convertedMessages.systemInstruction
             ? { systemInstruction: convertedMessages.systemInstruction }
@@ -407,10 +407,12 @@ export function createGenerateRequest(
 }
 
 /**
- * Gemini 4 Argon ignores `temperature`, `topP`, and `topK`. Thinking cannot
- * be turned off, so the restriction applies even when `reasoning` is omitted.
+ * Models that report `restrictsSamplingParams` silently ignore `temperature`,
+ * `topP`, and `topK` while thinking, and reject the penalties with a 400.
+ * Fail early instead. An always-on model thinks even when `reasoning` is
+ * omitted, so the restriction applies then too.
  */
-function rejectIgnoredSamplingParams(
+function rejectRestrictedSamplingParams(
     modelId: string,
     options: GenerateOptions,
     capabilities: GoogleModelCapabilities,
@@ -428,6 +430,8 @@ function rejectIgnoredSamplingParams(
         ['temperature', options.temperature],
         ['topP', options.topP],
         ['topK', googleOptions?.topK],
+        ['frequencyPenalty', googleOptions?.frequencyPenalty],
+        ['presencePenalty', googleOptions?.presencePenalty],
     ] as const;
 
     for (const [name, value] of restricted) {
