@@ -55,13 +55,17 @@ const google = createGoogleGenAI({
 ### Chat models
 
 <AccordionGroup>
+  <Accordion title="Gemini 4 (thinking level)" icon="star">
+    - **gemini-4-argon** - Flagship reasoning model for coding, agents, and hard science and math tasks
+  </Accordion>
+
   <Accordion title="Gemini 3.x (thinking level)" icon="star">
     - **gemini-3.8-flash** - Fast workhorse for coding and agentic workflows
     - **gemini-3.7-flash** - Previous Flash model for agents and coding
     - **gemini-3.6-flash** - Token-efficient Flash model for agents and coding
     - **gemini-3.5-flash** - Previous generation Flash model
     - **gemini-3.5-flash-lite** - Cost-efficient model for high-volume tasks
-    - **gemini-3.1-pro-preview** - Most capable multimodal model
+    - **gemini-3.1-pro-preview** - High-capability multimodal preview model
     - **gemini-3.1-flash-lite** - Lightweight thinking-level model
     - **gemini-3-flash-preview** - Previous Gemini 3 generation Flash model
   </Accordion>
@@ -95,7 +99,7 @@ import { generate } from '@core-ai/core-ai';
 const google = createGoogleGenAI();
 
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro-preview'),
+    model: google.chatModel('gemini-4-argon'),
     messages: [{ role: 'user', content: 'Explain machine learning' }],
 });
 
@@ -106,7 +110,7 @@ console.log(result.content);
 
 ```typescript
 const result = await generate({
-    model: google.chatModel('gemini-3.1-pro-preview'),
+    model: google.chatModel('gemini-4-argon'),
     messages: [{ role: 'user', content: 'Analyze this complex scenario...' }],
     reasoning: {
         effort: 'high',
@@ -245,8 +249,12 @@ const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 // capabilities.reasoning.mode === 'optional'
 ```
 
-Sampling parameters and all unified tool-choice modes remain supported while
-reasoning is enabled.
+Gemini 2.5 and Gemini 3 models accept `temperature`, `topP`, and `topK` while
+reasoning is enabled. `gemini-4-argon` reports
+`reasoning.restrictsSamplingParams` as `true`. Passing `temperature`, `topP`,
+or the `topK`, `frequencyPenalty`, or `presencePenalty` provider options throws
+`ValidationError` before the request, including when you omit `reasoning`,
+because thinking stays on. All unified tool-choice modes remain supported.
 
 `modalities.input` is `['text', 'image', 'file', 'audio']` for every Gemini
 chat model. Image sources accept both `base64` and `url`. A URL maps to
@@ -283,22 +291,23 @@ Gemini has no strict tool mode: every model reports
 Gemini models use either thinking levels or token budgets. Models whose
 `reasoning.mode` is `always-on` cannot disable thinking.
 
-### Thinking level (Gemini 3.x)
+### Thinking level (Gemini 3 and 4)
 
-Gemini 3.x models steer thinking with named levels, and each model accepts
-its own subset. `capabilities.reasoning.supportedEfforts` lists the efforts a
-model has a level for:
+Gemini 3 and Gemini 4 models steer thinking with named levels, and each model
+accepts its own subset. `capabilities.reasoning.supportedEfforts` lists the
+efforts a model has a level for:
 
 | Models                                                                                                             | Supported efforts                  |
 | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
 | `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-3-flash-preview` | `minimal`, `low`, `medium`, `high` |
-| `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro-preview`                                                   | `low`, `medium`, `high`            |
+| `gemini-4-argon`, `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro-preview`                                 | `low`, `medium`, `high`            |
 
 A supported effort is sent as the level of the same name. Any other effort is
 clamped to the nearest supported one first, so `max` always resolves to
-`high`.
+`high` and `minimal` resolves to `low` on models that have no `minimal` level.
+`gemini-4-argon` defaults to `medium` when you omit `reasoning`.
 
-<Note>Gemini 3 models cannot disable thinking completely.</Note>
+<Note>Gemini 3 and Gemini 4 models cannot disable thinking completely.</Note>
 
 ### Thinking budget (Gemini 2.5)
 
@@ -319,8 +328,10 @@ stay distinct. The lower efforts are the same on every model.
 
 Gemini counts thought tokens against `maxOutputTokens`. When you omit
 `maxTokens`, the adapter leaves `maxOutputTokens` unset and Gemini uses the
-model's output limit (65,536 for Gemini 2.5 and 3, reported as
-`capabilities.output.maxTokens`).
+model's output limit (65,536 for Gemini 2.5, Gemini 3, and `gemini-4-argon`,
+reported as `capabilities.output.maxTokens`). `generate` and `stream` send a
+synchronous request, so a `maxTokens` above 65,536 on `gemini-4-argon` is
+rejected by the API.
 
 On Gemini 2.5, a `maxTokens` at or below the thinking budget throws a
 `ValidationError` instead of ending with an empty answer. The budget is never
@@ -406,6 +417,9 @@ const result = await generate({
 });
 ```
 
+`gemini-4-argon` rejects `topK`, `frequencyPenalty`, and `presencePenalty`,
+along with `temperature` and `topP`. `stopSequences` and `seed` still apply.
+
 ### Embed options
 
 ```typescript
@@ -466,14 +480,15 @@ try {
 
 ## Model comparison
 
-| Model                         | Thinking Control | Can Disable | Best For                       |
-| ----------------------------- | ---------------- | ----------- | ------------------------------ |
-| Gemini 3.1 Pro Preview        | Level            | No          | Complex multimodal             |
-| Gemini 3.1 Flash Lite         | Level            | No          | Cost-efficient with thinking   |
-| Gemini 3 Flash Preview        | Level            | No          | Previous generation Flash      |
-| Gemini 2.5 Pro                | Budget (tokens)  | No          | Controlled reasoning           |
-| Gemini 2.5 Flash              | Budget (tokens)  | Yes         | Fast + flexible                |
-| Gemini 2.5 Flash Lite         | Budget (tokens)  | Yes         | Lightweight tasks              |
+| Model                  | Thinking Control | Can Disable | Best For                           |
+| ---------------------- | ---------------- | ----------- | ---------------------------------- |
+| Gemini 4 Argon         | Level            | No          | Coding, agents, and hard reasoning |
+| Gemini 3.1 Pro Preview | Level            | No          | Complex multimodal                 |
+| Gemini 3.1 Flash Lite  | Level            | No          | Cost-efficient with thinking       |
+| Gemini 3 Flash Preview | Level            | No          | Previous generation Flash          |
+| Gemini 2.5 Pro         | Budget (tokens)  | No          | Controlled reasoning               |
+| Gemini 2.5 Flash       | Budget (tokens)  | Yes         | Fast + flexible                    |
+| Gemini 2.5 Flash Lite  | Budget (tokens)  | Yes         | Lightweight tasks                  |
 
 ## Related
 

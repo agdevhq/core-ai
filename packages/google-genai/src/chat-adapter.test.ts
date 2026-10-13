@@ -619,6 +619,123 @@ describe('reasoning support', () => {
         });
     });
 
+    it('should map reasoning config to thinkingLevel for Gemini 4 Argon', () => {
+        const request = createGenerateRequest('gemini-4-argon', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'medium' },
+        });
+
+        expect(request.config).toMatchObject({
+            thinkingConfig: {
+                thinkingLevel: 'MEDIUM',
+                includeThoughts: true,
+            },
+        });
+        expect(request.config).not.toHaveProperty('temperature');
+        expect(request.config).not.toHaveProperty('topP');
+        expect(request.config).not.toHaveProperty('topK');
+    });
+
+    it.each(['minimal', 'max'] as const)(
+        'should clamp Gemini 4 Argon effort %s to a supported thinking level',
+        (effort) => {
+            const request = createGenerateRequest('gemini-4-argon', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort },
+            });
+
+            expect(request.config).toMatchObject({
+                thinkingConfig: {
+                    thinkingLevel: effort === 'minimal' ? 'LOW' : 'HIGH',
+                },
+            });
+        }
+    );
+
+    it.each(['temperature', 'topP'] as const)(
+        'should reject %s for Gemini 4 Argon',
+        (name) => {
+            expect(() =>
+                createGenerateRequest('gemini-4-argon', {
+                    messages: [{ role: 'user', content: 'Hi' }],
+                    [name]: 0.2,
+                })
+            ).toThrowError(
+                new RegExp(
+                    `Google model "gemini-4-argon" does not support ${name}`
+                )
+            );
+        }
+    );
+
+    it.each([
+        ['topK', 24],
+        ['frequencyPenalty', 0.5],
+        ['presencePenalty', 0.3],
+    ] as const)(
+        'should reject %s for Gemini 4 Argon under the provider key',
+        (name, value) => {
+            expect(() =>
+                createGenerateRequest(
+                    'gemini-4-argon',
+                    {
+                        messages: [{ role: 'user', content: 'Hi' }],
+                        providerOptions: { 'google-vertex': { [name]: value } },
+                    },
+                    'google-vertex'
+                )
+            ).toThrowError(new RegExp(`does not support ${name}`));
+        }
+    );
+
+    it('should ignore restricted options addressed to another provider on Gemini 4 Argon', () => {
+        const request = createGenerateRequest(
+            'gemini-4-argon',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                providerOptions: {
+                    google: { topK: 24, frequencyPenalty: 0.5 },
+                },
+            },
+            'google-vertex'
+        );
+
+        expect(request.config).not.toHaveProperty('topK');
+        expect(request.config).not.toHaveProperty('frequencyPenalty');
+    });
+
+    it('should still send non-sampling provider options for Gemini 4 Argon', () => {
+        const request = createGenerateRequest('gemini-4-argon', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            maxTokens: 1024,
+            providerOptions: {
+                google: {
+                    stopSequences: ['END'],
+                    seed: 7,
+                },
+            },
+        });
+
+        expect(request.config).toMatchObject({
+            maxOutputTokens: 1024,
+            stopSequences: ['END'],
+            seed: 7,
+        });
+    });
+
+    it('should still send temperature for Gemini 3', () => {
+        const request = createGenerateRequest('gemini-3.1-pro-preview', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            temperature: 0.2,
+            reasoning: { effort: 'high' },
+        });
+
+        expect(request.config).toMatchObject({
+            temperature: 0.2,
+            thinkingConfig: { thinkingLevel: 'HIGH' },
+        });
+    });
+
     it('should map reasoning config to thinkingLevel for Gemini 3', () => {
         const request = createGenerateRequest('gemini-3.1-pro-preview', {
             messages: [{ role: 'user', content: 'Hi' }],
