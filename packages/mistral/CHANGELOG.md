@@ -1,5 +1,11 @@
 # @core-ai/mistral
 
+## 0.34.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.34.0
+
 ## 0.33.0
 
 ### Minor Changes

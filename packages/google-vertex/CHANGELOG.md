@@ -1,5 +1,20 @@
 # @core-ai/google-vertex
 
+## 0.34.0
+
+### Minor Changes
+
+- 44e040f: Remove Imagen support. Google retired Imagen on Vertex AI, so `imageModel()` now uses Gemini native image generation for every model id. `GoogleVertexImageProviderOptions` now accepts `aspectRatio`, `imageSize`, and `seed`; the Imagen-only options are rejected.
+- 40aa23c: Upgrade `@google/genai` to 2.x. Vertex locations `us` and `eu` now route to their multi-region hosts (`https://aiplatform.us.rep.googleapis.com/` and `https://aiplatform.eu.rep.googleapis.com/`), which serve `gemini-4-argon`. A `client` passed to `createGoogleVertex` must come from `@google/genai` 2.x.
+
+### Patch Changes
+
+- Updated dependencies [40aa23c]
+- Updated dependencies [44e040f]
+- Updated dependencies [40aa23c]
+    - @core-ai/google-genai@0.34.0
+    - @core-ai/core-ai@0.34.0
+
 ## 0.33.0
 
 ### Patch Changes

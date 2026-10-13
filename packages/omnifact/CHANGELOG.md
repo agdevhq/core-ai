@@ -1,5 +1,12 @@
 # @core-ai/omnifact
 
+## 0.34.0
+
+### Patch Changes
+
+- @core-ai/core-ai@0.34.0
+- @core-ai/openai@0.34.0
+
 ## 0.33.0
 
 ### Patch Changes
