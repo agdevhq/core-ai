@@ -367,6 +367,13 @@ export function createGenerateRequest(
         modelId,
         providerId: provider,
     });
+    rejectRestrictedSamplingParams(
+        modelId,
+        options,
+        capabilities,
+        googleOptions,
+        provider
+    );
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
@@ -397,6 +404,47 @@ export function createGenerateRequest(
         contents: convertedMessages.contents,
         config: requestConfig,
     };
+}
+
+/**
+ * Models that report `restrictsSamplingParams` silently ignore `temperature`,
+ * `topP`, and `topK` while thinking, and reject the penalties with a 400.
+ * Fail early instead. An always-on model thinks even when `reasoning` is
+ * omitted, so the restriction applies then too.
+ */
+function rejectRestrictedSamplingParams(
+    modelId: string,
+    options: GenerateOptions,
+    capabilities: GoogleModelCapabilities,
+    googleOptions: GoogleGenerateProviderOptions | undefined,
+    provider: string
+): void {
+    const reasoningActive =
+        options.reasoning !== undefined ||
+        capabilities.reasoning.mode === 'always-on';
+    if (!reasoningActive || !capabilities.reasoning.restrictsSamplingParams) {
+        return;
+    }
+
+    const restricted = [
+        ['temperature', options.temperature],
+        ['topP', options.topP],
+        ['topK', googleOptions?.topK],
+        ['frequencyPenalty', googleOptions?.frequencyPenalty],
+        ['presencePenalty', googleOptions?.presencePenalty],
+    ] as const;
+
+    for (const [name, value] of restricted) {
+        if (value === undefined) {
+            continue;
+        }
+
+        throw new ValidationError(
+            `Google model "${modelId}" does not support ${name}`,
+            undefined,
+            provider
+        );
+    }
 }
 
 function mapSamplingToConfig(
