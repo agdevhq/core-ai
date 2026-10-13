@@ -7,15 +7,6 @@ import {
 
 const PROVIDER_ID = 'google-vertex';
 
-/** Host for a Vertex multi-region location. Single regions stay on the SDK default. */
-function vertexMultiRegionBaseUrl(region: string): string | undefined {
-    if (region === 'us' || region === 'eu') {
-        return `https://aiplatform.${region}.rep.googleapis.com/`;
-    }
-
-    return undefined;
-}
-
 export type GoogleVertexServiceAccountCredentials = NonNullable<
     NonNullable<GoogleGenAIOptions['googleAuthOptions']>['credentials']
 >;
@@ -58,15 +49,11 @@ function createGoogleVertexClient(
                   credentials: options.credentials,
               }
             : undefined;
-    const multiRegionBaseUrl = vertexMultiRegionBaseUrl(options.region);
 
     return new GoogleGenAI({
         vertexai: true,
         project: options.projectId,
         location: options.region,
         ...(googleAuthOptions ? { googleAuthOptions } : {}),
-        ...(multiRegionBaseUrl
-            ? { httpOptions: { baseUrl: multiRegionBaseUrl } }
-            : {}),
     });
 }

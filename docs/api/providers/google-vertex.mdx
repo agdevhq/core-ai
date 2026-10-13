@@ -36,8 +36,9 @@ const googleVertex = createGoogleVertex({
 </ParamField>
 
 <ParamField path="region" type="string" optional>
-    Vertex AI location, such as `europe-west1` or `us-central1`. Required unless
-    a preconfigured client is supplied.
+    Vertex AI location, such as `europe-west1`, `us-central1`, `global`, or the
+    multi-region locations `us` and `eu`. Required unless a preconfigured client
+    is supplied.
 </ParamField>
 
 <ParamField
@@ -134,12 +135,10 @@ Imagen models such as `imagen-4.0-generate-001` are also supported when they
 are available to the selected project and region.
 
 `gemini-4-argon` uses the same model id and capabilities as Google GenAI.
-Vertex serves it at `global`, `us`, and `eu`. `us` and `eu` are multi-region
-locations. `createGoogleVertex` sends them to
-`https://aiplatform.us.rep.googleapis.com/` and
-`https://aiplatform.eu.rep.googleapis.com/`. `global` uses
-`https://aiplatform.googleapis.com/`. Single regions such as `us-central1` and
-`europe-west1` do not serve this model.
+Vertex serves it at `global` and at the multi-region locations `us` and `eu`,
+not at single regions such as `us-central1` or `europe-west1`. The Google GenAI
+SDK sends `us` and `eu` requests to `https://aiplatform.us.rep.googleapis.com/`
+and `https://aiplatform.eu.rep.googleapis.com/`.
 
 ```typescript
 const us = createGoogleVertex({
@@ -149,6 +148,10 @@ const us = createGoogleVertex({
 
 const model = us.chatModel('gemini-4-argon');
 ```
+
+Multi-region locations serve fewer models than single regions. If a model such
+as an embedding model returns a 404 at `us` or `eu`, create a second provider
+for a single region that hosts it.
 
 ## Model capabilities
 

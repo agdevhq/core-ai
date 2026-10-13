@@ -72,25 +72,6 @@ describe('createGoogleVertex', () => {
         });
     });
 
-    it.each(['us', 'eu'] as const)(
-        'should target the %s multi-region endpoint',
-        (region) => {
-            createGoogleVertex({
-                projectId: 'my-project',
-                region,
-            });
-
-            expect(googleGenAIConstructor).toHaveBeenCalledWith({
-                vertexai: true,
-                project: 'my-project',
-                location: region,
-                httpOptions: {
-                    baseUrl: `https://aiplatform.${region}.rep.googleapis.com/`,
-                },
-            });
-        }
-    );
-
     it('should pass service account credentials as Google auth options', () => {
         const credentials = {
             client_email: 'test@my-project.iam.gserviceaccount.com',
