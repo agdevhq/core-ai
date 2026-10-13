@@ -55,7 +55,11 @@ export type StreamParams = GenerateOptions & {
 </ParamField>
 
 <ParamField path="toolChoice" type="ToolChoice">
-  Controls how the model uses tools: `'auto'`, `'none'`, `'required'`, or `{ type: 'tool', toolName: string }`.
+  Controls how the model uses tools: `'auto'`, `'none'`, `'required'`, or `{ type: 'tool', toolName: string }`. With tool discovery in use, `toolName` may only name a tool in `tools`.
+</ParamField>
+
+<ParamField path="toolDiscovery" type="ToolDiscoveryOptions">
+  Enables tool discovery: core-ai declares a discovery tool, and the model's calls to it stream as `tool-discovery-call` events. `description` is appended to the discovery tool's default description. See [Tool Discovery](/guides/tool-discovery).
 </ParamField>
 
 <ParamField path="providerOptions" type="GenerateProviderOptions">
@@ -149,6 +153,16 @@ type ChatStream = AsyncIterable<StreamEvent> & {
     Emitted when a tool call completes with the full tool call object.
     `providerMetadata` carries provider-owned data that has to be replayed with
     the call, such as a Google thought signature.
+</ResponseField>
+
+<ResponseField
+    name="tool-discovery-call"
+    type="{ type: 'tool-discovery-call'; id: string; names?: string[]; query?: string; metadata?: Record<string, unknown>; providerMetadata?: Record<string, Record<string, unknown>> }"
+>
+    Emitted once when the model completes a call to the discovery tool, with
+    the complete `ToolDiscoveryCallPart`. Discovery calls have no start or
+    delta events and never appear in `toolCalls`. The aggregated `.result`
+    contains them in `parts`. See [Tool Discovery](/guides/tool-discovery#streaming).
 </ResponseField>
 
 <ResponseField
@@ -352,6 +366,7 @@ try {
 Throws `ValidationError` if:
 
 - Messages array is empty
+- The request breaks a tool discovery rule, such as an unanswered discovery call. See [Validation](/guides/tool-discovery#validation).
 
 May also throw:
 

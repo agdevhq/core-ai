@@ -155,10 +155,13 @@ The `source` parameter accepts an `AsyncIterable<StreamEvent>` or a `() => Promi
 type CreateChatStreamOptions = {
     signal?: AbortSignal;
     mapError?: (error: unknown) => CoreAIError;
+    request?: Pick<GenerateOptions, 'toolDiscovery'>;
 };
 ```
 
-Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged.
+Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged. Pass the `request` the stream answers so that, with `toolDiscovery`, calls to the discovery tool arrive as one `tool-discovery-call` event.
+
+A custom `ChatModel` that builds its `GenerateResult` itself passes it through `finalizeGenerateResult(result, options)` for the same treatment.
 
 ## createObjectStream()
 

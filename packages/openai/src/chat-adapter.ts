@@ -9,6 +9,7 @@ import type {
     ResponseOutputMessage,
     ResponseReasoningItem,
     ResponseStreamEvent,
+    ResponseToolSearchCall,
     ResponseUsage,
 } from 'openai/resources/responses/responses';
 import type {
@@ -18,24 +19,39 @@ import type {
     GenerateResult,
     Message,
     ModelCapabilities,
+    ResolvedToolDiscovery,
     StreamEvent,
     ToolCall,
+    ToolDiscoveryCallPart,
+    ToolDiscoveryResultMessage,
+    ToolResultMessage,
     UserContentPart,
     ValidateMessagesOptions,
 } from '@core-ai/core-ai';
 import {
+    createToolDiscoveryCallPart,
+    getEmulatedToolSet,
     getProviderMetadata,
+    getToolDiscoveryArguments,
     clampReasoningEffort,
+    resolveToolDiscovery,
+    toToolDiscoveryToolCall,
+    toToolDiscoveryToolResult,
     UnsupportedInputModalityError,
     ValidationError,
     validateMessages,
+    validateToolSchemaStrictness,
 } from '@core-ai/core-ai';
 import {
     getOpenAIModelCapabilities,
     toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.ts';
-import { convertResponseTools, convertToolChoice } from './shared/tools.ts';
+import {
+    convertResponseTool,
+    convertResponseTools,
+    convertToolChoice,
+} from './shared/tools.ts';
 import type { OpenAIRequestOptions } from './shared/structured-output.ts';
 import {
     safeParseJsonObject,
@@ -98,6 +114,25 @@ type ConvertMessagesOptions = {
      * `'openai'`; Azure OpenAI passes `'azure-openai'`.
      */
     providerId?: string;
+    /**
+     * Renders tool discovery natively with client-executed `tool_search`.
+     * Without it, discovery calls and results are emulated as function calls
+     * and function call outputs.
+     */
+    nativeToolDiscovery?: NativeToolDiscovery;
+};
+
+type NativeToolDiscovery = {
+    /**
+     * The request's tool names. Their definitions win, so they are left out
+     * of `tool_search_output` items and their calls carry no `namespace`.
+     */
+    callerToolNames: ReadonlySet<string>;
+    /**
+     * Discovered tools the request does not declare. The API requires their
+     * replayed calls to carry a `namespace`, which equals the tool name.
+     */
+    discoveredToolNames: ReadonlySet<string>;
 };
 
 type ResponsesReasoningAdapterOptions = {
@@ -116,14 +151,20 @@ export function convertMessages(
     const includeReasoning = options.includeReasoning ?? true;
     const providerId = options.providerId ?? DEFAULT_PROVIDER_ID;
     return messages.flatMap((message) =>
-        convertMessage(message, includeReasoning, providerId)
+        convertMessage(
+            message,
+            includeReasoning,
+            providerId,
+            options.nativeToolDiscovery
+        )
     );
 }
 
 function convertMessage(
     message: Message,
     includeReasoning: boolean,
-    providerId: string
+    providerId: string,
+    nativeToolDiscovery: NativeToolDiscovery | undefined
 ): ResponseInputItem[] {
     if (message.role === 'system') {
         return [
@@ -150,23 +191,91 @@ function convertMessage(
         return convertAssistantMessage(
             message.parts,
             includeReasoning,
-            providerId
+            providerId,
+            nativeToolDiscovery
         );
     }
 
-    return [
+    if (message.role === 'tool-discovery') {
+        return nativeToolDiscovery
+            ? convertToolDiscoveryResult(message, nativeToolDiscovery)
+            : [convertToolResult(toToolDiscoveryToolResult(message))];
+    }
+
+    return [convertToolResult(message)];
+}
+
+function convertToolResult(message: ToolResultMessage): ResponseInputItem {
+    return {
+        type: 'function_call_output',
+        call_id: message.toolCallId,
+        output: message.content,
+    } as ResponseInputItem;
+}
+
+/**
+ * The discovered tools become deferred functions of a client
+ * `tool_search_output`. It has no text field, so a note follows it as a
+ * developer message.
+ */
+function convertToolDiscoveryResult(
+    message: ToolDiscoveryResultMessage,
+    { callerToolNames }: NativeToolDiscovery
+): ResponseInputItem[] {
+    const items: ResponseInputItem[] = [
         {
-            type: 'function_call_output',
-            call_id: message.toolCallId,
-            output: message.content,
-        } as ResponseInputItem,
+            type: 'tool_search_output',
+            call_id: message.callId,
+            execution: 'client',
+            status: 'completed',
+            tools: message.tools
+                .filter((tool) => !callerToolNames.has(tool.name))
+                .map((tool) => ({
+                    ...convertResponseTool(tool),
+                    defer_loading: true,
+                })),
+        },
     ];
+
+    if (message.note?.trim()) {
+        items.push({ role: 'developer', content: message.note });
+    }
+
+    return items;
+}
+
+function convertToolDiscoveryCall(
+    part: ToolDiscoveryCallPart
+): ResponseInputItem {
+    return {
+        type: 'tool_search_call',
+        call_id: part.id,
+        execution: 'client',
+        status: 'completed',
+        arguments: getToolDiscoveryArguments(part),
+    };
+}
+
+function convertFunctionCall(
+    toolCall: ToolCall,
+    nativeToolDiscovery: NativeToolDiscovery | undefined
+): ResponseInputItem {
+    return {
+        type: 'function_call',
+        call_id: toolCall.id,
+        name: toolCall.name,
+        arguments: JSON.stringify(toolCall.arguments),
+        ...(nativeToolDiscovery?.discoveredToolNames.has(toolCall.name)
+            ? { namespace: toolCall.name }
+            : {}),
+    } as ResponseInputItem;
 }
 
 function convertAssistantMessage(
     parts: AssistantContentPart[],
     includeReasoning: boolean,
-    providerId: string
+    providerId: string,
+    nativeToolDiscovery: NativeToolDiscovery | undefined
 ): ResponseInputItem[] {
     const items: ResponseInputItem[] = [];
     const textParts: string[] = [];
@@ -224,12 +333,18 @@ function convertAssistantMessage(
         }
 
         flushTextBuffer();
-        items.push({
-            type: 'function_call',
-            call_id: part.toolCall.id,
-            name: part.toolCall.name,
-            arguments: JSON.stringify(part.toolCall.arguments),
-        } as ResponseInputItem);
+        if (part.type === 'tool-call') {
+            items.push(convertFunctionCall(part.toolCall, nativeToolDiscovery));
+        } else if (nativeToolDiscovery) {
+            items.push(convertToolDiscoveryCall(part));
+        } else {
+            items.push(
+                convertFunctionCall(
+                    toToolDiscoveryToolCall(part).toolCall,
+                    undefined
+                )
+            );
+        }
     }
 
     flushTextBuffer();
@@ -330,8 +445,13 @@ function createRequest(
         options.providerOptions,
         adapterOptions.providerOptions
     );
+    const toolDiscovery = resolveToolDiscovery(options, {
+        capabilities: resolved.capabilities,
+        providerId: resolved.providerId,
+        emulate: openaiOptions?.emulateToolDiscovery,
+    });
     const request: Record<string, unknown> = {
-        ...createRequestBase(modelId, options, resolved),
+        ...createRequestBase(modelId, options, resolved, toolDiscovery),
         ...(stream ? { stream: true as const } : {}),
         ...(options.structuredOutputFormat
             ? { text: { format: options.structuredOutputFormat } }
@@ -357,11 +477,17 @@ function createRequest(
 function createRequestBase(
     modelId: string,
     options: GenerateOptions,
-    { capabilities, providerId }: ResolvedAdapterOptions
+    { capabilities, providerId }: ResolvedAdapterOptions,
+    toolDiscovery: ResolvedToolDiscovery
 ) {
     validateReasoningConfig(modelId, options, capabilities, providerId);
     validateResponsesMessages({
         messages: options.messages,
+        capabilities,
+        modelId,
+        providerId,
+    });
+    const tools = convertRequestTools(options, toolDiscovery, {
         capabilities,
         modelId,
         providerId,
@@ -373,22 +499,58 @@ function createRequestBase(
         input: convertMessages(options.messages, {
             includeReasoning: capabilities.reasoning.mode !== 'unsupported',
             providerId,
+            ...(toolDiscovery.rendering === 'native'
+                ? {
+                      nativeToolDiscovery: {
+                          callerToolNames: getToolNames(options.tools),
+                          discoveredToolNames: new Set(
+                              toolDiscovery.discoveredTools.map(
+                                  (tool) => tool.name
+                              )
+                          ),
+                      },
+                  }
+                : {}),
         }),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? {
-                  tools: convertResponseTools(options.tools, {
-                      capabilities,
-                      modelId,
-                      providerId,
-                  }),
-              }
-            : {}),
+        ...(tools.length > 0 ? { tools } : {}),
         ...(options.toolChoice
             ? { tool_choice: convertResponseToolChoice(options.toolChoice) }
             : {}),
         ...mapReasoningToRequestFields(modelId, options, capabilities),
         ...mapSamplingToRequestFields(options),
     };
+}
+
+/**
+ * Natively, the request declares the caller's functions and a client
+ * `tool_search` tool; discovered tools exist only inside the
+ * `tool_search_output` items of the input. Emulated, every tool is an
+ * ordinary function.
+ */
+function convertRequestTools(
+    options: GenerateOptions,
+    toolDiscovery: ResolvedToolDiscovery,
+    validationOptions: Parameters<typeof convertResponseTools>[1]
+) {
+    const toolSet = getEmulatedToolSet(options.tools, toolDiscovery) ?? {};
+    if (toolDiscovery.rendering === 'emulated') {
+        return convertResponseTools(toolSet, validationOptions);
+    }
+
+    validateToolSchemaStrictness({ tools: toolSet, ...validationOptions });
+    return [
+        ...Object.values(options.tools ?? {}).map(convertResponseTool),
+        {
+            type: 'tool_search' as const,
+            execution: 'client' as const,
+            description: toolDiscovery.discoveryTool.description,
+            parameters: toolDiscovery.discoveryTool.parameters,
+        },
+    ];
+}
+
+function getToolNames(tools: GenerateOptions['tools']): Set<string> {
+    return new Set(Object.values(tools ?? {}).map((tool) => tool.name));
 }
 
 function validateResponsesMessages(options: ValidateMessagesOptions): void {
@@ -508,21 +670,37 @@ export function mapGenerateResponse(
                     arguments: safeParseJsonObject(item.arguments),
                 },
             });
+            continue;
+        }
+
+        if (isToolSearchCall(item)) {
+            parts.push(mapToolSearchCall(item));
         }
     }
 
     const content = getTextContent(parts);
     const reasoning = getReasoningText(parts);
     const toolCalls = getToolCalls(parts);
+    const hasPendingCalls = parts.some(
+        (part) =>
+            part.type === 'tool-call' || part.type === 'tool-discovery-call'
+    );
 
     return {
         parts,
         content,
         reasoning,
         toolCalls,
-        finishReason: mapFinishReason(response, toolCalls.length > 0),
+        finishReason: mapFinishReason(response, hasPendingCalls),
         usage: mapUsage(response.usage),
     };
+}
+
+/** A client `tool_search_call` is the model's discovery call. */
+function mapToolSearchCall(
+    item: ResponseToolSearchCall
+): ToolDiscoveryCallPart {
+    return createToolDiscoveryCallPart(item.call_id ?? item.id, item.arguments);
 }
 
 function mapReasoningPart(
@@ -595,7 +773,7 @@ function getToolCalls(parts: AssistantContentPart[]): ToolCall[] {
 
 function mapFinishReason(
     response: Response,
-    hasToolCalls: boolean
+    hasPendingCalls: boolean
 ): FinishReason {
     const incompleteReason = response.incomplete_details?.reason;
     if (incompleteReason === 'max_output_tokens') {
@@ -605,7 +783,7 @@ function mapFinishReason(
         return 'content-filter';
     }
 
-    if (hasToolCalls) {
+    if (hasPendingCalls) {
         return 'tool-calls';
     }
 
@@ -710,6 +888,7 @@ export async function* transformStream(
     const startedToolCalls = new Set<string>();
     const seenSummaryDeltas = new Set<string>();
     const emittedReasoningItems = new Set<string>();
+    const emittedToolSearchCalls = new Set<string>();
 
     let latestResponse: Response | undefined;
     let textOpen = false;
@@ -749,6 +928,18 @@ export async function* transformStream(
 
         textOpen = false;
         yield { type: 'text-end' };
+    };
+
+    const emitToolSearchCall = function* (
+        item: ResponseToolSearchCall
+    ): Iterable<StreamEvent> {
+        if (emittedToolSearchCalls.has(item.id)) {
+            return;
+        }
+
+        emittedToolSearchCalls.add(item.id);
+        yield* closeText();
+        yield mapToolSearchCall(item);
     };
 
     const getNextReasoningEndEvent = (
@@ -972,6 +1163,11 @@ export async function* transformStream(
                 continue;
             }
 
+            if (isToolSearchCall(event.item)) {
+                yield* emitToolSearchCall(event.item);
+                continue;
+            }
+
             if (!isFunctionToolCall(event.item)) {
                 continue;
             }
@@ -1038,10 +1234,19 @@ export async function* transformStream(
                 };
             }
 
-            const hasToolCalls = bufferedToolCalls.size > 0;
+            for (const item of latestResponse.output) {
+                if (isToolSearchCall(item)) {
+                    yield* emitToolSearchCall(item);
+                }
+            }
+
             yield {
                 type: 'finish',
-                finishReason: mapFinishReason(latestResponse, hasToolCalls),
+                finishReason: mapFinishReason(
+                    latestResponse,
+                    bufferedToolCalls.size > 0 ||
+                        emittedToolSearchCalls.size > 0
+                ),
                 usage: mapUsage(latestResponse.usage),
             };
             return;
@@ -1054,12 +1259,13 @@ export async function* transformStream(
         yield reasoningEndEvent;
     }
 
-    const hasToolCalls = bufferedToolCalls.size > 0;
+    const hasPendingCalls =
+        bufferedToolCalls.size > 0 || emittedToolSearchCalls.size > 0;
     const usage = latestResponse
         ? mapUsage(latestResponse.usage)
         : mapUsage(undefined);
     const finishReason = latestResponse
-        ? mapFinishReason(latestResponse, hasToolCalls)
+        ? mapFinishReason(latestResponse, hasPendingCalls)
         : 'unknown';
 
     yield {
@@ -1124,6 +1330,12 @@ function isFunctionToolCall(
     item: ResponseOutputItem
 ): item is ResponseFunctionToolCall {
     return item.type === 'function_call';
+}
+
+function isToolSearchCall(
+    item: ResponseOutputItem
+): item is ResponseToolSearchCall {
+    return item.type === 'tool_search_call' && item.execution === 'client';
 }
 
 function isOutputMessage(

@@ -22,6 +22,12 @@ export const anthropicGenerateProviderOptionsSchema = z
         betas: z.array(z.string()).optional(),
         outputConfig: z.record(z.string(), z.unknown()).optional(),
         cacheControl: anthropicCacheControlSchema.optional(),
+        /**
+         * Renders tool discovery as ordinary tools instead of deferred tools
+         * with `tool_reference` results, e.g. behind proxies that do not
+         * forward them.
+         */
+        emulateToolDiscovery: z.boolean().optional(),
     })
     .strict();
 

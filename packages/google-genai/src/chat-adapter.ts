@@ -25,9 +25,12 @@ import type {
     UserContentPart,
 } from '@core-ai/core-ai';
 import {
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
     getProviderMetadata,
     getToolJsonSchema,
     normalizeStructuredOutputSchema,
+    resolveToolDiscovery,
     ValidationError,
     validateMessages,
     validateToolSchemaStrictness,
@@ -69,12 +72,16 @@ export type ConvertedGoogleMessages = {
     systemInstruction?: string;
 };
 
+/**
+ * Tool discovery is emulated: discovery calls become calls to the discovery
+ * tool and discovery results become text tool results.
+ */
 export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
     const systemParts: string[] = [];
     const contents: Content[] = [];
     const toolCallNameById = new Map<string, string>();
 
-    for (const message of messages) {
+    for (const message of emulateToolDiscoveryMessages(messages)) {
         if (message.role === 'system') {
             systemParts.push(message.content);
             continue;
@@ -375,9 +382,13 @@ export function createGenerateRequest(
         googleOptions,
         provider
     );
-    if (options.tools) {
+    const tools = getEmulatedToolSet(
+        options.tools,
+        resolveToolDiscovery(options, { capabilities, providerId: provider })
+    );
+    if (tools) {
         validateToolSchemaStrictness({
-            tools: options.tools,
+            tools,
             capabilities,
             providerId: provider,
             modelId,
@@ -388,8 +399,8 @@ export function createGenerateRequest(
         ...(convertedMessages.systemInstruction
             ? { systemInstruction: convertedMessages.systemInstruction }
             : {}),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
+        ...(tools && Object.keys(tools).length > 0
+            ? { tools: convertTools(tools) }
             : {}),
         ...(options.toolChoice
             ? { toolConfig: convertToolChoice(options.toolChoice) }

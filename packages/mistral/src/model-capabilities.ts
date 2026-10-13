@@ -68,6 +68,8 @@ function createCapabilities(
             // does not document grammar-enforced adherence — keep unsupported
             // until enforcement is verified (follow-up candidate).
             strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+            // Mistral has no deferred tool loading.
+            toolDiscovery: 'emulated',
         },
         messages: { systemPlacement: 'anywhere' },
     };

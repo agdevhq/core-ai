@@ -15,6 +15,12 @@ export const openaiResponsesGenerateProviderOptionsSchema = z
         parallelToolCalls: z.boolean().optional(),
         user: z.string().optional(),
         promptCacheKey: z.string().optional(),
+        /**
+         * Renders tool discovery as ordinary function tools instead of the
+         * native client-executed `tool_search`, e.g. behind proxies that do
+         * not forward its items.
+         */
+        emulateToolDiscovery: z.boolean().optional(),
     })
     .strict();
 
@@ -26,6 +32,7 @@ export const openaiChatGenerateProviderOptionsSchema =
     openaiResponsesGenerateProviderOptionsSchema
         .omit({
             include: true,
+            emulateToolDiscovery: true,
         })
         .extend({
             stopSequences: z.array(z.string()).optional(),

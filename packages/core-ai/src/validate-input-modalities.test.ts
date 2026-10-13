@@ -18,14 +18,20 @@ const REASONING: ModelCapabilities['reasoning'] = {
 const MULTIMODAL: ModelCapabilities = {
     reasoning: REASONING,
     modalities: MULTIMODAL_INPUT_MODALITIES,
-    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    tools: {
+        strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        toolDiscovery: 'emulated',
+    },
     messages: { systemPlacement: 'anywhere' },
 };
 
 const TEXT_ONLY: ModelCapabilities = {
     reasoning: REASONING,
     modalities: TEXT_ONLY_MODALITIES,
-    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    tools: {
+        strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        toolDiscovery: 'emulated',
+    },
     messages: { systemPlacement: 'anywhere' },
 };
 
@@ -118,7 +124,10 @@ describe('validateInputModalities', () => {
                 input: ['text', 'audio'],
                 output: ['text'],
             },
-            tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+            tools: {
+                strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                toolDiscovery: 'emulated',
+            },
             messages: { systemPlacement: 'anywhere' },
         };
 

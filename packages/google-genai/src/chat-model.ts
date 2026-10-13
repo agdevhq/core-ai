@@ -14,6 +14,7 @@ import {
     createObjectStream,
     createChatStream,
     extractStructuredObject,
+    finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
 } from '@core-ai/core-ai';
@@ -66,7 +67,7 @@ export function createGoogleGenAIChatModel(
             adapterOptions
         );
         const response = await callGenerateContentApi(request);
-        return mapGenerateResponse(response);
+        return finalizeGenerateResult(mapGenerateResponse(response), options);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
@@ -82,6 +83,7 @@ export function createGoogleGenAIChatModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapGoogleError(error, provider),
+                request: options,
             }
         );
     }

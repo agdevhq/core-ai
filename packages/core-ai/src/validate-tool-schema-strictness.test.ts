@@ -26,7 +26,7 @@ function createCapabilities(
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities: TEXT_ONLY_MODALITIES,
-        tools: { strictSchemas },
+        tools: { strictSchemas, toolDiscovery: 'emulated' },
         messages: { systemPlacement: 'anywhere' },
     };
 }

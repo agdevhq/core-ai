@@ -18,7 +18,10 @@ const capabilities: ModelCapabilities = {
         supportedToolChoices: ['auto', 'none', 'required', 'tool'],
     },
     modalities: TEXT_ONLY_MODALITIES,
-    tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+    tools: {
+        strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        toolDiscovery: 'emulated',
+    },
     messages: { systemPlacement: 'leading' },
 };
 

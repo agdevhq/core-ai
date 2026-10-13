@@ -70,8 +70,12 @@ type StreamEvent =
           toolCall: ToolCall;
           providerMetadata?: Record<string, Record<string, unknown>>;
       }
+    | ToolDiscoveryCallPart // { type: 'tool-discovery-call'; ... }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
+
+A `tool-discovery-call` event arrives once per discovery call when you enable
+[tool discovery](/guides/tool-discovery#streaming).
 
 ## Handling Different Event Types
 

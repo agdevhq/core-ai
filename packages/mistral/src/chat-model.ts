@@ -15,6 +15,7 @@ import {
     createObjectStream,
     createChatStream,
     extractStructuredObject,
+    finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
 } from '@core-ai/core-ai';
@@ -58,7 +59,7 @@ export function createMistralChatModel(
         const response = await callMistralChatApi(() =>
             client.chat.complete(request, { signal: options.signal })
         );
-        return mapGenerateResponse(response);
+        return finalizeGenerateResult(mapGenerateResponse(response), options);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
@@ -75,6 +76,7 @@ export function createMistralChatModel(
             {
                 signal: options.signal,
                 mapError: wrapMistralError,
+                request: options,
             }
         );
     }
