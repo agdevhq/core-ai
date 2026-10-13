@@ -54,6 +54,13 @@ Reliable cue: case-insensitive **`too large for model`**. Regex: `/(\d+)\s*token
 
 Do not treat generic 400/422 as context length.
 
+### Image count
+
+No verbatim image-count error was found, so `wrapMistralError` does not classify one. A live probe above the limit is needed to capture the payload.
+
+- Documented limit: 8 images per request ([vision](https://docs.mistral.ai/capabilities/vision)); the known-limitations page instead says it depends on the model and token budget.
+- The failure could be a 400 `invalid_request_error` or a 422 validation error (`{"detail":[{"type":"value_error",…}]}`); one report describes requests above 8 images failing with a 422 and no usable body ([open-webui#10227](https://github.com/open-webui/open-webui/discussions/10227)).
+
 ### Rate limit
 
 | Status  | type                              | Message                                | Confidence    |

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -63,6 +64,81 @@ describe('wrapAnthropicError', () => {
         const classified = wrapped as ContextLengthExceededError;
         expect(classified.maxTokens).toBeUndefined();
         expect(classified.actualTokens).toBeUndefined();
+    });
+
+    it('should map too-many-images-and-documents to ImageCountExceededError', () => {
+        const body = {
+            type: 'error',
+            error: {
+                type: 'invalid_request_error',
+                message: 'too many images and documents: 110 + 0 > 100',
+            },
+            request_id: 'req_test',
+        };
+        const error = APIError.generate(400, body, undefined, new Headers());
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        const classified = wrapped as ImageCountExceededError;
+        expect(classified.maxImages).toBe(100);
+        expect(classified.actualImages).toBe(110);
+        expect(classified.statusCode).toBe(400);
+        expect(classified.code).toBe('invalid_request_error');
+    });
+
+    it('should map too-much-media to ImageCountExceededError', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'Too much media: 0 document pages + 102 images > 100',
+            },
+            'Too much media: 0 document pages + 102 images > 100',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error, 'anthropic-vertex');
+
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        const classified = wrapped as ImageCountExceededError;
+        expect(classified.maxImages).toBe(100);
+        expect(classified.actualImages).toBe(102);
+        expect(classified.provider).toBe('anthropic-vertex');
+    });
+
+    it('should not map a documents-only media overflow to ImageCountExceededError', () => {
+        const error = new APIError(
+            400,
+            {
+                type: 'invalid_request_error',
+                message: 'too many images and documents: 0 + 120 > 100',
+            },
+            'too many images and documents: 0 + 120 > 100',
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+    });
+
+    it('should not map image dimension errors to ImageCountExceededError', () => {
+        const message =
+            'messages.100.content.2.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels';
+        const error = new APIError(
+            400,
+            { type: 'invalid_request_error', message },
+            message,
+            new Headers()
+        );
+
+        const wrapped = wrapAnthropicError(error);
+
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
     it('should map HTTP 529 / overloaded_error to ModelOverloadedError', () => {

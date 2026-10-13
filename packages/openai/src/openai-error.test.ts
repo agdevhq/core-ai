@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -147,6 +148,93 @@ describe('wrapOpenAIError', () => {
             const classified = wrapped as ContextLengthExceededError;
             expect(classified.maxTokens).toBeUndefined();
             expect(classified.actualTokens).toBeUndefined();
+        });
+    });
+
+    describe('image count', () => {
+        it('should map the image-count limit and parse the limit', () => {
+            const error = APIError.generate(
+                400,
+                {
+                    error: {
+                        message:
+                            'Exceeded maximum number of images (50) allowed in the request.',
+                        type: 'invalid_request_error',
+                        param: null,
+                        code: null,
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+
+            expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+            const classified = wrapped as ImageCountExceededError;
+            expect(classified.maxImages).toBe(50);
+            expect(classified.actualImages).toBeUndefined();
+            expect(classified.statusCode).toBe(400);
+            expect(classified.code).toBe('invalid_request_error');
+            expect(classified.provider).toBe('azure-openai');
+        });
+
+        it('should map the Azure Responses wording with both counts', () => {
+            const error = APIError.generate(
+                400,
+                {
+                    error: {
+                        type: 'invalid_request_error',
+                        message:
+                            'Too many images in request: 20, maximum allowed: 10.',
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error, 'azure-openai');
+
+            expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+            const classified = wrapped as ImageCountExceededError;
+            expect(classified.maxImages).toBe(10);
+            expect(classified.actualImages).toBe(20);
+        });
+
+        it('should map an in-band image-count error without HTTP status', () => {
+            const wrapped = wrapOpenAIError({
+                error: {
+                    type: 'invalid_request_error',
+                    message:
+                        'Exceeded maximum number of images (50) allowed in the request.',
+                },
+            });
+
+            expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+            expect((wrapped as ImageCountExceededError).maxImages).toBe(50);
+        });
+
+        it('should not map other invalid image requests', () => {
+            const error = APIError.generate(
+                400,
+                {
+                    error: {
+                        message:
+                            'Invalid image data. Expected a base64-encoded data URL with an image MIME type.',
+                        type: 'invalid_request_error',
+                        param: null,
+                        code: 'invalid_value',
+                    },
+                },
+                undefined,
+                new Headers()
+            );
+
+            const wrapped = wrapOpenAIError(error);
+
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
         });
     });
 

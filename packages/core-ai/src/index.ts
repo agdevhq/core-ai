@@ -61,6 +61,7 @@ export type {
 export type {
     ProviderErrorOptions,
     ContextLengthExceededErrorOptions,
+    ImageCountExceededErrorOptions,
     ProviderQuotaExceededErrorOptions,
     RateLimitErrorOptions,
     ModelOverloadedErrorOptions,
@@ -81,6 +82,7 @@ export {
     ProviderError,
     RetryableProviderError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ProviderQuotaExceededError,
     RateLimitError,
     ModelOverloadedError,

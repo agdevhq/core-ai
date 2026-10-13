@@ -65,6 +65,14 @@ Docs say cancelled “typically by the caller”; users report 499 during peak l
 
 Empty counts observed: `The input token count () exceeds…` ([gemini-cli#10393](https://github.com/google-gemini/gemini-cli/issues/10393)). Wrong context limit in 400 message (routing quirk) remains anecdotal.
 
+### Image count
+
+No verbatim image-count error was found for the Gemini API or Vertex Gemini, so `wrapGoogleError` does not classify one. The official error reference only lists generic 400 `INVALID_ARGUMENT`.
+
+- Documented limits are high: 3,600 image files per request on the Gemini API ([image understanding](https://ai.google.dev/gemini-api/docs/image-understanding)), 3,000 per prompt on Vertex Gemini 2.5 Flash.
+- Wordings seen with Gemini models come from intermediaries (GitHub Copilot's proxy, the Crush client), not from Google: `Too many images in request: 11 images provided, but the model supports a maximum of 10 images.`
+- Vertex has an analogous video template (`…it has 12 video files but the model only supports up to 10.`); no image equivalent was found.
+
 ### Rate limit / quota
 
 | Status        | status enum          | Message                                                                         | Confidence |

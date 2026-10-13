@@ -3,6 +3,7 @@ import {
     AbortedError,
     ContextLengthExceededError,
     CoreAIError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -86,6 +87,23 @@ describe('classified ProviderError subclasses', () => {
         expect(error.name).toBe('ContextLengthExceededError');
         expect(error.maxTokens).toBe(8192);
         expect(error.actualTokens).toBe(10000);
+    });
+
+    it('should create ImageCountExceededError as non-retryable', () => {
+        const error = new ImageCountExceededError('too many images', 'openai', {
+            statusCode: 400,
+            code: 'invalid_request_error',
+            maxImages: 50,
+            actualImages: 51,
+        });
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error).not.toBeInstanceOf(RetryableProviderError);
+        expect(error.name).toBe('ImageCountExceededError');
+        expect(error.statusCode).toBe(400);
+        expect(error.code).toBe('invalid_request_error');
+        expect(error.maxImages).toBe(50);
+        expect(error.actualImages).toBe(51);
     });
 
     it('should create ProviderQuotaExceededError as non-retryable', () => {

@@ -2,6 +2,7 @@ import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -22,9 +23,25 @@ const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
     500, 502, 503, 504, 529,
 ]);
 
+/**
+ * Media-count limit wordings (`invalid_request_error`, no dedicated type).
+ * Images and documents share one limit:
+ * - "too many images and documents: 110 + 0 > 100" (images + documents)
+ * - "Too much media: 0 document pages + 102 images > 100"
+ */
+const IMAGES_AND_DOCUMENTS_PATTERN =
+    /too many images and documents: (\d+) \+ (\d+) > (\d+)/i;
+const MEDIA_PAGES_AND_IMAGES_PATTERN =
+    /too much media: (\d+) document pages \+ (\d+) images > (\d+)/i;
+
 type ContextLengthDetails = {
     maxTokens?: number;
     actualTokens?: number;
+};
+
+type ImageCountDetails = {
+    maxImages: number;
+    actualImages: number;
 };
 
 /**
@@ -53,6 +70,14 @@ export function wrapAnthropicError(
         return new ContextLengthExceededError(message, provider, {
             ...options,
             ...contextLength,
+        });
+    }
+
+    const imageCount = getImageCountDetails(providerMessage, statusCode);
+    if (imageCount) {
+        return new ImageCountExceededError(message, provider, {
+            ...options,
+            ...imageCount,
         });
     }
 
@@ -198,6 +223,35 @@ function getContextLengthDetails(
     }
 
     return {};
+}
+
+/**
+ * Classifies the shared media limit as an image-count failure only when the
+ * request contains images; a documents-only overflow stays a plain
+ * `ProviderError`.
+ */
+function getImageCountDetails(
+    providerMessage: string | undefined,
+    statusCode: number | undefined
+): ImageCountDetails | undefined {
+    if (!providerMessage || (statusCode !== undefined && statusCode !== 400)) {
+        return undefined;
+    }
+
+    const imagesFirst = providerMessage.match(IMAGES_AND_DOCUMENTS_PATTERN);
+    const pagesFirst = providerMessage.match(MEDIA_PAGES_AND_IMAGES_PATTERN);
+    const actual = imagesFirst?.[1] ?? pagesFirst?.[2];
+    const max = imagesFirst?.[3] ?? pagesFirst?.[3];
+    if (actual === undefined || max === undefined) {
+        return undefined;
+    }
+
+    const actualImages = parseInt(actual, 10);
+    if (actualImages === 0) {
+        return undefined;
+    }
+
+    return { maxImages: parseInt(max, 10), actualImages };
 }
 
 /**

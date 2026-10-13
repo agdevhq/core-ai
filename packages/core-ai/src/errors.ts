@@ -279,6 +279,38 @@ export class ContextLengthExceededError extends ProviderError {
     }
 }
 
+export type ImageCountExceededErrorOptions = ProviderErrorOptions & {
+    maxImages?: number;
+    actualImages?: number;
+};
+
+/**
+ * The request carries more images than the provider or model accepts in one
+ * request. Not retryable: the same messages fail again until images are
+ * removed. `maxImages` and `actualImages` are set when the provider reports
+ * them; some providers share the limit with other media (Anthropic counts
+ * document pages against it).
+ */
+export class ImageCountExceededError extends ProviderError {
+    public readonly maxImages?: number;
+    public readonly actualImages?: number;
+
+    constructor(
+        message: string,
+        provider: string,
+        options: ImageCountExceededErrorOptions = {}
+    ) {
+        super(message, provider, {
+            statusCode: options.statusCode,
+            code: options.code,
+            cause: options.cause,
+        });
+        this.name = 'ImageCountExceededError';
+        this.maxImages = options.maxImages;
+        this.actualImages = options.actualImages;
+    }
+}
+
 export type ProviderQuotaExceededErrorOptions = ProviderErrorOptions;
 
 /**
