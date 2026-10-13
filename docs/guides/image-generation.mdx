@@ -40,8 +40,7 @@ for (const [index, image] of result.images.entries()) {
 
 ## Google image models
 
-Google providers expose Gemini native image models and dedicated Imagen models
-through the same API:
+Google providers expose Gemini native image models through the same API:
 
 <Tabs>
   <Tab title="Google GenAI">
@@ -54,8 +53,8 @@ through the same API:
     });
 
     const result = await generateImage({
-      model: google.imageModel('gemini-2.5-flash-image'),
-      prompt: 'A tiny blue square icon on a white background',
+      model: google.imageModel('gemini-nano-banana-2.1'),
+      prompt: 'A watercolor painting of a small orange robot watering a cactus on a windowsill',
       size: '1024x1024',
     });
     ```
@@ -73,7 +72,7 @@ through the same API:
 
     const result = await generateImage({
       model: googleVertex.imageModel('gemini-2.5-flash-image'),
-      prompt: 'A tiny blue square icon on a white background',
+      prompt: 'A watercolor painting of a small orange robot watering a cactus on a windowsill',
       size: '1024x1024',
     });
     ```
@@ -82,10 +81,8 @@ through the same API:
 </Tabs>
 
 Gemini image model IDs use native multimodal generation and return base64
-image data. They do not support requesting multiple outputs with `n`. Imagen
-IDs such as `imagen-4.0-generate-001` use the dedicated Imagen API and support
-multiple images with `n`. Model availability on Vertex AI depends on the
-selected project and region.
+image data. They do not support requesting multiple outputs with `n`. Model
+availability on Vertex AI depends on the selected project and region.
 
 ## Configuration Options
 

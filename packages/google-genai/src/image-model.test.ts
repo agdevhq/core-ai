@@ -29,10 +29,9 @@ describe('createGoogleGenAIImageModel', () => {
                 },
             ],
         }));
-        const generateImages = vi.fn();
         const model = createGoogleGenAIImageModel(
             {
-                models: { generateContent, generateImages },
+                models: { generateContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
             'gemini-2.5-flash-image'
         );
@@ -53,7 +52,6 @@ describe('createGoogleGenAIImageModel', () => {
                 responseModalities: ['IMAGE'],
             },
         });
-        expect(generateImages).not.toHaveBeenCalled();
         expect(result.images).toEqual([
             { base64: 'first-image' },
             { base64: 'second-image' },
@@ -138,10 +136,9 @@ describe('createGoogleGenAIImageModel', () => {
 
     it('should reject multiple Gemini images before calling the SDK', async () => {
         const generateContent = vi.fn();
-        const generateImages = vi.fn();
         const model = createGoogleGenAIImageModel(
             {
-                models: { generateContent, generateImages },
+                models: { generateContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
             'gemini-2.5-flash-image'
         );
@@ -153,7 +150,6 @@ describe('createGoogleGenAIImageModel', () => {
             })
         ).rejects.toThrow(/does not support n greater than 1/);
         expect(generateContent).not.toHaveBeenCalled();
-        expect(generateImages).not.toHaveBeenCalled();
     });
 
     it('should wrap Gemini image errors with the configured provider id', async () => {
@@ -176,82 +172,19 @@ describe('createGoogleGenAIImageModel', () => {
         expect((error as ProviderError).provider).toBe('google-vertex');
     });
 
-    it('should map generated images', async () => {
-        const generateImages = vi.fn(async () => ({
-            generatedImages: [
-                {
-                    image: {
-                        imageBytes: 'abc123',
-                    },
-                    enhancedPrompt: 'a revised prompt',
-                },
-                {
-                    image: {
-                        gcsUri: 'gs://bucket/image.png',
-                    },
-                },
-            ],
-        }));
-
+    it('should send model ids without the gemini- prefix to generateContent', async () => {
+        const generateContent = vi.fn(async () => ({ candidates: [] }));
         const model = createGoogleGenAIImageModel(
             {
-                models: { generateImages },
+                models: { generateContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
-            'imagen-4.0-generate-001'
+            'nano-banana-pro-preview'
         );
 
-        const result = await model.generate({
-            prompt: 'A cat with a top hat',
-        });
+        await model.generate({ prompt: 'A cat with a top hat' });
 
-        expect(result.images).toEqual([
-            {
-                base64: 'abc123',
-                url: undefined,
-                revisedPrompt: 'a revised prompt',
-            },
-            {
-                base64: undefined,
-                url: 'gs://bucket/image.png',
-                revisedPrompt: undefined,
-            },
-        ]);
-    });
-
-    it('should pass options through', async () => {
-        const generateImages = vi.fn(async () => ({
-            generatedImages: [],
-        }));
-
-        const model = createGoogleGenAIImageModel(
-            {
-                models: { generateImages },
-            } as unknown as Pick<GoogleGenAI, 'models'>,
-            'imagen-4.0-generate-001'
-        );
-
-        await model.generate({
-            prompt: 'A cat with a top hat',
-            n: 2,
-            size: '1024x1024',
-            providerOptions: {
-                google: {
-                    guidanceScale: 7,
-                },
-            },
-        });
-
-        expect(generateImages).toHaveBeenCalledWith(
-            expect.objectContaining({
-                model: 'imagen-4.0-generate-001',
-                prompt: 'A cat with a top hat',
-                config: expect.objectContaining({
-                    numberOfImages: 2,
-                    aspectRatio: '1:1',
-                    imageSize: '1K',
-                    guidanceScale: 7,
-                }),
-            })
+        expect(generateContent).toHaveBeenCalledWith(
+            expect.objectContaining({ model: 'nano-banana-pro-preview' })
         );
     });
 
@@ -261,49 +194,44 @@ describe('createGoogleGenAIImageModel', () => {
     ])(
         'should read $providerId options and ignore the $foreignKey key',
         async ({ providerId, foreignKey }) => {
-            const generateImages = vi.fn(async () => ({
-                generatedImages: [],
-            }));
+            const generateContent = vi.fn(async () => ({ candidates: [] }));
             const model = createGoogleGenAIImageModel(
                 {
-                    models: { generateImages },
+                    models: { generateContent },
                 } as unknown as Pick<GoogleGenAI, 'models'>,
-                'imagen-4.0-generate-001',
+                'gemini-nano-banana-2.1',
                 providerId
             );
 
             await model.generate({
                 prompt: 'A cat with a top hat',
                 providerOptions: {
-                    [providerId]: { guidanceScale: 7 },
-                    [foreignKey]: { negativePrompt: 'ignored', unknown: true },
+                    [providerId]: { seed: 7 },
+                    [foreignKey]: { aspectRatio: '16:9', unknown: true },
                 },
             });
 
-            expect(generateImages).toHaveBeenCalledWith(
+            expect(generateContent).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    config: { guidanceScale: 7 },
+                    config: { responseModalities: ['IMAGE'], seed: 7 },
                 })
             );
         }
     );
 
-    it('should reject raw google config for images', async () => {
-        const generateImages = vi.fn(async () => ({
-            generatedImages: [],
-        }));
+    it.each([
+        ['raw config', { config: { seed: 7 } }],
+        ['Imagen-only options', { guidanceScale: 7 }],
+    ])('should reject %s for images', async (_label, googleOptions) => {
+        const generateContent = vi.fn();
         const model = createGoogleGenAIImageModel(
             {
-                models: { generateImages },
+                models: { generateContent },
             } as unknown as Pick<GoogleGenAI, 'models'>,
-            'imagen-4.0-generate-001'
+            'gemini-nano-banana-2.1'
         );
         const invalidProviderOptions = {
-            google: {
-                config: {
-                    guidanceScale: 7,
-                },
-            },
+            google: googleOptions,
         } as Parameters<typeof model.generate>[0]['providerOptions'];
 
         await expect(
@@ -312,6 +240,6 @@ describe('createGoogleGenAIImageModel', () => {
                 providerOptions: invalidProviderOptions,
             })
         ).rejects.toThrow(/unrecognized_key/);
-        expect(generateImages).not.toHaveBeenCalled();
+        expect(generateContent).not.toHaveBeenCalled();
     });
 });

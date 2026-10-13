@@ -7,7 +7,7 @@ description: 'Create and configure the Google GenAI provider for Gemini models w
 
 The Google GenAI provider gives you access to Gemini models with advanced
 multimodal capabilities, embeddings, and image generation through Gemini
-native image models and Imagen.
+native image models.
 
 ## Installation
 
@@ -79,10 +79,10 @@ const google = createGoogleGenAI({
 
 ### Image models
 
+- **gemini-nano-banana-2.1** - Gemini native image generation
 - **gemini-3.1-flash-image** - Gemini native image generation
 - **gemini-3-pro-image-preview** - Gemini native image generation preview
 - **gemini-2.5-flash-image** - Gemini native image generation
-- **imagen-4.0-generate-001** - Dedicated Imagen generation
 
 ## Examples
 
@@ -156,7 +156,7 @@ console.log(result.embeddings[0]);
 import { generateImage } from '@core-ai/core-ai';
 
 const result = await generateImage({
-    model: google.imageModel('gemini-2.5-flash-image'),
+    model: google.imageModel('gemini-nano-banana-2.1'),
     prompt: 'A serene mountain landscape at dawn',
     size: '1024x1024',
 });
@@ -164,9 +164,8 @@ const result = await generateImage({
 console.log(result.images);
 ```
 
-Gemini image model IDs use native multimodal generation and return base64
-image data. Imagen model IDs use the dedicated Imagen API. Both families use
-the same `imageModel()` and `generateImage()` API.
+Gemini image models use native multimodal generation and return base64 image
+data.
 
 ### Streaming
 
@@ -426,9 +425,9 @@ Available fields: `taskType`, `title`, `mimeType`, `autoTruncate`.
 
 ### Image options
 
-Gemini image models support `seed` and `aspectRatio`. Gemini 3 image models
-also support `imageSize`; Gemini 2.5 Flash Image uses its fixed 1K output.
-The `n` option cannot request multiple Gemini image outputs:
+Gemini image models support `seed` and `aspectRatio`. Every model except
+Gemini 2.5 Flash Image also supports `imageSize`; Gemini 2.5 Flash Image uses
+its fixed 1K output. The `n` option cannot request multiple images:
 
 ```typescript
 const result = await generateImage({
@@ -445,28 +444,7 @@ const result = await generateImage({
 });
 ```
 
-Imagen models support the full set of Google image options and multiple
-images with `n`:
-
-```typescript
-const result = await generateImage({
-    model: google.imageModel('imagen-4.0-generate-001'),
-    prompt: 'A serene landscape',
-    n: 2,
-    providerOptions: {
-        google: {
-            aspectRatio: '16:9',
-            negativePrompt: 'blurry, low quality',
-            guidanceScale: 7.5,
-            seed: 42,
-            safetyFilterLevel: 'BLOCK_MEDIUM_AND_ABOVE',
-            personGeneration: 'ALLOW_ADULT',
-        },
-    },
-});
-```
-
-Available fields: `outputGcsUri`, `negativePrompt`, `aspectRatio`, `guidanceScale`, `seed`, `safetyFilterLevel` (`'BLOCK_LOW_AND_ABOVE'` | `'BLOCK_MEDIUM_AND_ABOVE'` | `'BLOCK_ONLY_HIGH'` | `'BLOCK_NONE'`), `personGeneration` (`'DONT_ALLOW'` | `'ALLOW_ADULT'` | `'ALLOW_ALL'`), `includeSafetyAttributes`, `includeRaiReason`, `language`, `outputMimeType`, `outputCompressionQuality`, `addWatermark`, `labels`, `imageSize`, `enhancePrompt`.
+Available fields: `aspectRatio`, `imageSize`, `seed`.
 
 ## Error handling
 

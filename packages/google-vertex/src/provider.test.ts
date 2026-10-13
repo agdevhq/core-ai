@@ -10,13 +10,11 @@ const {
     generateContent,
     generateContentStream,
     embedContent,
-    generateImages,
 } = vi.hoisted(() => ({
     googleGenAIConstructor: vi.fn(),
     generateContent: vi.fn(),
     generateContentStream: vi.fn(),
     embedContent: vi.fn(),
-    generateImages: vi.fn(),
 }));
 
 vi.mock('@google/genai', () => ({
@@ -28,7 +26,6 @@ vi.mock('@google/genai', () => ({
             generateContent,
             generateContentStream,
             embedContent,
-            generateImages,
         };
 
         constructor(options: unknown) {
@@ -43,7 +40,6 @@ describe('createGoogleVertex', () => {
         generateContent.mockReset();
         generateContentStream.mockReset();
         embedContent.mockReset();
-        generateImages.mockReset();
     });
 
     it('should throw when projectId is missing and no client is provided', () => {
@@ -110,7 +106,7 @@ describe('createGoogleVertex', () => {
         expect(provider.embeddingModel('gemini-embedding-001').provider).toBe(
             'google-vertex'
         );
-        expect(provider.imageModel('imagen-4.0-generate-001').provider).toBe(
+        expect(provider.imageModel('gemini-nano-banana-2.1').provider).toBe(
             'google-vertex'
         );
     });
@@ -160,7 +156,6 @@ describe('createGoogleVertex', () => {
     it('should read provider options from the google-vertex key only', async () => {
         generateContent.mockResolvedValue({ candidates: [] });
         embedContent.mockResolvedValue({ embeddings: [] });
-        generateImages.mockResolvedValue({ generatedImages: [] });
         const provider = createGoogleVertex({
             projectId: 'my-project',
             region: 'europe-west1',
@@ -180,11 +175,11 @@ describe('createGoogleVertex', () => {
                 google: { title: 'ignored' },
             },
         });
-        await provider.imageModel('imagen-4.0-generate-001').generate({
+        await provider.imageModel('gemini-nano-banana-2.1').generate({
             prompt: 'a cat',
             providerOptions: {
-                'google-vertex': { guidanceScale: 7 },
-                google: { negativePrompt: 'ignored' },
+                'google-vertex': { seed: 7 },
+                google: { aspectRatio: 'ignored' },
             },
         });
 
@@ -196,9 +191,11 @@ describe('createGoogleVertex', () => {
                 config: { taskType: 'RETRIEVAL_QUERY' },
             })
         );
-        expect(generateImages).toHaveBeenCalledWith(
-            expect.objectContaining({ config: { guidanceScale: 7 } })
-        );
+        const [imageRequest] = generateContent.mock.calls[1] ?? [];
+        expect(imageRequest.config).toEqual({
+            responseModalities: ['IMAGE'],
+            seed: 7,
+        });
     });
 
     it('should tag errors with provider "google-vertex"', async () => {
@@ -224,7 +221,6 @@ function createMockClient(): GoogleGenAIClient {
             generateContent,
             generateContentStream,
             embedContent,
-            generateImages,
         },
     } as unknown as GoogleGenAIClient;
 }
