@@ -80,7 +80,7 @@ Token counts live in prose only. Prefer `code` over message parsing.
 No dedicated `code` (`param: "input"`, `code: null`), so the message is the only signal. The limit counts every image in the request, including images in earlier turns.
 
 - First wording: Azure OpenAI Responses with `{N}` = 50 — own production traces across several deployments, [azure-rest-api-specs#46145](https://github.com/Azure/azure-rest-api-specs/issues/46145), [openai/codex#31820](https://github.com/openai/codex/issues/31820).
-- Second wording: Azure Responses with GPT-4.1, where image-only PDF pages count as images (`20, maximum allowed: 10`) — [Microsoft Q&A](https://learn.microsoft.com/en-us/answers/a/12233818).
+- Second wording: Azure Responses with GPT-4.1, where pages of image-only PDFs count as images (`20, maximum allowed: 10`); text PDFs were reported to pass, and Microsoft called it an Azure-side issue with a planned increase of the limit from 10 to 100 — [Microsoft Q&A](https://learn.microsoft.com/en-us/answers/a/12233818).
 - Documented limits: Azure 50 images per request ([quotas and limits](https://learn.microsoft.com/en-us/azure/ai-foundry/openai/quotas-limits)); OpenAI direct 1,500 images per request ([images and vision](https://developers.openai.com/api/docs/guides/images-vision)). No count error from `api.openai.com` itself was found.
 
 ### Rate limit
