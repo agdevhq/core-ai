@@ -41,7 +41,8 @@ export type Message =
     | SystemMessage
     | UserMessage
     | AssistantMessage
-    | ToolResultMessage;
+    | ToolResultMessage
+    | ToolDiscoveryResultMessage;
 
 export type SystemMessage = {
     role: 'system';
@@ -166,10 +167,36 @@ export type ToolCallPart = {
     providerMetadata?: Record<string, Record<string, unknown>>;
 };
 
+/**
+ * The model asking for tools that the request does not declare yet (see
+ * `GenerateOptions.toolDiscovery`). Answer it with one
+ * `ToolDiscoveryResultMessage` before the next request. Discovery calls
+ * appear only in `GenerateResult.parts`, never in `toolCalls`.
+ */
+export type ToolDiscoveryCallPart = {
+    type: 'tool-discovery-call';
+    id: string;
+    /** Exact tool names the model asked for. */
+    names?: string[];
+    /** Keywords describing the capability the model needs. */
+    query?: string;
+    /**
+     * Application-owned metadata for this part. Provider adapters ignore this
+     * field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
+    /**
+     * Provider-namespaced metadata for this call, with the same ownership
+     * rules as `ToolCallPart.providerMetadata`.
+     */
+    providerMetadata?: Record<string, Record<string, unknown>>;
+};
+
 export type AssistantContentPart =
     | AssistantTextPart
     | ReasoningPart
-    | ToolCallPart;
+    | ToolCallPart
+    | ToolDiscoveryCallPart;
 
 export type AssistantMessage = {
     role: 'assistant';
@@ -201,6 +228,28 @@ export type ToolResultMessage = {
     metadata?: Record<string, unknown>;
 };
 
+/**
+ * Answers one `ToolDiscoveryCallPart`. Place it with the tool results of the
+ * step: after the assistant message, in any order relative to tool results.
+ */
+export type ToolDiscoveryResultMessage = {
+    role: 'tool-discovery';
+    /** `id` of the answered `ToolDiscoveryCallPart`. */
+    callId: string;
+    /**
+     * The discovered tools. They stay declared on every later request while
+     * this message is in the history; may be empty when nothing was found.
+     */
+    tools: ToolSnapshot[];
+    /** Optional short note for the model, e.g. that a source is unavailable. */
+    note?: string;
+    /**
+     * Application-owned metadata for this message. Provider adapters ignore
+     * this field and never serialize it to provider APIs.
+     */
+    metadata?: Record<string, unknown>;
+};
+
 export type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
     name: string;
     description: string;
@@ -222,6 +271,30 @@ export type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
 };
 
 export type ToolSet = Record<string, ToolDefinition>;
+
+/**
+ * A discovered tool. Its parameters are plain JSON Schema so messages stay
+ * plain data and render byte for byte on every request; produce them from a
+ * Standard Schema with `toJsonSchema`. core-ai does not validate calls to
+ * discovered tools.
+ */
+export type ToolSnapshot = ToolDefinition<JsonSchema>;
+
+export type ToolDiscoveryOptions = {
+    /**
+     * Appended to the discovery tool's description, e.g. a list of the
+     * discoverable tool names. The default description only explains how
+     * discovery works.
+     */
+    description?: string;
+};
+
+/**
+ * How a model delivers discovered tools: `'native'` through the provider's
+ * deferred tool loading (which keeps the prompt cache), `'emulated'` by
+ * declaring them as ordinary tools.
+ */
+export type ToolDiscoverySupport = 'native' | 'emulated';
 
 export type ToolChoice =
     | 'auto'
@@ -295,6 +368,12 @@ export type ModelCapabilities = {
     };
     tools: {
         strictSchemas: ToolSchemaStrictnessCapabilities;
+        /**
+         * Whether discovered tools are delivered natively by the provider or
+         * emulated by declaring them as ordinary tools. Both behave the same
+         * for the application.
+         */
+        toolDiscovery: ToolDiscoverySupport;
     };
     messages: {
         systemPlacement: SystemMessagePlacement;
@@ -417,14 +496,31 @@ export type BaseGenerateOptions = {
 
 export type GenerateOptions = BaseGenerateOptions & {
     tools?: ToolSet;
+    /**
+     * With tool discovery, it may only name a tool in `tools`. `'none'` also
+     * keeps the model from discovering tools; a discovery call satisfies
+     * `'required'`.
+     */
     toolChoice?: ToolChoice;
+    /**
+     * Enables tool discovery: core-ai declares its discovery tool, and the
+     * model's calls to it arrive as `ToolDiscoveryCallPart`s. Keep it set
+     * consistently within a conversation; switching it costs a prompt cache
+     * rewrite.
+     */
+    toolDiscovery?: ToolDiscoveryOptions;
 };
 
 export type GenerateResult = {
     parts: AssistantContentPart[];
     content: string | null;
     reasoning: string | null;
+    /** Calls to the caller's and discovered tools; never discovery calls. */
     toolCalls: ToolCall[];
+    /**
+     * `'tool-calls'` when tool calls or discovery calls are pending. Decide
+     * whether to continue from `parts`, as `toolCalls` can be empty.
+     */
     finishReason: FinishReason;
     usage: ChatUsage;
 };
@@ -521,6 +617,8 @@ export type StreamEvent =
           toolCall: ToolCall;
           providerMetadata?: Record<string, Record<string, unknown>>;
       }
+    /** A complete discovery call; it has no start or delta events. */
+    | ToolDiscoveryCallPart
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 
 /**

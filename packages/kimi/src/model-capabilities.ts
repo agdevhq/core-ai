@@ -17,6 +17,7 @@ const UNKNOWN_MODEL_CAPABILITIES: ModelCapabilities = {
     modalities: MULTIMODAL_INPUT_MODALITIES,
     tools: {
         strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        toolDiscovery: 'emulated',
     },
     messages: { systemPlacement: 'anywhere' },
 };
@@ -31,6 +32,7 @@ const K2_7_CODE_CAPABILITIES: ModelCapabilities = {
     modalities: TEXT_ONLY_MODALITIES,
     tools: {
         strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+        toolDiscovery: 'emulated',
     },
     messages: { systemPlacement: 'anywhere' },
 };

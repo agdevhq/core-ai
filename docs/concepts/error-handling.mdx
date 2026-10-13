@@ -89,6 +89,8 @@ class ValidationError extends CoreAIError {
   (`ToolSchemaStrictnessError`)
 - Tool `parameters` or a structured output `schema` that cannot be converted
   to JSON Schema, including a Standard Schema without JSON Schema support
+- A request that breaks a [tool discovery rule](/guides/tool-discovery#validation),
+  such as an unanswered discovery call
 - Invalid local request configuration
 
 core-ai does not check the tool call arguments a model returns.

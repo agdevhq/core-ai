@@ -8,6 +8,7 @@ import type {
 } from 'openai/resources/chat/completions/completions';
 import type {
     AssistantContentPart,
+    EmulatedMessage,
     FinishReason,
     GenerateOptions,
     GenerateResult,
@@ -19,7 +20,10 @@ import type {
 } from '@core-ai/core-ai';
 import {
     clampReasoningEffort,
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
     getProviderMetadata,
+    resolveToolDiscovery,
     ValidationError,
     validateMessages,
 } from '@core-ai/core-ai';
@@ -65,15 +69,22 @@ type OpenAIChatCompletionsRequestAdapterOptions =
 
 export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
 
+/**
+ * Chat Completions has no deferred tool loading, so tool discovery is always
+ * emulated: discovery calls become calls to the discovery tool and discovery
+ * results become text tool results.
+ */
 export function convertMessages(
     messages: Message[],
     adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ): ChatCompletionMessageParam[] {
-    return messages.map((message) => convertMessage(message, adapterOptions));
+    return emulateToolDiscoveryMessages(messages).map((message) =>
+        convertMessage(message, adapterOptions)
+    );
 }
 
 function convertMessage(
-    message: Message,
+    message: EmulatedMessage,
     adapterOptions: OpenAIChatCompletionsAdapterOptions
 ): ChatCompletionMessageParam {
     if (message.role === 'system') {
@@ -275,8 +286,15 @@ function createRequestBase(
 ) {
     const functionCalling =
         getOpenAIModelCapabilities(modelId).chatCompletions.functionCalling;
-    const usingTools =
-        options.tools !== undefined && Object.keys(options.tools).length > 0;
+    const tools = getEmulatedToolSet(
+        options.tools,
+        resolveToolDiscovery(options, {
+            capabilities: adapterOptions.capabilities,
+            providerId: adapterOptions.providerId,
+            emulate: true,
+        })
+    );
+    const usingTools = tools !== undefined && Object.keys(tools).length > 0;
 
     if (usingTools && functionCalling === 'unsupported') {
         throw new ValidationError(
@@ -302,9 +320,9 @@ function createRequestBase(
     return {
         model: modelId,
         messages: convertMessages(options.messages, adapterOptions),
-        ...(options.tools && Object.keys(options.tools).length > 0
+        ...(tools && usingTools
             ? {
-                  tools: convertTools(options.tools, {
+                  tools: convertTools(tools, {
                       capabilities: adapterOptions.capabilities,
                       modelId,
                       providerId: adapterOptions.providerId,

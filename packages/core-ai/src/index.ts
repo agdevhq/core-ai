@@ -18,10 +18,15 @@ export type {
     AssistantTextPart,
     ReasoningPart,
     ToolCallPart,
+    ToolDiscoveryCallPart,
     AssistantContentPart,
     ToolCall,
     ToolDefinition,
     ToolSet,
+    ToolSnapshot,
+    ToolDiscoveryResultMessage,
+    ToolDiscoveryOptions,
+    ToolDiscoverySupport,
     ToolChoice,
     ChatInputModality,
     ChatOutputModality,
@@ -129,6 +134,26 @@ export {
     parseStructuredOutput,
     transformStructuredOutputStream,
 } from './structured-output.ts';
+export { finalizeGenerateResult } from './finalize-result.ts';
+export {
+    createToolDiscoveryCallPart,
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
+    getToolDiscoveryArguments,
+    getToolDiscoveryResultText,
+    resolveToolDiscovery,
+    toToolDiscoveryToolCall,
+    toToolDiscoveryToolResult,
+    TOOL_DISCOVERY_PLACEHOLDER_TOOL_NAME,
+    TOOL_DISCOVERY_TOOL_NAME,
+} from './tool-discovery.ts';
+export type {
+    EmulatedAssistantMessage,
+    EmulatedMessage,
+    ResolvedToolDiscovery,
+    ResolveToolDiscoveryOptions,
+} from './tool-discovery.ts';
+export type { FinalizeResultRequest } from './finalize-result.ts';
 export { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
 export type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
 export { stripModelDateSuffix } from './model-id.ts';

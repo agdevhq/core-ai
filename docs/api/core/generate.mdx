@@ -62,6 +62,18 @@ export type GenerateParams = GenerateOptions & {
   - `'none'` - Model won't use tools
   - `'required'` - Model must use a tool
   - `{ type: 'tool', toolName: string }` - Force specific tool
+
+  With tool discovery in use, `toolName` may only name a tool in `tools`. `'none'` also keeps the model from discovering tools, and a discovery call satisfies `'required'`.
+</ParamField>
+
+<ParamField path="toolDiscovery" type="ToolDiscoveryOptions">
+  Enables tool discovery: core-ai declares a discovery tool, and the model's calls to it arrive as `tool-discovery-call` parts in `parts`. Answer each one with a `tool-discovery` message before the next request. Keep it set consistently within a conversation; switching it costs a prompt cache rewrite. See [Tool Discovery](/guides/tool-discovery).
+
+  <Expandable title="ToolDiscoveryOptions">
+    <ParamField path="description" type="string">
+      Appended to the discovery tool's default description, for example a list of the discoverable tool names.
+    </ParamField>
+  </Expandable>
 </ParamField>
 
 <ParamField path="providerOptions" type="GenerateProviderOptions">
@@ -77,7 +89,7 @@ export type GenerateParams = GenerateOptions & {
 Returns a `Promise<GenerateResult>` with the following properties:
 
 <ResponseField name="parts" type="AssistantContentPart[]">
-  Array of content parts in the response (text, reasoning, tool calls).
+  Array of content parts in the response (text, reasoning, tool calls, discovery calls).
 </ResponseField>
 
 <ResponseField name="content" type="string | null">
@@ -89,11 +101,11 @@ Returns a `Promise<GenerateResult>` with the following properties:
 </ResponseField>
 
 <ResponseField name="toolCalls" type="ToolCall[]">
-  Array of tool calls made by the model.
+  Array of tool calls made by the model, including calls to discovered tools. Discovery calls appear only in `parts`.
 </ResponseField>
 
 <ResponseField name="finishReason" type="FinishReason">
-  Why generation stopped: `'stop'`, `'length'`, `'tool-calls'`, `'content-filter'`, or `'unknown'`.
+  Why generation stopped: `'stop'`, `'length'`, `'tool-calls'`, `'content-filter'`, or `'unknown'`. `'tool-calls'` means tool calls or discovery calls are pending, so `toolCalls` can be empty. Decide whether to continue from `parts`.
 </ResponseField>
 
 <ResponseField name="usage" type="ChatUsage">
@@ -200,6 +212,7 @@ const result = await generate({
 
 Throws `ValidationError` if:
 - Messages array is empty
+- The request breaks a tool discovery rule, such as an unanswered discovery call. See [Validation](/guides/tool-discovery#validation).
 
 May also throw:
 - `ProviderError` if the provider returns an error during generation

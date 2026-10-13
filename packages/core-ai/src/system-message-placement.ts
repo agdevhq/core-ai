@@ -70,7 +70,11 @@ function getRunReasons(
     }
 
     const reasons: SystemMessagePlacementIssueReason[] = [];
-    if (previous?.role !== 'user' && previous?.role !== 'tool') {
+    if (
+        previous?.role !== 'user' &&
+        previous?.role !== 'tool' &&
+        previous?.role !== 'tool-discovery'
+    ) {
         reasons.push('must-follow-user-or-tool');
     }
     if (next !== undefined && next.role !== 'assistant') {

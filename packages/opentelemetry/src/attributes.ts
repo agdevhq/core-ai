@@ -171,6 +171,15 @@ function serializeAssistantContentParts(
             };
         }
 
+        if (part.type === 'tool-discovery-call') {
+            return {
+                type: 'tool_discovery_call',
+                id: part.id,
+                ...(part.names ? { names: part.names } : {}),
+                ...(part.query !== undefined ? { query: part.query } : {}),
+            };
+        }
+
         return {
             type: 'tool_call',
             id: part.toolCall.id,
@@ -209,6 +218,21 @@ export function setChatInputAttributes(
             inputMessages.push({
                 role: 'assistant',
                 parts: serializeAssistantContentParts(message.parts),
+            });
+            continue;
+        }
+
+        if (message.role === 'tool-discovery') {
+            inputMessages.push({
+                role: 'tool',
+                parts: [
+                    {
+                        type: 'tool_discovery_result',
+                        id: message.callId,
+                        tools: message.tools.map((tool) => tool.name),
+                        ...(message.note ? { note: message.note } : {}),
+                    },
+                ],
             });
             continue;
         }

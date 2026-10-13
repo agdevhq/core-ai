@@ -16,6 +16,7 @@ const CAPABILITIES: ModelCapabilities = {
     modalities: TEXT_ONLY_MODALITIES,
     tools: {
         strictSchemas: { supported: false },
+        toolDiscovery: 'emulated',
     },
     messages: { systemPlacement: 'anywhere' },
 };

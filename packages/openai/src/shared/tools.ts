@@ -47,13 +47,18 @@ export function convertResponseTools(
 ) {
     validateToolSchemaStrictness({ tools, ...options });
 
-    return Object.values(tools).map((tool) => ({
+    return Object.values(tools).map(convertResponseTool);
+}
+
+/** A Responses API function tool; strictness is validated by the caller. */
+export function convertResponseTool(tool: ToolDefinition) {
+    return {
         type: 'function' as const,
         name: tool.name,
         description: tool.description,
         parameters: convertToolParameters(tool),
         strict: tool.strict === true,
-    }));
+    };
 }
 
 /**

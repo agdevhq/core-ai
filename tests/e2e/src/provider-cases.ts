@@ -15,6 +15,8 @@ import {
     UnsupportedSystemMessagePlacementError,
     validateToolCall,
     type Message,
+    type ToolDiscoveryCallPart,
+    type ToolSnapshot,
 } from '../../../packages/core-ai/src/index.ts';
 import type { ProviderCapabilities } from './adapters/provider-adapter.ts';
 import type { ProviderE2EAdapter } from './adapters/provider-adapter.ts';
@@ -25,6 +27,7 @@ export type ProviderContractCaseId =
     | 'chatMessageCacheControl'
     | 'chatStrictTools'
     | 'chatStrictToolsUnsupported'
+    | 'chatToolDiscovery'
     | 'chatStream'
     | 'chatStreamAbort'
     | 'chatGenerateReasoning'
@@ -285,6 +288,65 @@ export const providerCases: ProviderContractCase[] = [
                     },
                 })
             ).rejects.toBeInstanceOf(ToolSchemaStrictnessError);
+        },
+    },
+    {
+        id: 'chatToolDiscovery',
+        name: 'a discovered tool is called by its real name and its result is used',
+        requiredCapability: 'chat',
+        timeoutMs: 240_000,
+        run: async ({ adapter }) => {
+            const model = adapter.createChatModel();
+            const toolDiscovery = {
+                description:
+                    'Discoverable tools: get_order_status (looks up the shipping status of an order).',
+            };
+            const messages: Message[] = [
+                {
+                    role: 'system',
+                    content:
+                        'Answer only with information from tools. You start without the tools you need, so discover them first.',
+                },
+                {
+                    role: 'user',
+                    content: 'What is the shipping status of order A-1042?',
+                },
+            ];
+
+            const discovery = await generate({
+                model,
+                messages,
+                toolDiscovery,
+            });
+            const discoveryCall = discovery.parts.find(
+                (part): part is ToolDiscoveryCallPart =>
+                    part.type === 'tool-discovery-call'
+            );
+            expect(discoveryCall).toBeDefined();
+            expect(discovery.finishReason).toBe('tool-calls');
+            messages.push(resultToMessage(discovery), {
+                role: 'tool-discovery',
+                callId: discoveryCall!.id,
+                tools: [orderStatusTool],
+            });
+
+            const call = await generate({ model, messages, toolDiscovery });
+            const orderStatusCall = call.toolCalls.find(
+                (toolCall) => toolCall.name === orderStatusTool.name
+            );
+            expect(orderStatusCall?.arguments).toMatchObject({
+                orderId: expect.stringContaining('1042'),
+            });
+            messages.push(resultToMessage(call), {
+                role: 'tool',
+                toolCallId: orderStatusCall!.id,
+                content: '{"status":"shipped","carrier":"DHL"}',
+            });
+
+            // Replays the call to the discovered tool, which the OpenAI
+            // Responses API only accepts with its namespace.
+            const answer = await generate({ model, messages, toolDiscovery });
+            expect(answer.content).toMatch(/shipped/i);
         },
     },
     {
@@ -619,6 +681,18 @@ export const providerCases: ProviderContractCase[] = [
         },
     },
 ];
+
+const orderStatusTool: ToolSnapshot = {
+    name: 'get_order_status',
+    description: 'Look up the shipping status of an order by its id',
+    parameters: {
+        type: 'object',
+        properties: {
+            orderId: { type: 'string', description: 'The order id' },
+        },
+        required: ['orderId'],
+    },
+};
 
 const lookupRecordTool = {
     name: 'lookup_record',

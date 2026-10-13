@@ -18,6 +18,7 @@ import {
     createObjectStream,
     createChatStream,
     extractStructuredObject,
+    finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
 } from '@core-ai/core-ai';
@@ -28,6 +29,7 @@ import {
     type OpenAIChatCompletionsAdapterOptions,
     transformStream,
 } from './chat-adapter.ts';
+import { toOpenAIChatCompletionsCapabilities } from '../model-capabilities.ts';
 import { wrapOpenAIError } from '../openai-error.ts';
 import type { OpenAIResolvedCompatibilityOptions } from '../shared/compatibility-options.ts';
 import {
@@ -53,7 +55,9 @@ export function createOpenAIChatCompletionsModel(
     modelOptions: OpenAIChatCompletionsModelOptions
 ): ChatModel {
     const provider = modelOptions.providerId ?? 'openai';
-    const capabilities = modelOptions.capabilities;
+    const capabilities = toOpenAIChatCompletionsCapabilities(
+        modelOptions.capabilities
+    );
     const compatibilityOptions = modelOptions.compatibility;
     const structuredOutputMode =
         compatibilityOptions?.structuredOutputMode ??
@@ -95,7 +99,10 @@ export function createOpenAIChatCompletionsModel(
             request,
             options.signal
         );
-        return mapGenerateResponse(response, adapterOptions);
+        return finalizeGenerateResult(
+            mapGenerateResponse(response, adapterOptions),
+            options
+        );
     }
 
     async function streamChat(
@@ -113,6 +120,7 @@ export function createOpenAIChatCompletionsModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapOpenAIError(error, provider),
+                request: options,
             }
         );
     }
