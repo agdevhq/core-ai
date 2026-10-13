@@ -3,6 +3,7 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    isInvalidRequestStatus,
     isRateLimitStatus,
     isTransientUnavailableStatus,
     parseRetryAfterSeconds,
@@ -15,6 +16,14 @@ describe('status helpers', () => {
         expect(isTransientUnavailableStatus(500)).toBe(true);
         expect(isTransientUnavailableStatus(503)).toBe(true);
         expect(isTransientUnavailableStatus(429)).toBe(false);
+    });
+
+    it('treats HTTP 400 and a missing status as invalid-request eligible', () => {
+        expect(isInvalidRequestStatus(400)).toBe(true);
+        expect(isInvalidRequestStatus(undefined)).toBe(true);
+        expect(isInvalidRequestStatus(422)).toBe(false);
+        expect(isInvalidRequestStatus(429)).toBe(false);
+        expect(isInvalidRequestStatus(500)).toBe(false);
     });
 });
 

@@ -12,6 +12,7 @@ import {
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
     isAbortErrorByName,
+    isInvalidRequestStatus,
     isRateLimitStatus,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
@@ -192,7 +193,7 @@ function getImageCountLimit(
     text: string,
     statusCode: number | undefined
 ): number | undefined {
-    if (statusCode !== undefined && statusCode !== 400) {
+    if (!isInvalidRequestStatus(statusCode)) {
         return undefined;
     }
 

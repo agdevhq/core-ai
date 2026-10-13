@@ -95,6 +95,7 @@ export {
 export {
     isRateLimitStatus,
     isTransientUnavailableStatus,
+    isInvalidRequestStatus,
     getErrorMessage,
     asRecord,
     getString,

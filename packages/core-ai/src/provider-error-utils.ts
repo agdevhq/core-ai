@@ -20,6 +20,17 @@ export function isTransientUnavailableStatus(
     );
 }
 
+/**
+ * HTTP 400, or no status at all. In-band errors (for example stream error
+ * events on an accepted request) carry no HTTP status, so a missing status
+ * stays eligible for invalid-request message heuristics.
+ */
+export function isInvalidRequestStatus(
+    statusCode: number | undefined
+): boolean {
+    return statusCode === undefined || statusCode === 400;
+}
+
 export function getErrorMessage(error: unknown): string {
     if (error instanceof Error) {
         return error.message;

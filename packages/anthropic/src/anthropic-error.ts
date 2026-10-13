@@ -14,6 +14,7 @@ import {
     getRetryAfterSecondsFromError,
     getString,
     isAbortErrorByName,
+    isInvalidRequestStatus,
     isRateLimitStatus,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
@@ -234,7 +235,7 @@ function getImageCountDetails(
     providerMessage: string | undefined,
     statusCode: number | undefined
 ): ImageCountDetails | undefined {
-    if (!providerMessage || (statusCode !== undefined && statusCode !== 400)) {
+    if (!providerMessage || !isInvalidRequestStatus(statusCode)) {
         return undefined;
     }
 
