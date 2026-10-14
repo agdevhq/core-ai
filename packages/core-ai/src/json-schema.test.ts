@@ -1,80 +1,19 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+    canRequireOptionalKey,
     getChildSchemaNodeEntries,
     getSchemaDefinitionEntries,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
-    zodSchemaToJsonSchema,
+    requireEveryKey,
 } from './json-schema.ts';
-
-describe('zodSchemaToJsonSchema', () => {
-    it('should convert a basic object schema', () => {
-        const schema = z.object({
-            name: z.string(),
-            age: z.number(),
-        });
-
-        const jsonSchema = zodSchemaToJsonSchema(schema);
-
-        expect(jsonSchema).toMatchObject({
-            type: 'object',
-            properties: {
-                name: { type: 'string' },
-                age: { type: 'number' },
-            },
-            required: ['name', 'age'],
-        });
-    });
-
-    it('should treat .default() fields as optional (input mode)', () => {
-        const schema = z.object({
-            query: z.string(),
-            limit: z.number().default(10),
-        });
-
-        const jsonSchema = zodSchemaToJsonSchema(schema);
-
-        expect(jsonSchema).toMatchObject({
-            type: 'object',
-            properties: {
-                query: { type: 'string' },
-                limit: { type: 'number' },
-            },
-        });
-        const required = jsonSchema['required'] as string[];
-        expect(required).toContain('query');
-        expect(required).not.toContain('limit');
-    });
-
-    it('should serialize the input type for transforms', () => {
-        const schema = z.object({
-            value: z.string().transform((val) => val.length),
-        });
-
-        const jsonSchema = zodSchemaToJsonSchema(schema);
-
-        expect(jsonSchema).toMatchObject({
-            type: 'object',
-            properties: {
-                value: { type: 'string' },
-            },
-        });
-    });
-
-    it('should throw for unrepresentable types like z.date()', () => {
-        const schema = z.object({
-            timestamp: z.date(),
-        });
-
-        expect(() => zodSchemaToJsonSchema(schema)).toThrow();
-    });
-});
+import { toJsonSchema } from './schema.ts';
 
 describe('normalizeStrictJsonSchema', () => {
     it('strips $schema and closes the root object', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.object({ query: z.string() }))
+            toJsonSchema(z.object({ query: z.string() }))
         );
 
         expect(normalized).not.toHaveProperty('$schema');
@@ -86,7 +25,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('closes nested objects in properties, items, and unions', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(
+            toJsonSchema(
                 z.object({
                     filter: z.object({ field: z.string() }),
                     entries: z.array(z.object({ id: z.string() })),
@@ -118,7 +57,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('preserves an existing additionalProperties: false', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.strictObject({ value: z.string() }))
+            toJsonSchema(z.strictObject({ value: z.string() }))
         );
 
         expect(normalized['additionalProperties']).toBe(false);
@@ -126,7 +65,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('drops the implicit safe-integer bounds of z.int()', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.object({ count: z.int() }))
+            toJsonSchema(z.object({ count: z.int() }))
         );
 
         const count = (
@@ -139,7 +78,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('drops an implicit safe-integer bound independently of its pair', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(z.object({ count: z.int().min(0) }))
+            toJsonSchema(z.object({ count: z.int().min(0) }))
         );
 
         const count = (
@@ -151,7 +90,7 @@ describe('normalizeStrictJsonSchema', () => {
 
     it('rewrites oneOf from z.discriminatedUnion to anyOf at every depth', () => {
         const normalized = normalizeStrictJsonSchema(
-            zodSchemaToJsonSchema(
+            toJsonSchema(
                 z.object({
                     action: z.discriminatedUnion('kind', [
                         z.object({ kind: z.literal('open'), path: z.string() }),
@@ -185,7 +124,7 @@ describe('normalizeStrictJsonSchema', () => {
     });
 
     it('does not touch the input schema object', () => {
-        const source = zodSchemaToJsonSchema(
+        const source = toJsonSchema(
             z.object({ nested: z.object({ value: z.string() }) })
         );
         const before = JSON.parse(JSON.stringify(source)) as unknown;
@@ -212,6 +151,7 @@ describe('schema node traversal', () => {
         anyOf: [openObject],
         oneOf: [openObject],
         allOf: [openObject],
+        prefixItems: [openObject],
         $defs: { Def: openObject },
         definitions: { Legacy: openObject },
     };
@@ -221,6 +161,7 @@ describe('schema node traversal', () => {
         'anyOf.0',
         'oneOf.0',
         'allOf.0',
+        'prefixItems.0',
         '$defs.Def',
         'definitions.Legacy',
     ];
@@ -248,8 +189,19 @@ describe('schema node traversal', () => {
             anyOf: ['mapped'],
             oneOf: ['mapped'],
             allOf: ['mapped'],
+            prefixItems: ['mapped'],
             $defs: { Def: 'mapped' },
             definitions: { Legacy: 'mapped' },
+        });
+    });
+
+    it('keeps children that are not objects', () => {
+        const node = { type: 'array', items: true, anyOf: [false, openObject] };
+
+        expect(mapChildSchemaNodes(node, () => 'mapped')).toEqual({
+            type: 'array',
+            items: true,
+            anyOf: [false, 'mapped'],
         });
     });
 
@@ -266,8 +218,98 @@ describe('schema node traversal', () => {
             anyOf: [closed],
             oneOf: [closed],
             allOf: [closed],
+            prefixItems: [closed],
             $defs: { Def: closed },
             definitions: { Legacy: closed },
         });
+    });
+});
+
+describe('canRequireOptionalKey', () => {
+    it('accepts keys that accept null or declare a default', () => {
+        const root = {
+            $defs: {
+                Maybe: { type: ['string', 'null'] },
+                'a/b': { type: 'null' },
+                Loop: { $ref: '#/$defs/Loop' },
+            },
+        };
+        const accepts = (property: unknown) =>
+            canRequireOptionalKey(property, root);
+
+        expect(accepts({ type: ['string', 'null'] })).toBe(true);
+        expect(accepts({ anyOf: [{ type: 'string' }, { type: 'null' }] })).toBe(
+            true
+        );
+        expect(accepts({ type: 'string', default: 'a' })).toBe(true);
+        expect(accepts({ $ref: '#/$defs/Maybe' })).toBe(true);
+        expect(accepts({ $ref: '#/$defs/a~1b' })).toBe(true);
+        expect(accepts({ $ref: '#/$defs/Loop' })).toBe(false);
+        expect(accepts({ type: 'string' })).toBe(false);
+        expect(accepts(true)).toBe(false);
+    });
+});
+
+describe('requireEveryKey', () => {
+    it('requires nullable and defaulted keys at every depth', () => {
+        const nullableString = {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+        };
+        const schema = {
+            type: 'object',
+            properties: {
+                label: nullableString,
+                mode: { type: 'string', default: 'safe' },
+                nested: { $ref: '#/$defs/Nested' },
+            },
+            required: ['nested', 'extra'],
+            $defs: {
+                Nested: {
+                    type: 'object',
+                    properties: { note: { ...nullableString, default: null } },
+                },
+            },
+        };
+
+        expect(requireEveryKey(schema)).toEqual({
+            schema: {
+                type: 'object',
+                properties: schema.properties,
+                required: ['label', 'mode', 'nested', 'extra'],
+                $defs: {
+                    Nested: {
+                        type: 'object',
+                        // A null default adds nothing once the key is required
+                        properties: { note: nullableString },
+                        required: ['note'],
+                    },
+                },
+            },
+            optionalKeyPaths: [],
+        });
+    });
+
+    it('reports optional keys it cannot require by path', () => {
+        const result = requireEveryKey(
+            toJsonSchema(
+                z.object({
+                    limit: z.number().optional(),
+                    filter: z.object({ tag: z.string().optional() }),
+                })
+            )
+        );
+
+        expect(result.optionalKeyPaths).toEqual([
+            'properties.limit',
+            'properties.filter.properties.tag',
+        ]);
+        // Keys that cannot be required stay optional
+        expect(result.schema.required).toEqual(['filter']);
+    });
+
+    it('leaves objects without requirable optional keys unchanged', () => {
+        const schema = { type: 'object', properties: {} };
+
+        expect(requireEveryKey(schema).schema).toEqual(schema);
     });
 });

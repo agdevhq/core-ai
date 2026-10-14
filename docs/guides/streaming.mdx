@@ -289,6 +289,7 @@ Handle tool calls during streaming:
 
 ```typescript
 import { stream, defineTool } from '@core-ai/core-ai';
+import type { ToolCall } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherTool = defineTool({

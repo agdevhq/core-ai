@@ -456,7 +456,13 @@ For message helpers like `resultToMessage()` and `assistantMessage()`, see the [
 Here's a complete example of handling tool calls:
 
 ```typescript
-import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
+import {
+    defineTool,
+    generate,
+    resultToMessage,
+    validateToolCall,
+} from '@core-ai/core-ai';
+import type { Message } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const tools = {
@@ -477,10 +483,16 @@ const messages: Message[] = [
 const result1 = await generate({ model, messages, tools });
 messages.push(resultToMessage(result1));
 
-if (result1.toolCalls.length > 0) {
-    // Step 2: Execute tool and provide result
-    const toolCall = result1.toolCalls[0];
-    const weatherData = await getWeather(toolCall.arguments.location);
+const toolCall = result1.toolCalls[0];
+if (toolCall) {
+    // Step 2: Validate the call, execute the tool, and provide the result
+    const validation = await validateToolCall(tools.getWeather, toolCall);
+    if (validation.issues) {
+        // Or send the issues back to the model as an error tool result
+        throw new Error(`Invalid arguments for ${toolCall.name}`);
+    }
+
+    const weatherData = await getWeather(validation.value.location);
 
     messages.push({
         role: 'tool',

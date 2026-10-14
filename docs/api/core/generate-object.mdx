@@ -1,21 +1,21 @@
 ---
 title: 'generateObject()'
-description: 'Generate structured objects validated against Zod schemas'
+description: 'Generate structured objects from a Standard Schema or plain JSON Schema'
 icon: 'brackets-curly'
 ---
 
 ## Overview
 
-The `generateObject()` function generates structured, type-safe objects from chat models using Zod schema validation. This ensures the model output conforms to your expected data structure.
+The `generateObject()` function generates structured objects from chat models. With a Standard Schema, such as a Zod 4.2+ schema, core-ai validates the model output and returns a typed object. With plain JSON Schema, it returns the parsed JSON for you to validate.
 
 ## Function signature
 
 ```typescript
-export async function generateObject<TSchema extends z.ZodType>(
+export async function generateObject<TSchema extends SchemaInput>(
     params: GenerateObjectParams<TSchema>
 ): Promise<GenerateObjectResult<TSchema>>
 
-export type GenerateObjectParams<TSchema extends z.ZodType> = 
+export type GenerateObjectParams<TSchema extends SchemaInput> =
     GenerateObjectOptions<TSchema> & {
         model: ChatModel;
     };
@@ -31,8 +31,8 @@ export type GenerateObjectParams<TSchema extends z.ZodType> =
   Array of messages in the conversation. Must not be empty.
 </ParamField>
 
-<ParamField path="schema" type="z.ZodType" required>
-  Zod schema that defines the structure of the object to generate.
+<ParamField path="schema" type="SchemaInput" required>
+  Schema of the object to generate: a Standard Schema with JSON Schema support, such as a Zod 4.2+ schema, or plain JSON Schema. See [Schemas](/guides/structured-outputs#schemas) for the supported libraries.
 </ParamField>
 
 <ParamField path="schemaName" type="string">
@@ -77,8 +77,8 @@ export type GenerateObjectParams<TSchema extends z.ZodType> =
 
 Returns a `Promise<GenerateObjectResult<TSchema>>` with the following properties:
 
-<ResponseField name="object" type="z.infer<TSchema>">
-  The generated object, fully typed according to your Zod schema.
+<ResponseField name="object" type="InferSchemaOutput<TSchema>">
+  For a Standard Schema, the validated output of the schema, typed with its output type. For plain JSON Schema, the parsed JSON, typed `unknown` and not validated.
 </ResponseField>
 
 <ResponseField name="finishReason" type="FinishReason">
@@ -175,7 +175,18 @@ const result = await generateObject({
 });
 ```
 
+### Plain JSON Schema
+
+Pass plain JSON Schema as `schema` to get the parsed JSON, typed `unknown` and not validated. See [Plain JSON Schema](/guides/structured-outputs#plain-json-schema) for an example.
+
 ### Error handling
+
+`generateObject()` throws:
+
+- `StructuredOutputValidationError` when the output does not match a Standard Schema. `issues` holds the schema library's messages, formatted as `path.to.key: message`. When the schema's validator throws instead, such as a transform calling `new URL()`, its error is the `cause`.
+- `StructuredOutputParseError` when the output is not valid JSON.
+- `StructuredOutputNoObjectGeneratedError` when the model returns no object.
+- `ValidationError` when the schema cannot be converted to JSON Schema, before any provider call.
 
 ```typescript
 import {
@@ -212,7 +223,7 @@ try {
 
 ## Type safety
 
-The return type is fully inferred from your Zod schema:
+The type of `object` is inferred from the output type of a Standard Schema. For plain JSON Schema it is `unknown`.
 
 ```typescript
 const userSchema = z.object({

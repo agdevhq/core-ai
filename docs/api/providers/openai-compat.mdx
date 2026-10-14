@@ -158,7 +158,7 @@ const provider = createOpenAICompat({
 ```
 
 Endpoints that implement JSON Mode can use `json-object`. The provider adds the
-schema to the system message and sends
+schema to the system message as is, optional keys included, and sends
 `response_format: { type: 'json_object' }`:
 
 ```typescript

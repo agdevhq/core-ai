@@ -11,11 +11,11 @@ The `defineTool()` function defines tools (functions) that language models can c
 ## Function signature
 
 ```typescript
-export function defineTool<TParameters extends z.ZodType>(
+export function defineTool<TParameters extends SchemaInput>(
     options: ToolDefinition<TParameters>
 ): ToolDefinition<TParameters>;
 
-type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
+type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
     name: string;
     description: string;
     parameters: TParameters;
@@ -37,9 +37,11 @@ type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
     and what it returns.
 </ParamField>
 
-<ParamField path="parameters" type="z.ZodType" required>
-    Zod schema defining the tool's input parameters. The model will generate
-    arguments matching this schema.
+<ParamField path="parameters" type="SchemaInput" required>
+    Schema of the tool's input parameters: a Standard Schema with JSON Schema
+    support, such as a Zod 4.2+ schema, or plain JSON Schema. The model
+    generates arguments matching this schema. Check calls to tools with Standard
+    Schema parameters with [`validateToolCall()`](#validatetoolcall).
 </ParamField>
 
 <ParamField path="strict" type="boolean" optional>
@@ -54,16 +56,50 @@ Returns the same `ToolDefinition` object that was passed in. This is a type-safe
 ## Strict schema enforcement
 
 `strict: true` opts a single tool into provider-enforced schema adherence. The
-tool's schema must fit the strict-capable subset (closed objects, every key
-required — use `.nullable()` instead of `.optional()`), which core-ai
-validates locally before the provider request. Check
+tool's schema must fit the strict-capable subset (closed objects whose keys
+are required, nullable, or defaulted — in Zod, use `.nullable()` instead of a
+bare `.optional()`), which core-ai validates locally before the provider
+request. Check
 `model.capabilities.tools.strictSchemas` before opting tools in.
 
-Strict enforcement does not replace runtime validation. Validate every returned
-`ToolCall.arguments` value with the same Zod schema before executing the tool.
-See [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) in the
+Strict enforcement does not replace runtime validation. Check each call with
+[`validateToolCall()`](#validatetoolcall) before executing the tool. See
+[Strict tool schemas](/guides/tool-calling#strict-tool-schemas) in the
 tool-calling guide for the schema contract, error reasons, and provider
 support.
+
+## validateToolCall()
+
+Validates the arguments of a tool call with the tool's own Standard Schema.
+
+```typescript
+function validateToolCall<TParameters extends SchemaInput>(
+    tool: ToolDefinition<TParameters>,
+    toolCall: ToolCall
+): Promise<ToolCallValidation<TParameters>>;
+```
+
+For Standard Schema `parameters`, it returns the schema's result, typed with
+the schema's output:
+
+- `{ value }` when the arguments match. `value` is the schema's output, with
+  defaults and transforms applied.
+- `{ issues }` when they do not. Each issue has a `message` and an optional
+  `path`. A validator that throws, such as a transform calling `new URL()`, is
+  reported as an issue too.
+
+For plain JSON Schema `parameters`, such as tool schemas from an MCP server, it
+returns `undefined`: core-ai ships no JSON Schema validator, so validate those
+`arguments` yourself.
+
+It throws a `ValidationError` when `toolCall` is a call to another tool, or
+when the tool's `parameters` are not a usable schema, which a request with the
+tool rejects too.
+
+Send issues back to the model as an error tool result, and run the tool with
+`value`, not with the raw `ToolCall.arguments`. See
+[Validate tool calls](/guides/tool-calling#validate-tool-calls) for complete
+examples.
 
 ## Examples
 
@@ -139,6 +175,15 @@ if (result.toolCalls.length > 0) {
 ### Tool execution loop
 
 ```typescript
+import {
+    defineTool,
+    generate,
+    resultToMessage,
+    validateToolCall,
+} from '@core-ai/core-ai';
+import type { Message, ToolCall, ToolResultMessage } from '@core-ai/core-ai';
+import { z } from 'zod';
+
 const tools = {
     get_weather: defineTool({
         name: 'get_weather',
@@ -156,22 +201,45 @@ const tools = {
     }),
 };
 
-// Implement tool handlers
-const toolHandlers = {
-    get_weather: async (args: { location: string }) => {
+// Implement tool handlers. Each validates the call against its own tool and
+// gets the typed output of its schema.
+type ToolOutput = Pick<ToolResultMessage, 'content' | 'isError'>;
+
+const toolHandlers: Record<
+    string,
+    (toolCall: ToolCall) => Promise<ToolOutput>
+> = {
+    get_weather: async (toolCall) => {
+        const validation = await validateToolCall(tools.get_weather, toolCall);
+        if (validation.issues) {
+            return {
+                content: JSON.stringify(validation.issues),
+                isError: true,
+            };
+        }
         // Call weather API
-        return `The weather in ${args.location} is sunny, 72°F`;
+        return {
+            content: `The weather in ${validation.value.location} is sunny, 72°F`,
+        };
     },
-    get_time: async (args: { timezone: string }) => {
+    get_time: async (toolCall) => {
+        const validation = await validateToolCall(tools.get_time, toolCall);
+        if (validation.issues) {
+            return {
+                content: JSON.stringify(validation.issues),
+                isError: true,
+            };
+        }
+        const { timezone } = validation.value;
         const time = new Date().toLocaleString('en-US', {
-            timeZone: args.timezone,
+            timeZone: timezone,
         });
-        return `Current time in ${args.timezone}: ${time}`;
+        return { content: `Current time in ${timezone}: ${time}` };
     },
 };
 
-const messages = [
-    { role: 'user' as const, content: "What's the weather in Tokyo?" },
+const messages: Message[] = [
+    { role: 'user', content: "What's the weather in Tokyo?" },
 ];
 
 let result = await generate({
@@ -182,20 +250,17 @@ let result = await generate({
 
 // Execute tools and continue conversation
 while (result.toolCalls.length > 0) {
-    messages.push({
-        role: 'assistant',
-        parts: result.parts,
-    });
+    messages.push(resultToMessage(result));
 
     for (const toolCall of result.toolCalls) {
-        const handler =
-            toolHandlers[toolCall.name as keyof typeof toolHandlers];
-        const toolResult = await handler(toolCall.arguments as any);
+        const handler = toolHandlers[toolCall.name];
 
         messages.push({
             role: 'tool',
             toolCallId: toolCall.id,
-            content: toolResult,
+            ...(handler
+                ? await handler(toolCall)
+                : { content: `Unknown tool: ${toolCall.name}`, isError: true }),
         });
     }
 
@@ -383,8 +448,8 @@ const handler = async (args: ToolParams) => {
 </Tip>
 
 <Tip>
-    Use Zod's `.describe()` method on parameters to provide additional context
-    to the model.
+    Add descriptions to parameters, such as with Zod's `.describe()` method, to
+    provide additional context to the model.
 </Tip>
 
 <Warning>

@@ -1,5 +1,4 @@
 import type Anthropic from '@anthropic-ai/sdk';
-import type { z } from 'zod';
 import type { RawMessageStreamEvent } from '@anthropic-ai/sdk/resources/messages/messages';
 import type {
     ChatModel,
@@ -7,7 +6,10 @@ import type {
     GenerateObjectResult,
     GenerateOptions,
     GenerateResult,
+    InferSchemaOutput,
+    NormalizedSchema,
     ObjectStreamEvent,
+    SchemaInput,
     StreamObjectOptions,
     ObjectStream,
     ChatStream,
@@ -16,10 +18,10 @@ import {
     AbortedError,
     StreamAbortedError,
     StructuredOutputNoObjectGeneratedError,
-    StructuredOutputParseError,
-    StructuredOutputValidationError,
     createObjectStream,
     createChatStream,
+    normalizeStructuredOutputSchema,
+    parseStructuredOutput,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -121,17 +123,18 @@ export function createAnthropicChatModel(
         capabilities,
         generate: generateChat,
         stream: streamChat,
-        async generateObject<TSchema extends z.ZodType>(
+        async generateObject<TSchema extends SchemaInput>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
+            const schema = normalizeStructuredOutputSchema(options);
             const structuredOptions = createStructuredOutputOptions(
                 options,
                 provider
             );
             const result = await generateChat(structuredOptions);
-            const object = extractStructuredObject(
+            const object = await extractStructuredObject(
                 result,
-                options.schema,
+                schema,
                 provider
             );
 
@@ -141,9 +144,10 @@ export function createAnthropicChatModel(
                 usage: result.usage,
             };
         },
-        async streamObject<TSchema extends z.ZodType>(
+        async streamObject<TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
+            const schema = normalizeStructuredOutputSchema(options);
             const structuredOptions = createStructuredOutputOptions(
                 options,
                 provider
@@ -151,9 +155,9 @@ export function createAnthropicChatModel(
             const stream = await streamChat(structuredOptions);
 
             return createObjectStream(
-                transformStructuredOutputStream(
+                transformStructuredOutputStream<TSchema>(
                     stream,
-                    options.schema,
+                    schema,
                     provider
                 ),
                 {
@@ -164,23 +168,23 @@ export function createAnthropicChatModel(
     };
 }
 
-function extractStructuredObject<TSchema extends z.ZodType>(
+function extractStructuredObject<TOutput>(
     result: GenerateResult,
-    schema: TSchema,
+    schema: NormalizedSchema<TOutput>,
     provider: string
-): z.infer<TSchema> {
+): Promise<TOutput> {
     const rawOutput = requireStructuredOutputPayload(
         result.finishReason,
         result.content?.trim(),
         provider,
         'model did not emit a structured object payload'
     );
-    return parseAndValidateStructuredObject(schema, rawOutput, provider);
+    return parseStructuredOutput(schema, rawOutput, provider);
 }
 
-async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
+async function* transformStructuredOutputStream<TSchema extends SchemaInput>(
     stream: ChatStream,
-    schema: TSchema,
+    schema: NormalizedSchema<InferSchemaOutput<TSchema>>,
     provider: string
 ): AsyncIterable<ObjectStreamEvent<TSchema>> {
     let contentBuffer = '';
@@ -211,7 +215,7 @@ async function* transformStructuredOutputStream<TSchema extends z.ZodType>(
                 provider,
                 'structured output stream ended without an object payload'
             );
-            const validatedObject = parseAndValidateStructuredObject(
+            const validatedObject = await parseStructuredOutput(
                 schema,
                 rawOutput,
                 provider
@@ -264,59 +268,4 @@ function requireStructuredOutputPayload(
     }
 
     return rawOutput;
-}
-
-function parseAndValidateStructuredObject<TSchema extends z.ZodType>(
-    schema: TSchema,
-    rawOutput: string,
-    provider: string
-): z.infer<TSchema> {
-    const parsedOutput = parseJson(rawOutput, provider);
-    return validateStructuredObject(schema, parsedOutput, provider, rawOutput);
-}
-
-function parseJson(rawOutput: string, provider: string): unknown {
-    try {
-        return JSON.parse(rawOutput) as unknown;
-    } catch (error) {
-        throw new StructuredOutputParseError(
-            'failed to parse structured output as JSON',
-            provider,
-            {
-                rawOutput,
-                cause: error,
-            }
-        );
-    }
-}
-
-function validateStructuredObject<TSchema extends z.ZodType>(
-    schema: TSchema,
-    value: unknown,
-    provider: string,
-    rawOutput?: string
-): z.infer<TSchema> {
-    const parsed = schema.safeParse(value);
-    if (parsed.success) {
-        return parsed.data;
-    }
-
-    throw new StructuredOutputValidationError(
-        'structured output does not match schema',
-        provider,
-        formatZodIssues(parsed.error.issues),
-        {
-            rawOutput,
-        }
-    );
-}
-
-function formatZodIssues(issues: z.ZodIssue[]): string[] {
-    return issues.map((issue) => {
-        const path =
-            issue.path.length > 0
-                ? issue.path.map((segment) => String(segment)).join('.')
-                : '<root>';
-        return `${path}: ${issue.message}`;
-    });
 }

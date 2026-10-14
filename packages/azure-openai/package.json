@@ -50,14 +50,12 @@
         "@core-ai/openai": "^0.34.0",
         "openai": "^6.46.0"
     },
-    "peerDependencies": {
-        "zod": "^4.0.0"
-    },
     "devDependencies": {
         "@core-ai/eslint-config": "*",
         "@core-ai/testing": "*",
         "@core-ai/typescript-config": "*",
         "typescript": "^5.7.3",
-        "vitest": "^3.2.4"
+        "vitest": "^3.2.4",
+        "zod": "^4.2.0"
     }
 }

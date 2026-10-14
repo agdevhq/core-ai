@@ -1,4 +1,3 @@
-import type { z } from 'zod';
 import { assertNonEmptyMessages } from './assertions.ts';
 import { CoreAIError } from './errors.ts';
 import { createStream } from './base-stream.ts';
@@ -6,17 +5,19 @@ import { callModelWithOptions } from './model-options.ts';
 import type {
     ChatModel,
     GenerateObjectResult,
-    ObjectStreamEvent,
-    StreamObjectOptions,
+    InferSchemaOutput,
     ObjectStream,
+    ObjectStreamEvent,
+    SchemaInput,
+    StreamObjectOptions,
 } from './types.ts';
 
-export type StreamObjectParams<TSchema extends z.ZodType> =
+export type StreamObjectParams<TSchema extends SchemaInput> =
     StreamObjectOptions<TSchema> & {
         model: ChatModel;
     };
 
-export async function streamObject<TSchema extends z.ZodType>(
+export async function streamObject<TSchema extends SchemaInput>(
     params: StreamObjectParams<TSchema>
 ): Promise<ObjectStream<TSchema>> {
     assertNonEmptyMessages(params.messages);
@@ -26,7 +27,7 @@ export async function streamObject<TSchema extends z.ZodType>(
     );
 }
 
-export function createObjectStream<TSchema extends z.ZodType>(
+export function createObjectStream<TSchema extends SchemaInput>(
     source: AsyncIterable<ObjectStreamEvent<TSchema>>,
     options: {
         signal?: AbortSignal;
@@ -35,7 +36,7 @@ export function createObjectStream<TSchema extends z.ZodType>(
     const { signal } = options;
     let objectState:
         | { status: 'pending' }
-        | { status: 'ready'; object: z.infer<TSchema> } = {
+        | { status: 'ready'; object: InferSchemaOutput<TSchema> } = {
         status: 'pending',
     };
     let finishReason: GenerateObjectResult<TSchema>['finishReason'] = 'unknown';

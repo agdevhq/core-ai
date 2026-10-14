@@ -19,6 +19,7 @@ import {
     wrapImageModel,
     MULTIMODAL_INPUT_MODALITIES,
     UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+    ValidationError,
 } from '@core-ai/core-ai';
 import type {
     ChatModel,
@@ -369,6 +370,32 @@ describe('@core-ai/opentelemetry', () => {
         expect(span.attributes['gen_ai.usage.input_tokens']).toBe(3);
         expect(span.attributes['gen_ai.usage.output_tokens']).toBe(2);
         expect(span.attributes['gen_ai.output.messages']).toBeDefined();
+    });
+
+    it('ends the span when a tool schema cannot be converted', async () => {
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createOtelMiddleware({ recordContent: true }),
+        });
+
+        await expect(
+            generate({
+                model: wrappedModel,
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: {
+                    schedule: {
+                        name: 'schedule',
+                        description: 'Schedule a meeting',
+                        parameters: z.object({ at: z.date() }),
+                    },
+                },
+            })
+        ).rejects.toThrow(ValidationError);
+
+        const span = expectDefined(exporter.getFinishedSpans()[0]);
+        expect(span.status.code).toBe(SpanStatusCode.ERROR);
+        expect(model.generate).not.toHaveBeenCalled();
     });
 
     it('records stream errors on the span', async () => {

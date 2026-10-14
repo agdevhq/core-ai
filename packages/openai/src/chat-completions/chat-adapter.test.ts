@@ -366,7 +366,7 @@ describe('strict tool schemas', () => {
                     },
                 },
             })
-        ).toThrowError(/use \.nullable\(\) instead of \.optional\(\)/);
+        ).toThrowError(/is optional and accepts neither null nor a default/);
     });
 
     it.each(['gpt-3.5-turbo', 'gpt-4-turbo', 'gpt-4o-2024-05-13'])(
@@ -411,14 +411,19 @@ describe('structured output helpers', () => {
 
         const request = createGenerateRequest(
             'gpt-5.6-luna',
-            createStructuredOutputRequestOptions({
-                messages: [{ role: 'user', content: 'Return weather as JSON' }],
-                schema,
-                schemaName: 'weather_schema',
-                schemaDescription: 'Structured weather output',
-                temperature: 0,
-                maxTokens: 128,
-            })
+            createStructuredOutputRequestOptions(
+                {
+                    messages: [
+                        { role: 'user', content: 'Return weather as JSON' },
+                    ],
+                    schema,
+                    schemaName: 'weather_schema',
+                    schemaDescription: 'Structured weather output',
+                    temperature: 0,
+                    maxTokens: 128,
+                },
+                'openai'
+            )
         );
 
         expect(request).toMatchObject({
@@ -456,6 +461,7 @@ describe('structured output helpers', () => {
                     }),
                     schemaName: 'weather_schema',
                 },
+                'openai',
                 'tool'
             )
         );
@@ -497,6 +503,7 @@ describe('structured output helpers', () => {
                     }),
                     schemaName: 'weather_schema',
                 },
+                'openai',
                 'json-object'
             ),
             {

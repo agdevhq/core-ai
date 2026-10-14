@@ -283,6 +283,18 @@ by `generateObject()` and `streamObject()`. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
 contract and error reasons.
 
+### Structured output schemas
+
+`generateObject()` and `streamObject()` send the schema as a strict JSON Schema
+response format, which requires an object root and closed objects with every
+key required. core-ai makes a key required when that keeps the schema's
+meaning: when the key declares a `default` or also accepts `null` (through
+`type: 'null'`, a `type` array that includes `'null'`, or an `anyOf` branch).
+Any other optional key throws a `ValidationError` before the request, listing
+the path of each such key. In Zod, use `.nullable()` instead of `.optional()`.
+[Strict tools](/guides/tool-calling#strict-capable-schema-contract) follow the
+same rule.
+
 ### Reasoning support
 
 Inspect the supported effort levels before enabling reasoning:
