@@ -62,13 +62,13 @@ describe('toJsonSchema', () => {
         );
     });
 
-    it('returns plain JSON Schema as is', () => {
+    it('returns plain JSON Schema unchanged', () => {
         const jsonSchema = {
             type: 'object',
             properties: { tags: { type: 'array', uniqueItems: true } },
         };
 
-        expect(toJsonSchema(jsonSchema)).toBe(jsonSchema);
+        expect(toJsonSchema(jsonSchema)).toEqual(jsonSchema);
     });
 
     it('converts a Standard Schema once and reuses the result', () => {
@@ -77,9 +77,22 @@ describe('toJsonSchema', () => {
         const first = toJsonSchema(schema);
         const second = toJsonSchema(schema);
 
-        expect(second).toBe(first);
+        expect(second).toEqual(first);
         expect(input).toHaveBeenCalledTimes(1);
         expect(input).toHaveBeenCalledWith({ target: 'draft-2020-12' });
+    });
+
+    it('returns a copy that does not change what core-ai sends', () => {
+        const tool = {
+            name: 'search',
+            description: 'Search',
+            parameters: z.object({ query: z.string() }),
+        };
+
+        const jsonSchema = toJsonSchema(tool.parameters);
+        delete jsonSchema.required;
+
+        expect(getToolJsonSchema(tool)).toHaveProperty('required', ['query']);
     });
 
     it('accepts schemas that are functions, like ArkType types', () => {

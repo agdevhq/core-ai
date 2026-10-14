@@ -30,12 +30,12 @@ function toJsonSchema(schema: SchemaInput): JsonSchema;
 ```
 
 - A Standard Schema is converted to the JSON Schema of its input type (draft 2020-12).
-- Plain JSON Schema is returned as is.
+- Plain JSON Schema is returned unchanged.
 - A schema that cannot be converted throws a `ValidationError`.
 
 Use it when you store or measure schemas, for example to persist tool definitions or estimate token counts. You get the same JSON Schema core-ai hands to provider adapters, which apply only semantics-preserving provider transforms on top, such as the normalization for [strict tool schemas](/guides/tool-calling#strict-tool-schemas).
 
-The result for a Standard Schema is computed once per schema object and shared, so treat it as read-only.
+Each call returns a copy, so changing it does not affect what core-ai sends.
 
 ## clampReasoningEffort()
 
@@ -159,7 +159,9 @@ type CreateChatStreamOptions = {
 };
 ```
 
-Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged. Pass the `request` the stream answers so each completed tool call is validated against its tool's parameters and carries [`ToolCall.validation`](/api/core/types#toolcall).
+Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged. Pass the `request` the stream answers so each completed tool call is validated against its tool's parameters and carries [`ToolCall.validation`](/api/core/types#toolcall). Omit it when you re-wrap a stream from another model, such as in [middleware](/concepts/middleware): its tool calls are already validated.
+
+A custom `ChatModel` that builds its `GenerateResult` itself passes it through `finalizeGenerateResult(result, options)` before returning it, which sets `ToolCall.validation` the same way.
 
 ## createObjectStream()
 

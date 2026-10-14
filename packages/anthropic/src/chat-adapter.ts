@@ -16,6 +16,8 @@ import {
     clampReasoningEffort,
     getProviderMetadata,
     getToolJsonSchema,
+    mapChildSchemaNodes,
+    normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
     ValidationError,
     safeParseJsonObject,
@@ -544,54 +546,26 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     };
 }
 
-function normalizeAnthropicJsonSchema(value: JsonSchema): JsonSchema {
-    const normalized = normalizeAnthropicJsonValue(value);
-    return isJsonObject(normalized) ? normalized : {};
+/**
+ * The strict normalization OpenAI-style APIs get, minus the numeric and length
+ * constraints Anthropic's grammar also rejects. The schema's validator still
+ * enforces them.
+ */
+function normalizeAnthropicJsonSchema(schema: JsonSchema): JsonSchema {
+    return stripUnsupportedAnthropicKeywords(normalizeStrictJsonSchema(schema));
 }
 
-function normalizeAnthropicJsonValue(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        return value.map(normalizeAnthropicJsonValue);
-    }
-
-    if (!isJsonObject(value)) {
-        return value;
-    }
-
-    const normalized: Record<string, unknown> = {};
-
-    for (const [key, child] of Object.entries(value)) {
-        if (
-            key === '$schema' ||
-            UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS.has(key) ||
-            (key === 'minItems' && typeof child === 'number' && child > 1)
-        ) {
-            continue;
-        }
-        normalized[key] = normalizeAnthropicJsonValue(child);
-    }
-
-    // Zod emits `oneOf` only for z.discriminatedUnion(), whose branches are
-    // disjoint by construction, so `anyOf` accepts the same values and is the
-    // composition keyword Anthropic's schema subset supports.
-    if (Array.isArray(normalized.oneOf) && normalized.anyOf === undefined) {
-        normalized.anyOf = normalized.oneOf;
-        delete normalized.oneOf;
-    }
-
-    if (isObjectSchema(normalized)) {
-        normalized.additionalProperties = false;
-    }
-
-    return normalized;
-}
-
-function isObjectSchema(value: Record<string, unknown>): boolean {
-    return (
-        value.type === 'object' ||
-        Object.hasOwn(value, 'properties') ||
-        Object.hasOwn(value, 'required')
+function stripUnsupportedAnthropicKeywords(node: JsonSchema): JsonSchema {
+    const result = mapChildSchemaNodes(node, (child) =>
+        isJsonObject(child) ? stripUnsupportedAnthropicKeywords(child) : child
     );
+    for (const keyword of UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS) {
+        delete result[keyword];
+    }
+    if (typeof result.minItems === 'number' && result.minItems > 1) {
+        delete result.minItems;
+    }
+    return result;
 }
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {

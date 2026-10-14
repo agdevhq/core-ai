@@ -197,6 +197,18 @@ describe('createStructuredOutputRequestOptions (json-object mode)', () => {
             ].join('\n'),
         });
     });
+
+    it('rejects a root that is not an object schema', () => {
+        expect(() =>
+            createStructuredOutputRequestOptions(
+                {
+                    messages: [{ role: 'user', content: 'hi' }],
+                    schema: z.array(z.string()),
+                },
+                'json-object'
+            )
+        ).toThrow(ValidationError);
+    });
 });
 
 describe('createStructuredOutputRequestOptions (tool mode)', () => {

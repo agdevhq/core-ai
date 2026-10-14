@@ -1,7 +1,7 @@
 import { ValidationError } from './errors.ts';
 import { isPlainObject } from './json-schema.ts';
 import { getErrorMessage } from './provider-error-utils.ts';
-import type { StandardSchemaV1 } from './standard-schema.ts';
+import type { StandardSchemaV1, StandardTypedV1 } from './standard-schema.ts';
 import type {
     InferSchemaOutput,
     JsonSchema,
@@ -78,11 +78,10 @@ export function normalizeSchema<TSchema extends SchemaInput>(
  * adapters add their semantics-preserving provider transforms (e.g. for
  * strict tools). Use it to store or measure schemas.
  *
- * For a Standard Schema the result is cached and shared, so treat it as
- * read-only.
+ * Returns a copy, so changing it never affects what core-ai sends.
  */
 export function toJsonSchema(schema: SchemaInput): JsonSchema {
-    return normalizeSchema(schema).jsonSchema;
+    return structuredClone(normalizeSchema(schema).jsonSchema);
 }
 
 /** The JSON Schema of a tool's parameters, as adapters send it. */
@@ -104,11 +103,10 @@ function getToolParametersLabel(tool: ToolDefinition): string {
 
 /**
  * Whether `value` carries Standard Schema properties. ArkType schemas are
- * functions, so functions qualify too.
+ * functions, so functions qualify too. It does not check for a validator or
+ * JSON Schema support; {@link normalizeSchema} does.
  */
-export function isStandardSchema(
-    value: unknown
-): value is StandardSchemaWithJson {
+export function isStandardSchema(value: unknown): value is StandardTypedV1 {
     return (
         (typeof value === 'object' || typeof value === 'function') &&
         value !== null &&
@@ -117,7 +115,7 @@ export function isStandardSchema(
 }
 
 function normalizeStandardSchema(
-    schema: StandardSchemaWithJson,
+    schema: StandardTypedV1,
     label: string
 ): NormalizedSchema {
     const props: Partial<StandardSchemaWithJson['~standard']> =
@@ -133,6 +131,7 @@ function normalizeStandardSchema(
         );
     }
 
+    const validate = props.validate.bind(props);
     let jsonSchema: unknown;
     try {
         jsonSchema = props.jsonSchema.input({ target: JSON_SCHEMA_TARGET });
@@ -151,6 +150,6 @@ function normalizeStandardSchema(
 
     return {
         jsonSchema,
-        validate: (value) => schema['~standard'].validate(value),
+        validate,
     };
 }

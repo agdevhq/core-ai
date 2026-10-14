@@ -18,7 +18,7 @@ import type {
     UserContentPart,
     SchemaInput,
 } from '@core-ai/core-ai';
-import { toJsonSchema } from '@core-ai/core-ai';
+import { getToolJsonSchema } from '@core-ai/core-ai';
 
 type SpanAttributeValue =
     | string
@@ -250,7 +250,7 @@ export function setChatInputAttributes(
                     type: 'function',
                     name,
                     description: definition.description,
-                    parameters: toJsonSchema(definition.parameters),
+                    parameters: getToolJsonSchema(definition),
                 }))
             )
         );

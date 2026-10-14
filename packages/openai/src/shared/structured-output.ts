@@ -94,11 +94,19 @@ export function createStructuredOutputRequestOptions<
     if (mode === 'json-object') {
         // The provider enforces only JSON syntax here, so the schema is shown
         // as is, optional keys included, rather than in its strict form.
+        const name = getStructuredOutputName(options);
         const { $schema: _schema, ...schema } =
             normalizeStructuredOutputSchema(options).jsonSchema;
+        if (schema.type !== 'object') {
+            throw new ValidationError(
+                `structured output schema "${name}" must be an object schema (type: "object"), because JSON mode always returns an object`,
+                undefined,
+                provider
+            );
+        }
         const instruction = [
             'Return only a valid JSON object.',
-            `Schema name: ${getStructuredOutputName(options)}.`,
+            `Schema name: ${name}.`,
             `Description: ${options.schemaDescription || DEFAULT_STRUCTURED_OUTPUT_DESCRIPTION}`,
             `JSON Schema: ${JSON.stringify(schema)}`,
             'Do not include markdown, prose, or any text outside the JSON object.',

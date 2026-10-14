@@ -75,15 +75,16 @@ export function createOtelMiddleware(
                 async (span) => {
                     setChatRequestAttributes(span, model, generateOptions, 'text');
 
-                    if (recordContent) {
-                        setChatInputAttributes(
-                            span,
-                            generateOptions.messages,
-                            generateOptions.tools
-                        );
-                    }
-
                     try {
+                        // Inside the try: converting a tool schema can throw.
+                        if (recordContent) {
+                            setChatInputAttributes(
+                                span,
+                                generateOptions.messages,
+                                generateOptions.tools
+                            );
+                        }
+
                         const result = await execute();
                         setChatUsageAttributes(span, result.usage);
                         setFinishReasonAttribute(span, result.finishReason);
@@ -116,15 +117,16 @@ export function createOtelMiddleware(
                 async (span) => {
                     setChatRequestAttributes(span, model, generateOptions, 'text');
 
-                    if (recordContent) {
-                        setChatInputAttributes(
-                            span,
-                            generateOptions.messages,
-                            generateOptions.tools
-                        );
-                    }
-
                     try {
+                        // Inside the try: converting a tool schema can throw.
+                        if (recordContent) {
+                            setChatInputAttributes(
+                                span,
+                                generateOptions.messages,
+                                generateOptions.tools
+                            );
+                        }
+
                         const chatStream = await execute();
 
                         void chatStream.result

@@ -186,7 +186,10 @@ type ToolResultMessage = {
 The schema type for tool parameters and structured outputs.
 
 ```typescript
-type SchemaInput = StandardSchemaWithJson | JsonSchema;
+type SchemaInput =
+    | StandardSchemaWithJson
+    | JsonSchema
+    | (object & { readonly '~standard'?: never });
 
 type JsonSchema = Record<string, unknown>;
 
@@ -198,7 +201,7 @@ type StandardSchemaWithJson<Input = unknown, Output = Input> = StandardSchemaV1<
 ```
 
 - `StandardSchemaWithJson` is a [Standard Schema](https://standardschema.dev) that can also produce JSON Schema, such as a Zod 4.2+ schema. core-ai converts it to the JSON Schema of its input type and validates model output with it.
-- `JsonSchema` is a plain JSON Schema object. core-ai sends it as is and never validates against it.
+- `JsonSchema` is a plain JSON Schema object. core-ai sends it as is and never validates against it. Any other object type is accepted as plain JSON Schema too, including interfaces such as `JSONSchema7` from `@types/json-schema`, unless it is a Standard Schema without JSON Schema support.
 
 See [Schemas](/guides/structured-outputs#schemas) for the supported libraries. `@core-ai/core-ai` also exports the Standard Schema type namespaces `StandardSchemaV1`, `StandardJSONSchemaV1`, and `StandardTypedV1`.
 

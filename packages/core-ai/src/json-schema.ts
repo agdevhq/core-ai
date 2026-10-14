@@ -38,7 +38,12 @@ export type ChildSchemaNodeEntry = {
 /** Keywords whose value is a map of named child schemas. */
 const NESTED_MAP_KEYWORDS = ['properties'] as const;
 /** Keywords whose value is a list of child schemas. */
-const NESTED_LIST_KEYWORDS = ['anyOf', 'oneOf', 'allOf'] as const;
+const NESTED_LIST_KEYWORDS = [
+    'anyOf',
+    'oneOf',
+    'allOf',
+    'prefixItems',
+] as const;
 /** Keywords whose value is a single child schema. */
 const NESTED_SINGLE_KEYWORDS = ['items'] as const;
 /** Root-level containers of named, `$ref`-addressable definitions. */
@@ -46,7 +51,8 @@ const DEFINITION_KEYWORDS = ['$defs', 'definitions'] as const;
 
 /**
  * Enumerates the nested schema nodes of a JSON Schema node: `properties.*`,
- * `items`, `anyOf[*]`, `oneOf[*]`, and `allOf[*]`. Definition containers are
+ * `items`, `anyOf[*]`, `oneOf[*]`, `allOf[*]`, and `prefixItems[*]`.
+ * Definition containers are
  * enumerated separately by {@link getSchemaDefinitionEntries}.
  *
  * Both the strict-schema contract validator and

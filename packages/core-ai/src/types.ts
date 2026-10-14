@@ -18,9 +18,14 @@ export type StandardSchemaWithJson<
 /**
  * A schema for tool parameters or structured output: a Standard Schema with
  * JSON Schema support (validated by core-ai) or plain JSON Schema (sent as
- * is, never validated by core-ai).
+ * is, never validated by core-ai). Plain JSON Schema can have any object type,
+ * including interfaces such as `JSONSchema7`; a Standard Schema without JSON
+ * Schema support is rejected.
  */
-export type SchemaInput = StandardSchemaWithJson | JsonSchema;
+export type SchemaInput =
+    | StandardSchemaWithJson
+    | JsonSchema
+    | (object & { readonly '~standard'?: never });
 
 /**
  * The value a schema validates to: the Standard Schema's output type, or

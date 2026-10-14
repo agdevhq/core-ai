@@ -1104,6 +1104,36 @@ describe('structured output helpers', () => {
             },
         });
     });
+
+    it('should drop unsupported keywords only where they are schema keywords', () => {
+        const result = createStructuredOutputOptions({
+            messages: [{ role: 'user', content: 'Return a range' }],
+            schema: z.object({
+                minimum: z.number().min(0),
+                maxLength: z.int(),
+                tags: z.record(z.string(), z.string()),
+            }),
+        });
+
+        expect(result.providerOptions).toMatchObject({
+            anthropic: {
+                outputConfig: {
+                    format: {
+                        schema: {
+                            properties: {
+                                minimum: { type: 'number' },
+                                maxLength: { type: 'integer' },
+                                tags: {
+                                    additionalProperties: { type: 'string' },
+                                },
+                            },
+                            required: ['minimum', 'maxLength', 'tags'],
+                        },
+                    },
+                },
+            },
+        });
+    });
 });
 
 describe('reasoning support', () => {
