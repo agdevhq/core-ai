@@ -1,5 +1,18 @@
 # @core-ai/mistral
 
+## 0.35.0
+
+### Minor Changes
+
+- 3dd9026: Tool parameters and structured output schemas accept any Standard Schema with JSON Schema support or plain JSON Schema. Zod is no longer a peer dependency; the package uses it internally to validate its own `providerOptions`.
+
+### Patch Changes
+
+- 8759754: Classify the image-count limit (`Total number of images exceeds the maximum allowed of 8.`) as `ImageCountExceededError` instead of a generic `ProviderError`.
+- Updated dependencies [8759754]
+- Updated dependencies [3dd9026]
+    - @core-ai/core-ai@0.35.0
+
 ## 0.34.0
 
 ### Patch Changes

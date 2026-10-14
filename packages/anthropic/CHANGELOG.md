@@ -1,5 +1,19 @@
 # @core-ai/anthropic
 
+## 0.35.0
+
+### Minor Changes
+
+- 3dd9026: Strict tool and structured output schemas keep properties named like JSON Schema keywords, such as `minimum` or `maxLength`, which were dropped before. **Breaking:** record value schemas (`additionalProperties` with a schema, e.g. `z.record()`) are sent as declared instead of being silently closed, which limited the model to an empty record. Anthropic rejects them with a 400, so model key/value data as an array of objects instead. Unsupported constraints are still dropped where they are schema keywords. Strict tools accept optional keys that accept `null` or declare a `default`. Strict tools and structured output schemas send such keys as required, which keeps them clear of Anthropic's limit of 24 optional parameters.
+- 3dd9026: Tool parameters and structured output schemas accept any Standard Schema with JSON Schema support or plain JSON Schema. Zod is no longer a peer dependency; the package uses it internally to validate its own `providerOptions`.
+
+### Patch Changes
+
+- 8759754: Classify the media-count limit (`too many images and documents: 110 + 0 > 100` and `Too much media: 0 document pages + 102 images > 100`) as `MediaCountExceededError`. Images and document pages share one limit, so `maxMedia` is that limit and `actualMedia` the sum of both counts.
+- Updated dependencies [8759754]
+- Updated dependencies [3dd9026]
+    - @core-ai/core-ai@0.35.0
+
 ## 0.34.0
 
 ### Patch Changes
