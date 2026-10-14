@@ -62,7 +62,7 @@ describe('wrapMistralError', () => {
         expect(wrapped).toBeInstanceOf(ImageCountExceededError);
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
         const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBe(8);
+        expect(classified.maxMedia).toBe(8);
         expect(classified.statusCode).toBe(400);
         expect(classified.code).toBe('invalid_request_invalid_args');
     });
@@ -73,7 +73,7 @@ describe('wrapMistralError', () => {
         });
 
         expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-        expect((wrapped as ImageCountExceededError).maxImages).toBe(8);
+        expect((wrapped as ImageCountExceededError).maxMedia).toBe(8);
         expect((wrapped as ImageCountExceededError).statusCode).toBeUndefined();
     });
 

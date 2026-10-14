@@ -288,8 +288,9 @@ export type MediaCountExceededErrorOptions = ProviderErrorOptions & {
  * The request carries more media inputs (images, document pages) than the
  * provider or model accepts in one request. Not retryable: the same messages
  * fail again until media is removed. `maxMedia` and `actualMedia` are set when
- * the provider reports them. When the limit applies to images alone, the
- * provider throws the `ImageCountExceededError` subclass.
+ * the provider reports them. Thrown directly when images and document pages
+ * share one limit; a limit on images alone throws the
+ * `ImageCountExceededError` subclass.
  */
 export class MediaCountExceededError extends ProviderError {
     public readonly maxMedia?: number;
@@ -311,38 +312,23 @@ export class MediaCountExceededError extends ProviderError {
     }
 }
 
-export type ImageCountExceededErrorOptions = ProviderErrorOptions & {
-    maxImages?: number;
-    actualImages?: number;
-};
+export type ImageCountExceededErrorOptions = MediaCountExceededErrorOptions;
 
 /**
  * The request carries more images than the provider or model accepts in one
  * request. Not retryable: the same messages fail again until images are
- * removed. `maxImages` and `actualImages` are set when the provider reports
- * them and are mirrored to `maxMedia` / `actualMedia`. Providers can count
- * inputs other than image parts, such as document pages, so the error can
- * occur for a request with few or no image parts.
+ * removed. `maxMedia` and `actualMedia` count images here. Providers can
+ * count inputs other than image parts, such as document pages, so the error
+ * can occur for a request with few or no image parts.
  */
 export class ImageCountExceededError extends MediaCountExceededError {
-    public readonly maxImages?: number;
-    public readonly actualImages?: number;
-
     constructor(
         message: string,
         provider: string,
         options: ImageCountExceededErrorOptions = {}
     ) {
-        super(message, provider, {
-            statusCode: options.statusCode,
-            code: options.code,
-            cause: options.cause,
-            maxMedia: options.maxImages,
-            actualMedia: options.actualImages,
-        });
+        super(message, provider, options);
         this.name = 'ImageCountExceededError';
-        this.maxImages = options.maxImages;
-        this.actualImages = options.actualImages;
     }
 }
 

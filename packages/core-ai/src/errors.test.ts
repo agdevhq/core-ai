@@ -90,30 +90,19 @@ describe('classified ProviderError subclasses', () => {
         expect(error.actualTokens).toBe(10000);
     });
 
-    it('should create ImageCountExceededError as non-retryable', () => {
+    it('should create ImageCountExceededError as a non-retryable MediaCountExceededError', () => {
         const error = new ImageCountExceededError('too many images', 'openai', {
             statusCode: 400,
             code: 'invalid_request_error',
-            maxImages: 50,
-            actualImages: 51,
+            maxMedia: 50,
+            actualMedia: 51,
         });
 
-        expect(error).toBeInstanceOf(ProviderError);
+        expect(error).toBeInstanceOf(MediaCountExceededError);
         expect(error).not.toBeInstanceOf(RetryableProviderError);
         expect(error.name).toBe('ImageCountExceededError');
         expect(error.statusCode).toBe(400);
         expect(error.code).toBe('invalid_request_error');
-        expect(error.maxImages).toBe(50);
-        expect(error.actualImages).toBe(51);
-    });
-
-    it('should create ImageCountExceededError as a MediaCountExceededError', () => {
-        const error = new ImageCountExceededError('too many images', 'openai', {
-            maxImages: 50,
-            actualImages: 51,
-        });
-
-        expect(error).toBeInstanceOf(MediaCountExceededError);
         expect(error.maxMedia).toBe(50);
         expect(error.actualMedia).toBe(51);
     });

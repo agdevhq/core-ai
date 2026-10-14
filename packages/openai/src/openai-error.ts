@@ -53,8 +53,8 @@ type ContextLengthDetails = {
 };
 
 type ImageCountDetails = {
-    maxImages?: number;
-    actualImages?: number;
+    maxMedia?: number;
+    actualMedia?: number;
 };
 
 /**
@@ -251,8 +251,8 @@ function getImageCountDetails(
         const maxImages = actualAndMax[2];
         if (actualImages !== undefined && maxImages !== undefined) {
             return {
-                maxImages: parseInt(maxImages, 10),
-                actualImages: parseInt(actualImages, 10),
+                maxMedia: parseInt(maxImages, 10),
+                actualMedia: parseInt(actualImages, 10),
             };
         }
     }
@@ -263,9 +263,7 @@ function getImageCountDetails(
     }
 
     const maxImages = maxOnly[1];
-    return maxImages === undefined
-        ? {}
-        : { maxImages: parseInt(maxImages, 10) };
+    return maxImages === undefined ? {} : { maxMedia: parseInt(maxImages, 10) };
 }
 
 /**

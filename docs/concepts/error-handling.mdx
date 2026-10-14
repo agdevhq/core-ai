@@ -191,6 +191,8 @@ HTTP 429 is **not** always `RateLimitError`. For example OpenAI `insufficient_qu
 import {
     ContextLengthExceededError,
     generate,
+    ImageCountExceededError,
+    MediaCountExceededError,
     ProviderError,
     RateLimitError,
     RetryableProviderError,
@@ -201,6 +203,16 @@ try {
 } catch (error) {
     if (error instanceof ContextLengthExceededError) {
         console.error('Context too long', error.maxTokens, error.actualTokens);
+        return;
+    }
+
+    if (error instanceof ImageCountExceededError) {
+        console.error('Too many images', error.actualMedia, error.maxMedia);
+        return;
+    }
+
+    if (error instanceof MediaCountExceededError) {
+        console.error('Too many images or documents', error.maxMedia);
         return;
     }
 
@@ -225,8 +237,8 @@ try {
 **Subclass details:**
 
 - `ContextLengthExceededError` — optional `maxTokens` / `actualTokens` when token counts are parseable (string-length limits are classified without inventing token metadata)
-- `MediaCountExceededError` — the provider limits images and document pages together; optional `maxMedia` / `actualMedia` when the provider reports them. Not retryable until images or documents are removed from the messages.
-- `ImageCountExceededError` — subclass of `MediaCountExceededError` for a limit on images alone; optional `maxImages` / `actualImages` when the provider reports them, mirrored to `maxMedia` / `actualMedia`. Not retryable until images are removed from the messages. The counts are the provider's own and can include inputs other than image parts, such as document pages. Check your messages for image parts before you ask a user to remove images.
+- `MediaCountExceededError` — base class for media-count limits, thrown directly when images and document pages share one limit; optional `maxMedia` / `actualMedia` when the provider reports them. Not retryable until images or documents are removed from the messages.
+- `ImageCountExceededError` — subclass of `MediaCountExceededError` for a limit on images alone; `maxMedia` / `actualMedia` count images. Not retryable until images are removed from the messages. The counts are the provider's own and can include inputs other than image parts, such as document pages. Check your messages for image parts before you ask a user to remove images.
 - `RateLimitError` — optional `retryAfterSeconds` from `Retry-After`, Azure `retry-after-ms`, or an HTTP-date `Retry-After` value
 - `ModelOverloadedError` — capacity / high-demand signal (wins over generic 5xx unavailable; Azure `NoCapacity` on 429 included)
 - `ServiceUnavailableError` — temporary unavailability, including HTTP 500/502/503/504
@@ -236,7 +248,7 @@ Catch `ImageCountExceededError` first to ask for fewer images, then `MediaCountE
 - **OpenAI-based providers** — the two Azure OpenAI wordings. Every OpenAI-based provider matches them, but other backends may word the limit differently.
 - **Anthropic and Anthropic Vertex** — `MediaCountExceededError` for both media-limit wordings of the Anthropic API. Anthropic Vertex matches them, but Vertex may word the limit differently.
 - **Gemini API and Vertex Gemini** — the Gemini API wording. Vertex Gemini matches it, but Vertex may word the limit differently.
-- **Mistral**
+- **Mistral** — the Mistral API wording.
 
 Any other wording stays a generic `ProviderError`, so keep a `ProviderError` branch as the fallback.
 

@@ -66,7 +66,7 @@ describe('wrapGoogleError', () => {
         expect(wrapped).toBeInstanceOf(ImageCountExceededError);
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
         const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBe(3600);
+        expect(classified.maxMedia).toBe(3600);
         expect(classified.statusCode).toBe(400);
         expect(classified.code).toBe('INVALID_ARGUMENT');
     });
@@ -79,7 +79,7 @@ describe('wrapGoogleError', () => {
         );
 
         expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-        expect((wrapped as ImageCountExceededError).maxImages).toBe(3600);
+        expect((wrapped as ImageCountExceededError).maxMedia).toBe(3600);
         expect((wrapped as ImageCountExceededError).statusCode).toBeUndefined();
     });
 

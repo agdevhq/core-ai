@@ -374,7 +374,7 @@ export class RetryableProviderError extends ProviderError {}
 | ---------------------------- | ------------------------- | ----------------------------- |
 | `ContextLengthExceededError` | `ProviderError`           | `maxTokens?`, `actualTokens?` |
 | `MediaCountExceededError`    | `ProviderError`           | `maxMedia?`, `actualMedia?`   |
-| `ImageCountExceededError`    | `MediaCountExceededError` | `maxImages?`, `actualImages?` |
+| `ImageCountExceededError`    | `MediaCountExceededError` | —                             |
 | `RateLimitError`             | `RetryableProviderError`  | `retryAfterSeconds?`          |
 | `ModelOverloadedError`       | `RetryableProviderError`  | —                             |
 | `ServiceUnavailableError`    | `RetryableProviderError`  | —                             |
@@ -389,6 +389,8 @@ HTTP 429 is not always `RateLimitError`: billing quota (for example OpenAI `insu
 import {
     ContextLengthExceededError,
     generate,
+    ImageCountExceededError,
+    MediaCountExceededError,
     ProviderError,
     RateLimitError,
     RetryableProviderError,
@@ -406,6 +408,10 @@ try {
 } catch (error) {
     if (error instanceof ContextLengthExceededError) {
         console.error('Context too long', error.maxTokens, error.actualTokens);
+    } else if (error instanceof ImageCountExceededError) {
+        console.error('Too many images', error.actualMedia, error.maxMedia);
+    } else if (error instanceof MediaCountExceededError) {
+        console.error('Too many images or documents', error.maxMedia);
     } else if (error instanceof RateLimitError) {
         console.error('Rate limited; retry after', error.retryAfterSeconds);
     } else if (error instanceof RetryableProviderError) {

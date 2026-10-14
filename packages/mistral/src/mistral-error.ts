@@ -73,7 +73,7 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
     if (maxImages !== undefined) {
         return new ImageCountExceededError(message, 'mistral', {
             ...options,
-            maxImages,
+            maxMedia: maxImages,
         });
     }
 

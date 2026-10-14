@@ -173,8 +173,8 @@ describe('wrapOpenAIError', () => {
             expect(wrapped).toBeInstanceOf(ImageCountExceededError);
             expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
             const classified = wrapped as ImageCountExceededError;
-            expect(classified.maxImages).toBe(50);
-            expect(classified.actualImages).toBeUndefined();
+            expect(classified.maxMedia).toBe(50);
+            expect(classified.actualMedia).toBeUndefined();
             expect(classified.statusCode).toBe(400);
             expect(classified.code).toBe('invalid_request_error');
             expect(classified.provider).toBe('azure-openai');
@@ -198,8 +198,8 @@ describe('wrapOpenAIError', () => {
 
             expect(wrapped).toBeInstanceOf(ImageCountExceededError);
             const classified = wrapped as ImageCountExceededError;
-            expect(classified.maxImages).toBe(10);
-            expect(classified.actualImages).toBe(20);
+            expect(classified.maxMedia).toBe(10);
+            expect(classified.actualMedia).toBe(20);
         });
 
         it('should map an in-band image-count error without HTTP status', () => {
@@ -212,7 +212,7 @@ describe('wrapOpenAIError', () => {
             });
 
             expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-            expect((wrapped as ImageCountExceededError).maxImages).toBe(50);
+            expect((wrapped as ImageCountExceededError).maxMedia).toBe(50);
         });
 
         it('should map image-count wording that states no limit without counts', () => {
@@ -226,8 +226,8 @@ describe('wrapOpenAIError', () => {
 
             expect(wrapped).toBeInstanceOf(ImageCountExceededError);
             const classified = wrapped as ImageCountExceededError;
-            expect(classified.maxImages).toBeUndefined();
-            expect(classified.actualImages).toBeUndefined();
+            expect(classified.maxMedia).toBeUndefined();
+            expect(classified.actualMedia).toBeUndefined();
         });
 
         it('should not map image-count wording on a non-400 status', () => {

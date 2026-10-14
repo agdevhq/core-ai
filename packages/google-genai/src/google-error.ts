@@ -72,7 +72,7 @@ export function wrapGoogleError(
     if (maxImages !== undefined) {
         return new ImageCountExceededError(message, provider, {
             ...options,
-            maxImages,
+            maxMedia: maxImages,
         });
     }
 
