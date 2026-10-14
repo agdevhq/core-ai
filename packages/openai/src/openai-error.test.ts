@@ -230,6 +230,19 @@ describe('wrapOpenAIError', () => {
             expect(classified.actualMedia).toBeUndefined();
         });
 
+        it('should not map other wordings that exceed an image maximum', () => {
+            const wrapped = wrapOpenAIError({
+                error: {
+                    type: 'invalid_request_error',
+                    message:
+                        'Exceeded maximum number of images to generate per request.',
+                },
+            });
+
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+        });
+
         it('should not map image-count wording on a non-400 status', () => {
             const error = APIError.generate(
                 429,

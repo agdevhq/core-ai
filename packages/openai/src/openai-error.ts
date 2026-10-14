@@ -38,7 +38,7 @@ const CONTEXT_LENGTH_MESSAGE_PATTERN = /\binput exceeds the context window\b/i;
  * - "Too many images in request: 20, maximum allowed: 10." (Azure Responses)
  */
 const IMAGE_COUNT_MAX_PATTERN =
-    /\bexceeded maximum number of images(?: \((\d+)\))?/i;
+    /\bexceeded maximum number of images(?: \((\d+)\))? allowed in the request\b/i;
 const IMAGE_COUNT_ACTUAL_AND_MAX_PATTERN =
     /\btoo many images in request: (\d+), maximum allowed: (\d+)/i;
 
