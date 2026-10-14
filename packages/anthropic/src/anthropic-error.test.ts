@@ -125,7 +125,7 @@ describe('wrapAnthropicError', () => {
         expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
     });
 
-    it('should report the shared limit on a mixed overflow', () => {
+    it('should map a mixed overflow without counts', () => {
         const error = new APIError(
             400,
             {
@@ -140,11 +140,11 @@ describe('wrapAnthropicError', () => {
 
         expect(wrapped).toBeInstanceOf(ImageCountExceededError);
         const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBe(100);
-        expect(classified.actualImages).toBe(60);
+        expect(classified.maxImages).toBeUndefined();
+        expect(classified.actualImages).toBeUndefined();
     });
 
-    it('should not map a mixed overflow when documents alone exceed the limit', () => {
+    it('should map a mixed overflow when documents alone exceed the limit', () => {
         const error = new APIError(
             400,
             {
@@ -157,8 +157,8 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
 
-        expect(wrapped).toBeInstanceOf(ProviderError);
-        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect((wrapped as ImageCountExceededError).maxImages).toBeUndefined();
     });
 
     it('should map an in-band media-count error without HTTP status', () => {

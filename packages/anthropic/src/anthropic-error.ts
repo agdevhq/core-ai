@@ -40,8 +40,8 @@ type ContextLengthDetails = {
 };
 
 type ImageCountDetails = {
-    maxImages: number;
-    actualImages: number;
+    maxImages?: number;
+    actualImages?: number;
 };
 
 /**
@@ -226,11 +226,10 @@ function getContextLengthDetails(
 }
 
 /**
- * Classifies the shared media limit as an image-count failure only when
- * removing images can fix the request: it contains images and its documents
- * fit the limit on their own. Otherwise the overflow stays a plain
- * `ProviderError`. `maxImages` is the shared limit as Anthropic reports it,
- * so on a mixed overflow `actualImages` can be below it.
+ * Classifies the shared media limit as an image-count failure when the
+ * request contains images; a documents-only overflow stays a plain
+ * `ProviderError`. The limit is an image limit only when no documents count
+ * against it, so the counts are set only then.
  */
 function getImageCountDetails(
     providerMessage: string | undefined,
@@ -250,13 +249,15 @@ function getImageCountDetails(
     }
 
     const actualImages = parseInt(images, 10);
-    const documentCount = parseInt(documents, 10);
-    const mediaLimit = parseInt(max, 10);
-    if (actualImages === 0 || documentCount > mediaLimit) {
+    if (actualImages === 0) {
         return undefined;
     }
 
-    return { maxImages: mediaLimit, actualImages };
+    if (parseInt(documents, 10) > 0) {
+        return {};
+    }
+
+    return { maxImages: parseInt(max, 10), actualImages };
 }
 
 /**
