@@ -4,6 +4,7 @@ import {
     AbortedError,
     ContextLengthExceededError,
     ImageCountExceededError,
+    MediaCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -66,7 +67,7 @@ describe('wrapAnthropicError', () => {
         expect(classified.actualTokens).toBeUndefined();
     });
 
-    it('should map too-many-images-and-documents to ImageCountExceededError', () => {
+    it('should map too-many-images-and-documents to MediaCountExceededError', () => {
         const body = {
             type: 'error',
             error: {
@@ -79,16 +80,17 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
 
-        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).toBeInstanceOf(MediaCountExceededError);
+        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
-        const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBe(100);
-        expect(classified.actualImages).toBe(110);
+        const classified = wrapped as MediaCountExceededError;
+        expect(classified.maxMedia).toBe(100);
+        expect(classified.actualMedia).toBe(110);
         expect(classified.statusCode).toBe(400);
         expect(classified.code).toBe('invalid_request_error');
     });
 
-    it('should map too-much-media to ImageCountExceededError', () => {
+    it('should map too-much-media to MediaCountExceededError', () => {
         const error = new APIError(
             400,
             {
@@ -101,31 +103,31 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error, 'anthropic-vertex');
 
-        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-        const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBe(100);
-        expect(classified.actualImages).toBe(102);
+        expect(wrapped).toBeInstanceOf(MediaCountExceededError);
+        const classified = wrapped as MediaCountExceededError;
+        expect(classified.maxMedia).toBe(100);
+        expect(classified.actualMedia).toBe(102);
         expect(classified.provider).toBe('anthropic-vertex');
     });
 
-    it('should not map a documents-only media overflow to ImageCountExceededError', () => {
+    it('should map a documents-only media overflow to MediaCountExceededError', () => {
         const error = new APIError(
             400,
             {
                 type: 'invalid_request_error',
-                message: 'too many images and documents: 0 + 120 > 100',
+                message: 'Too much media: 120 document pages + 0 images > 100',
             },
-            'too many images and documents: 0 + 120 > 100',
+            'Too much media: 120 document pages + 0 images > 100',
             new Headers()
         );
 
         const wrapped = wrapAnthropicError(error);
 
-        expect(wrapped).toBeInstanceOf(ProviderError);
-        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).toBeInstanceOf(MediaCountExceededError);
+        expect((wrapped as MediaCountExceededError).actualMedia).toBe(120);
     });
 
-    it('should map a mixed overflow without counts', () => {
+    it('should sum images and documents on a mixed overflow', () => {
         const error = new APIError(
             400,
             {
@@ -138,27 +140,10 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
 
-        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-        const classified = wrapped as ImageCountExceededError;
-        expect(classified.maxImages).toBeUndefined();
-        expect(classified.actualImages).toBeUndefined();
-    });
-
-    it('should map a mixed overflow when documents alone exceed the limit', () => {
-        const error = new APIError(
-            400,
-            {
-                type: 'invalid_request_error',
-                message: 'Too much media: 120 document pages + 1 images > 100',
-            },
-            'Too much media: 120 document pages + 1 images > 100',
-            new Headers()
-        );
-
-        const wrapped = wrapAnthropicError(error);
-
-        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-        expect((wrapped as ImageCountExceededError).maxImages).toBeUndefined();
+        expect(wrapped).toBeInstanceOf(MediaCountExceededError);
+        const classified = wrapped as MediaCountExceededError;
+        expect(classified.maxMedia).toBe(100);
+        expect(classified.actualMedia).toBe(110);
     });
 
     it('should map an in-band media-count error without HTTP status', () => {
@@ -178,9 +163,9 @@ describe('wrapAnthropicError', () => {
 
         const wrapped = wrapAnthropicError(error);
 
-        expect(wrapped).toBeInstanceOf(ImageCountExceededError);
-        expect((wrapped as ImageCountExceededError).maxImages).toBe(100);
-        expect((wrapped as ImageCountExceededError).actualImages).toBe(110);
+        expect(wrapped).toBeInstanceOf(MediaCountExceededError);
+        expect((wrapped as MediaCountExceededError).maxMedia).toBe(100);
+        expect((wrapped as MediaCountExceededError).actualMedia).toBe(110);
     });
 
     it('should not map media-count wording on a non-400 status', () => {
@@ -197,10 +182,10 @@ describe('wrapAnthropicError', () => {
         const wrapped = wrapAnthropicError(error);
 
         expect(wrapped).toBeInstanceOf(RateLimitError);
-        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).not.toBeInstanceOf(MediaCountExceededError);
     });
 
-    it('should not map image dimension errors to ImageCountExceededError', () => {
+    it('should not map image dimension errors to MediaCountExceededError', () => {
         const message =
             'messages.100.content.2.image.source.base64.data: At least one of the image dimensions exceed max allowed size for many-image requests: 2000 pixels';
         const error = new APIError(
@@ -213,7 +198,7 @@ describe('wrapAnthropicError', () => {
         const wrapped = wrapAnthropicError(error);
 
         expect(wrapped).toBeInstanceOf(ProviderError);
-        expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+        expect(wrapped).not.toBeInstanceOf(MediaCountExceededError);
     });
 
     it('should map HTTP 529 / overloaded_error to ModelOverloadedError', () => {

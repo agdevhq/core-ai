@@ -19,7 +19,8 @@ Error
     │   └── StreamAbortedError
     ├── ProviderError
     │   ├── ContextLengthExceededError
-    │   ├── ImageCountExceededError
+    │   ├── MediaCountExceededError
+    │   │   └── ImageCountExceededError
     │   └── RetryableProviderError
     │       ├── RateLimitError
     │       ├── ModelOverloadedError
@@ -170,16 +171,17 @@ class ProviderError extends CoreAIError {
 class RetryableProviderError extends ProviderError {}
 ```
 
-| Subclass                     | Extends                  | Meaning                                                |
-| ---------------------------- | ------------------------ | ------------------------------------------------------ |
-| `ContextLengthExceededError` | `ProviderError`          | Input/context exceeds model limits                     |
-| `ImageCountExceededError`    | `ProviderError`          | Request carries more images than the model accepts     |
-| `RateLimitError`             | `RetryableProviderError` | Org/request rate limit (often HTTP 429)                |
-| `ModelOverloadedError`       | `RetryableProviderError` | Capacity / high-demand signal                          |
-| `ServiceUnavailableError`    | `RetryableProviderError` | Temporary unavailability (e.g. 5xx)                    |
-| `ProviderError`              | —                        | Unclassified provider failure (includes billing quota) |
+| Subclass                     | Extends                   | Meaning                                                  |
+| ---------------------------- | ------------------------- | -------------------------------------------------------- |
+| `ContextLengthExceededError` | `ProviderError`           | Input/context exceeds model limits                       |
+| `MediaCountExceededError`    | `ProviderError`           | Request carries more media inputs than the model accepts |
+| `ImageCountExceededError`    | `MediaCountExceededError` | Request carries more images than the model accepts       |
+| `RateLimitError`             | `RetryableProviderError`  | Org/request rate limit (often HTTP 429)                  |
+| `ModelOverloadedError`       | `RetryableProviderError`  | Capacity / high-demand signal                            |
+| `ServiceUnavailableError`    | `RetryableProviderError`  | Temporary unavailability (e.g. 5xx)                      |
+| `ProviderError`              | —                         | Unclassified provider failure (includes billing quota)   |
 
-Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Typical order inside a wrapper: abort → context length → image count → provider specials (quota, Azure capacity) → overload → rate limit → service unavailable / transient 5xx → generic `ProviderError`.
+Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Typical order inside a wrapper: abort → context length → media / image count → provider specials (quota, Azure capacity) → overload → rate limit → service unavailable / transient 5xx → generic `ProviderError`.
 
 HTTP 429 is **not** always `RateLimitError`. For example OpenAI `insufficient_quota` stays a non-retryable `ProviderError`, while Azure `NoCapacity` maps to `ModelOverloadedError`. Provider-specific quirks stay in the provider package (Azure `"Backend error."` as unavailable, Vertex `RESOURCE_EXHAUSTED` as a rate limit).
 
@@ -223,15 +225,16 @@ try {
 **Subclass details:**
 
 - `ContextLengthExceededError` — optional `maxTokens` / `actualTokens` when token counts are parseable (string-length limits are classified without inventing token metadata)
-- `ImageCountExceededError` — optional `maxImages` / `actualImages` when the provider reports them as image counts; not retryable until images are removed from the messages. The counts are the provider's own and can include inputs other than image parts, such as document pages. Check your messages for image parts before you ask a user to remove images.
+- `MediaCountExceededError` — the provider limits images and document pages together; optional `maxMedia` / `actualMedia` when the provider reports them. Not retryable until images or documents are removed from the messages.
+- `ImageCountExceededError` — subclass of `MediaCountExceededError` for a limit on images alone; optional `maxImages` / `actualImages` when the provider reports them, mirrored to `maxMedia` / `actualMedia`. Not retryable until images are removed from the messages. The counts are the provider's own and can include inputs other than image parts, such as document pages. Check your messages for image parts before you ask a user to remove images.
 - `RateLimitError` — optional `retryAfterSeconds` from `Retry-After`, Azure `retry-after-ms`, or an HTTP-date `Retry-After` value
 - `ModelOverloadedError` — capacity / high-demand signal (wins over generic 5xx unavailable; Azure `NoCapacity` on 429 included)
 - `ServiceUnavailableError` — temporary unavailability, including HTTP 500/502/503/504
 
-`ImageCountExceededError` covers the wordings each provider is known to return:
+Catch `ImageCountExceededError` first to ask for fewer images, then `MediaCountExceededError` for the general case. The errors cover the wordings each provider is known to return:
 
 - **OpenAI-based providers** — the two Azure OpenAI wordings. Every OpenAI-based provider matches them, but other backends may word the limit differently.
-- **Anthropic and Anthropic Vertex** — both media-limit wordings of the Anthropic API. Anthropic Vertex matches them, but Vertex may word the limit differently.
+- **Anthropic and Anthropic Vertex** — `MediaCountExceededError` for both media-limit wordings of the Anthropic API. Anthropic Vertex matches them, but Vertex may word the limit differently.
 - **Gemini API and Vertex Gemini** — the Gemini API wording. Vertex Gemini matches it, but Vertex may word the limit differently.
 - **Mistral**
 

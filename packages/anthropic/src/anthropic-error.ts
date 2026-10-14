@@ -2,7 +2,7 @@ import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import {
     AbortedError,
     ContextLengthExceededError,
-    ImageCountExceededError,
+    MediaCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -25,23 +25,24 @@ const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
 
 /**
  * Media-count limit wordings (`invalid_request_error`, no dedicated type).
- * Images and documents share one limit:
- * - "too many images and documents: 110 + 0 > 100" (images + documents)
+ * Images and document pages share one limit, so both map to
+ * `MediaCountExceededError` with the summed count:
+ * - "too many images and documents: 110 + 0 > 100"
  * - "Too much media: 0 document pages + 102 images > 100"
  */
-const IMAGES_AND_DOCUMENTS_PATTERN =
-    /too many images and documents: (\d+) \+ (\d+) > (\d+)/i;
-const MEDIA_PAGES_AND_IMAGES_PATTERN =
-    /too much media: (\d+) document pages \+ (\d+) images > (\d+)/i;
+const MEDIA_COUNT_PATTERNS = [
+    /too many images and documents: (\d+) \+ (\d+) > (\d+)/i,
+    /too much media: (\d+) document pages \+ (\d+) images > (\d+)/i,
+];
 
 type ContextLengthDetails = {
     maxTokens?: number;
     actualTokens?: number;
 };
 
-type ImageCountDetails = {
-    maxImages?: number;
-    actualImages?: number;
+type MediaCountDetails = {
+    maxMedia: number;
+    actualMedia: number;
 };
 
 /**
@@ -73,11 +74,11 @@ export function wrapAnthropicError(
         });
     }
 
-    const imageCount = getImageCountDetails(providerMessage, statusCode);
-    if (imageCount) {
-        return new ImageCountExceededError(message, provider, {
+    const mediaCount = getMediaCountDetails(providerMessage, statusCode);
+    if (mediaCount) {
+        return new MediaCountExceededError(message, provider, {
             ...options,
-            ...imageCount,
+            ...mediaCount,
         });
     }
 
@@ -225,39 +226,28 @@ function getContextLengthDetails(
     return {};
 }
 
-/**
- * Classifies the shared media limit as an image-count failure when the
- * request contains images; a documents-only overflow stays a plain
- * `ProviderError`. The limit is an image limit only when no documents count
- * against it, so the counts are set only then.
- */
-function getImageCountDetails(
+function getMediaCountDetails(
     providerMessage: string | undefined,
     statusCode: number | undefined
-): ImageCountDetails | undefined {
+): MediaCountDetails | undefined {
     if (!providerMessage || (statusCode !== undefined && statusCode !== 400)) {
         return undefined;
     }
 
-    const imagesFirst = providerMessage.match(IMAGES_AND_DOCUMENTS_PATTERN);
-    const pagesFirst = providerMessage.match(MEDIA_PAGES_AND_IMAGES_PATTERN);
-    const images = imagesFirst?.[1] ?? pagesFirst?.[2];
-    const documents = imagesFirst?.[2] ?? pagesFirst?.[1];
-    const max = imagesFirst?.[3] ?? pagesFirst?.[3];
-    if (images === undefined || documents === undefined || max === undefined) {
-        return undefined;
+    for (const pattern of MEDIA_COUNT_PATTERNS) {
+        const match = providerMessage.match(pattern);
+        const first = match?.[1];
+        const second = match?.[2];
+        const max = match?.[3];
+        if (first === undefined || second === undefined || max === undefined) {
+            continue;
+        }
+        return {
+            maxMedia: parseInt(max, 10),
+            actualMedia: parseInt(first, 10) + parseInt(second, 10),
+        };
     }
-
-    const actualImages = parseInt(images, 10);
-    if (actualImages === 0) {
-        return undefined;
-    }
-
-    if (parseInt(documents, 10) > 0) {
-        return {};
-    }
-
-    return { maxImages: parseInt(max, 10), actualImages };
+    return undefined;
 }
 
 /**

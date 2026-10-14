@@ -20,7 +20,8 @@ CoreAIError
 │   └── StreamAbortedError
 ├── ProviderError
 │   ├── ContextLengthExceededError
-│   ├── ImageCountExceededError
+│   ├── MediaCountExceededError
+│   │   └── ImageCountExceededError
 │   └── RetryableProviderError
 │       ├── RateLimitError
 │       ├── ModelOverloadedError
@@ -369,13 +370,14 @@ export class RetryableProviderError extends ProviderError {}
 
 ### Classified subclasses
 
-| Class                        | Extends                  | Extra fields                  |
-| ---------------------------- | ------------------------ | ----------------------------- |
-| `ContextLengthExceededError` | `ProviderError`          | `maxTokens?`, `actualTokens?` |
-| `ImageCountExceededError`    | `ProviderError`          | `maxImages?`, `actualImages?` |
-| `RateLimitError`             | `RetryableProviderError` | `retryAfterSeconds?`          |
-| `ModelOverloadedError`       | `RetryableProviderError` | —                             |
-| `ServiceUnavailableError`    | `RetryableProviderError` | —                             |
+| Class                        | Extends                   | Extra fields                  |
+| ---------------------------- | ------------------------- | ----------------------------- |
+| `ContextLengthExceededError` | `ProviderError`           | `maxTokens?`, `actualTokens?` |
+| `MediaCountExceededError`    | `ProviderError`           | `maxMedia?`, `actualMedia?`   |
+| `ImageCountExceededError`    | `MediaCountExceededError` | `maxImages?`, `actualImages?` |
+| `RateLimitError`             | `RetryableProviderError`  | `retryAfterSeconds?`          |
+| `ModelOverloadedError`       | `RetryableProviderError`  | —                             |
+| `ServiceUnavailableError`    | `RetryableProviderError`  | —                             |
 
 Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Use `instanceof` to branch in application code — `statusCode` is for logging and debugging, not for retry decisions.
 

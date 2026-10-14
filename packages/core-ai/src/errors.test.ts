@@ -4,6 +4,7 @@ import {
     ContextLengthExceededError,
     CoreAIError,
     ImageCountExceededError,
+    MediaCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -104,6 +105,32 @@ describe('classified ProviderError subclasses', () => {
         expect(error.code).toBe('invalid_request_error');
         expect(error.maxImages).toBe(50);
         expect(error.actualImages).toBe(51);
+    });
+
+    it('should create ImageCountExceededError as a MediaCountExceededError', () => {
+        const error = new ImageCountExceededError('too many images', 'openai', {
+            maxImages: 50,
+            actualImages: 51,
+        });
+
+        expect(error).toBeInstanceOf(MediaCountExceededError);
+        expect(error.maxMedia).toBe(50);
+        expect(error.actualMedia).toBe(51);
+    });
+
+    it('should create MediaCountExceededError as non-retryable', () => {
+        const error = new MediaCountExceededError(
+            'too much media',
+            'anthropic',
+            { statusCode: 400, maxMedia: 100, actualMedia: 110 }
+        );
+
+        expect(error).toBeInstanceOf(ProviderError);
+        expect(error).not.toBeInstanceOf(RetryableProviderError);
+        expect(error).not.toBeInstanceOf(ImageCountExceededError);
+        expect(error.name).toBe('MediaCountExceededError');
+        expect(error.maxMedia).toBe(100);
+        expect(error.actualMedia).toBe(110);
     });
 
     it('should create ProviderQuotaExceededError as non-retryable', () => {
