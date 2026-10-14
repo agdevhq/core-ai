@@ -12,11 +12,14 @@ import {
     RateLimitError,
     StructuredOutputValidationError,
     ToolSchemaStrictnessError,
-    type ToolSet,
 } from '@core-ai/core-ai';
 import { createGoogleGenAIChatModel } from './chat-model.ts';
 import { getGoogleModelCapabilities } from './model-capabilities.ts';
-import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
+import {
+    createPushableAsyncIterable,
+    createValidationTools,
+    toAsyncIterable,
+} from '@core-ai/testing';
 
 describe('createGoogleGenAIChatModel', () => {
     it('should create model metadata', () => {
@@ -924,26 +927,6 @@ function asGenerateContentResponse(
         candidates: [],
         ...value,
     } as GenerateContentResponse;
-}
-
-/** One Standard Schema tool and one plain JSON Schema tool. */
-function createValidationTools(): ToolSet {
-    return {
-        search: {
-            name: 'search',
-            description: 'Search',
-            parameters: z.object({ limit: z.number() }),
-        },
-        lookup: {
-            name: 'lookup',
-            description: 'Look up a record',
-            parameters: {
-                type: 'object',
-                properties: { id: { type: 'string' } },
-                required: ['id'],
-            },
-        },
-    };
 }
 
 /** Calls both {@link createValidationTools} tools with mistyped arguments. */

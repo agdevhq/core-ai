@@ -111,16 +111,20 @@ function getNamedChildEntries(
 }
 
 /**
- * Returns a shallow copy of `node` with every nested schema node (the same set
- * {@link getChildSchemaNodeEntries} and {@link getSchemaDefinitionEntries}
- * enumerate) replaced by `map(child, segment)`, where `segment` is the
- * child's path segment as those functions report it.
+ * Returns a shallow copy of `node` with every nested object schema (the
+ * positions {@link getChildSchemaNodeEntries} and
+ * {@link getSchemaDefinitionEntries} enumerate) replaced by
+ * `map(child, segment)`, where `segment` is the child's path segment as those
+ * functions report it. Children that are not objects, such as boolean
+ * schemas, are kept as is.
  */
 export function mapChildSchemaNodes(
     node: Record<string, unknown>,
-    map: (child: unknown, segment: string) => unknown
+    map: (child: Record<string, unknown>, segment: string) => unknown
 ): Record<string, unknown> {
     const result: Record<string, unknown> = { ...node };
+    const mapChild = (child: unknown, segment: string): unknown =>
+        isPlainObject(child) ? map(child, segment) : child;
 
     for (const keyword of [...NESTED_MAP_KEYWORDS, ...DEFINITION_KEYWORDS]) {
         const value = result[keyword];
@@ -128,21 +132,21 @@ export function mapChildSchemaNodes(
             result[keyword] = Object.fromEntries(
                 Object.entries(value).map(([key, child]) => [
                     key,
-                    map(child, `${keyword}.${key}`),
+                    mapChild(child, `${keyword}.${key}`),
                 ])
             );
         }
     }
     for (const keyword of NESTED_SINGLE_KEYWORDS) {
         if (result[keyword] !== undefined) {
-            result[keyword] = map(result[keyword], keyword);
+            result[keyword] = mapChild(result[keyword], keyword);
         }
     }
     for (const keyword of NESTED_LIST_KEYWORDS) {
         const value = result[keyword];
         if (Array.isArray(value)) {
             result[keyword] = value.map((child, index) =>
-                map(child, `${keyword}.${index}`)
+                mapChild(child, `${keyword}.${index}`)
             );
         }
     }
@@ -178,10 +182,6 @@ export function normalizeStrictJsonSchema(
     return normalizeObjectNode(schema);
 }
 
-function normalizeNode(node: unknown): unknown {
-    return isPlainObject(node) ? normalizeObjectNode(node) : node;
-}
-
 function normalizeObjectNode(
     node: Record<string, unknown>
 ): Record<string, unknown> {
@@ -200,7 +200,7 @@ function normalizeObjectNode(
         stripped[key] = value;
     }
 
-    const result = mapChildSchemaNodes(stripped, normalizeNode);
+    const result = mapChildSchemaNodes(stripped, normalizeObjectNode);
 
     if (Array.isArray(result.oneOf) && result.anyOf === undefined) {
         result.anyOf = result.oneOf;

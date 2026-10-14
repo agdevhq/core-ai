@@ -24,6 +24,7 @@ export type StandardSchemaWithJson<
  */
 export type SchemaInput =
     | StandardSchemaWithJson
+    // Keeps inline object literals free of excess-property errors.
     | JsonSchema
     | (object & { readonly '~standard'?: never });
 

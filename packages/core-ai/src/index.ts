@@ -112,6 +112,7 @@ export type {
 } from './standard-schema.ts';
 export { defineTool } from './tool.ts';
 export {
+    isPlainObject,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
 } from './json-schema.ts';

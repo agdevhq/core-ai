@@ -77,7 +77,7 @@ export async function validateStructuredOutput<TOutput>(
         throw new StructuredOutputValidationError(
             'structured output validation threw',
             provider,
-            [`<root>: ${getErrorMessage(error)}`],
+            formatSchemaIssues([{ message: getErrorMessage(error) }]),
             {
                 rawOutput,
                 cause: error,

@@ -556,9 +556,7 @@ function normalizeAnthropicJsonSchema(schema: JsonSchema): JsonSchema {
 }
 
 function stripUnsupportedAnthropicKeywords(node: JsonSchema): JsonSchema {
-    const result = mapChildSchemaNodes(node, (child) =>
-        isJsonObject(child) ? stripUnsupportedAnthropicKeywords(child) : child
-    );
+    const result = mapChildSchemaNodes(node, stripUnsupportedAnthropicKeywords);
     for (const keyword of UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS) {
         delete result[keyword];
     }
@@ -566,10 +564,6 @@ function stripUnsupportedAnthropicKeywords(node: JsonSchema): JsonSchema {
         delete result.minItems;
     }
     return result;
-}
-
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
 }
 
 /**

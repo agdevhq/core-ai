@@ -14,7 +14,6 @@ import {
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
-    type ToolSet,
 } from '@core-ai/core-ai';
 import {
     createOpenAIChatCompletionsModel as createModel,
@@ -22,7 +21,11 @@ import {
     type OpenAIChatCompletionsModelOptions,
 } from './chat-model.ts';
 import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
-import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
+import {
+    createPushableAsyncIterable,
+    createValidationTools,
+    toAsyncIterable,
+} from '@core-ai/testing';
 
 function createOpenAIChatCompletionsModel(
     client: OpenAIChatClient,
@@ -1382,26 +1385,6 @@ async function collectObjectEvents(
     for await (const _event of stream) {
         // Consume the stream until completion or failure.
     }
-}
-
-/** One Standard Schema tool and one plain JSON Schema tool. */
-function createValidationTools(): ToolSet {
-    return {
-        search: {
-            name: 'search',
-            description: 'Search',
-            parameters: z.object({ limit: z.number() }),
-        },
-        lookup: {
-            name: 'lookup',
-            description: 'Look up a record',
-            parameters: {
-                type: 'object',
-                properties: { id: { type: 'string' } },
-                required: ['id'],
-            },
-        },
-    };
 }
 
 /** Calls both {@link createValidationTools} tools with mistyped arguments. */

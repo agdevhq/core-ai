@@ -148,8 +148,5 @@ function normalizeStandardSchema(
         );
     }
 
-    return {
-        jsonSchema,
-        validate,
-    };
+    return { jsonSchema, validate };
 }

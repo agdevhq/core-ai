@@ -14,11 +14,14 @@ import {
     StreamAbortedError,
     StructuredOutputNoObjectGeneratedError,
     StructuredOutputValidationError,
-    type ToolSet,
 } from '@core-ai/core-ai';
 import { createAnthropicChatModel } from './chat-model.ts';
 import { getAnthropicModelCapabilities } from './model-capabilities.ts';
-import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
+import {
+    createPushableAsyncIterable,
+    createValidationTools,
+    toAsyncIterable,
+} from '@core-ai/testing';
 
 describe('createAnthropicChatModel', () => {
     it('should expose provider metadata', () => {
@@ -1337,26 +1340,6 @@ function createTextResponse(): AsyncIterable<RawMessageStreamEvent> {
         stop_reason: 'end_turn',
         usage: { input_tokens: 10, output_tokens: 2 },
     });
-}
-
-/** One Standard Schema tool and one plain JSON Schema tool. */
-function createValidationTools(): ToolSet {
-    return {
-        search: {
-            name: 'search',
-            description: 'Search',
-            parameters: z.object({ limit: z.number() }),
-        },
-        lookup: {
-            name: 'lookup',
-            description: 'Look up a record',
-            parameters: {
-                type: 'object',
-                properties: { id: { type: 'string' } },
-                required: ['id'],
-            },
-        },
-    };
 }
 
 /** Calls both {@link createValidationTools} tools with mistyped arguments. */

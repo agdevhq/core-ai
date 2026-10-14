@@ -128,19 +128,19 @@ describe('createStructuredOutputRequestOptions (json-schema mode)', () => {
             getJsonSchemaFormat(
                 z.object({ note: z.string().nullable().default(null) })
             )
-        ).toMatchObject({
+        ).toEqual({
+            type: 'json_schema',
+            name: 'answer',
+            strict: true,
             schema: {
+                type: 'object',
                 properties: {
                     note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
                 },
                 required: ['note'],
+                additionalProperties: false,
             },
         });
-        expect(
-            getJsonSchemaFormat(
-                z.object({ note: z.string().nullable().default(null) })
-            )
-        ).not.toHaveProperty('schema.properties.note.default');
     });
 
     it('rejects every optional key strict mode cannot express, by path', () => {
@@ -170,7 +170,7 @@ describe('createStructuredOutputRequestOptions (json-schema mode)', () => {
     it('rejects a root that is not an object schema', () => {
         expect(() =>
             getJsonSchemaFormat({ type: 'array', items: { type: 'string' } })
-        ).toThrow(/the root must be an object schema/);
+        ).toThrow(/must be an object schema/);
     });
 });
 

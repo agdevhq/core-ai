@@ -149,6 +149,7 @@ describe('schema node traversal', () => {
         anyOf: [openObject],
         oneOf: [openObject],
         allOf: [openObject],
+        prefixItems: [openObject],
         $defs: { Def: openObject },
         definitions: { Legacy: openObject },
     };
@@ -158,6 +159,7 @@ describe('schema node traversal', () => {
         'anyOf.0',
         'oneOf.0',
         'allOf.0',
+        'prefixItems.0',
         '$defs.Def',
         'definitions.Legacy',
     ];
@@ -185,8 +187,19 @@ describe('schema node traversal', () => {
             anyOf: ['mapped'],
             oneOf: ['mapped'],
             allOf: ['mapped'],
+            prefixItems: ['mapped'],
             $defs: { Def: 'mapped' },
             definitions: { Legacy: 'mapped' },
+        });
+    });
+
+    it('keeps children that are not objects', () => {
+        const node = { type: 'array', items: true, anyOf: [false, openObject] };
+
+        expect(mapChildSchemaNodes(node, () => 'mapped')).toEqual({
+            type: 'array',
+            items: true,
+            anyOf: [false, 'mapped'],
         });
     });
 
@@ -203,6 +216,7 @@ describe('schema node traversal', () => {
             anyOf: [closed],
             oneOf: [closed],
             allOf: [closed],
+            prefixItems: [closed],
             $defs: { Def: closed },
             definitions: { Legacy: closed },
         });

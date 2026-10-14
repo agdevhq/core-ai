@@ -11,11 +11,14 @@ import {
     ProviderError,
     RateLimitError,
     StructuredOutputValidationError,
-    type ToolSet,
 } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.ts';
 import { getMistralModelCapabilities } from './model-capabilities.ts';
-import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
+import {
+    createPushableAsyncIterable,
+    createValidationTools,
+    toAsyncIterable,
+} from '@core-ai/testing';
 
 describe('createMistralChatModel', () => {
     it('should create model metadata', () => {
@@ -966,26 +969,6 @@ function asCompletionEvent(value: {
             model: 'mistral-large-latest',
             choices: value.choices as CompletionEvent['data']['choices'],
             ...(value.usage ? { usage: value.usage } : {}),
-        },
-    };
-}
-
-/** One Standard Schema tool and one plain JSON Schema tool. */
-function createValidationTools(): ToolSet {
-    return {
-        search: {
-            name: 'search',
-            description: 'Search',
-            parameters: z.object({ limit: z.number() }),
-        },
-        lookup: {
-            name: 'lookup',
-            description: 'Look up a record',
-            parameters: {
-                type: 'object',
-                properties: { id: { type: 'string' } },
-                required: ['id'],
-            },
         },
     };
 }

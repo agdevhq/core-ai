@@ -10,6 +10,7 @@ import type {
     SchemaInput,
 } from '@core-ai/core-ai';
 import {
+    isPlainObject,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
@@ -97,13 +98,7 @@ export function createStructuredOutputRequestOptions<
         const name = getStructuredOutputName(options);
         const { $schema: _schema, ...schema } =
             normalizeStructuredOutputSchema(options).jsonSchema;
-        if (schema.type !== 'object') {
-            throw new ValidationError(
-                `structured output schema "${name}" must be an object schema (type: "object"), because JSON mode always returns an object`,
-                undefined,
-                provider
-            );
-        }
+        assertObjectRoot(schema, name, provider);
         const instruction = [
             'Return only a valid JSON object.',
             `Schema name: ${name}.`,
@@ -186,26 +181,38 @@ function toOpenAIStrictJsonSchema(
     name: string,
     provider: string
 ): JsonSchema {
-    const normalized = normalizeStrictJsonSchema(schema);
-    if (normalized.type !== 'object') {
-        throw createStrictSchemaError(
-            name,
-            'the root must be an object schema (type: "object")',
-            provider
-        );
-    }
+    assertObjectRoot(schema, name, provider);
 
     const optionalKeyPaths: string[] = [];
-    const strict = requireEveryKey(normalized, '', optionalKeyPaths);
+    const strict = requireEveryKey(
+        normalizeStrictJsonSchema(schema),
+        '',
+        optionalKeyPaths
+    );
     if (optionalKeyPaths.length > 0) {
-        throw createStrictSchemaError(
-            name,
-            `optional keys at ${optionalKeyPaths.join(', ')}; strict mode requires every key, so make each one required or let it accept null (e.g. Zod's .nullable())`,
+        throw new ValidationError(
+            `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: optional keys at ${optionalKeyPaths.join(', ')}; strict mode requires every key, so make each one required or let it accept null (e.g. Zod's .nullable())`,
+            undefined,
             provider
         );
     }
 
     return strict;
+}
+
+/** JSON mode and strict mode both return a JSON object. */
+function assertObjectRoot(
+    schema: JsonSchema,
+    name: string,
+    provider: string
+): void {
+    if (schema.type !== 'object') {
+        throw new ValidationError(
+            `structured output schema "${name}" must be an object schema (type: "object")`,
+            undefined,
+            provider
+        );
+    }
 }
 
 function requireEveryKey(
@@ -216,11 +223,7 @@ function requireEveryKey(
     if (isPlainObject(node.properties)) {
         const required = Array.isArray(node.required) ? node.required : [];
         for (const [key, property] of Object.entries(node.properties)) {
-            if (
-                !required.includes(key) &&
-                !acceptsNull(property) &&
-                !(isPlainObject(property) && Object.hasOwn(property, 'default'))
-            ) {
+            if (!required.includes(key) && !canRequire(property)) {
                 optionalKeyPaths.push(
                     joinSchemaPath(path, `properties.${key}`)
                 );
@@ -229,13 +232,7 @@ function requireEveryKey(
     }
 
     const result = mapChildSchemaNodes(node, (child, segment) =>
-        isPlainObject(child)
-            ? requireEveryKey(
-                  child,
-                  joinSchemaPath(path, segment),
-                  optionalKeyPaths
-              )
-            : child
+        requireEveryKey(child, joinSchemaPath(path, segment), optionalKeyPaths)
     );
     // A `null` default adds nothing once a nullable key is required.
     if (result.default === null) {
@@ -245,6 +242,14 @@ function requireEveryKey(
     return isPlainObject(result.properties)
         ? { ...result, required: Object.keys(result.properties) }
         : result;
+}
+
+/** Optional keys strict mode can require: they accept `null` or have a `default`. */
+function canRequire(property: unknown): boolean {
+    return (
+        acceptsNull(property) ||
+        (isPlainObject(property) && Object.hasOwn(property, 'default'))
+    );
 }
 
 function acceptsNull(schema: unknown): boolean {
@@ -262,24 +267,8 @@ function acceptsNull(schema: unknown): boolean {
     );
 }
 
-function createStrictSchemaError(
-    name: string,
-    reason: string,
-    provider: string
-): ValidationError {
-    return new ValidationError(
-        `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: ${reason}`,
-        undefined,
-        provider
-    );
-}
-
 function joinSchemaPath(path: string, segment: string): string {
     return path === '' ? segment : `${path}.${segment}`;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-    return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 export async function extractStructuredObject<TOutput>(
