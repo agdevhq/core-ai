@@ -602,6 +602,14 @@ export async function* transformStream(
                     current.name = partialToolCall.function.name;
                 }
 
+                if (isNew) {
+                    yield {
+                        type: 'tool-call-start',
+                        toolCallId: current.id,
+                        toolName: current.name,
+                    };
+                }
+
                 const argumentDelta = partialToolCall.function.arguments;
                 if (typeof argumentDelta === 'string') {
                     current.arguments += argumentDelta;
@@ -624,14 +632,6 @@ export async function* transformStream(
                 }
 
                 bufferedToolCalls.set(streamIndex, current);
-
-                if (isNew) {
-                    yield {
-                        type: 'tool-call-start',
-                        toolCallId: current.id,
-                        toolName: current.name,
-                    };
-                }
             }
         }
 
