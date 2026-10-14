@@ -1,15 +1,160 @@
+import { toAsyncIterable } from '@core-ai/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+    StructuredOutputNoObjectGeneratedError,
     StructuredOutputParseError,
     StructuredOutputValidationError,
 } from './errors.ts';
 import { normalizeSchema } from './schema.ts';
 import {
+    extractStructuredObject,
     formatSchemaIssues,
     parseStructuredOutput,
+    transformStructuredOutputStream,
     validateStructuredOutput,
 } from './structured-output.ts';
+import type {
+    ChatUsage,
+    GenerateResult,
+    ObjectStreamEvent,
+    StreamEvent,
+} from './types.ts';
+
+const usage: ChatUsage = {
+    inputTokens: 1,
+    outputTokens: 1,
+    inputTokenDetails: { cacheReadTokens: 0, cacheWriteTokens: 0 },
+    outputTokenDetails: {},
+};
+
+const countSchema = normalizeSchema(
+    z.object({ count: z.string().transform(Number) })
+);
+
+function createResult(
+    overrides: Pick<GenerateResult, 'content' | 'toolCalls'>
+): GenerateResult {
+    return {
+        parts: [],
+        reasoning: null,
+        finishReason: 'stop',
+        usage,
+        ...overrides,
+    };
+}
+
+async function collect<TEvent>(
+    events: AsyncIterable<TEvent>
+): Promise<TEvent[]> {
+    const collected: TEvent[] = [];
+    for await (const event of events) {
+        collected.push(event);
+    }
+    return collected;
+}
+
+describe('extractStructuredObject', () => {
+    it('validates the arguments of the structured output tool call', async () => {
+        const result = createResult({
+            content: '{"count":"1"}',
+            toolCalls: [{ id: '1', name: 'answer', arguments: { count: '2' } }],
+        });
+
+        await expect(
+            extractStructuredObject(result, countSchema, 'test', 'answer')
+        ).resolves.toEqual({ count: 2 });
+    });
+
+    it('falls back to the text content', async () => {
+        const result = createResult({
+            content: ' {"count":"3"} ',
+            toolCalls: [],
+        });
+
+        await expect(
+            extractStructuredObject(result, countSchema, 'test', 'answer')
+        ).resolves.toEqual({ count: 3 });
+    });
+
+    it('throws when the response has no payload', async () => {
+        const result = createResult({ content: '  ', toolCalls: [] });
+
+        await expect(
+            extractStructuredObject(result, countSchema, 'test', 'answer')
+        ).rejects.toThrow(StructuredOutputNoObjectGeneratedError);
+    });
+});
+
+describe('transformStructuredOutputStream', () => {
+    const finish: StreamEvent = {
+        type: 'finish',
+        finishReason: 'stop',
+        usage,
+    };
+
+    it('emits the object when the structured output tool call ends', async () => {
+        const events = await collect(
+            transformStructuredOutputStream(
+                toAsyncIterable<StreamEvent>([
+                    {
+                        type: 'tool-call-delta',
+                        toolCallId: '1',
+                        argumentsDelta: '{"count":"4"}',
+                    },
+                    {
+                        type: 'tool-call-end',
+                        toolCall: {
+                            id: '1',
+                            name: 'answer',
+                            arguments: { count: '4' },
+                        },
+                    },
+                    finish,
+                ]),
+                countSchema,
+                'test',
+                'answer'
+            )
+        );
+
+        expect(events).toEqual<ObjectStreamEvent<z.ZodType>[]>([
+            { type: 'object-delta', text: '{"count":"4"}' },
+            { type: 'object', object: { count: 4 } },
+            { type: 'finish', finishReason: 'stop', usage },
+        ]);
+    });
+
+    it('parses the buffered text at finish when no tool call ended', async () => {
+        const events = await collect(
+            transformStructuredOutputStream(
+                toAsyncIterable<StreamEvent>([
+                    { type: 'text-delta', text: '{"count":' },
+                    { type: 'text-delta', text: '"5"}' },
+                    finish,
+                ]),
+                countSchema,
+                'test',
+                'answer'
+            )
+        );
+
+        expect(events.at(-2)).toEqual({ type: 'object', object: { count: 5 } });
+    });
+
+    it('throws at finish when the stream had no payload', async () => {
+        await expect(
+            collect(
+                transformStructuredOutputStream(
+                    toAsyncIterable<StreamEvent>([finish]),
+                    countSchema,
+                    'test',
+                    'answer'
+                )
+            )
+        ).rejects.toThrow(StructuredOutputNoObjectGeneratedError);
+    });
+});
 
 describe('parseStructuredOutput', () => {
     it('returns the schema output for valid JSON', async () => {

@@ -122,12 +122,7 @@ const result = await generate({
 
 if (result.toolCalls.length > 0) {
     console.log(result.toolCalls[0]);
-    // {
-    //   id: "call_123",
-    //   name: "getWeather",
-    //   arguments: { location: "Paris" },
-    //   validation: { value: { location: "Paris" } },
-    // }
+    // { id: "call_123", name: "getWeather", arguments: { location: "Paris" } }
 }
 ```
 

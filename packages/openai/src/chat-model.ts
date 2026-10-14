@@ -19,8 +19,9 @@ import type {
 import {
     createObjectStream,
     createChatStream,
-    finalizeGenerateResult,
+    extractStructuredObject,
     normalizeStructuredOutputSchema,
+    transformStructuredOutputStream,
 } from '@core-ai/core-ai';
 import {
     createGenerateRequest,
@@ -33,9 +34,7 @@ import { wrapOpenAIError } from './openai-error.ts';
 import type { OpenAIResponsesGenerateProviderOptionsConfig } from './provider-options.ts';
 import {
     createStructuredOutputRequestOptions,
-    extractStructuredObject,
     getStructuredOutputName,
-    transformStructuredOutputStream,
     type OpenAIRequestOptions,
 } from './shared/structured-output.ts';
 
@@ -84,13 +83,11 @@ export function createOpenAIChatModel(
             request,
             options.signal
         );
-        let result: GenerateResult;
         try {
-            result = mapGenerateResponse(response, { providerId: provider });
+            return mapGenerateResponse(response, { providerId: provider });
         } catch (error) {
             throw wrapOpenAIError(error, provider);
         }
-        return finalizeGenerateResult(result, options);
     }
 
     async function streamChat(
@@ -108,7 +105,6 @@ export function createOpenAIChatModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapOpenAIError(error, provider),
-                request: options,
             }
         );
     }
@@ -124,7 +120,6 @@ export function createOpenAIChatModel(
         ): Promise<GenerateObjectResult<TSchema>> {
             const structuredOptions = createStructuredOutputRequestOptions(
                 options,
-                'json-schema',
                 provider
             );
             const result = await generateChat(structuredOptions);
@@ -147,7 +142,6 @@ export function createOpenAIChatModel(
         ): Promise<ObjectStream<TSchema>> {
             const structuredOptions = createStructuredOutputRequestOptions(
                 options,
-                'json-schema',
                 provider
             );
             const stream = await streamChat(structuredOptions);

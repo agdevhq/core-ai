@@ -21,11 +21,7 @@ import {
     type OpenAIChatCompletionsModelOptions,
 } from './chat-model.ts';
 import { getOpenAIModelCapabilities } from '../model-capabilities.ts';
-import {
-    createPushableAsyncIterable,
-    createValidationTools,
-    toAsyncIterable,
-} from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 function createOpenAIChatCompletionsModel(
     client: OpenAIChatClient,
@@ -285,38 +281,6 @@ describe('generate', () => {
                 arguments: { query: 'weather' },
             },
         ]);
-    });
-
-    it('should validate tool calls against Standard Schema parameters', async () => {
-        const create = vi.fn(async () =>
-            asChatCompletion({
-                choices: [
-                    {
-                        index: 0,
-                        finish_reason: 'tool_calls',
-                        logprobs: null,
-                        message: {
-                            role: 'assistant',
-                            content: null,
-                            refusal: null,
-                            tool_calls: createValidationToolCalls(),
-                        },
-                    },
-                ],
-            })
-        );
-        const model = createOpenAIChatCompletionsModel(
-            createMockClient(create),
-            'gpt-5-mini'
-        );
-
-        const result = await model.generate({
-            messages: [{ role: 'user', content: 'Search' }],
-            tools: createValidationTools(),
-        });
-
-        expect(result.toolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(result.toolCalls[1]).not.toHaveProperty('validation');
     });
 
     it('should generate a validated structured object', async () => {
@@ -725,40 +689,6 @@ describe('stream', () => {
             },
             outputTokenDetails: {},
         });
-    });
-
-    it('should validate streamed tool calls against Standard Schema parameters', async () => {
-        const create = vi.fn(async () =>
-            toAsyncIterable<ChatCompletionChunk>([
-                asChunk({
-                    choices: [
-                        {
-                            index: 0,
-                            finish_reason: 'tool_calls',
-                            delta: { tool_calls: createValidationToolCalls() },
-                        },
-                    ],
-                }),
-            ])
-        );
-        const model = createOpenAIChatCompletionsModel(
-            createMockClient(create),
-            'gpt-5-mini'
-        );
-
-        const chatStream = await model.stream({
-            messages: [{ role: 'user', content: 'Search' }],
-            tools: createValidationTools(),
-        });
-
-        const endedToolCalls = (await chatStream.events).flatMap((event) =>
-            event.type === 'tool-call-end' ? [event.toolCall] : []
-        );
-        expect(endedToolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(endedToolCalls[1]).not.toHaveProperty('validation');
-        const { toolCalls } = await chatStream.result;
-        expect(toolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(toolCalls[1]).not.toHaveProperty('validation');
     });
 
     it('should map cached usage in streaming responses', async () => {
@@ -1385,27 +1315,4 @@ async function collectObjectEvents(
     for await (const _event of stream) {
         // Consume the stream until completion or failure.
     }
-}
-
-/** Calls both {@link createValidationTools} tools with mistyped arguments. */
-function createValidationToolCalls(): Array<{
-    id: string;
-    type: 'function';
-    index: number;
-    function: { name: string; arguments: string };
-}> {
-    return [
-        {
-            id: 'tc_1',
-            type: 'function',
-            index: 0,
-            function: { name: 'search', arguments: '{"limit":"many"}' },
-        },
-        {
-            id: 'tc_2',
-            type: 'function',
-            index: 1,
-            function: { name: 'lookup', arguments: '{"id":7}' },
-        },
-    ];
 }

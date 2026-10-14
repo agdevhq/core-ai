@@ -183,9 +183,10 @@ See [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the
 strict-capable schema contract and provider support.
 
 This error validates request configuration. It does not report invalid
-arguments returned by a model: core-ai reports those in `ToolCall.validation`
-for Standard Schema tools, and you validate them yourself for plain JSON Schema
-tools. See [Validate tool calls](/guides/tool-calling#validate-tool-calls).
+arguments returned by a model. Check those with
+[`validateToolCall()`](/api/core/define-tool#validatetoolcall) for Standard
+Schema tools, or validate them yourself for plain JSON Schema tools, before
+execution.
 
 ## UnsupportedInputModalityError
 

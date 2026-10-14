@@ -7,6 +7,7 @@ import type {
 import {
     getToolJsonSchema,
     normalizeStrictJsonSchema,
+    requireEveryKey,
     validateToolSchemaStrictness,
 } from '@core-ai/core-ai';
 
@@ -57,12 +58,16 @@ export function convertResponseTools(
 
 /**
  * Strict tools get the semantics-preserving strict normalization (OpenAI's
- * strict mode requires closed objects and rejects `$schema`); non-strict
- * tools keep the raw converted schema.
+ * strict mode requires closed objects whose keys are all required, and
+ * rejects `$schema`); non-strict tools keep the raw converted schema. The
+ * strict tool contract admits only optional keys `requireEveryKey` can
+ * require, so none are reported here.
  */
 function convertToolParameters(tool: ToolDefinition): Record<string, unknown> {
     const schema = getToolJsonSchema(tool);
-    return tool.strict === true ? normalizeStrictJsonSchema(schema) : schema;
+    return tool.strict === true
+        ? requireEveryKey(normalizeStrictJsonSchema(schema)).schema
+        : schema;
 }
 
 export function convertToolChoice(choice: ToolChoice) {

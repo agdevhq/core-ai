@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import {
+    canRequireOptionalKey,
     getChildSchemaNodeEntries,
     getSchemaDefinitionEntries,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
+    requireEveryKey,
 } from './json-schema.ts';
 import { toJsonSchema } from './schema.ts';
 
@@ -220,5 +222,78 @@ describe('schema node traversal', () => {
             $defs: { Def: closed },
             definitions: { Legacy: closed },
         });
+    });
+});
+
+describe('canRequireOptionalKey', () => {
+    it('accepts keys that accept null or declare a default', () => {
+        expect(canRequireOptionalKey({ type: ['string', 'null'] })).toBe(true);
+        expect(
+            canRequireOptionalKey({
+                anyOf: [{ type: 'string' }, { type: 'null' }],
+            })
+        ).toBe(true);
+        expect(canRequireOptionalKey({ type: 'string', default: 'a' })).toBe(
+            true
+        );
+        expect(canRequireOptionalKey({ type: 'string' })).toBe(false);
+        expect(canRequireOptionalKey(true)).toBe(false);
+    });
+});
+
+describe('requireEveryKey', () => {
+    it('requires nullable and defaulted keys at every depth', () => {
+        const nullableString = {
+            anyOf: [{ type: 'string' }, { type: 'null' }],
+        };
+        const schema = {
+            type: 'object',
+            properties: {
+                label: nullableString,
+                mode: { type: 'string', default: 'safe' },
+                nested: { $ref: '#/$defs/Nested' },
+            },
+            required: ['nested'],
+            $defs: {
+                Nested: {
+                    type: 'object',
+                    properties: { note: { ...nullableString, default: null } },
+                },
+            },
+        };
+
+        expect(requireEveryKey(schema)).toEqual({
+            schema: {
+                type: 'object',
+                properties: schema.properties,
+                required: ['label', 'mode', 'nested'],
+                $defs: {
+                    Nested: {
+                        type: 'object',
+                        // A null default adds nothing once the key is required
+                        properties: { note: nullableString },
+                        required: ['note'],
+                    },
+                },
+            },
+            optionalKeyPaths: [],
+        });
+    });
+
+    it('reports optional keys it cannot require by path', () => {
+        const result = requireEveryKey(
+            toJsonSchema(
+                z.object({
+                    limit: z.number().optional(),
+                    filter: z.object({ tag: z.string().optional() }),
+                })
+            )
+        );
+
+        expect(result.optionalKeyPaths).toEqual([
+            'properties.limit',
+            'properties.filter.properties.tag',
+        ]);
+        expect(result.schema.required).toEqual(['limit', 'filter']);
     });
 });

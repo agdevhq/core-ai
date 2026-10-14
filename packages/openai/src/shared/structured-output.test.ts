@@ -6,11 +6,14 @@ import { createStructuredOutputRequestOptions } from './structured-output.ts';
 function getJsonSchemaFormat(
     schema: Parameters<typeof createStructuredOutputRequestOptions>[0]['schema']
 ) {
-    return createStructuredOutputRequestOptions({
-        messages: [{ role: 'user', content: 'hi' }],
-        schema,
-        schemaName: 'answer',
-    }).structuredOutputFormat;
+    return createStructuredOutputRequestOptions(
+        {
+            messages: [{ role: 'user', content: 'hi' }],
+            schema,
+            schemaName: 'answer',
+        },
+        'openai'
+    ).structuredOutputFormat;
 }
 
 describe('createStructuredOutputRequestOptions (json-schema mode)', () => {
@@ -182,6 +185,7 @@ describe('createStructuredOutputRequestOptions (json-object mode)', () => {
                 schema: z.object({ note: z.string().optional() }),
                 schemaName: 'answer',
             },
+            'openai',
             'json-object'
         );
 
@@ -205,6 +209,7 @@ describe('createStructuredOutputRequestOptions (json-object mode)', () => {
                     messages: [{ role: 'user', content: 'hi' }],
                     schema: z.array(z.string()),
                 },
+                'openai',
                 'json-object'
             )
         ).toThrow(ValidationError);
@@ -218,6 +223,7 @@ describe('createStructuredOutputRequestOptions (tool mode)', () => {
                 messages: [{ role: 'user', content: 'hi' }],
                 schema: z.object({ city: z.string() }),
             },
+            'openai',
             'tool'
         );
 

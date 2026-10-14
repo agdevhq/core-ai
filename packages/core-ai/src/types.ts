@@ -179,22 +179,12 @@ export type AssistantMessage = {
 export type ToolCall = {
     id: string;
     name: string;
-    /** The arguments as the model sent them; replayed as is. */
     arguments: Record<string, unknown>;
     /**
      * Application-owned metadata for this tool call. Provider adapters ignore
      * this field and never serialize it to provider APIs.
      */
     metadata?: Record<string, unknown>;
-    /**
-     * The outcome of validating `arguments` against the tool's parameters,
-     * set on results when they are a Standard Schema. A failed validation is
-     * reported here, never thrown. `value` is the schema's output and may not
-     * be plain data, so this field is not part of the replayable message:
-     * `resultToMessage` omits it, adapters never send it, and applications
-     * should not persist it.
-     */
-    validation?: StandardSchemaV1.Result<unknown>;
 };
 
 export type ToolResultMessage = {
@@ -216,8 +206,8 @@ export type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
     description: string;
     /**
      * A Standard Schema with JSON Schema support (e.g. Zod 4.2+), whose calls
-     * core-ai validates (see `ToolCall.validation`), or plain JSON Schema,
-     * sent as is and validated by the caller.
+     * `validateToolCall` can validate, or plain JSON Schema, sent as is and
+     * validated by the caller.
      */
     parameters: TParameters;
     /**

@@ -6,22 +6,17 @@ import type {
     GenerateObjectResult,
     GenerateOptions,
     GenerateResult,
-    InferSchemaOutput,
-    NormalizedSchema,
-    ObjectStreamEvent,
     SchemaInput,
     StreamObjectOptions,
     ObjectStream,
     ChatStream,
 } from '@core-ai/core-ai';
 import {
-    StructuredOutputNoObjectGeneratedError,
     createObjectStream,
     createChatStream,
-    finalizeGenerateResult,
+    extractStructuredObject,
     normalizeStructuredOutputSchema,
-    parseStructuredOutput,
-    validateStructuredOutput,
+    transformStructuredOutputStream,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -63,7 +58,7 @@ export function createMistralChatModel(
         const response = await callMistralChatApi(() =>
             client.chat.complete(request, { signal: options.signal })
         );
-        return finalizeGenerateResult(mapGenerateResponse(response), options);
+        return mapGenerateResponse(response);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
@@ -80,7 +75,6 @@ export function createMistralChatModel(
             {
                 signal: options.signal,
                 mapError: wrapMistralError,
-                request: options,
             }
         );
     }
@@ -130,152 +124,4 @@ export function createMistralChatModel(
             );
         },
     };
-}
-
-function extractStructuredObject<TOutput>(
-    result: GenerateResult,
-    schema: NormalizedSchema<TOutput>,
-    provider: string,
-    toolName: string
-): Promise<TOutput> {
-    const structuredToolCall = result.toolCalls.find(
-        (toolCall) => toolCall.name === toolName
-    );
-    if (structuredToolCall) {
-        return validateStructuredToolArguments(
-            schema,
-            structuredToolCall.arguments,
-            provider
-        );
-    }
-
-    const rawOutput = result.content?.trim();
-    if (rawOutput && rawOutput.length > 0) {
-        return parseStructuredOutput(schema, rawOutput, provider);
-    }
-
-    throw new StructuredOutputNoObjectGeneratedError(
-        'model did not emit a structured object payload',
-        provider
-    );
-}
-
-async function* transformStructuredOutputStream<TSchema extends SchemaInput>(
-    stream: ChatStream,
-    schema: NormalizedSchema<InferSchemaOutput<TSchema>>,
-    provider: string,
-    toolName: string
-): AsyncIterable<ObjectStreamEvent<TSchema>> {
-    let validated: { object: InferSchemaOutput<TSchema> } | undefined;
-    let contentBuffer = '';
-    const toolArgumentDeltas = new Map<string, string>();
-
-    for await (const event of stream) {
-        if (event.type === 'text-delta') {
-            contentBuffer += event.text;
-            yield {
-                type: 'object-delta',
-                text: event.text,
-            };
-            continue;
-        }
-
-        if (event.type === 'tool-call-delta') {
-            const previous = toolArgumentDeltas.get(event.toolCallId) ?? '';
-            toolArgumentDeltas.set(
-                event.toolCallId,
-                `${previous}${event.argumentsDelta}`
-            );
-
-            yield {
-                type: 'object-delta',
-                text: event.argumentsDelta,
-            };
-            continue;
-        }
-
-        if (
-            event.type === 'tool-call-end' &&
-            event.toolCall.name === toolName
-        ) {
-            validated = {
-                object: await validateStructuredToolArguments(
-                    schema,
-                    event.toolCall.arguments,
-                    provider
-                ),
-            };
-            yield {
-                type: 'object',
-                object: validated.object,
-            };
-            continue;
-        }
-
-        if (event.type === 'finish') {
-            if (validated === undefined) {
-                const fallbackPayload = getFallbackStructuredPayload(
-                    contentBuffer,
-                    toolArgumentDeltas
-                );
-
-                if (!fallbackPayload) {
-                    throw new StructuredOutputNoObjectGeneratedError(
-                        'structured output stream ended without an object payload',
-                        provider
-                    );
-                }
-
-                validated = {
-                    object: await parseStructuredOutput(
-                        schema,
-                        fallbackPayload,
-                        provider
-                    ),
-                };
-                yield {
-                    type: 'object',
-                    object: validated.object,
-                };
-            }
-
-            yield {
-                type: 'finish',
-                finishReason: event.finishReason,
-                usage: event.usage,
-            };
-        }
-    }
-}
-
-function getFallbackStructuredPayload(
-    contentBuffer: string,
-    toolArgumentDeltas: Map<string, string>
-): string | undefined {
-    for (const delta of toolArgumentDeltas.values()) {
-        const trimmed = delta.trim();
-        if (trimmed.length > 0) {
-            return trimmed;
-        }
-    }
-
-    const trimmedContent = contentBuffer.trim();
-    if (trimmedContent.length > 0) {
-        return trimmedContent;
-    }
-
-    return undefined;
-}
-
-function validateStructuredToolArguments<TOutput>(
-    schema: NormalizedSchema<TOutput>,
-    toolArguments: Record<string, unknown>,
-    provider: string
-): Promise<TOutput> {
-    return validateStructuredOutput(
-        schema,
-        toolArguments,
-        provider,
-        JSON.stringify(toolArguments)
-    );
 }

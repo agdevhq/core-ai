@@ -150,18 +150,8 @@ type ToolCall = {
     name: string;
     arguments: Record<string, unknown>;
     metadata?: Record<string, unknown>;
-    validation?: StandardSchemaV1.Result<unknown>;
 };
 ```
-
-`arguments` holds the arguments exactly as the model sent them.
-
-`validation` is set on results when the tool's `parameters` are a Standard Schema. It is the outcome of validating `arguments` against that schema:
-
-- `{ value }` on success. `value` is the schema's output, which can differ from `arguments`, for example when a transform turns a date string into a `Date`.
-- `{ issues }` on failure, where each issue has a `message` and an optional `path`.
-
-An invalid tool call is reported here and never thrown. `validation` is not part of the replayable message: [`resultToMessage()`](/api/core/utilities#resulttomessage) omits it, adapters never send it, and you should not persist it. Tools with plain JSON Schema `parameters` have no `validation`; validate their `arguments` yourself. See [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 ### ToolResultMessage
 
@@ -200,7 +190,7 @@ type StandardSchemaWithJson<Input = unknown, Output = Input> = StandardSchemaV1<
     StandardJSONSchemaV1<Input, Output>;
 ```
 
-- `StandardSchemaWithJson` is a [Standard Schema](https://standardschema.dev) that can also produce JSON Schema, such as a Zod 4.2+ schema. core-ai converts it to the JSON Schema of its input type and validates model output with it.
+- `StandardSchemaWithJson` is a [Standard Schema](https://standardschema.dev) that can also produce JSON Schema, such as a Zod 4.2+ schema. core-ai converts it to the JSON Schema of its input type and validates structured output with it. [`validateToolCall()`](/api/core/define-tool#validatetoolcall) validates tool calls with it.
 - `JsonSchema` is a plain JSON Schema object. core-ai sends it as is and never validates against it. Any other object type is accepted as plain JSON Schema too, including interfaces such as `JSONSchema7` from `@types/json-schema`, unless it is a Standard Schema without JSON Schema support.
 
 See [Schemas](/guides/structured-outputs#schemas) for the supported libraries. `@core-ai/core-ai` also exports the Standard Schema type namespaces `StandardSchemaV1`, `StandardJSONSchemaV1`, and `StandardTypedV1`.
@@ -229,12 +219,23 @@ type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
 };
 ```
 
-`parameters` is a Standard Schema with JSON Schema support, such as a Zod 4.2+ schema, or plain JSON Schema. core-ai validates calls to tools with Standard Schema parameters (see [`ToolCall`](#toolcall)).
+`parameters` is a Standard Schema with JSON Schema support, such as a Zod 4.2+ schema, or plain JSON Schema. Validate calls to tools with Standard Schema parameters with [`validateToolCall()`](/api/core/define-tool#validatetoolcall), which returns a [`ToolCallValidation`](#toolcallvalidation).
 
 `strict: true` opts the tool into provider-enforced adherence to its parameter
 schema; the schema must fit the strict-capable contract described in the
 [tool-calling guide](/guides/tool-calling#strict-tool-schemas). Omitted or
 `false` keeps the tool non-strict on every provider.
+
+### ToolCallValidation
+
+```typescript
+type ToolCallValidation<TParameters extends SchemaInput> =
+    TParameters extends StandardSchemaV1
+        ? StandardSchemaV1.Result<InferSchemaOutput<TParameters>>
+        : undefined;
+```
+
+The result of [`validateToolCall()`](/api/core/define-tool#validatetoolcall): the schema's result, `{ value }` or `{ issues }`, for Standard Schema parameters, and `undefined` for plain JSON Schema, which core-ai never validates.
 
 ### ToolSet
 
@@ -593,8 +594,6 @@ type StreamEvent =
       }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
-
-The `toolCall` of a `tool-call-end` event carries [`validation`](#toolcall) when the tool's parameters are a Standard Schema.
 
 ### ObjectStream
 

@@ -14,11 +14,7 @@ import {
 } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.ts';
 import { getMistralModelCapabilities } from './model-capabilities.ts';
-import {
-    createPushableAsyncIterable,
-    createValidationTools,
-    toAsyncIterable,
-} from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createMistralChatModel', () => {
     it('should create model metadata', () => {
@@ -208,36 +204,6 @@ describe('generate', () => {
                 arguments: { query: 'weather' },
             },
         ]);
-    });
-
-    it('should validate tool calls against Standard Schema parameters', async () => {
-        const complete = vi.fn(async () =>
-            asChatCompletionResponse({
-                choices: [
-                    {
-                        index: 0,
-                        finishReason: 'tool_calls',
-                        message: {
-                            role: 'assistant',
-                            content: null,
-                            toolCalls: createValidationToolCalls(),
-                        },
-                    },
-                ],
-            })
-        );
-        const model = createMistralChatModel(
-            createMockClient({ complete }),
-            'mistral-large-latest'
-        );
-
-        const result = await model.generate({
-            messages: [{ role: 'user', content: 'Search' }],
-            tools: createValidationTools(),
-        });
-
-        expect(result.toolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(result.toolCalls[1]).not.toHaveProperty('validation');
     });
 
     it('should generate a validated structured object', async () => {
@@ -655,40 +621,6 @@ describe('stream', () => {
         ]);
     });
 
-    it('should validate streamed tool calls against Standard Schema parameters', async () => {
-        const stream = vi.fn(async () =>
-            toAsyncIterable<CompletionEvent>([
-                asCompletionEvent({
-                    choices: [
-                        {
-                            index: 0,
-                            finishReason: 'tool_calls',
-                            delta: { toolCalls: createValidationToolCalls() },
-                        },
-                    ],
-                }),
-            ])
-        );
-        const model = createMistralChatModel(
-            createMockClient({ stream }),
-            'mistral-large-latest'
-        );
-
-        const chatStream = await model.stream({
-            messages: [{ role: 'user', content: 'Search' }],
-            tools: createValidationTools(),
-        });
-
-        const endedToolCalls = (await chatStream.events).flatMap((event) =>
-            event.type === 'tool-call-end' ? [event.toolCall] : []
-        );
-        expect(endedToolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(endedToolCalls[1]).not.toHaveProperty('validation');
-        const { toolCalls } = await chatStream.result;
-        expect(toolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(toolCalls[1]).not.toHaveProperty('validation');
-    });
-
     it('should stream and aggregate structured object output', async () => {
         const stream = vi.fn(async () => {
             return toAsyncIterable<CompletionEvent>([
@@ -971,27 +903,4 @@ function asCompletionEvent(value: {
             ...(value.usage ? { usage: value.usage } : {}),
         },
     };
-}
-
-/** Calls both {@link createValidationTools} tools with mistyped arguments. */
-function createValidationToolCalls(): Array<{
-    id: string;
-    type: 'function';
-    index: number;
-    function: { name: string; arguments: string };
-}> {
-    return [
-        {
-            id: 'tc_1',
-            type: 'function',
-            index: 0,
-            function: { name: 'search', arguments: '{"limit":"many"}' },
-        },
-        {
-            id: 'tc_2',
-            type: 'function',
-            index: 1,
-            function: { name: 'lookup', arguments: '{"id":7}' },
-        },
-    ];
 }

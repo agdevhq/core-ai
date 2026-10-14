@@ -503,6 +503,29 @@ describe('createGenerateRequest', () => {
         });
     });
 
+    it('should require nullable and defaulted keys of strict tools', () => {
+        const request = createGenerateRequest('gpt-5-mini', {
+            messages: [{ role: 'user', content: 'Hi' }],
+            tools: {
+                search: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: z.object({
+                        query: z.string(),
+                        label: z.string().nullable().optional(),
+                        mode: z.enum(['fast', 'safe']).default('safe'),
+                    }),
+                    strict: true,
+                },
+            },
+        });
+
+        expect(request.tools?.[0]).toMatchObject({
+            strict: true,
+            parameters: { required: ['query', 'label', 'mode'] },
+        });
+    });
+
     it('should reject strict tools whose schemas violate the contract', () => {
         expect(() =>
             createGenerateRequest('gpt-5-mini', {
@@ -518,7 +541,7 @@ describe('createGenerateRequest', () => {
                     },
                 },
             })
-        ).toThrowError(/is optional; strict schemas require every key/);
+        ).toThrowError(/is optional and accepts neither null nor a default/);
     });
 
     it('should reject explicit strict tools on legacy Responses models', () => {

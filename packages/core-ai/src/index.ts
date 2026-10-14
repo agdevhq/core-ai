@@ -110,27 +110,21 @@ export type {
     StandardSchemaV1,
     StandardTypedV1,
 } from './standard-schema.ts';
-export { defineTool } from './tool.ts';
+export { defineTool, validateToolCall } from './tool.ts';
+export type { ToolCallValidation } from './tool.ts';
 export {
-    isPlainObject,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
+    requireEveryKey,
 } from './json-schema.ts';
-export {
-    getToolJsonSchema,
-    isStandardSchema,
-    normalizeSchema,
-    toJsonSchema,
-} from './schema.ts';
+export { getToolJsonSchema, toJsonSchema } from './schema.ts';
 export type { NormalizedSchema } from './schema.ts';
 export {
-    formatSchemaIssues,
+    extractStructuredObject,
     normalizeStructuredOutputSchema,
     parseStructuredOutput,
-    validateStructuredOutput,
+    transformStructuredOutputStream,
 } from './structured-output.ts';
-export { finalizeGenerateResult } from './finalize-result.ts';
-export type { FinalizeResultRequest } from './finalize-result.ts';
 export { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
 export type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
 export { stripModelDateSuffix } from './model-id.ts';

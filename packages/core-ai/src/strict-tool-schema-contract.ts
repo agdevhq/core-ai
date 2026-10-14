@@ -1,9 +1,11 @@
 import {
+    canRequireOptionalKey,
     getChildSchemaNodeEntries,
     getSchemaDefinitionEntries,
     isImplicitSafeIntegerBound,
     isObjectSchemaNode,
     isPlainObject,
+    joinSchemaPath,
 } from './json-schema.ts';
 
 /**
@@ -109,8 +111,9 @@ const KEYWORD_HINTS: Record<string, string> = {
 
 /**
  * Checks the JSON Schema of a strict tool against the strict-capable schema
- * contract: closed objects with every key required, the basic type set, and
- * the keyword/format subset every strict-capable provider accepts.
+ * contract: closed objects whose keys are required, or optional but nullable
+ * or defaulted (see `canRequireOptionalKey`), the basic type set, and the
+ * keyword/format subset every strict-capable provider accepts.
  *
  * Pure and non-throwing — returns every violation found so callers can report
  * them all at once.
@@ -178,7 +181,7 @@ function walkNode(
         const hint = KEYWORD_HINTS[key];
         violations.push({
             toolName,
-            path: joinPath(path, key),
+            path: joinSchemaPath(path, key),
             message:
                 hint ??
                 `keyword "${key}" is outside the strict-capable subset; remove it and validate after parsing instead`,
@@ -194,7 +197,7 @@ function walkNode(
     for (const { segment, child } of getChildSchemaNodeEntries(node)) {
         walkNode(
             child,
-            joinPath(path, segment),
+            joinSchemaPath(path, segment),
             region,
             depth + 1,
             toolName,
@@ -217,7 +220,7 @@ function validateBounds(
         if (key in node && !isImplicitSafeIntegerBound(node, key)) {
             violations.push({
                 toolName,
-                path: joinPath(path, key),
+                path: joinSchemaPath(path, key),
                 message: BOUND_HINTS[key],
             });
         }
@@ -238,7 +241,7 @@ function validateType(
         if (typeof type !== 'string' || !ALLOWED_TYPES.has(type)) {
             violations.push({
                 toolName,
-                path: joinPath(path, 'type'),
+                path: joinSchemaPath(path, 'type'),
                 message: `type "${String(type)}" is outside the strict-capable subset (object, array, string, number, integer, boolean, null)`,
             });
         }
@@ -257,7 +260,7 @@ function validateFormat(
     if (!ALLOWED_STRING_FORMATS.has(node.format)) {
         violations.push({
             toolName,
-            path: joinPath(path, 'format'),
+            path: joinSchemaPath(path, 'format'),
             message: `format "${node.format}" is outside the strict-capable subset (${[...ALLOWED_STRING_FORMATS].join(', ')}); remove the format refinement (for URLs, use z.string() instead of z.url()) and validate after parsing instead`,
         });
     }
@@ -280,12 +283,12 @@ function validateObjectShape(
             : []
     );
 
-    for (const key of Object.keys(properties)) {
-        if (!required.has(key)) {
+    for (const [key, property] of Object.entries(properties)) {
+        if (!required.has(key) && !canRequireOptionalKey(property)) {
             violations.push({
                 toolName,
-                path: joinPath(path, `properties.${key}`),
-                message: `"${key}" is optional; strict schemas require every key — make it required, and let it accept null where it may be absent (in Zod, .nullable() instead of .optional(); .default() also makes a key optional)`,
+                path: joinSchemaPath(path, `properties.${key}`),
+                message: `"${key}" is optional and accepts neither null nor a default; strict schemas require every key — make it required, and let it accept null where it may be absent (in Zod, .nullable() instead of .optional())`,
             });
         }
     }
@@ -293,7 +296,7 @@ function validateObjectShape(
     if ('additionalProperties' in node && node.additionalProperties !== false) {
         violations.push({
             toolName,
-            path: joinPath(path, 'additionalProperties'),
+            path: joinSchemaPath(path, 'additionalProperties'),
             message:
                 'open objects are not strict-capable; use z.object() with explicit keys instead of z.record(), .catchall(), .passthrough(), or z.looseObject()',
         });
@@ -321,7 +324,7 @@ function validateRef(
     if (!match) {
         violations.push({
             toolName,
-            path: joinPath(path, '$ref'),
+            path: joinSchemaPath(path, '$ref'),
             message: `only local references into $defs are strict-capable; found "${node.$ref}"`,
         });
         return;
@@ -365,8 +368,4 @@ function findCyclicRegions(refEdges: Map<string, Set<string>>): string[] {
     }
 
     return [...cyclic];
-}
-
-function joinPath(path: string, segment: string): string {
-    return path === '' ? segment : `${path}.${segment}`;
 }

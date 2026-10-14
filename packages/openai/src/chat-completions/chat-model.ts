@@ -17,8 +17,9 @@ import type {
 import {
     createObjectStream,
     createChatStream,
-    finalizeGenerateResult,
+    extractStructuredObject,
     normalizeStructuredOutputSchema,
+    transformStructuredOutputStream,
 } from '@core-ai/core-ai';
 import {
     createGenerateRequest,
@@ -31,9 +32,7 @@ import { wrapOpenAIError } from '../openai-error.ts';
 import type { OpenAIResolvedCompatibilityOptions } from '../shared/compatibility-options.ts';
 import {
     createStructuredOutputRequestOptions,
-    extractStructuredObject,
     getStructuredOutputName,
-    transformStructuredOutputStream,
     type OpenAIRequestOptions,
 } from '../shared/structured-output.ts';
 
@@ -96,10 +95,7 @@ export function createOpenAIChatCompletionsModel(
             request,
             options.signal
         );
-        return finalizeGenerateResult(
-            mapGenerateResponse(response, adapterOptions),
-            options
-        );
+        return mapGenerateResponse(response, adapterOptions);
     }
 
     async function streamChat(
@@ -117,7 +113,6 @@ export function createOpenAIChatCompletionsModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapOpenAIError(error, provider),
-                request: options,
             }
         );
     }
@@ -133,8 +128,8 @@ export function createOpenAIChatCompletionsModel(
         ): Promise<GenerateObjectResult<TSchema>> {
             const structuredOptions = createStructuredOutputRequestOptions(
                 options,
-                structuredOutputMode,
-                provider
+                provider,
+                structuredOutputMode
             );
             const result = await generateChat(structuredOptions);
             const structuredOutputName = getStructuredOutputName(options);
@@ -156,8 +151,8 @@ export function createOpenAIChatCompletionsModel(
         ): Promise<ObjectStream<TSchema>> {
             const structuredOptions = createStructuredOutputRequestOptions(
                 options,
-                structuredOutputMode,
-                provider
+                provider,
+                structuredOutputMode
             );
             const stream = await streamChat(structuredOptions);
             const structuredOutputName = getStructuredOutputName(options);

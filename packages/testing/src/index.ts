@@ -1,5 +1,3 @@
-import { z } from 'zod';
-
 export async function* toAsyncIterable<T>(items: T[]): AsyncIterable<T> {
     for (const item of items) {
         yield item;
@@ -132,27 +130,4 @@ function createSseResponse(
     return new Response(body, {
         headers: { 'content-type': 'text/event-stream' },
     });
-}
-
-/**
- * One tool with Standard Schema parameters, which core-ai validates, and one
- * with plain JSON Schema, which it does not.
- */
-export function createValidationTools() {
-    return {
-        search: {
-            name: 'search',
-            description: 'Search',
-            parameters: z.object({ limit: z.number() }),
-        },
-        lookup: {
-            name: 'lookup',
-            description: 'Look up a record',
-            parameters: {
-                type: 'object',
-                properties: { id: { type: 'string' } },
-                required: ['id'],
-            },
-        },
-    };
 }

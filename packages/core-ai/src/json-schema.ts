@@ -216,3 +216,82 @@ function normalizeObjectNode(
 
     return result;
 }
+
+/**
+ * Whether a strict mode that requires every key can require this optional
+ * property and still let the model say what leaving it out meant: the
+ * property accepts `null`, or it declares a `default` the model can send.
+ */
+export function canRequireOptionalKey(property: unknown): boolean {
+    return (
+        acceptsNull(property) ||
+        (isPlainObject(property) && Object.hasOwn(property, 'default'))
+    );
+}
+
+function acceptsNull(schema: unknown): boolean {
+    if (!isPlainObject(schema)) {
+        return false;
+    }
+    if (
+        schema.type === 'null' ||
+        (Array.isArray(schema.type) && schema.type.includes('null'))
+    ) {
+        return true;
+    }
+    return [schema.anyOf, schema.oneOf].some(
+        (branches) => Array.isArray(branches) && branches.some(acceptsNull)
+    );
+}
+
+/**
+ * Lists every key of every object node in `required`, for strict modes that
+ * require every key (OpenAI-style APIs), and drops `default: null`, which
+ * adds nothing once a nullable key is required. Optional keys that fail
+ * {@link canRequireOptionalKey} are required too, but reported by path in
+ * `optionalKeyPaths`: requiring them would force the model to invent a
+ * value, so callers must reject them.
+ */
+export function requireEveryKey(schema: Record<string, unknown>): {
+    schema: Record<string, unknown>;
+    optionalKeyPaths: string[];
+} {
+    const optionalKeyPaths: string[] = [];
+    return {
+        schema: requireNodeKeys(schema, '', optionalKeyPaths),
+        optionalKeyPaths,
+    };
+}
+
+function requireNodeKeys(
+    node: Record<string, unknown>,
+    path: string,
+    optionalKeyPaths: string[]
+): Record<string, unknown> {
+    if (isPlainObject(node.properties)) {
+        const required = Array.isArray(node.required) ? node.required : [];
+        for (const [key, property] of Object.entries(node.properties)) {
+            if (!required.includes(key) && !canRequireOptionalKey(property)) {
+                optionalKeyPaths.push(
+                    joinSchemaPath(path, `properties.${key}`)
+                );
+            }
+        }
+    }
+
+    const result = mapChildSchemaNodes(node, (child, segment) =>
+        requireNodeKeys(child, joinSchemaPath(path, segment), optionalKeyPaths)
+    );
+    if (result.default === null) {
+        delete result.default;
+    }
+
+    return isPlainObject(result.properties)
+        ? { ...result, required: Object.keys(result.properties) }
+        : result;
+}
+
+/** Joins a dot path into a JSON Schema, e.g. `properties.limit`. */
+export function joinSchemaPath(path: string, segment: string): string {
+    return path === '' ? segment : `${path}.${segment}`;
+}

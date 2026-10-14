@@ -319,13 +319,6 @@ for await (const event of result) {
             break;
 
         case 'tool-call-end':
-            // Validated against the tool's schema as soon as the call completes
-            if (event.toolCall.validation?.issues) {
-                console.log(
-                    '\nInvalid arguments:',
-                    event.toolCall.validation.issues
-                );
-            }
             toolCalls.push(event.toolCall);
             break;
     }
@@ -336,8 +329,6 @@ if (response.finishReason === 'tool-calls') {
     console.log('Tool calls:', response.toolCalls);
 }
 ```
-
-Each completed tool call carries `validation` when the tool's parameters are a Standard Schema. See [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 ## Abort Streaming
 

@@ -6,10 +6,6 @@ import type {
 } from './types.ts';
 import type { CoreAIError } from './errors.ts';
 import { createStream } from './base-stream.ts';
-import {
-    finalizeStreamEvents,
-    type FinalizeResultRequest,
-} from './finalize-result.ts';
 import { mapStreamErrors } from './map-stream-errors.ts';
 
 export type CreateChatStreamOptions = {
@@ -20,11 +16,6 @@ export type CreateChatStreamOptions = {
      * Already-typed core-ai errors pass through unchanged.
      */
     mapError?: (error: unknown) => CoreAIError;
-    /**
-     * The request this stream answers. Completed tool calls are validated
-     * against its `tools` (see `ToolCall.validation`).
-     */
-    request?: FinalizeResultRequest;
 };
 
 export function createChatStream(
@@ -33,7 +24,7 @@ export function createChatStream(
         | (() => Promise<AsyncIterable<StreamEvent>>),
     options: CreateChatStreamOptions = {}
 ): ChatStream {
-    const { signal, mapError, request } = options;
+    const { signal, mapError } = options;
     const resolvedSource: AsyncIterable<StreamEvent> =
         typeof source === 'function'
             ? (async function* () {
@@ -43,9 +34,6 @@ export function createChatStream(
     const sourceWithMappedErrors = mapError
         ? mapStreamErrors(resolvedSource, mapError)
         : resolvedSource;
-    const finalizedSource = request
-        ? finalizeStreamEvents(sourceWithMappedErrors, request)
-        : sourceWithMappedErrors;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
     let textMetadata: Record<string, unknown> | undefined;
@@ -204,7 +192,7 @@ export function createChatStream(
     };
 
     return createStream({
-        source: finalizedSource,
+        source: sourceWithMappedErrors,
         signal,
         reduceEvent(event) {
             switch (event.type) {

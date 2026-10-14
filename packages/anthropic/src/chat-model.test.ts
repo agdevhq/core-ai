@@ -17,11 +17,7 @@ import {
 } from '@core-ai/core-ai';
 import { createAnthropicChatModel } from './chat-model.ts';
 import { getAnthropicModelCapabilities } from './model-capabilities.ts';
-import {
-    createPushableAsyncIterable,
-    createValidationTools,
-    toAsyncIterable,
-} from '@core-ai/testing';
+import { toAsyncIterable, createPushableAsyncIterable } from '@core-ai/testing';
 
 describe('createAnthropicChatModel', () => {
     it('should expose provider metadata', () => {
@@ -208,22 +204,6 @@ describe('generate', () => {
                 arguments: { query: 'weather' },
             },
         ]);
-    });
-
-    it('should validate tool calls against Standard Schema parameters', async () => {
-        const create = vi.fn(async () => createToolValidationResponse());
-        const model = createAnthropicChatModel(
-            createMockClient(create),
-            'claude-sonnet-4'
-        );
-
-        const result = await model.generate({
-            messages: [{ role: 'user', content: 'Search' }],
-            tools: createValidationTools(),
-        });
-
-        expect(result.toolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(result.toolCalls[1]).not.toHaveProperty('validation');
     });
 
     it('should generate a validated structured object', async () => {
@@ -748,28 +728,6 @@ describe('stream', () => {
             },
             outputTokenDetails: {},
         });
-    });
-
-    it('should validate streamed tool calls against Standard Schema parameters', async () => {
-        const create = vi.fn(async () => createToolValidationResponse());
-        const model = createAnthropicChatModel(
-            createMockClient(create),
-            'claude-sonnet-4'
-        );
-
-        const chatStream = await model.stream({
-            messages: [{ role: 'user', content: 'Search' }],
-            tools: createValidationTools(),
-        });
-
-        const endedToolCalls = (await chatStream.events).flatMap((event) =>
-            event.type === 'tool-call-end' ? [event.toolCall] : []
-        );
-        expect(endedToolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(endedToolCalls[1]).not.toHaveProperty('validation');
-        const { toolCalls } = await chatStream.result;
-        expect(toolCalls[0]?.validation?.issues).toHaveLength(1);
-        expect(toolCalls[1]).not.toHaveProperty('validation');
     });
 
     it('should pass the caller abort signal to streaming requests', async () => {
@@ -1339,29 +1297,5 @@ function createTextResponse(): AsyncIterable<RawMessageStreamEvent> {
         content: [{ type: 'text', text: 'done', citations: null }],
         stop_reason: 'end_turn',
         usage: { input_tokens: 10, output_tokens: 2 },
-    });
-}
-
-/** Calls both {@link createValidationTools} tools with mistyped arguments. */
-function createToolValidationResponse(): AsyncIterable<RawMessageStreamEvent> {
-    return asMessageStream({
-        content: [
-            {
-                type: 'tool_use',
-                id: 'toolu_1',
-                name: 'search',
-                input: { limit: 'many' },
-                caller: { type: 'direct' },
-            },
-            {
-                type: 'tool_use',
-                id: 'toolu_2',
-                name: 'lookup',
-                input: { id: 7 },
-                caller: { type: 'direct' },
-            },
-        ],
-        stop_reason: 'tool_use',
-        usage: { input_tokens: 12, output_tokens: 8 },
     });
 }

@@ -152,6 +152,10 @@ type ObjectStreamEvent<TSchema extends SchemaInput> =
 
 ## Complex Schema Examples
 
+<Note>
+  OpenAI and Anthropic structured outputs accept only closed objects, so they reject open objects such as `z.record()` or `.catchall()`. Model key/value data as an array of objects instead.
+</Note>
+
 <Tabs>
   <Tab title="Nested Objects">
     ```typescript
@@ -167,7 +171,6 @@ type ObjectStreamEvent<TSchema extends SchemaInput> =
         country: z.string(),
       }),
       skills: z.array(z.string()),
-      metadata: z.record(z.string(), z.unknown()),
     });
 
     const result = await generateObject({

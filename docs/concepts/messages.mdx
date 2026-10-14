@@ -341,13 +341,10 @@ type ToolCall = {
     name: string;
     arguments: Record<string, unknown>;
     metadata?: Record<string, unknown>;
-    validation?: StandardSchemaV1.Result<unknown>;
 };
 ```
 
 Pass tool call parts back into the next request unchanged. Some providers put data on them that has to return verbatim: Gemini 3 rejects a request when a function call from the current turn is replayed without its thought signature.
-
-`validation` exists only on results. It holds the outcome of validating `arguments` against a Standard Schema (see [Validate tool calls](/guides/tool-calling#validate-tool-calls)). `resultToMessage()` drops it and keeps every other field.
 
 ## Part metadata
 
@@ -459,7 +456,12 @@ For message helpers like `resultToMessage()` and `assistantMessage()`, see the [
 Here's a complete example of handling tool calls:
 
 ```typescript
-import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
+import {
+    defineTool,
+    generate,
+    resultToMessage,
+    validateToolCall,
+} from '@core-ai/core-ai';
 import type { Message } from '@core-ai/core-ai';
 import { z } from 'zod';
 
@@ -481,17 +483,16 @@ const messages: Message[] = [
 const result1 = await generate({ model, messages, tools });
 messages.push(resultToMessage(result1));
 
-if (result1.toolCalls.length > 0) {
-    // Step 2: Execute tool and provide result
-    const toolCall = result1.toolCalls[0];
-    const { validation } = toolCall;
-    if (!validation || validation.issues) {
+const toolCall = result1.toolCalls[0];
+if (toolCall) {
+    // Step 2: Validate the call, execute the tool, and provide the result
+    const validation = await validateToolCall(tools.getWeather, toolCall);
+    if (validation.issues) {
         // Or send the issues back to the model as an error tool result
-        throw new Error(`Invalid call to ${toolCall.name}`);
+        throw new Error(`Invalid arguments for ${toolCall.name}`);
     }
 
-    const { location } = validation.value as { location: string };
-    const weatherData = await getWeather(location);
+    const weatherData = await getWeather(validation.value.location);
 
     messages.push({
         role: 'tool',

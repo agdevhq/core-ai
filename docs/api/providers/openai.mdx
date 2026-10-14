@@ -292,6 +292,8 @@ meaning: when the key declares a `default` or also accepts `null` (through
 `type: 'null'`, a `type` array that includes `'null'`, or an `anyOf` branch).
 Any other optional key throws a `ValidationError` before the request, listing
 the path of each such key. In Zod, use `.nullable()` instead of `.optional()`.
+[Strict tools](/guides/tool-calling#strict-capable-schema-contract) follow the
+same rule.
 
 ### Reasoning support
 

@@ -89,8 +89,9 @@ class ValidationError extends CoreAIError {
   to JSON Schema, including a Standard Schema without JSON Schema support
 - Invalid local request configuration
 
-Invalid tool call arguments from the model never throw. core-ai reports them in
-`ToolCall.validation` for tools with Standard Schema parameters. See
+core-ai does not check the tool call arguments a model returns.
+`validateToolCall()` checks them against a tool's Standard Schema and reports
+problems as issues instead of throwing. See
 [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 `ToolSchemaStrictnessError` includes typed `providerId`, `modelId`,

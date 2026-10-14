@@ -86,19 +86,14 @@ export function toJsonSchema(schema: SchemaInput): JsonSchema {
 
 /** The JSON Schema of a tool's parameters, as adapters send it. */
 export function getToolJsonSchema(tool: ToolDefinition): JsonSchema {
-    return normalizeSchema(tool.parameters, getToolParametersLabel(tool))
-        .jsonSchema;
+    return normalizeToolParameters(tool).jsonSchema;
 }
 
 /** The normalized parameters of a tool. */
 export function normalizeToolParameters(
     tool: ToolDefinition
 ): NormalizedSchema {
-    return normalizeSchema(tool.parameters, getToolParametersLabel(tool));
-}
-
-function getToolParametersLabel(tool: ToolDefinition): string {
-    return `tool "${tool.name}" parameters`;
+    return normalizeSchema(tool.parameters, `tool "${tool.name}" parameters`);
 }
 
 /**

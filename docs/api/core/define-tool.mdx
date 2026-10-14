@@ -40,8 +40,8 @@ type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
 <ParamField path="parameters" type="SchemaInput" required>
     Schema of the tool's input parameters: a Standard Schema with JSON Schema
     support, such as a Zod 4.2+ schema, or plain JSON Schema. The model
-    generates arguments matching this schema. core-ai validates calls to tools
-    with Standard Schema parameters. See [Validation](#validation).
+    generates arguments matching this schema. Check calls to tools with Standard
+    Schema parameters with [`validateToolCall()`](#validatetoolcall).
 </ParamField>
 
 <ParamField path="strict" type="boolean" optional>
@@ -56,37 +56,46 @@ Returns the same `ToolDefinition` object that was passed in. This is a type-safe
 ## Strict schema enforcement
 
 `strict: true` opts a single tool into provider-enforced schema adherence. The
-tool's schema must fit the strict-capable subset (closed objects, every key
-required — in Zod, use `.nullable()` instead of `.optional()`), which core-ai
-validates locally before the provider request. Check
+tool's schema must fit the strict-capable subset (closed objects whose keys
+are required, nullable, or defaulted — in Zod, use `.nullable()` instead of a
+bare `.optional()`), which core-ai validates locally before the provider
+request. Check
 `model.capabilities.tools.strictSchemas` before opting tools in.
 
-Strict enforcement does not replace runtime validation. Check each call's
-[`validation`](#validation) before executing the tool. See
+Strict enforcement does not replace runtime validation. Check each call with
+[`validateToolCall()`](#validatetoolcall) before executing the tool. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) in the
 tool-calling guide for the schema contract, error reasons, and provider
 support.
 
-## Validation
+## validateToolCall()
 
-core-ai validates every call to a tool whose `parameters` are a Standard
-Schema and stores the outcome in `ToolCall.validation`:
+Validates the arguments of a tool call with the tool's own Standard Schema.
+
+```typescript
+function validateToolCall<TParameters extends SchemaInput>(
+    tool: ToolDefinition<TParameters>,
+    toolCall: ToolCall
+): Promise<ToolCallValidation<TParameters>>;
+```
+
+For Standard Schema `parameters`, it returns the schema's result, typed with
+the schema's output:
 
 - `{ value }` when the arguments match. `value` is the schema's output, with
   defaults and transforms applied.
 - `{ issues }` when they do not. Each issue has a `message` and an optional
-  `path`.
+  `path`. A validator that throws, such as a transform calling `new URL()`, is
+  reported as an issue too.
 
-An invalid call is reported, never thrown. Send the issues back to the model as
-an error tool result, and execute the tool with `validation.value`, not with
-the raw `ToolCall.arguments`.
-
-Plain JSON Schema `parameters`, such as tool schemas from an MCP server, are
-sent as is. Calls to those tools have no `validation`, so validate their
+For plain JSON Schema `parameters`, such as tool schemas from an MCP server, it
+returns `undefined`: core-ai ships no JSON Schema validator, so validate those
 `arguments` yourself.
 
-`resultToMessage()` omits `validation` from the assistant message, because
-`value` can hold values that are not plain JSON. See
+It throws a `ValidationError` when `toolCall` is a call to another tool.
+
+Send issues back to the model as an error tool result, and run the tool with
+`value`, not with the raw `ToolCall.arguments`. See
 [Validate tool calls](/guides/tool-calling#validate-tool-calls) for complete
 examples.
 
@@ -164,44 +173,69 @@ if (result.toolCalls.length > 0) {
 ### Tool execution loop
 
 ```typescript
-import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
-import type { Message } from '@core-ai/core-ai';
+import {
+    defineTool,
+    generate,
+    resultToMessage,
+    validateToolCall,
+} from '@core-ai/core-ai';
+import type { Message, StandardSchemaV1, ToolCall } from '@core-ai/core-ai';
 import { z } from 'zod';
-
-const weatherParameters = z.object({
-    location: z.string(),
-});
-
-const timeParameters = z.object({
-    timezone: z.string().describe('IANA timezone name'),
-});
 
 const tools = {
     get_weather: defineTool({
         name: 'get_weather',
         description: 'Get weather for a location',
-        parameters: weatherParameters,
+        parameters: z.object({
+            location: z.string(),
+        }),
     }),
     get_time: defineTool({
         name: 'get_time',
         description: 'Get current time in a timezone',
-        parameters: timeParameters,
+        parameters: z.object({
+            timezone: z.string().describe('IANA timezone name'),
+        }),
     }),
 };
 
-// Implement tool handlers. Each receives the validated output of its schema.
-const toolHandlers: Record<string, (value: unknown) => Promise<string>> = {
-    get_weather: async (value) => {
-        const { location } = value as z.output<typeof weatherParameters>;
+type ToolOutcome = { content: string; isError?: boolean };
+
+function invalidArguments(
+    issues: readonly StandardSchemaV1.Issue[]
+): ToolOutcome {
+    return {
+        content: JSON.stringify({ error: 'Invalid arguments', issues }),
+        isError: true,
+    };
+}
+
+// Implement tool handlers. Each validates the call against its own tool and
+// gets the typed output of its schema.
+const toolHandlers: Record<
+    string,
+    (toolCall: ToolCall) => Promise<ToolOutcome>
+> = {
+    get_weather: async (toolCall) => {
+        const validation = await validateToolCall(tools.get_weather, toolCall);
+        if (validation.issues) {
+            return invalidArguments(validation.issues);
+        }
         // Call weather API
-        return `The weather in ${location} is sunny, 72°F`;
+        return {
+            content: `The weather in ${validation.value.location} is sunny, 72°F`,
+        };
     },
-    get_time: async (value) => {
-        const { timezone } = value as z.output<typeof timeParameters>;
+    get_time: async (toolCall) => {
+        const validation = await validateToolCall(tools.get_time, toolCall);
+        if (validation.issues) {
+            return invalidArguments(validation.issues);
+        }
+        const { timezone } = validation.value;
         const time = new Date().toLocaleString('en-US', {
             timeZone: timezone,
         });
-        return `Current time in ${timezone}: ${time}`;
+        return { content: `Current time in ${timezone}: ${time}` };
     },
 };
 
@@ -221,26 +255,11 @@ while (result.toolCalls.length > 0) {
 
     for (const toolCall of result.toolCalls) {
         const handler = toolHandlers[toolCall.name];
-        const { validation } = toolCall;
+        const outcome = handler
+            ? await handler(toolCall)
+            : { content: `Unknown tool: ${toolCall.name}`, isError: true };
 
-        if (!handler || !validation || validation.issues) {
-            messages.push({
-                role: 'tool',
-                toolCallId: toolCall.id,
-                content: JSON.stringify({
-                    error: `Invalid call to ${toolCall.name}`,
-                    issues: validation?.issues,
-                }),
-                isError: true,
-            });
-            continue;
-        }
-
-        messages.push({
-            role: 'tool',
-            toolCallId: toolCall.id,
-            content: await handler(validation.value),
-        });
+        messages.push({ role: 'tool', toolCallId: toolCall.id, ...outcome });
     }
 
     result = await generate({

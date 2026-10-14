@@ -53,9 +53,11 @@ The contract applies to the tool's JSON Schema, so it covers Standard Schemas
 and plain JSON Schema alike. The examples below use Zod; other libraries
 produce the equivalent JSON Schema keywords.
 
-- **Closed objects with every key required.** Use `.nullable()` for values the
-  model may leave out — `.optional()` makes a key optional and is rejected, and
-  `.default()` also makes a key optional.
+- **Closed objects whose keys the provider can require.** A key must be
+  required, accept `null` (`.nullable()`), or declare a `default`
+  (`.default()`), so the model can always send a value for it. Use
+  `.nullable()` for values the model may leave out: a key that is only
+  `.optional()` is rejected.
 - **Object root.** `parameters` must describe an object, such as a
   `z.object()`; a primitive, array, or union at the root is rejected.
 - **Allowed keywords** — the intersection of what OpenAI and Anthropic accept
@@ -144,19 +146,22 @@ yourself if you need guaranteed adherence.
 On the OpenAI family (`openai`, `azure-openai`, `kimi`, `openai-compat`,
 `omnifact`), strict tools are sent with `strict: true` and a normalized schema
 (`$schema` stripped, `additionalProperties: false` added recursively, `oneOf`
-rewritten to `anyOf` — all semantics-preserving). Non-strict tools are sent
+rewritten to `anyOf`, and nullable or defaulted keys listed in `required` —
+all semantics-preserving). Non-strict tools are sent
 with the tool's JSON Schema unchanged. On the Responses API they carry an explicit
 `strict: false`, because that API otherwise tries to normalize tools into
 strict mode on its own; on Chat Completions, which is non-strict by default,
 the field is omitted. Anthropic follows the same split: strict tools get the
 provider's normalization (which also drops the numeric and length constraints
-its strict grammar rejects), non-strict tools are sent raw.
+its strict grammar rejects, and keeps optional keys optional), non-strict tools
+are sent raw.
 
 <Warning>
     Strict generation reduces invalid arguments but does not make tool execution
-    trusted. Check `ToolCall.validation`, or validate `ToolCall.arguments`
-    yourself for plain JSON Schema tools, before executing code or making
-    external requests. See [Validate tool calls](#validate-tool-calls).
+    trusted. Check each call with `validateToolCall()`, or validate
+    `ToolCall.arguments` yourself for plain JSON Schema tools, before executing
+    code or making external requests. See [Validate tool
+    calls](#validate-tool-calls).
 </Warning>
 
 Strict tool schemas apply to function arguments during `generate()` and
@@ -170,7 +175,12 @@ supporting the other.
 Implement a complete tool calling flow:
 
 ```typescript
-import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
+import {
+    defineTool,
+    generate,
+    resultToMessage,
+    validateToolCall,
+} from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
 import { z } from 'zod';
 
@@ -225,37 +235,40 @@ if (firstResult.finishReason !== 'tool-calls') {
 }
 
 // Execute the tool calls
-const toolMessages = firstResult.toolCalls.map((call) => {
-    if (call.name !== 'get_weather' || !call.validation) {
+const toolMessages = await Promise.all(
+    firstResult.toolCalls.map(async (call) => {
+        if (call.name !== weatherTool.name) {
+            return {
+                role: 'tool' as const,
+                toolCallId: call.id,
+                content: JSON.stringify({
+                    error: `Unknown tool: ${call.name}`,
+                }),
+                isError: true,
+            };
+        }
+
+        // Validate the arguments against weatherParameters
+        const validation = await validateToolCall(weatherTool, call);
+        if (validation.issues) {
+            return {
+                role: 'tool' as const,
+                toolCallId: call.id,
+                content: JSON.stringify({
+                    error: 'Invalid arguments',
+                    issues: validation.issues,
+                }),
+                isError: true,
+            };
+        }
+
         return {
             role: 'tool' as const,
             toolCallId: call.id,
-            content: JSON.stringify({ error: `Unknown tool: ${call.name}` }),
-            isError: true,
+            content: runWeatherTool(validation.value),
         };
-    }
-
-    // core-ai validated the arguments against weatherParameters
-    if (call.validation.issues) {
-        return {
-            role: 'tool' as const,
-            toolCallId: call.id,
-            content: JSON.stringify({
-                error: 'Invalid arguments',
-                issues: call.validation.issues,
-            }),
-            isError: true,
-        };
-    }
-
-    return {
-        role: 'tool' as const,
-        toolCallId: call.id,
-        content: runWeatherTool(
-            call.validation.value as z.output<typeof weatherParameters>
-        ),
-    };
-});
+    })
+);
 
 // Get final response with tool results
 const secondResult = await generate({
@@ -373,29 +386,31 @@ Tool arguments come from the model, so validate them before you execute
 anything, whether the tool is strict or not. How you validate depends on the
 tool's `parameters`:
 
-- **Standard Schema**: core-ai validates each call against the schema and
-  stores the outcome in `ToolCall.validation`. It is `{ value }`, holding the
-  schema's output, or `{ issues }`, listing each problem with a `message` and
-  an optional `path`. An invalid call is reported, never thrown. So is a
-  validator that throws, such as a transform calling `new URL()`: its error
-  message becomes the only issue.
-- **Plain JSON Schema**: core-ai sends the schema as is and does not validate
-  calls. Validate `ToolCall.arguments` yourself.
+- **Standard Schema**: pass the tool and the call to `validateToolCall()`. It
+  returns `{ value }`, the schema's output typed as such, or `{ issues }`,
+  listing each problem with a `message` and an optional `path`. Invalid
+  arguments are reported, never thrown. So is a validator that throws, such as
+  a transform calling `new URL()`: its error message becomes the only issue.
+- **Plain JSON Schema**: core-ai sends the schema as is and has no validator
+  for it, so `validateToolCall()` returns `undefined`. Validate
+  `ToolCall.arguments` yourself.
 
-`validation` is set on `GenerateResult.toolCalls`, on the matching `tool-call`
-parts, and on the `toolCall` of each `tool-call-end` stream event. A call to a
-tool that is not in `tools` has no `validation`. `ToolCall.arguments` always
-holds the arguments exactly as the model sent them.
+```typescript
+if (call.name === weatherTool.name) {
+    const validation = await validateToolCall(weatherTool, call);
+    if (validation.issues) {
+        // Send the issues back to the model as an error tool result
+    } else {
+        // Typed as z.output<typeof weatherParameters>
+        runWeatherTool(validation.value);
+    }
+}
+```
 
-`validation.value` is typed `unknown`, because a result can contain calls to
-any of your tools. After checking `call.name`, narrow it to that tool's output
-type, such as `z.output<typeof weatherParameters>`. See
-[Handling tool calls](#handling-tool-calls) for a complete loop.
-
-`validation.value` can hold values that are not plain JSON, such as a `Date`
-produced by a transform, so it stays out of conversation history:
-[`resultToMessage()`](/api/core/utilities#resulttomessage) omits it, adapters
-never send it, and you should not persist it.
+Check `call.name` first: `validateToolCall()` throws a `ValidationError` for a
+call to another tool. `value` has the schema's defaults and transforms applied,
+while `ToolCall.arguments` keeps the arguments exactly as the model sent them.
+See [Handling tool calls](#handling-tool-calls) for a complete loop.
 
 ### JSON Schema tools
 
@@ -425,9 +440,10 @@ function toToolSet(mcpTools: McpTool[]): ToolSet {
 }
 ```
 
-Calls to these tools carry no `validation`. Validate their `arguments` with a
-JSON Schema validator, or let the MCP server reject invalid input. To have
-core-ai validate them, wrap your validator in the Standard Schema interface:
+`validateToolCall()` returns `undefined` for these tools. Validate their
+`arguments` with a JSON Schema validator, or let the MCP server reject invalid
+input. To validate them with `validateToolCall()`, wrap your validator in the
+Standard Schema interface:
 
 ```typescript
 import type { JsonSchema, StandardSchemaWithJson } from '@core-ai/core-ai';
@@ -463,7 +479,12 @@ Send validation issues back as an error tool result so the model can correct
 its call:
 
 ```typescript
-import { defineTool, generate, resultToMessage } from '@core-ai/core-ai';
+import {
+    defineTool,
+    generate,
+    resultToMessage,
+    validateToolCall,
+} from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const weatherParameters = z.object({
@@ -491,49 +512,50 @@ const result = await generate({
 });
 
 if (result.finishReason === 'tool-calls') {
-    const toolMessages = result.toolCalls.map((call) => {
-        // Calls to unknown tools have no validation
-        if (call.name !== 'get_weather' || !call.validation) {
-            return {
-                role: 'tool' as const,
-                toolCallId: call.id,
-                content: JSON.stringify({
-                    error: `Unknown tool: ${call.name}`,
-                }),
-                isError: true,
-            };
-        }
+    const toolMessages = await Promise.all(
+        result.toolCalls.map(async (call) => {
+            if (call.name !== weatherTool.name) {
+                return {
+                    role: 'tool' as const,
+                    toolCallId: call.id,
+                    content: JSON.stringify({
+                        error: `Unknown tool: ${call.name}`,
+                    }),
+                    isError: true,
+                };
+            }
 
-        // Report invalid arguments back to the model
-        if (call.validation.issues) {
-            return {
-                role: 'tool' as const,
-                toolCallId: call.id,
-                content: JSON.stringify({
-                    error: 'Invalid arguments',
-                    issues: call.validation.issues,
-                }),
-                isError: true,
-            };
-        }
+            // Report invalid arguments back to the model
+            const validation = await validateToolCall(weatherTool, call);
+            if (validation.issues) {
+                return {
+                    role: 'tool' as const,
+                    toolCallId: call.id,
+                    content: JSON.stringify({
+                        error: 'Invalid arguments',
+                        issues: validation.issues,
+                    }),
+                    isError: true,
+                };
+            }
 
-        // Execute tool with the schema's output; the default unit is applied
-        try {
-            const result = getWeather(call.validation.value as WeatherArgs);
-            return {
-                role: 'tool' as const,
-                toolCallId: call.id,
-                content: result,
-            };
-        } catch (error) {
-            return {
-                role: 'tool' as const,
-                toolCallId: call.id,
-                content: JSON.stringify({ error: String(error) }),
-                isError: true,
-            };
-        }
-    });
+            // Execute tool with the schema's output; the default unit is applied
+            try {
+                return {
+                    role: 'tool' as const,
+                    toolCallId: call.id,
+                    content: getWeather(validation.value),
+                };
+            } catch (error) {
+                return {
+                    role: 'tool' as const,
+                    toolCallId: call.id,
+                    content: JSON.stringify({ error: String(error) }),
+                    isError: true,
+                };
+            }
+        })
+    );
 
     // Continue conversation with tool results
     const finalResult = await generate({
@@ -591,8 +613,7 @@ for await (const event of result) {
             break;
 
         case 'tool-call-end':
-            // event.toolCall carries the validation outcome
-            console.log(`\nTool call complete:`, event.toolCall.validation);
+            console.log(`\nTool call complete:`, event.toolCall);
             toolCalls.push(event.toolCall);
             break;
     }
@@ -728,7 +749,7 @@ const firstResult = await generate({
     tools: { get_weather: weatherTool },
 });
 
-// Convert result to assistant message automatically (drops `validation`)
+// Convert result to assistant message automatically
 const assistantMessage = resultToMessage(firstResult);
 
 messages.push(assistantMessage);
@@ -747,10 +768,10 @@ if (firstResult.finishReason === 'tool-calls') {
 
 <AccordionGroup>
   <Accordion title="Validate tool arguments before execution">
-    Check `call.validation` for Standard Schema tools, and validate `call.arguments` yourself for plain JSON Schema tools:
+    Check calls to Standard Schema tools with `validateToolCall()`, and validate `call.arguments` yourself for plain JSON Schema tools:
 
     ```typescript
-    const { validation } = call;
+    const validation = await validateToolCall(tool, call);
 
     if (validation === undefined) {
       // Plain JSON Schema tool: validate call.arguments yourself

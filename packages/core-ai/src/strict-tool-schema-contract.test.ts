@@ -118,6 +118,17 @@ describe('getStrictToolSchemaViolations', () => {
         expect(violations[0]?.message).toContain('.nullable()');
     });
 
+    it('accepts optional keys that accept null or declare a default', () => {
+        expect(
+            violationsFor(
+                z.object({
+                    label: z.string().nullable().optional(),
+                    mode: z.enum(['fast', 'safe']).default('safe'),
+                })
+            )
+        ).toEqual([]);
+    });
+
     it('rejects open objects from z.looseObject and z.record', () => {
         const loose = violationsFor(z.looseObject({ value: z.string() }));
         expect(loose.some((v) => v.path === 'additionalProperties')).toBe(true);
