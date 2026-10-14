@@ -2,15 +2,18 @@ import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import {
+    defineTool,
     embed,
     generate,
     generateImage,
     generateObject,
     resultToMessage,
     stream,
+    streamObject,
     StreamAbortedError,
     ToolSchemaStrictnessError,
     UnsupportedSystemMessagePlacementError,
+    validateToolCall,
     type Message,
 } from '../../../packages/core-ai/src/index.ts';
 import type { ProviderCapabilities } from './adapters/provider-adapter.ts';
@@ -28,6 +31,7 @@ export type ProviderContractCaseId =
     | 'chatStreamReasoning'
     | 'chatReasoningMultiTurn'
     | 'generateObject'
+    | 'streamObject'
     | 'embed'
     | 'generateImage';
 
@@ -211,12 +215,15 @@ export const providerCases: ProviderContractCase[] = [
             // Covers every construct the strict normalizers rewrite before the
             // schema reaches the provider: z.int() (implicit bounds dropped),
             // nested objects (closed with additionalProperties: false),
-            // .nullable() (anyOf with null), and z.discriminatedUnion()
-            // (oneOf rewritten to anyOf).
+            // .nullable() (anyOf with null), optional keys that are nullable or
+            // defaulted (made required), and z.discriminatedUnion() (oneOf
+            // rewritten to anyOf).
             const parameters = z.object({
                 count: z.int(),
                 mode: z.enum(['fast', 'safe']),
                 label: z.string().nullable(),
+                note: z.string().nullable().optional(),
+                priority: z.enum(['low', 'high']).default('low'),
                 retry: z.object({
                     attempts: z.int(),
                     backoff: z.enum(['linear', 'exponential']),
@@ -226,6 +233,12 @@ export const providerCases: ProviderContractCase[] = [
                     z.object({ kind: z.literal('commit'), sha: z.string() }),
                 ]),
             });
+            const configureRun = defineTool({
+                name: 'configure_run',
+                description: 'Configure a test run',
+                parameters,
+                strict: true,
+            });
             const result = await generate({
                 model,
                 messages: [
@@ -233,17 +246,11 @@ export const providerCases: ProviderContractCase[] = [
                         role: 'user',
                         content:
                             'Call configure_run with count 3, mode safe, no label, ' +
-                            '2 linear retry attempts, targeting the branch named main.',
+                            'no note, high priority, 2 linear retry attempts, ' +
+                            'targeting the branch named main.',
                     },
                 ],
-                tools: {
-                    configure_run: {
-                        name: 'configure_run',
-                        description: 'Configure a test run',
-                        parameters,
-                        strict: true,
-                    },
-                },
+                tools: { configure_run: configureRun },
                 toolChoice: {
                     type: 'tool',
                     toolName: 'configure_run',
@@ -251,10 +258,13 @@ export const providerCases: ProviderContractCase[] = [
             });
 
             expect(result.toolCalls).toHaveLength(1);
-            expect(result.toolCalls[0]?.name).toBe('configure_run');
-            expect(
-                parameters.safeParse(result.toolCalls[0]?.arguments).success
-            ).toBe(true);
+            const [toolCall] = result.toolCalls;
+            expect(toolCall?.name).toBe('configure_run');
+            const validation =
+                toolCall && (await validateToolCall(configureRun, toolCall));
+            expect(validation).toEqual({
+                value: expect.objectContaining({ priority: 'high' }),
+            });
         },
     },
     {
@@ -517,6 +527,39 @@ export const providerCases: ProviderContractCase[] = [
 
             expect(result.object.topic.trim().length).toBeGreaterThan(0);
             expect(typeof result.object.isTestRelated).toBe('boolean');
+            assertChatUsage(result.usage);
+        },
+    },
+    {
+        id: 'streamObject',
+        name: 'streamObject emits deltas and one schema-valid object',
+        requiredCapability: 'object',
+        run: async ({ adapter }) => {
+            const model = adapter.createChatModel();
+            const objectStream = await streamObject({
+                model,
+                messages: [
+                    {
+                        role: 'user',
+                        content:
+                            'Return an object with fields topic and isTestRelated for "integration tests".',
+                    },
+                ],
+                schema: objectSchema,
+                schemaName: 'test_topic_schema',
+            });
+
+            const result = await objectStream.result;
+            expect(result.object.topic.trim().length).toBeGreaterThan(0);
+            expect(typeof result.object.isTestRelated).toBe('boolean');
+
+            const events = await objectStream.events;
+            const objects = events.filter((event) => event.type === 'object');
+            expect(events.some((event) => event.type === 'object-delta')).toBe(
+                true
+            );
+            expect(objects).toHaveLength(1);
+            expect(events.at(-1)?.type).toBe('finish');
             assertChatUsage(result.usage);
         },
     },

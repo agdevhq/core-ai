@@ -19,6 +19,7 @@ import {
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
+    requireEveryKey,
     ValidationError,
     safeParseJsonObject,
     validateMessages,
@@ -483,8 +484,11 @@ export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
         const strict = tool.strict === true;
         const jsonSchema = getToolJsonSchema(tool);
+        // Strict mode caps optional parameters at 24 per request, so nullable
+        // and defaulted keys are required, the only optional keys the strict
+        // tool contract admits.
         const schema = strict
-            ? normalizeAnthropicJsonSchema(jsonSchema)
+            ? requireEveryKey(normalizeAnthropicJsonSchema(jsonSchema)).schema
             : jsonSchema;
 
         return {

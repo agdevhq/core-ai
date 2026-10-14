@@ -888,7 +888,7 @@ describe('convertTools', () => {
         }
     });
 
-    it('should keep nullable optional keys of strict tools optional', () => {
+    it('should require nullable and defaulted keys of strict tools', () => {
         const tools: ToolSet = {
             search: defineTool({
                 name: 'search',
@@ -896,13 +896,14 @@ describe('convertTools', () => {
                 parameters: z.object({
                     query: z.string(),
                     label: z.string().nullable().optional(),
+                    mode: z.enum(['fast', 'safe']).default('safe'),
                 }),
                 strict: true,
             }),
         };
 
         expect(convertTools(tools)[0]?.input_schema).toMatchObject({
-            required: ['query'],
+            required: ['query', 'label', 'mode'],
         });
     });
 

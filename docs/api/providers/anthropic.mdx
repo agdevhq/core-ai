@@ -177,6 +177,11 @@ models work without a registry update.
 Only strict tools and structured-output schemas go through Anthropic's schema
 normalization (`$schema` stripped, `additionalProperties: false` added,
 numeric and length constraints removed, `oneOf` rewritten to `anyOf`).
+Strict tools also list nullable and defaulted keys in `required`, because
+Anthropic allows at most 24 optional parameters across a request's strict
+tools. Beyond the 20-tool limit, Anthropic rejects strict tools with more than
+16 union-typed parameters (nullable keys count) in total, or a schema it finds
+too complex.
 Non-strict tools are sent with their raw JSON Schema, so declared constraints
 reach the model as hints. Strict tool schemas do not change Anthropic's
 structured response format for `generateObject()` and `streamObject()`. See

@@ -246,7 +246,8 @@ function acceptsNull(schema: unknown): boolean {
 
 /**
  * Lists every key of every object node in `required`, for strict modes that
- * require every key (OpenAI-style APIs), and drops `default: null`, which
+ * require every key (OpenAI-style APIs) or cap optional ones (Anthropic), and
+ * drops `default: null`, which
  * adds nothing once a nullable key is required. Optional keys that fail
  * {@link canRequireOptionalKey} are required too, but reported by path in
  * `optionalKeyPaths`: requiring them would force the model to invent a
