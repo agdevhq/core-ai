@@ -170,21 +170,24 @@ export type ToolCallPart = {
 /**
  * The model asking for tools that the request does not declare yet (see
  * `GenerateOptions.toolDiscovery`). Answer it with one
- * `ToolDiscoveryResultMessage` before the next request. Discovery calls
- * appear only in `GenerateResult.parts`, never in `toolCalls`.
+ * `ToolDiscoveryResultMessage` before the next request.
  */
-export type ToolDiscoveryCallPart = {
-    type: 'tool-discovery-call';
+export type ToolDiscoveryCall = {
     id: string;
     /** Exact tool names the model asked for. */
     names?: string[];
     /** Keywords describing the capability the model needs. */
     query?: string;
     /**
-     * Application-owned metadata for this part. Provider adapters ignore this
-     * field and never serialize it to provider APIs.
+     * Application-owned metadata for this discovery call. Provider adapters
+     * ignore this field and never serialize it to provider APIs.
      */
     metadata?: Record<string, unknown>;
+};
+
+export type ToolDiscoveryCallPart = {
+    type: 'tool-discovery-call';
+    discoveryCall: ToolDiscoveryCall;
     /**
      * Provider-namespaced metadata for this call, with the same ownership
      * rules as `ToolCallPart.providerMetadata`.
@@ -234,8 +237,8 @@ export type ToolResultMessage = {
  */
 export type ToolDiscoveryResultMessage = {
     role: 'tool-discovery';
-    /** `id` of the answered `ToolDiscoveryCallPart`. */
-    callId: string;
+    /** `id` of the answered `ToolDiscoveryCall`. */
+    discoveryCallId: string;
     /**
      * The discovered tools. They stay declared on every later request while
      * this message is in the history; may be empty when nothing was found.
@@ -517,9 +520,11 @@ export type GenerateResult = {
     reasoning: string | null;
     /** Calls to the caller's and discovered tools; never discovery calls. */
     toolCalls: ToolCall[];
+    /** Discovery calls (see `GenerateOptions.toolDiscovery`). */
+    discoveryCalls: ToolDiscoveryCall[];
     /**
-     * `'tool-calls'` when tool calls or discovery calls are pending. Decide
-     * whether to continue from `parts`, as `toolCalls` can be empty.
+     * `'tool-calls'` when tool calls or discovery calls are pending: answer
+     * both `toolCalls` and `discoveryCalls` before the next request.
      */
     finishReason: FinishReason;
     usage: ChatUsage;

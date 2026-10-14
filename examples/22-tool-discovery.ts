@@ -5,7 +5,7 @@ import {
     resultToMessage,
     toJsonSchema,
     type Message,
-    type ToolDiscoveryCallPart,
+    type ToolDiscoveryCall,
     type ToolSnapshot,
 } from '@core-ai/core-ai';
 import { createOpenAI } from '@core-ai/openai';
@@ -41,7 +41,7 @@ function getRequiredEnv(name: 'OPENAI_API_KEY'): string {
 }
 
 /** Answers a discovery call with the catalog tools it asks for. */
-function discoverTools(call: ToolDiscoveryCallPart): ToolSnapshot[] {
+function discoverTools(call: ToolDiscoveryCall): ToolSnapshot[] {
     const query = call.query?.toLowerCase();
     return Object.entries(catalog)
         .filter(
@@ -83,33 +83,31 @@ async function main(): Promise<void> {
         const result = await generate({ model, messages, toolDiscovery });
         messages.push(resultToMessage(result));
 
-        // `toolCalls` never holds discovery calls, so continue from `parts`.
+        // 'tool-calls' covers pending tool calls and discovery calls
         if (result.finishReason !== 'tool-calls') {
             console.log('Answer:\n', result.content);
             return;
         }
 
-        for (const part of result.parts) {
-            if (part.type === 'tool-discovery-call') {
-                const tools = discoverTools(part);
-                console.log(
-                    'Discovered:',
-                    tools.map((tool) => tool.name)
-                );
-                messages.push({
-                    role: 'tool-discovery',
-                    callId: part.id,
-                    tools,
-                });
-            } else if (part.type === 'tool-call') {
-                const { id, name, arguments: args } = part.toolCall;
-                console.log('Calling:', name, args);
-                messages.push({
-                    role: 'tool',
-                    toolCallId: id,
-                    content: runTool(name, args),
-                });
-            }
+        for (const { id, name, arguments: args } of result.toolCalls) {
+            console.log('Calling:', name, args);
+            messages.push({
+                role: 'tool',
+                toolCallId: id,
+                content: runTool(name, args),
+            });
+        }
+        for (const call of result.discoveryCalls) {
+            const tools = discoverTools(call);
+            console.log(
+                'Discovered:',
+                tools.map((tool) => tool.name)
+            );
+            messages.push({
+                role: 'tool-discovery',
+                discoveryCallId: call.id,
+                tools,
+            });
         }
     }
 }

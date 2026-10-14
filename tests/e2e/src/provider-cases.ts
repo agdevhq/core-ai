@@ -15,7 +15,6 @@ import {
     UnsupportedSystemMessagePlacementError,
     validateToolCall,
     type Message,
-    type ToolDiscoveryCallPart,
     type ToolSnapshot,
 } from '../../../packages/core-ai/src/index.ts';
 import type { ProviderCapabilities } from './adapters/provider-adapter.ts';
@@ -318,15 +317,12 @@ export const providerCases: ProviderContractCase[] = [
                 messages,
                 toolDiscovery,
             });
-            const discoveryCall = discovery.parts.find(
-                (part): part is ToolDiscoveryCallPart =>
-                    part.type === 'tool-discovery-call'
-            );
+            const [discoveryCall] = discovery.discoveryCalls;
             expect(discoveryCall).toBeDefined();
             expect(discovery.finishReason).toBe('tool-calls');
             messages.push(resultToMessage(discovery), {
                 role: 'tool-discovery',
-                callId: discoveryCall!.id,
+                discoveryCallId: discoveryCall!.id,
                 tools: [orderStatusTool],
             });
 

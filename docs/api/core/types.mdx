@@ -161,19 +161,23 @@ type ToolCall = {
 ### ToolDiscoveryCallPart
 
 ```typescript
-type ToolDiscoveryCallPart = {
-    type: 'tool-discovery-call';
+type ToolDiscoveryCall = {
     id: string;
     /** Exact tool names the model asked for. */
     names?: string[];
     /** Keywords describing the capability the model needs. */
     query?: string;
     metadata?: Record<string, unknown>;
+};
+
+type ToolDiscoveryCallPart = {
+    type: 'tool-discovery-call';
+    discoveryCall: ToolDiscoveryCall;
     providerMetadata?: Record<string, Record<string, unknown>>;
 };
 ```
 
-A call from the model asking for tools the request does not declare yet (see [`GenerateOptions.toolDiscovery`](#generateoptions)). Answer it with one [`ToolDiscoveryResultMessage`](#tooldiscoveryresultmessage) before the next request. Discovery calls appear only in `GenerateResult.parts`, never in `toolCalls`. `providerMetadata` follows the same ownership rules as on `ToolCallPart`. See [Tool Discovery](/guides/tool-discovery).
+A call from the model asking for tools the request does not declare yet (see [`GenerateOptions.toolDiscovery`](#generateoptions)). Answer it with one [`ToolDiscoveryResultMessage`](#tooldiscoveryresultmessage) before the next request. The part wraps the call as `ToolCallPart` wraps a `ToolCall`. Discovery calls appear in `GenerateResult.discoveryCalls`, never in `toolCalls`. `providerMetadata` follows the same ownership rules as on `ToolCallPart`. See [Tool Discovery](/guides/tool-discovery).
 
 ### ToolResultMessage
 
@@ -195,7 +199,7 @@ type ToolResultMessage = {
 type ToolDiscoveryResultMessage = {
     role: 'tool-discovery';
     /** `id` of the answered `ToolDiscoveryCallPart`. */
-    callId: string;
+    discoveryCallId: string;
     tools: ToolSnapshot[];
     /** Optional short note for the model. */
     note?: string;
@@ -602,12 +606,13 @@ type GenerateResult = {
     content: string | null;
     reasoning: string | null;
     toolCalls: ToolCall[];
+    discoveryCalls: ToolDiscoveryCall[];
     finishReason: FinishReason;
     usage: ChatUsage;
 };
 ```
 
-`toolCalls` holds the calls to your tools and to discovered tools, never discovery calls. `finishReason` is `'tool-calls'` when tool calls or discovery calls are pending, so `toolCalls` can be empty on a `'tool-calls'` result. Decide whether to continue from `parts`.
+`toolCalls` holds the calls to your tools and to discovered tools; `discoveryCalls` holds the [discovery calls](#tooldiscoverycallpart). Both list the calls of `parts` in order. `finishReason` is `'tool-calls'` when either has pending calls: answer both before the next request.
 
 ### GenerateObjectResult
 

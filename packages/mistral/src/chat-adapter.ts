@@ -441,6 +441,7 @@ export function mapGenerateResponse(
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'unknown',
             usage: mapUsage(response.usage),
         };
@@ -452,6 +453,7 @@ export function mapGenerateResponse(
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: mapFinishReason(firstChoice.finishReason),
             usage: mapUsage(response.usage),
         };
@@ -474,6 +476,7 @@ export function mapGenerateResponse(
         content: content.length > 0 ? content : null,
         reasoning: reasoning.length > 0 ? reasoning : null,
         toolCalls,
+        discoveryCalls: [],
         finishReason:
             toolCalls.length > 0 && mappedFinishReason !== 'content-filter'
                 ? 'tool-calls'

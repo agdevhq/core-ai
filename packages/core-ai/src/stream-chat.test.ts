@@ -46,6 +46,7 @@ function createMockChatStream(): ChatStream {
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'stop',
             usage: {
                 inputTokens: 1,

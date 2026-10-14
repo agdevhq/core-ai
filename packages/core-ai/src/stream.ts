@@ -171,6 +171,7 @@ export function createChatStream(
         const contentSegments: string[] = [];
         const reasoningSegments: string[] = [];
         const toolCalls: GenerateResult['toolCalls'] = [];
+        const discoveryCalls: GenerateResult['discoveryCalls'] = [];
 
         for (const part of parts) {
             if (part.type === 'text') {
@@ -183,6 +184,8 @@ export function createChatStream(
             }
             if (part.type === 'tool-call') {
                 toolCalls.push(part.toolCall);
+            } else if (part.type === 'tool-discovery-call') {
+                discoveryCalls.push(part.discoveryCall);
             }
         }
 
@@ -193,6 +196,7 @@ export function createChatStream(
             content: content.length > 0 ? content : null,
             reasoning: reasoning.length > 0 ? reasoning : null,
             toolCalls,
+            discoveryCalls,
         };
     };
 
@@ -241,13 +245,15 @@ export function createChatStream(
         finalizeResult() {
             flushText();
             flushReasoning();
-            const { content, reasoning, toolCalls } = collectFinalizedData();
+            const { content, reasoning, toolCalls, discoveryCalls } =
+                collectFinalizedData();
 
             return {
                 parts,
                 content,
                 reasoning,
                 toolCalls,
+                discoveryCalls,
                 finishReason,
                 usage,
             };

@@ -3,10 +3,12 @@ import {
     TOOL_DISCOVERY_TOOL_NAME,
 } from './tool-discovery.ts';
 import type {
+    AssistantContentPart,
     GenerateOptions,
     GenerateResult,
     StreamEvent,
     ToolCall,
+    ToolDiscoveryCall,
 } from './types.ts';
 
 /** The parts of a request that shape how its response is finalized. */
@@ -14,7 +16,8 @@ export type FinalizeResultRequest = Pick<GenerateOptions, 'toolDiscovery'>;
 
 /**
  * With `toolDiscovery`, turns calls to the discovery tool into
- * `ToolDiscoveryCallPart`s and removes them from `toolCalls`. Adapters that
+ * `ToolDiscoveryCallPart`s, moves them from `toolCalls` to `discoveryCalls`,
+ * and lists native discovery calls in `discoveryCalls` too. Adapters that
  * build a `GenerateResult` themselves call this before returning it;
  * streamed results get the same treatment from `createChatStream`.
  */
@@ -26,21 +29,32 @@ export function finalizeGenerateResult(
         return result;
     }
 
+    const parts = result.parts.map((part) =>
+        part.type === 'tool-call' && isDiscoveryToolCall(part.toolCall)
+            ? createToolDiscoveryCallPart(
+                  part.toolCall.id,
+                  part.toolCall.arguments,
+                  part.providerMetadata
+              )
+            : part
+    );
     return {
         ...result,
-        parts: result.parts.map((part) =>
-            part.type === 'tool-call' && isDiscoveryToolCall(part.toolCall)
-                ? createToolDiscoveryCallPart(
-                      part.toolCall.id,
-                      part.toolCall.arguments,
-                      part.providerMetadata
-                  )
-                : part
-        ),
+        parts,
         toolCalls: result.toolCalls.filter(
             (toolCall) => !isDiscoveryToolCall(toolCall)
         ),
+        discoveryCalls: getDiscoveryCalls(parts),
     };
+}
+
+/** The discovery calls among `parts`, in order. */
+function getDiscoveryCalls(
+    parts: readonly AssistantContentPart[]
+): ToolDiscoveryCall[] {
+    return parts.flatMap((part) =>
+        part.type === 'tool-discovery-call' ? [part.discoveryCall] : []
+    );
 }
 
 /**

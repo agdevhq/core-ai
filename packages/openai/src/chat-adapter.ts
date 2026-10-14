@@ -225,7 +225,7 @@ function convertToolDiscoveryResult(
     const items: ResponseInputItem[] = [
         {
             type: 'tool_search_output',
-            call_id: message.callId,
+            call_id: message.discoveryCallId,
             execution: 'client',
             status: 'completed',
             tools: message.tools
@@ -249,10 +249,10 @@ function convertToolDiscoveryCall(
 ): ResponseInputItem {
     return {
         type: 'tool_search_call',
-        call_id: part.id,
+        call_id: part.discoveryCall.id,
         execution: 'client',
         status: 'completed',
-        arguments: getToolDiscoveryArguments(part),
+        arguments: getToolDiscoveryArguments(part.discoveryCall),
     };
 }
 
@@ -691,6 +691,9 @@ export function mapGenerateResponse(
         content,
         reasoning,
         toolCalls,
+        discoveryCalls: parts.flatMap((part) =>
+            part.type === 'tool-discovery-call' ? [part.discoveryCall] : []
+        ),
         finishReason: mapFinishReason(response, hasPendingCalls),
         usage: mapUsage(response.usage),
     };

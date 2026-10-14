@@ -197,9 +197,9 @@ export function convertMessages(
                 if (part.type === 'tool-discovery-call') {
                     contentBlocks.push({
                         type: 'tool_use',
-                        id: part.id,
+                        id: part.discoveryCall.id,
                         name: TOOL_DISCOVERY_TOOL_NAME,
-                        input: getToolDiscoveryArguments(part),
+                        input: getToolDiscoveryArguments(part.discoveryCall),
                     });
                     continue;
                 }
@@ -483,7 +483,7 @@ function convertToolDiscoveryResult(
 ): ToolResultBlockParam {
     return {
         type: 'tool_result',
-        tool_use_id: message.callId,
+        tool_use_id: message.discoveryCallId,
         content:
             message.tools.length > 0
                 ? message.tools.map(

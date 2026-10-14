@@ -84,15 +84,14 @@ function createDiscoveryHistory(
             parts: [
                 {
                     type: 'tool-discovery-call',
-                    id: 'd1',
-                    query: 'calendar',
+                    discoveryCall: { id: 'd1', query: 'calendar' },
                     providerMetadata: { google: { thoughtSignature: 'sig' } },
                 },
             ],
         },
         {
             role: 'tool-discovery',
-            callId: 'd1',
+            discoveryCallId: 'd1',
             tools,
             ...(note ? { note } : {}),
         },
@@ -157,12 +156,15 @@ describe('resolveToolDiscovery', () => {
             {
                 role: 'assistant',
                 parts: [
-                    { type: 'tool-discovery-call', id: 'd2', names: ['a'] },
+                    {
+                        type: 'tool-discovery-call',
+                        discoveryCall: { id: 'd2', names: ['a'] },
+                    },
                 ],
             },
             {
                 role: 'tool-discovery',
-                callId: 'd2',
+                discoveryCallId: 'd2',
                 tools: [snapshot('c'), snapshot('a', 'new')],
             },
         ];
@@ -253,7 +255,7 @@ describe('resolveToolDiscovery', () => {
     it('rejects a discovery result without a preceding call', () => {
         const messages: Message[] = [
             { role: 'user', content: 'hi' },
-            { role: 'tool-discovery', callId: 'missing', tools: [] },
+            { role: 'tool-discovery', discoveryCallId: 'missing', tools: [] },
         ];
 
         expect(() => resolveToolDiscovery({ messages }, EMULATED)).toThrow(
@@ -264,7 +266,7 @@ describe('resolveToolDiscovery', () => {
     it('rejects a discovery call answered twice', () => {
         const messages: Message[] = [
             ...createDiscoveryHistory([]),
-            { role: 'tool-discovery', callId: 'd1', tools: [] },
+            { role: 'tool-discovery', discoveryCallId: 'd1', tools: [] },
         ];
 
         expect(() => resolveToolDiscovery({ messages }, EMULATED)).toThrow(
@@ -408,16 +410,17 @@ describe('createToolDiscoveryCallPart', () => {
             })
         ).toEqual({
             type: 'tool-discovery-call',
-            id: 'd1',
-            names: ['a', 'b'],
-            query: 'calendar',
+            discoveryCall: { id: 'd1', names: ['a', 'b'], query: 'calendar' },
         });
         expect(
             createToolDiscoveryCallPart('d2', { names: 'a', query: 3 })
-        ).toEqual({ type: 'tool-discovery-call', id: 'd2', names: ['a'] });
+        ).toEqual({
+            type: 'tool-discovery-call',
+            discoveryCall: { id: 'd2', names: ['a'] },
+        });
         expect(createToolDiscoveryCallPart('d3', null)).toEqual({
             type: 'tool-discovery-call',
-            id: 'd3',
+            discoveryCall: { id: 'd3' },
         });
     });
 });
@@ -437,6 +440,7 @@ describe('finalizeGenerateResult with tool discovery', () => {
         content: null,
         reasoning: null,
         toolCalls: [discoveryCall, searchCall],
+        discoveryCalls: [],
         finishReason: 'tool-calls',
         usage,
     };
@@ -448,10 +452,12 @@ describe('finalizeGenerateResult with tool discovery', () => {
 
         expect(finalized.parts[0]).toEqual({
             type: 'tool-discovery-call',
-            id: 'd1',
-            names: ['book'],
+            discoveryCall: { id: 'd1', names: ['book'] },
         });
         expect(finalized.toolCalls.map((call) => call.id)).toEqual(['t1']);
+        expect(finalized.discoveryCalls).toEqual([
+            { id: 'd1', names: ['book'] },
+        ]);
         expect(finalized.finishReason).toBe('tool-calls');
         expect(resultToMessage(finalized).parts[0]).toEqual(finalized.parts[0]);
     });
@@ -505,25 +511,33 @@ describe('createChatStream with tool discovery', () => {
             { type: 'text', text: 'Looking' },
             {
                 type: 'tool-discovery-call',
-                id: 'd1',
-                query: 'calendar',
+                discoveryCall: { id: 'd1', query: 'calendar' },
                 providerMetadata: { google: { thoughtSignature: 'sig' } },
             },
         ]);
         expect(result.toolCalls).toEqual([]);
+        expect(result.discoveryCalls).toEqual([
+            { id: 'd1', query: 'calendar' },
+        ]);
         expect(result.finishReason).toBe('tool-calls');
     });
 
     it('aggregates discovery calls emitted by native adapters', async () => {
         const stream = createChatStream(
             toAsyncIterable<StreamEvent>([
-                { type: 'tool-discovery-call', id: 'd1', names: ['book'] },
+                {
+                    type: 'tool-discovery-call',
+                    discoveryCall: { id: 'd1', names: ['book'] },
+                },
                 { type: 'finish', finishReason: 'tool-calls', usage },
             ])
         );
 
         expect((await stream.result).parts).toEqual([
-            { type: 'tool-discovery-call', id: 'd1', names: ['book'] },
+            {
+                type: 'tool-discovery-call',
+                discoveryCall: { id: 'd1', names: ['book'] },
+            },
         ]);
     });
 });

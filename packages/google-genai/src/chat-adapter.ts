@@ -513,6 +513,7 @@ export function mapGenerateResponse(
         content: content.length > 0 ? content : null,
         reasoning: reasoning.length > 0 ? reasoning : null,
         toolCalls,
+        discoveryCalls: [],
         finishReason: toolCalls.length > 0 ? 'tool-calls' : finishReason,
         usage: mapUsage(response),
     };

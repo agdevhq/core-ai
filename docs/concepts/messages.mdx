@@ -148,7 +148,7 @@ Tool discovery result messages answer a discovery call with the tools your appli
 ```typescript
 type ToolDiscoveryResultMessage = {
     role: 'tool-discovery';
-    callId: string;
+    discoveryCallId: string;
     tools: ToolSnapshot[];
     note?: string;
     metadata?: Record<string, unknown>;
@@ -160,7 +160,7 @@ type ToolDiscoveryResultMessage = {
 ```typescript
 const discoveryResult: ToolDiscoveryResultMessage = {
     role: 'tool-discovery',
-    callId: 'call_456',
+    discoveryCallId: 'call_456',
     tools: [
         {
             name: 'get_order_status',
@@ -398,15 +398,17 @@ The model asking for tools the request does not declare yet, when the request se
 ```typescript
 type ToolDiscoveryCallPart = {
     type: 'tool-discovery-call';
-    id: string;
-    names?: string[];
-    query?: string;
-    metadata?: Record<string, unknown>;
+    discoveryCall: {
+        id: string;
+        names?: string[];
+        query?: string;
+        metadata?: Record<string, unknown>;
+    };
     providerMetadata?: Record<string, Record<string, unknown>>;
 };
 ```
 
-`names` lists exact tool names, `query` describes the capability the model needs. Discovery calls appear only in `parts`, never in `GenerateResult.toolCalls`. Pass them back unchanged, like tool call parts, and answer each one with a [tool discovery result message](#tool-discovery-result-message) before the next request.
+`names` lists exact tool names, `query` describes the capability the model needs. Like a tool call part, the part wraps the call. Discovery calls appear in `GenerateResult.discoveryCalls`, never in `toolCalls`. Pass them back unchanged, like tool call parts, and answer each one with a [tool discovery result message](#tool-discovery-result-message) before the next request.
 
 ## Part metadata
 
