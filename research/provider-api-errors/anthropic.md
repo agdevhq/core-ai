@@ -84,6 +84,19 @@ TS SDK also exposes `APIError.type` (parsed from nested `error.type`). Prefer th
 | 413    | `request_too_large`     | Byte/request size (32 MB) — **not** token window                 | High                                                   |
 | 200    | —                       | `stop_reason: model_context_window_exceeded` — not an HTTP error | High                                                   |
 
+### Media count
+
+| Status | type                    | Message                                                            | Confidence |
+| ------ | ----------------------- | ------------------------------------------------------------------ | ---------- |
+| 400    | `invalid_request_error` | `too many images and documents: {images} + {docs} > {max}`         | High       |
+| 400    | `invalid_request_error` | `Too much media: {pages} document pages + {images} images > {max}` | High       |
+
+Images and documents share one limit, so both messages also fire when documents alone exceed it. Classify as a media-count failure (`MediaCountExceededError`), not an image-count one: report `{max}` as the media limit and the sum of both counts as the actual count. The sum does not depend on the order of the two counts in the unlabeled wording, which is only inferred from the phrase "images and documents"; the only payload found is `110 + 0 > 100`.
+
+- Pasted payloads with `{max}` = 100: [claude-code#19822](https://github.com/anthropics/claude-code/issues/19822) (both wordings), [claude-code#26188](https://github.com/anthropics/claude-code/issues/26188).
+- Documented limits ([vision](https://platform.claude.com/docs/en/build-with-claude/vision)): 100 images per request for 200k-context models, 600 for other models. No payload showing the 600 limit or a Vertex-specific envelope was found.
+- Do **not** match the dimension errors, which are also 400 `invalid_request_error`: `…image dimensions exceed max allowed size for many-image requests: 2000 pixels` and `…exceed max allowed size: 8000 pixels` ([claude-code#13480](https://github.com/anthropics/claude-code/issues/13480)).
+
 ### Rate limit
 
 | Status     | type                 | Notes                                        | Confidence |

@@ -2,6 +2,7 @@ import { APIError, APIUserAbortError } from 'openai';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -31,6 +32,17 @@ const TOKEN_LIMIT_PATTERNS = [
 const CONTEXT_LENGTH_MESSAGE_PATTERN = /\binput exceeds the context window\b/i;
 
 /**
+ * The image-count limit arrives as `invalid_request_error` with no dedicated
+ * code, so the message is the only signal:
+ * - "Exceeded maximum number of images (50) allowed in the request."
+ * - "Too many images in request: 20, maximum allowed: 10." (Azure Responses)
+ */
+const IMAGE_COUNT_MAX_PATTERN =
+    /\bexceeded maximum number of images(?: \((\d+)\))? allowed in the request\b/i;
+const IMAGE_COUNT_ACTUAL_AND_MAX_PATTERN =
+    /\btoo many images in request: (\d+), maximum allowed: (\d+)/i;
+
+/**
  * OpenAI / Azure capacity wording. Only apply on 5xx (not ordinary 4xx / 429).
  */
 const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
@@ -38,6 +50,11 @@ const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 type ContextLengthDetails = {
     maxTokens?: number;
     actualTokens?: number;
+};
+
+type ImageCountDetails = {
+    maxMedia?: number;
+    actualMedia?: number;
 };
 
 /**
@@ -68,6 +85,14 @@ export function wrapOpenAIError(
         return new ContextLengthExceededError(message, provider, {
             ...options,
             ...contextLength,
+        });
+    }
+
+    const imageCount = getImageCountDetails(error, message, statusCode);
+    if (imageCount) {
+        return new ImageCountExceededError(message, provider, {
+            ...options,
+            ...imageCount,
         });
     }
 
@@ -205,6 +230,40 @@ function matchTokenLimitCounts(
         };
     }
     return undefined;
+}
+
+function getImageCountDetails(
+    error: unknown,
+    fallbackMessage: string,
+    statusCode: number | undefined
+): ImageCountDetails | undefined {
+    if (statusCode !== undefined && statusCode !== 400) {
+        return undefined;
+    }
+
+    const providerMessage = getProviderMessage(error) ?? fallbackMessage;
+
+    const actualAndMax = providerMessage.match(
+        IMAGE_COUNT_ACTUAL_AND_MAX_PATTERN
+    );
+    if (actualAndMax) {
+        const actualImages = actualAndMax[1];
+        const maxImages = actualAndMax[2];
+        if (actualImages !== undefined && maxImages !== undefined) {
+            return {
+                maxMedia: parseInt(maxImages, 10),
+                actualMedia: parseInt(actualImages, 10),
+            };
+        }
+    }
+
+    const maxOnly = providerMessage.match(IMAGE_COUNT_MAX_PATTERN);
+    if (!maxOnly) {
+        return undefined;
+    }
+
+    const maxImages = maxOnly[1];
+    return maxImages === undefined ? {} : { maxMedia: parseInt(maxImages, 10) };
 }
 
 /**

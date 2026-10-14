@@ -20,6 +20,8 @@ CoreAIError
 │   └── StreamAbortedError
 ├── ProviderError
 │   ├── ContextLengthExceededError
+│   ├── MediaCountExceededError
+│   │   └── ImageCountExceededError
 │   └── RetryableProviderError
 │       ├── RateLimitError
 │       ├── ModelOverloadedError
@@ -372,12 +374,14 @@ export class RetryableProviderError extends ProviderError {}
 
 ### Classified subclasses
 
-| Class                        | Extends                  | Extra fields                  |
-| ---------------------------- | ------------------------ | ----------------------------- |
-| `ContextLengthExceededError` | `ProviderError`          | `maxTokens?`, `actualTokens?` |
-| `RateLimitError`             | `RetryableProviderError` | `retryAfterSeconds?`          |
-| `ModelOverloadedError`       | `RetryableProviderError` | —                             |
-| `ServiceUnavailableError`    | `RetryableProviderError` | —                             |
+| Class                        | Extends                   | Extra fields                  |
+| ---------------------------- | ------------------------- | ----------------------------- |
+| `ContextLengthExceededError` | `ProviderError`           | `maxTokens?`, `actualTokens?` |
+| `MediaCountExceededError`    | `ProviderError`           | `maxMedia?`, `actualMedia?`   |
+| `ImageCountExceededError`    | `MediaCountExceededError` | —                             |
+| `RateLimitError`             | `RetryableProviderError`  | `retryAfterSeconds?`          |
+| `ModelOverloadedError`       | `RetryableProviderError`  | —                             |
+| `ServiceUnavailableError`    | `RetryableProviderError`  | —                             |
 
 Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Use `instanceof` to branch in application code — `statusCode` is for logging and debugging, not for retry decisions.
 
@@ -389,6 +393,8 @@ HTTP 429 is not always `RateLimitError`: billing quota (for example OpenAI `insu
 import {
     ContextLengthExceededError,
     generate,
+    ImageCountExceededError,
+    MediaCountExceededError,
     ProviderError,
     RateLimitError,
     RetryableProviderError,
@@ -406,6 +412,10 @@ try {
 } catch (error) {
     if (error instanceof ContextLengthExceededError) {
         console.error('Context too long', error.maxTokens, error.actualTokens);
+    } else if (error instanceof ImageCountExceededError) {
+        console.error('Too many images', error.actualMedia, error.maxMedia);
+    } else if (error instanceof MediaCountExceededError) {
+        console.error('Too many images or documents', error.maxMedia);
     } else if (error instanceof RateLimitError) {
         console.error('Rate limited; retry after', error.retryAfterSeconds);
     } else if (error instanceof RetryableProviderError) {

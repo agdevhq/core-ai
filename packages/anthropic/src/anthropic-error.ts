@@ -2,6 +2,7 @@ import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
 import {
     AbortedError,
     ContextLengthExceededError,
+    MediaCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -22,9 +23,26 @@ const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([
     500, 502, 503, 504, 529,
 ]);
 
+/**
+ * Media-count limit wordings (`invalid_request_error`, no dedicated type).
+ * Images and document pages share one limit, so both map to
+ * `MediaCountExceededError` with the summed count:
+ * - "too many images and documents: 110 + 0 > 100"
+ * - "Too much media: 0 document pages + 102 images > 100"
+ */
+const MEDIA_COUNT_PATTERNS = [
+    /too many images and documents: (\d+) \+ (\d+) > (\d+)/i,
+    /too much media: (\d+) document pages \+ (\d+) images > (\d+)/i,
+];
+
 type ContextLengthDetails = {
     maxTokens?: number;
     actualTokens?: number;
+};
+
+type MediaCountDetails = {
+    maxMedia: number;
+    actualMedia: number;
 };
 
 /**
@@ -53,6 +71,14 @@ export function wrapAnthropicError(
         return new ContextLengthExceededError(message, provider, {
             ...options,
             ...contextLength,
+        });
+    }
+
+    const mediaCount = getMediaCountDetails(providerMessage, statusCode);
+    if (mediaCount) {
+        return new MediaCountExceededError(message, provider, {
+            ...options,
+            ...mediaCount,
         });
     }
 
@@ -198,6 +224,30 @@ function getContextLengthDetails(
     }
 
     return {};
+}
+
+function getMediaCountDetails(
+    providerMessage: string | undefined,
+    statusCode: number | undefined
+): MediaCountDetails | undefined {
+    if (!providerMessage || (statusCode !== undefined && statusCode !== 400)) {
+        return undefined;
+    }
+
+    for (const pattern of MEDIA_COUNT_PATTERNS) {
+        const match = providerMessage.match(pattern);
+        const first = match?.[1];
+        const second = match?.[2];
+        const max = match?.[3];
+        if (first === undefined || second === undefined || max === undefined) {
+            continue;
+        }
+        return {
+            maxMedia: parseInt(max, 10),
+            actualMedia: parseInt(first, 10) + parseInt(second, 10),
+        };
+    }
+    return undefined;
 }
 
 /**

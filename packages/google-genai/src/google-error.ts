@@ -2,6 +2,7 @@ import { ApiError } from '@google/genai';
 import {
     AbortedError,
     ContextLengthExceededError,
+    ImageCountExceededError,
     ModelOverloadedError,
     ProviderError,
     ProviderQuotaExceededError,
@@ -17,6 +18,13 @@ import {
 
 /** Only honor capacity wording on 5xx — not ordinary 4xx / 429. */
 const OVERLOAD_MESSAGE_ELIGIBLE_STATUS_CODES = new Set([500, 502, 503, 504]);
+
+/**
+ * Gemini API image-count limit (400 `INVALID_ARGUMENT`, no dedicated status):
+ * "Please use fewer than 3600 images in your request to models/gemini-1.5-flash."
+ */
+const IMAGE_COUNT_MESSAGE_PATTERN =
+    /please use fewer than (\d+) images in your request/i;
 
 type GoogleApiErrorBody = {
     code?: number | string;
@@ -57,6 +65,14 @@ export function wrapGoogleError(
         return new ContextLengthExceededError(message, provider, {
             ...options,
             ...contextLength,
+        });
+    }
+
+    const maxImages = getImageCountLimit(combinedText, effectiveHttp);
+    if (maxImages !== undefined) {
+        return new ImageCountExceededError(message, provider, {
+            ...options,
+            maxMedia: maxImages,
         });
     }
 
@@ -170,6 +186,18 @@ function getContextLengthDetails(
     }
 
     return undefined;
+}
+
+function getImageCountLimit(
+    text: string,
+    statusCode: number | undefined
+): number | undefined {
+    if (statusCode !== undefined && statusCode !== 400) {
+        return undefined;
+    }
+
+    const limit = text.match(IMAGE_COUNT_MESSAGE_PATTERN)?.[1];
+    return limit === undefined ? undefined : parseInt(limit, 10);
 }
 
 function tryParseGoogleApiErrorBody(

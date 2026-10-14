@@ -54,6 +54,27 @@ Reliable cue: case-insensitive **`too large for model`**. Regex: `/(\d+)\s*token
 
 Do not treat generic 400/422 as context length.
 
+### Image count
+
+| Status | type                           | code   | Message                                                      | Confidence |
+| ------ | ------------------------------ | ------ | ------------------------------------------------------------ | ---------- |
+| 400    | `invalid_request_invalid_args` | `3051` | `Total number of images exceeds the maximum allowed of {N}.` | High       |
+
+Captured with a live probe on 2026-10-13: 9 images in one user message to `mistral-small-latest` returned `{N}` = 8.
+
+```json
+{
+    "object": "error",
+    "message": "Total number of images exceeds the maximum allowed of 8.",
+    "type": "invalid_request_invalid_args",
+    "param": null,
+    "code": "3051",
+    "raw_status_code": 400
+}
+```
+
+Code `3051` is not specific to this limit — `Image input is not enabled for this model` carries the same type and code ([mistral-vibe#1172](https://github.com/mistralai/mistral-vibe/issues/1172)) — so the message is the only signal. The documented limit is 8 images per request ([vision](https://docs.mistral.ai/capabilities/vision)).
+
 ### Rate limit
 
 | Status  | type                              | Message                                | Confidence    |

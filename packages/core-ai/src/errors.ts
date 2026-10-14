@@ -279,6 +279,59 @@ export class ContextLengthExceededError extends ProviderError {
     }
 }
 
+export type MediaCountExceededErrorOptions = ProviderErrorOptions & {
+    maxMedia?: number;
+    actualMedia?: number;
+};
+
+/**
+ * The request carries more media inputs (images, document pages) than the
+ * provider or model accepts in one request. Not retryable: the same messages
+ * fail again until media is removed. `maxMedia` and `actualMedia` are set when
+ * the provider reports them. Thrown directly when images and document pages
+ * share one limit; a limit on images alone throws the
+ * `ImageCountExceededError` subclass.
+ */
+export class MediaCountExceededError extends ProviderError {
+    public readonly maxMedia?: number;
+    public readonly actualMedia?: number;
+
+    constructor(
+        message: string,
+        provider: string,
+        options: MediaCountExceededErrorOptions = {}
+    ) {
+        super(message, provider, {
+            statusCode: options.statusCode,
+            code: options.code,
+            cause: options.cause,
+        });
+        this.name = 'MediaCountExceededError';
+        this.maxMedia = options.maxMedia;
+        this.actualMedia = options.actualMedia;
+    }
+}
+
+export type ImageCountExceededErrorOptions = MediaCountExceededErrorOptions;
+
+/**
+ * The request carries more images than the provider or model accepts in one
+ * request. Not retryable: the same messages fail again until images are
+ * removed. `maxMedia` and `actualMedia` count images here. Providers can
+ * count inputs other than image parts, such as document pages, so the error
+ * can occur for a request with few or no image parts.
+ */
+export class ImageCountExceededError extends MediaCountExceededError {
+    constructor(
+        message: string,
+        provider: string,
+        options: ImageCountExceededErrorOptions = {}
+    ) {
+        super(message, provider, options);
+        this.name = 'ImageCountExceededError';
+    }
+}
+
 export type ProviderQuotaExceededErrorOptions = ProviderErrorOptions;
 
 /**

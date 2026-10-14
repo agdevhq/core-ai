@@ -65,6 +65,19 @@ Docs say cancelled “typically by the caller”; users report 499 during peak l
 
 Empty counts observed: `The input token count () exceeds…` ([gemini-cli#10393](https://github.com/google-gemini/gemini-cli/issues/10393)). Wrong context limit in 400 message (routing quirk) remains anecdotal.
 
+### Image count
+
+| Status | status             | Message                                                              | Confidence |
+| ------ | ------------------ | -------------------------------------------------------------------- | ---------- |
+| 400    | `INVALID_ARGUMENT` | `Please use fewer than {N} images in your request to models/{model}` | High       |
+
+No dedicated `status`, so the message is the only signal. `{N}` is the model's documented per-request limit.
+
+- Gemini API payloads with `{N}` = 3600: [`gemini-2.5-pro-preview-03-25` via `google-genai`](https://discuss.ai.google.dev/t/mediaresolution-low-returns-an-error/83408), [`gemini-1.5-flash` via `v1beta` `generateContent`](https://discuss.ai.google.dev/t/using-gemini-api-to-extract-information-from-videos/34479). Both were hit on video requests. Neither thread confirms what is counted; sampled frames counting as images is an inference.
+- Documented limits: 3,600 image files per request on the Gemini API ([image understanding](https://ai.google.dev/gemini-api/docs/image-understanding)), 3,000 per prompt on Vertex Gemini 2.5 Flash.
+- No Vertex-specific image-count payload was found. Vertex has an analogous video template (`Unable to submit request because it has 12 video files but the model only supports up to 10.`), so its image wording may differ. `google-vertex` uses the same wrapper, so the Gemini API wording is matched if Vertex returns it.
+- Wordings seen with Gemini models through intermediaries (GitHub Copilot's proxy, the Crush client) are not Google's: `Too many images in request: 11 images provided, but the model supports a maximum of 10 images.`
+
 ### Rate limit / quota
 
 | Status        | status enum          | Message                                                                         | Confidence |
