@@ -179,7 +179,7 @@ class RetryableProviderError extends ProviderError {}
 | `ServiceUnavailableError`    | `RetryableProviderError` | Temporary unavailability (e.g. 5xx)                    |
 | `ProviderError`              | —                        | Unclassified provider failure (includes billing quota) |
 
-Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Typical order inside a wrapper: abort → context length → provider specials (quota, Azure capacity) → overload → rate limit → service unavailable / transient 5xx → generic `ProviderError`.
+Each provider `wrap*Error` helper decides which subclass to throw from SDK-specific fields (error types, status codes, message shapes). Typical order inside a wrapper: abort → context length → image count → provider specials (quota, Azure capacity) → overload → rate limit → service unavailable / transient 5xx → generic `ProviderError`.
 
 HTTP 429 is **not** always `RateLimitError`. For example OpenAI `insufficient_quota` stays a non-retryable `ProviderError`, while Azure `NoCapacity` maps to `ModelOverloadedError`. Provider-specific quirks stay in the provider package (Azure `"Backend error."` as unavailable, Vertex `RESOURCE_EXHAUSTED` as a rate limit).
 
