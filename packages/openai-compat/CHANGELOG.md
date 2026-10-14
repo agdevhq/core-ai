@@ -1,5 +1,22 @@
 # @core-ai/openai-compat
 
+## 0.35.0
+
+### Minor Changes
+
+- 3dd9026: With `structuredOutputMode: 'json-object'`, `generateObject()` and `streamObject()` accept schemas with optional keys. The system message shows the schema as is instead of in OpenAI's strict form.
+- 3dd9026: Zod is no longer a peer dependency. Tool parameters and structured output schemas accept any Standard Schema with JSON Schema support or plain JSON Schema.
+
+### Patch Changes
+
+- Updated dependencies [8759754]
+- Updated dependencies [8759754]
+- Updated dependencies [3dd9026]
+- Updated dependencies [3dd9026]
+- Updated dependencies [3dd9026]
+    - @core-ai/core-ai@0.35.0
+    - @core-ai/openai@0.35.0
+
 ## 0.34.0
 
 ### Patch Changes

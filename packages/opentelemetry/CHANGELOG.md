@@ -1,5 +1,18 @@
 # @core-ai/opentelemetry
 
+## 0.35.0
+
+### Minor Changes
+
+- 3dd9026: Middleware types accept any `SchemaInput` for `generateObject` and `streamObject`, following `@core-ai/core-ai`'s Standard Schema support.
+- 3dd9026: A tool schema that cannot be converted to JSON Schema ends the chat span with an error instead of leaving it open.
+
+### Patch Changes
+
+- Updated dependencies [8759754]
+- Updated dependencies [3dd9026]
+    - @core-ai/core-ai@0.35.0
+
 ## 0.34.0
 
 ### Patch Changes

@@ -1,5 +1,20 @@
 # @core-ai/google-vertex
 
+## 0.35.0
+
+### Minor Changes
+
+- 3dd9026: Zod is no longer a peer dependency. Tool parameters and structured output schemas accept any Standard Schema with JSON Schema support or plain JSON Schema.
+
+### Patch Changes
+
+- Updated dependencies [8759754]
+- Updated dependencies [8759754]
+- Updated dependencies [3dd9026]
+- Updated dependencies [3dd9026]
+    - @core-ai/google-genai@0.35.0
+    - @core-ai/core-ai@0.35.0
+
 ## 0.34.0
 
 ### Minor Changes
