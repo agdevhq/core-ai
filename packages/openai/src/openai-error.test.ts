@@ -215,7 +215,7 @@ describe('wrapOpenAIError', () => {
             expect((wrapped as ImageCountExceededError).maxImages).toBe(50);
         });
 
-        it('should not map image-count wording that states no limit', () => {
+        it('should map image-count wording that states no limit without counts', () => {
             const wrapped = wrapOpenAIError({
                 error: {
                     type: 'invalid_request_error',
@@ -224,8 +224,10 @@ describe('wrapOpenAIError', () => {
                 },
             });
 
-            expect(wrapped).toBeInstanceOf(ProviderError);
-            expect(wrapped).not.toBeInstanceOf(ImageCountExceededError);
+            expect(wrapped).toBeInstanceOf(ImageCountExceededError);
+            const classified = wrapped as ImageCountExceededError;
+            expect(classified.maxImages).toBeUndefined();
+            expect(classified.actualImages).toBeUndefined();
         });
 
         it('should not map image-count wording on a non-400 status', () => {

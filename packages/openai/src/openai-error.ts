@@ -38,7 +38,7 @@ const CONTEXT_LENGTH_MESSAGE_PATTERN = /\binput exceeds the context window\b/i;
  * - "Too many images in request: 20, maximum allowed: 10." (Azure Responses)
  */
 const IMAGE_COUNT_MAX_PATTERN =
-    /\bexceeded maximum number of images \((\d+)\)/i;
+    /\bexceeded maximum number of images(?: \((\d+)\))?/i;
 const IMAGE_COUNT_ACTUAL_AND_MAX_PATTERN =
     /\btoo many images in request: (\d+), maximum allowed: (\d+)/i;
 
@@ -53,7 +53,7 @@ type ContextLengthDetails = {
 };
 
 type ImageCountDetails = {
-    maxImages: number;
+    maxImages?: number;
     actualImages?: number;
 };
 
@@ -257,9 +257,14 @@ function getImageCountDetails(
         }
     }
 
-    const maxImages = providerMessage.match(IMAGE_COUNT_MAX_PATTERN)?.[1];
+    const maxOnly = providerMessage.match(IMAGE_COUNT_MAX_PATTERN);
+    if (!maxOnly) {
+        return undefined;
+    }
+
+    const maxImages = maxOnly[1];
     return maxImages === undefined
-        ? undefined
+        ? {}
         : { maxImages: parseInt(maxImages, 10) };
 }
 
