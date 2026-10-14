@@ -181,7 +181,7 @@ import {
     resultToMessage,
     validateToolCall,
 } from '@core-ai/core-ai';
-import type { Message, ToolCall } from '@core-ai/core-ai';
+import type { Message, ToolCall, ToolResultMessage } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const tools = {
@@ -203,25 +203,38 @@ const tools = {
 
 // Implement tool handlers. Each validates the call against its own tool and
 // gets the typed output of its schema.
-const toolHandlers: Record<string, (toolCall: ToolCall) => Promise<string>> = {
+type ToolOutput = Pick<ToolResultMessage, 'content' | 'isError'>;
+
+const toolHandlers: Record<
+    string,
+    (toolCall: ToolCall) => Promise<ToolOutput>
+> = {
     get_weather: async (toolCall) => {
         const validation = await validateToolCall(tools.get_weather, toolCall);
         if (validation.issues) {
-            return JSON.stringify({ issues: validation.issues });
+            return {
+                content: JSON.stringify(validation.issues),
+                isError: true,
+            };
         }
         // Call weather API
-        return `The weather in ${validation.value.location} is sunny, 72°F`;
+        return {
+            content: `The weather in ${validation.value.location} is sunny, 72°F`,
+        };
     },
     get_time: async (toolCall) => {
         const validation = await validateToolCall(tools.get_time, toolCall);
         if (validation.issues) {
-            return JSON.stringify({ issues: validation.issues });
+            return {
+                content: JSON.stringify(validation.issues),
+                isError: true,
+            };
         }
         const { timezone } = validation.value;
         const time = new Date().toLocaleString('en-US', {
             timeZone: timezone,
         });
-        return `Current time in ${timezone}: ${time}`;
+        return { content: `Current time in ${timezone}: ${time}` };
     },
 };
 
@@ -245,9 +258,9 @@ while (result.toolCalls.length > 0) {
         messages.push({
             role: 'tool',
             toolCallId: toolCall.id,
-            content: handler
+            ...(handler
                 ? await handler(toolCall)
-                : `Unknown tool: ${toolCall.name}`,
+                : { content: `Unknown tool: ${toolCall.name}`, isError: true }),
         });
     }
 
