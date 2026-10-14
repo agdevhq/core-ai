@@ -101,11 +101,15 @@ Returns a `Promise<GenerateResult>` with the following properties:
 </ResponseField>
 
 <ResponseField name="toolCalls" type="ToolCall[]">
-  Array of tool calls made by the model, including calls to discovered tools. Discovery calls appear only in `parts`.
+  Array of tool calls made by the model, including calls to discovered tools. Discovery calls appear in `discoveryCalls` instead.
+</ResponseField>
+
+<ResponseField name="discoveryCalls" type="ToolDiscoveryCall[]">
+  Calls from the model asking to discover tools, when the request sets `toolDiscovery`. Answer each one before the next request. See [Tool Discovery](/guides/tool-discovery).
 </ResponseField>
 
 <ResponseField name="finishReason" type="FinishReason">
-  Why generation stopped: `'stop'`, `'length'`, `'tool-calls'`, `'content-filter'`, or `'unknown'`. `'tool-calls'` means tool calls or discovery calls are pending, so `toolCalls` can be empty. Decide whether to continue from `parts`.
+  Why generation stopped: `'stop'`, `'length'`, `'tool-calls'`, `'content-filter'`, or `'unknown'`. `'tool-calls'` means tool calls or discovery calls are pending: answer both `toolCalls` and `discoveryCalls` before the next request.
 </ResponseField>
 
 <ResponseField name="usage" type="ChatUsage">

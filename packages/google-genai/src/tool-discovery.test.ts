@@ -14,15 +14,14 @@ const history: Message[] = [
         parts: [
             {
                 type: 'tool-discovery-call',
-                id: 'call_1',
-                query: 'calendar',
+                discoveryCall: { id: 'call_1', query: 'calendar' },
                 providerMetadata: { google: { thoughtSignature: 'sig_1' } },
             },
         ],
     },
     {
         role: 'tool-discovery',
-        callId: 'call_1',
+        discoveryCallId: 'call_1',
         tools: [
             {
                 name: 'book_meeting',
@@ -116,8 +115,7 @@ describe('tool discovery (emulated)', () => {
         expect(resultToMessage(result).parts).toEqual([
             {
                 type: 'tool-discovery-call',
-                id: 'call_2',
-                names: ['cancel_meeting'],
+                discoveryCall: { id: 'call_2', names: ['cancel_meeting'] },
                 providerMetadata: { google: { thoughtSignature: 'sig_2' } },
             },
         ]);

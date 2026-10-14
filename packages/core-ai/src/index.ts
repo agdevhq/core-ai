@@ -18,6 +18,7 @@ export type {
     AssistantTextPart,
     ReasoningPart,
     ToolCallPart,
+    ToolDiscoveryCall,
     ToolDiscoveryCallPart,
     AssistantContentPart,
     ToolCall,

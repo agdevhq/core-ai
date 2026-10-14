@@ -11,6 +11,7 @@ import type {
     SystemMessage,
     ToolCallPart,
     ToolDefinition,
+    ToolDiscoveryCall,
     ToolDiscoveryCallPart,
     ToolDiscoveryOptions,
     ToolDiscoveryResultMessage,
@@ -221,9 +222,9 @@ export function toToolDiscoveryToolCall(
     return {
         type: 'tool-call',
         toolCall: {
-            id: part.id,
+            id: part.discoveryCall.id,
             name: TOOL_DISCOVERY_TOOL_NAME,
-            arguments: getToolDiscoveryArguments(part),
+            arguments: getToolDiscoveryArguments(part.discoveryCall),
         },
         ...(part.providerMetadata
             ? { providerMetadata: part.providerMetadata }
@@ -237,18 +238,18 @@ export function toToolDiscoveryToolResult(
 ): ToolResultMessage {
     return {
         role: 'tool',
-        toolCallId: message.callId,
+        toolCallId: message.discoveryCallId,
         content: getToolDiscoveryResultText(message),
     };
 }
 
 /** The discovery tool arguments of a discovery call, as the model sends them. */
 export function getToolDiscoveryArguments(
-    part: Pick<ToolDiscoveryCallPart, 'names' | 'query'>
+    call: Pick<ToolDiscoveryCall, 'names' | 'query'>
 ): Record<string, unknown> {
     return {
-        ...(part.names !== undefined ? { names: part.names } : {}),
-        ...(part.query !== undefined ? { query: part.query } : {}),
+        ...(call.names !== undefined ? { names: call.names } : {}),
+        ...(call.query !== undefined ? { query: call.query } : {}),
     };
 }
 
@@ -270,11 +271,13 @@ export function createToolDiscoveryCallPart(
 
     return {
         type: 'tool-discovery-call',
-        id,
-        ...(validNames.length > 0 ? { names: validNames } : {}),
-        ...(typeof input.query === 'string' && input.query.length > 0
-            ? { query: input.query }
-            : {}),
+        discoveryCall: {
+            id,
+            ...(validNames.length > 0 ? { names: validNames } : {}),
+            ...(typeof input.query === 'string' && input.query.length > 0
+                ? { query: input.query }
+                : {}),
+        },
         ...(providerMetadata ? { providerMetadata } : {}),
     };
 }
@@ -314,7 +317,7 @@ function getDiscoveredToolSnapshots(
             for (const part of message.parts) {
                 if (part.type === 'tool-discovery-call') {
                     snapshots ??= new Map();
-                    pendingCallIds.add(part.id);
+                    pendingCallIds.add(part.discoveryCall.id);
                 }
             }
             continue;
@@ -325,24 +328,24 @@ function getDiscoveredToolSnapshots(
         }
 
         snapshots ??= new Map();
-        if (answeredCallIds.has(message.callId)) {
+        if (answeredCallIds.has(message.discoveryCallId)) {
             throw new ValidationError(
-                `Discovery call "${message.callId}" is answered by more than one tool-discovery message; answer each discovery call exactly once.`,
+                `Discovery call "${message.discoveryCallId}" is answered by more than one tool-discovery message; answer each discovery call exactly once.`,
                 undefined,
                 providerId
             );
         }
-        if (!pendingCallIds.delete(message.callId)) {
+        if (!pendingCallIds.delete(message.discoveryCallId)) {
             throw new ValidationError(
-                `The tool-discovery message for "${message.callId}" does not answer a preceding tool-discovery-call part.`,
+                `The tool-discovery message for "${message.discoveryCallId}" does not answer a preceding tool-discovery-call part.`,
                 undefined,
                 providerId
             );
         }
-        answeredCallIds.add(message.callId);
+        answeredCallIds.add(message.discoveryCallId);
 
         for (const tool of message.tools) {
-            validateSnapshot(tool, message.callId, providerId);
+            validateSnapshot(tool, message.discoveryCallId, providerId);
             // Replacing a value keeps the key's first insertion position:
             // order of first discovery, latest snapshot.
             snapshots.set(tool.name, tool);
@@ -363,13 +366,13 @@ function getDiscoveredToolSnapshots(
 
 function validateSnapshot(
     tool: ToolDefinition,
-    callId: string,
+    discoveryCallId: string,
     providerId: string
 ): void {
     assertNotReserved(tool.name, 'discovered tool', providerId);
     if (!isPlainObject(tool.parameters) || isStandardSchema(tool.parameters)) {
         throw new ValidationError(
-            `Discovered tool "${tool.name}" (discovery call "${callId}") must have plain JSON Schema parameters; convert schema objects with toJsonSchema().`,
+            `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") must have plain JSON Schema parameters; convert schema objects with toJsonSchema().`,
             undefined,
             providerId
         );

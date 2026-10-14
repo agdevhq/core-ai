@@ -582,9 +582,9 @@ tools up front and let the model discover the rest with `toolDiscovery`. See
 [Tool Discovery](/guides/tool-discovery).
 
 With discovery enabled, `finishReason: 'tool-calls'` also covers pending
-discovery calls, which arrive as `tool-discovery-call` parts and never in
-`toolCalls`. An agent loop must answer both kinds of calls, so decide whether
-to continue from `result.parts` rather than from `result.toolCalls`.
+discovery calls, which arrive in `result.discoveryCalls` and never in
+`toolCalls`. Loop while `finishReason` is `'tool-calls'` and answer both
+`toolCalls` and `discoveryCalls`: a step can contain only discovery calls.
 
 ## Tool Calling with Streaming
 

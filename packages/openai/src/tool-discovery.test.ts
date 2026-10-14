@@ -58,8 +58,10 @@ function createHistory(note?: string): Message[] {
             parts: [
                 {
                     type: 'tool-discovery-call',
-                    id: 'call_discover',
-                    names: ['book_meeting', 'search'],
+                    discoveryCall: {
+                        id: 'call_discover',
+                        names: ['book_meeting', 'search'],
+                    },
                 },
                 {
                     type: 'tool-call',
@@ -73,7 +75,7 @@ function createHistory(note?: string): Message[] {
         },
         {
             role: 'tool-discovery',
-            callId: 'call_discover',
+            discoveryCallId: 'call_discover',
             tools: [
                 bookMeeting,
                 { ...cancelMeeting, name: 'search' },
@@ -237,7 +239,7 @@ describe('native tool discovery', () => {
         const history = createHistory();
         history[2] = {
             role: 'tool-discovery',
-            callId: 'call_discover',
+            discoveryCallId: 'call_discover',
             tools: [{ ...bookMeeting, strict: true }],
         };
 
@@ -315,9 +317,11 @@ describe('discovery calls in responses', () => {
         expect(result.parts).toEqual([
             {
                 type: 'tool-discovery-call',
-                id: 'call_discover',
-                query: 'calendar',
+                discoveryCall: { id: 'call_discover', query: 'calendar' },
             },
+        ]);
+        expect(result.discoveryCalls).toEqual([
+            { id: 'call_discover', query: 'calendar' },
         ]);
         expect(result.toolCalls).toEqual([]);
         expect(result.finishReason).toBe('tool-calls');
@@ -353,9 +357,11 @@ describe('discovery calls in responses', () => {
         expect(result.parts).toEqual([
             {
                 type: 'tool-discovery-call',
-                id: 'call_discover',
-                query: 'calendar',
+                discoveryCall: { id: 'call_discover', query: 'calendar' },
             },
+        ]);
+        expect(result.discoveryCalls).toEqual([
+            { id: 'call_discover', query: 'calendar' },
         ]);
         expect(result.finishReason).toBe('tool-calls');
     });
@@ -424,11 +430,13 @@ describe('Chat Completions tool discovery', () => {
         expect(result.parts).toEqual([
             {
                 type: 'tool-discovery-call',
-                id: 'call_2',
-                names: ['cancel_meeting'],
+                discoveryCall: { id: 'call_2', names: ['cancel_meeting'] },
             },
         ]);
         expect(result.toolCalls).toEqual([]);
+        expect(result.discoveryCalls).toEqual([
+            { id: 'call_2', names: ['cancel_meeting'] },
+        ]);
         expect(result.finishReason).toBe('tool-calls');
     });
 });

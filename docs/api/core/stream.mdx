@@ -157,12 +157,12 @@ type ChatStream = AsyncIterable<StreamEvent> & {
 
 <ResponseField
     name="tool-discovery-call"
-    type="{ type: 'tool-discovery-call'; id: string; names?: string[]; query?: string; metadata?: Record<string, unknown>; providerMetadata?: Record<string, Record<string, unknown>> }"
+    type="{ type: 'tool-discovery-call'; discoveryCall: ToolDiscoveryCall; providerMetadata?: Record<string, Record<string, unknown>> }"
 >
     Emitted once when the model completes a call to the discovery tool, with
     the complete `ToolDiscoveryCallPart`. Discovery calls have no start or
     delta events and never appear in `toolCalls`. The aggregated `.result`
-    contains them in `parts`. See [Tool Discovery](/guides/tool-discovery#streaming).
+    lists them in `discoveryCalls`. See [Tool Discovery](/guides/tool-discovery#streaming).
 </ResponseField>
 
 <ResponseField

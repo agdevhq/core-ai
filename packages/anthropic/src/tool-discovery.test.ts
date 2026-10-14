@@ -51,8 +51,7 @@ function createHistory(): Message[] {
             parts: [
                 {
                     type: 'tool-discovery-call',
-                    id: 'toolu_discover',
-                    query: 'calendar',
+                    discoveryCall: { id: 'toolu_discover', query: 'calendar' },
                 },
                 {
                     type: 'tool-call',
@@ -71,7 +70,7 @@ function createHistory(): Message[] {
         },
         {
             role: 'tool-discovery',
-            callId: 'toolu_discover',
+            discoveryCallId: 'toolu_discover',
             tools: [bookMeeting, cancelMeeting],
             note: 'The CRM source is unavailable.',
         },
@@ -229,7 +228,7 @@ describe('native tool discovery', () => {
                 },
                 {
                     role: 'tool-discovery',
-                    callId: 'toolu_discover',
+                    discoveryCallId: 'toolu_discover',
                     tools: [],
                     note: 'Nothing matches "calendar".',
                 },
@@ -292,7 +291,7 @@ describe('native tool discovery', () => {
         const history = createHistory();
         history[3] = {
             role: 'tool-discovery',
-            callId: 'toolu_discover',
+            discoveryCallId: 'toolu_discover',
             tools: [strictTool],
         };
 
@@ -314,7 +313,7 @@ describe('native tool discovery', () => {
         const history = createHistory();
         history[3] = {
             role: 'tool-discovery',
-            callId: 'toolu_discover',
+            discoveryCallId: 'toolu_discover',
             tools: [{ ...cancelMeeting, strict: true }],
         };
 
@@ -422,8 +421,10 @@ describe('discovery calls in responses', () => {
         expect(result.parts).toEqual([
             {
                 type: 'tool-discovery-call',
-                id: 'toolu_discover',
-                names: ['book_meeting'],
+                discoveryCall: {
+                    id: 'toolu_discover',
+                    names: ['book_meeting'],
+                },
             },
         ]);
         expect(result.toolCalls).toEqual([]);

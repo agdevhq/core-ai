@@ -84,6 +84,7 @@ function createGenerateResult(content: string): GenerateResult {
         content,
         reasoning: null,
         toolCalls: [],
+        discoveryCalls: [],
         finishReason: 'stop',
         usage: createChatUsage(),
     };

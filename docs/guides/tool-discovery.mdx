@@ -44,24 +44,22 @@ How you tell the model what it can discover is your choice: list the tool names 
 
 ## Discovery calls
 
-The model's calls to the discovery tool arrive as `ToolDiscoveryCallPart`s in `result.parts`:
+The model's calls to the discovery tool arrive in `result.discoveryCalls`, next to `result.toolCalls`:
 
 ```typescript
-type ToolDiscoveryCallPart = {
-    type: 'tool-discovery-call';
+type ToolDiscoveryCall = {
     id: string;
     /** Exact tool names the model asked for. */
     names?: string[];
     /** Keywords describing the capability the model needs. */
     query?: string;
     metadata?: Record<string, unknown>;
-    providerMetadata?: Record<string, Record<string, unknown>>;
 };
 ```
 
-Discovery calls never appear in `result.toolCalls`. Calls to tools the model discovered earlier do: they are ordinary tool calls.
+In `result.parts`, each one is a `ToolDiscoveryCallPart`, `{ type: 'tool-discovery-call', discoveryCall, providerMetadata? }`, just as a tool call is a `ToolCallPart` wrapping a `ToolCall`. Discovery calls never appear in `result.toolCalls`. Calls to tools the model discovered earlier do: they are ordinary tool calls.
 
-`finishReason` is `'tool-calls'` when tool calls or discovery calls are pending, so a `'tool-calls'` result can have an empty `toolCalls` array. Decide whether to continue from `result.parts`.
+`finishReason` is `'tool-calls'` when tool calls or discovery calls are pending, so continue your loop while it is `'tool-calls'` and answer both `toolCalls` and `discoveryCalls`. A step can contain only discovery calls, so a loop that checks `toolCalls.length` alone stops too early.
 
 ## Answer discovery calls
 
@@ -71,7 +69,7 @@ Answer each discovery call with exactly one `tool-discovery` message:
 type ToolDiscoveryResultMessage = {
     role: 'tool-discovery';
     /** `id` of the answered discovery call. */
-    callId: string;
+    discoveryCallId: string;
     /** The discovered tools; empty when nothing matched. */
     tools: ToolSnapshot[];
     /** Optional short note for the model. */
@@ -123,7 +121,7 @@ import {
     type Message,
     type StandardSchemaWithJson,
     type ToolCall,
-    type ToolDiscoveryCallPart,
+    type ToolDiscoveryCall,
     type ToolResultMessage,
     type ToolSnapshot,
 } from '@core-ai/core-ai';
@@ -187,7 +185,7 @@ const catalog = new Map(
 );
 
 // Your search: exact names, then a naive keyword match
-function findTools(call: ToolDiscoveryCallPart): ToolSnapshot[] {
+function findTools(call: ToolDiscoveryCall): ToolSnapshot[] {
     const words = (call.query ?? '').toLowerCase().split(/\W+/);
     return [...catalog.values()]
         .map((tool) => tool.snapshot)
@@ -229,25 +227,22 @@ for (let step = 0; step < 10; step += 1) {
     });
     messages.push(resultToMessage(result));
 
-    // Answer every tool call and discovery call of this step
-    const answers: Message[] = [];
-    for (const part of result.parts) {
-        if (part.type === 'tool-discovery-call') {
-            answers.push({
-                role: 'tool-discovery',
-                callId: part.id,
-                tools: findTools(part),
-            });
-        } else if (part.type === 'tool-call') {
-            answers.push(await runTool(part.toolCall));
-        }
-    }
-
-    if (answers.length === 0) {
+    if (result.finishReason !== 'tool-calls') {
         console.log(result.content);
         break;
     }
-    messages.push(...answers);
+
+    // Answer every tool call and discovery call of this step
+    for (const call of result.toolCalls) {
+        messages.push(await runTool(call));
+    }
+    for (const call of result.discoveryCalls) {
+        messages.push({
+            role: 'tool-discovery',
+            discoveryCallId: call.id,
+            tools: findTools(call),
+        });
+    }
 }
 ```
 
@@ -255,7 +250,7 @@ A typical run takes three steps: the model discovers `get_order_status`, calls i
 
 ## Streaming
 
-With `stream()`, a discovery call arrives as one complete `tool-discovery-call` event when the model finishes it. The event has the same fields as `ToolDiscoveryCallPart`; there are no start or delta events for discovery calls.
+With `stream()`, a discovery call arrives as one complete `tool-discovery-call` event when the model finishes it. The event has the same fields as `ToolDiscoveryCallPart`, as `tool-call-end` carries a `toolCall`; there are no start or delta events for discovery calls.
 
 ```typescript
 import { stream } from '@core-ai/core-ai';
@@ -266,11 +261,12 @@ for await (const event of chatStream) {
     if (event.type === 'text-delta') {
         process.stdout.write(event.text);
     } else if (event.type === 'tool-discovery-call') {
-        console.log('\nDiscovering tools:', event.names ?? event.query);
+        const { names, query } = event.discoveryCall;
+        console.log('\nDiscovering tools:', names ?? query);
     }
 }
 
-// result.parts contains the discovery calls; answer them as with generate()
+// Answer result.discoveryCalls as with generate()
 const result = await chatStream.result;
 ```
 

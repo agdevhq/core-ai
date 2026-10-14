@@ -8,11 +8,16 @@ const history: Message[] = [
     { role: 'user', content: 'Book a meeting' },
     {
         role: 'assistant',
-        parts: [{ type: 'tool-discovery-call', id: 'call_1', names: ['book'] }],
+        parts: [
+            {
+                type: 'tool-discovery-call',
+                discoveryCall: { id: 'call_1', names: ['book'] },
+            },
+        ],
     },
     {
         role: 'tool-discovery',
-        callId: 'call_1',
+        discoveryCallId: 'call_1',
         tools: [],
         note: 'Nothing matches "book".',
     },
@@ -86,7 +91,10 @@ describe('tool discovery (emulated)', () => {
             },
         ]);
         expect(result.parts).toEqual([
-            { type: 'tool-discovery-call', id: 'call_2', query: 'calendar' },
+            {
+                type: 'tool-discovery-call',
+                discoveryCall: { id: 'call_2', query: 'calendar' },
+            },
         ]);
         expect(result.toolCalls).toEqual([]);
     });
@@ -141,7 +149,10 @@ describe('tool discovery (emulated)', () => {
                 event.type.startsWith('tool-')
             )
         ).toEqual([
-            { type: 'tool-discovery-call', id: 'call_2', query: 'calendar' },
+            {
+                type: 'tool-discovery-call',
+                discoveryCall: { id: 'call_2', query: 'calendar' },
+            },
         ]);
     });
 });

@@ -430,6 +430,7 @@ export function mapGenerateResponse(
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'unknown',
             usage: {
                 inputTokens: 0,
@@ -462,6 +463,7 @@ export function mapGenerateResponse(
         content,
         reasoning,
         toolCalls,
+        discoveryCalls: [],
         finishReason: mapFinishReason(firstChoice.finish_reason),
         usage: {
             inputTokens: response.usage?.prompt_tokens ?? 0,

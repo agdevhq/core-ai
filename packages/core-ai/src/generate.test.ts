@@ -47,6 +47,7 @@ describe('generate', () => {
             content: 'Hello',
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'stop',
             usage: {
                 inputTokens: 5,
@@ -80,6 +81,7 @@ describe('generate', () => {
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'unknown',
             usage: {
                 inputTokens: 0,
