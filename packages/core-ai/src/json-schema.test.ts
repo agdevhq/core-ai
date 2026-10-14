@@ -227,17 +227,24 @@ describe('schema node traversal', () => {
 
 describe('canRequireOptionalKey', () => {
     it('accepts keys that accept null or declare a default', () => {
-        expect(canRequireOptionalKey({ type: ['string', 'null'] })).toBe(true);
-        expect(
-            canRequireOptionalKey({
-                anyOf: [{ type: 'string' }, { type: 'null' }],
-            })
-        ).toBe(true);
-        expect(canRequireOptionalKey({ type: 'string', default: 'a' })).toBe(
+        const root = {
+            $defs: {
+                Maybe: { type: ['string', 'null'] },
+                Loop: { $ref: '#/$defs/Loop' },
+            },
+        };
+        const accepts = (property: unknown) =>
+            canRequireOptionalKey(property, root);
+
+        expect(accepts({ type: ['string', 'null'] })).toBe(true);
+        expect(accepts({ anyOf: [{ type: 'string' }, { type: 'null' }] })).toBe(
             true
         );
-        expect(canRequireOptionalKey({ type: 'string' })).toBe(false);
-        expect(canRequireOptionalKey(true)).toBe(false);
+        expect(accepts({ type: 'string', default: 'a' })).toBe(true);
+        expect(accepts({ $ref: '#/$defs/Maybe' })).toBe(true);
+        expect(accepts({ $ref: '#/$defs/Loop' })).toBe(false);
+        expect(accepts({ type: 'string' })).toBe(false);
+        expect(accepts(true)).toBe(false);
     });
 });
 
@@ -294,6 +301,13 @@ describe('requireEveryKey', () => {
             'properties.limit',
             'properties.filter.properties.tag',
         ]);
-        expect(result.schema.required).toEqual(['limit', 'filter']);
+        // Keys that cannot be required stay optional
+        expect(result.schema.required).toEqual(['filter']);
+    });
+
+    it('leaves objects without requirable optional keys unchanged', () => {
+        const schema = { type: 'object', properties: {} };
+
+        expect(requireEveryKey(schema).schema).toEqual(schema);
     });
 });

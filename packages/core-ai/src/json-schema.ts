@@ -221,37 +221,58 @@ function normalizeObjectNode(
  * Whether a strict mode that requires every key can require this optional
  * property and still let the model say what leaving it out meant: the
  * property accepts `null`, or it declares a `default` the model can send.
+ * `root` resolves local `$ref`s.
  */
-export function canRequireOptionalKey(property: unknown): boolean {
+export function canRequireOptionalKey(
+    property: unknown,
+    root: Record<string, unknown>
+): boolean {
     return (
-        acceptsNull(property) ||
+        acceptsNull(property, root, new Set()) ||
         (isPlainObject(property) && Object.hasOwn(property, 'default'))
     );
 }
 
-function acceptsNull(schema: unknown): boolean {
-    if (!isPlainObject(schema)) {
+function acceptsNull(
+    schema: unknown,
+    root: Record<string, unknown>,
+    seen: Set<unknown>
+): boolean {
+    if (!isPlainObject(schema) || seen.has(schema)) {
         return false;
     }
-    if (
-        schema.type === 'null' ||
-        (Array.isArray(schema.type) && schema.type.includes('null'))
-    ) {
-        return true;
-    }
-    return [schema.anyOf, schema.oneOf].some(
-        (branches) => Array.isArray(branches) && branches.some(acceptsNull)
+    seen.add(schema);
+    const type = schema.type;
+    return (
+        type === 'null' ||
+        (Array.isArray(type) && type.includes('null')) ||
+        [schema.anyOf, schema.oneOf].some(
+            (branches) =>
+                Array.isArray(branches) &&
+                branches.some((branch) => acceptsNull(branch, root, seen))
+        ) ||
+        acceptsNull(resolveLocalRef(schema.$ref, root), root, seen)
     );
 }
 
+function resolveLocalRef(ref: unknown, root: Record<string, unknown>): unknown {
+    if (ref === '#') {
+        return root;
+    }
+    const [, container, name] =
+        (typeof ref === 'string' &&
+            /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ref)) ||
+        [];
+    const definitions = container && root[container];
+    return name && isPlainObject(definitions) ? definitions[name] : undefined;
+}
+
 /**
- * Lists every key of every object node in `required`, for strict modes that
- * require every key (OpenAI-style APIs) or cap optional ones (Anthropic), and
- * drops `default: null`, which
- * adds nothing once a nullable key is required. Optional keys that fail
- * {@link canRequireOptionalKey} are required too, but reported by path in
- * `optionalKeyPaths`: requiring them would force the model to invent a
- * value, so callers must reject them.
+ * Lists every key in `required` that {@link canRequireOptionalKey} accepts,
+ * for strict modes that require every key (OpenAI-style APIs) or cap optional
+ * ones (Anthropic), and drops `default: null`, which adds nothing once a
+ * nullable key is required. Other optional keys stay optional and are reported
+ * by path in `optionalKeyPaths`, for callers whose strict mode rejects them.
  */
 export function requireEveryKey(schema: Record<string, unknown>): {
     schema: Record<string, unknown>;
@@ -259,36 +280,44 @@ export function requireEveryKey(schema: Record<string, unknown>): {
 } {
     const optionalKeyPaths: string[] = [];
     return {
-        schema: requireNodeKeys(schema, '', optionalKeyPaths),
+        schema: requireNodeKeys(schema, schema, '', optionalKeyPaths),
         optionalKeyPaths,
     };
 }
 
 function requireNodeKeys(
     node: Record<string, unknown>,
+    root: Record<string, unknown>,
     path: string,
     optionalKeyPaths: string[]
 ): Record<string, unknown> {
-    if (isPlainObject(node.properties)) {
-        const required = Array.isArray(node.required) ? node.required : [];
-        for (const [key, property] of Object.entries(node.properties)) {
-            if (!required.includes(key) && !canRequireOptionalKey(property)) {
-                optionalKeyPaths.push(
-                    joinSchemaPath(path, `properties.${key}`)
-                );
-            }
+    const properties = isPlainObject(node.properties) ? node.properties : {};
+    const required = Array.isArray(node.required) ? node.required : [];
+    const requiredKeys = Object.keys(properties).filter((key) => {
+        if (
+            required.includes(key) ||
+            canRequireOptionalKey(properties[key], root)
+        ) {
+            return true;
         }
-    }
+        optionalKeyPaths.push(joinSchemaPath(path, `properties.${key}`));
+        return false;
+    });
 
     const result = mapChildSchemaNodes(node, (child, segment) =>
-        requireNodeKeys(child, joinSchemaPath(path, segment), optionalKeyPaths)
+        requireNodeKeys(
+            child,
+            root,
+            joinSchemaPath(path, segment),
+            optionalKeyPaths
+        )
     );
     if (result.default === null) {
         delete result.default;
     }
 
-    return isPlainObject(result.properties)
-        ? { ...result, required: Object.keys(result.properties) }
+    return requiredKeys.some((key) => !required.includes(key))
+        ? { ...result, required: requiredKeys }
         : result;
 }
 

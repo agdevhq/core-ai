@@ -32,7 +32,8 @@ export type ToolCallValidation<TParameters extends SchemaInput> =
  * no validator, so the result is `undefined`: validate those arguments
  * yourself.
  *
- * @throws {ValidationError} when `toolCall` is a call to another tool.
+ * @throws {ValidationError} when `toolCall` is a call to another tool, or the
+ * tool's parameters are not a usable schema (a request would fail on them too).
  */
 export async function validateToolCall<TParameters extends SchemaInput>(
     tool: ToolDefinition<TParameters>,

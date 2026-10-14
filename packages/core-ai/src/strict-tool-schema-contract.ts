@@ -134,10 +134,19 @@ export function getStrictToolSchemaViolations(
         });
     }
 
-    walkNode(schema, '', 'root', 0, toolName, violations, refEdges);
+    walkNode(schema, '', 'root', 0, toolName, violations, refEdges, schema);
 
     for (const { segment, child } of getSchemaDefinitionEntries(schema)) {
-        walkNode(child, segment, segment, 0, toolName, violations, refEdges);
+        walkNode(
+            child,
+            segment,
+            segment,
+            0,
+            toolName,
+            violations,
+            refEdges,
+            schema
+        );
     }
 
     for (const region of findCyclicRegions(refEdges)) {
@@ -159,7 +168,8 @@ function walkNode(
     depth: number,
     toolName: string,
     violations: StrictToolSchemaViolation[],
-    refEdges: Map<string, Set<string>>
+    refEdges: Map<string, Set<string>>,
+    root: Record<string, unknown>
 ): void {
     if (!isPlainObject(node)) {
         return;
@@ -191,7 +201,7 @@ function walkNode(
     validateBounds(node, path, toolName, violations);
     validateType(node, path, toolName, violations);
     validateFormat(node, path, toolName, violations);
-    validateObjectShape(node, path, toolName, violations);
+    validateObjectShape(node, path, toolName, violations, root);
     validateRef(node, path, region, toolName, violations, refEdges);
 
     for (const { segment, child } of getChildSchemaNodeEntries(node)) {
@@ -202,7 +212,8 @@ function walkNode(
             depth + 1,
             toolName,
             violations,
-            refEdges
+            refEdges,
+            root
         );
     }
 }
@@ -270,7 +281,8 @@ function validateObjectShape(
     node: Record<string, unknown>,
     path: string,
     toolName: string,
-    violations: StrictToolSchemaViolation[]
+    violations: StrictToolSchemaViolation[],
+    root: Record<string, unknown>
 ): void {
     if (!isObjectSchemaNode(node)) {
         return;
@@ -284,7 +296,7 @@ function validateObjectShape(
     );
 
     for (const [key, property] of Object.entries(properties)) {
-        if (!required.has(key) && !canRequireOptionalKey(property)) {
+        if (!required.has(key) && !canRequireOptionalKey(property, root)) {
             violations.push({
                 toolName,
                 path: joinSchemaPath(path, `properties.${key}`),

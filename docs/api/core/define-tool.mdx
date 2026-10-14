@@ -92,7 +92,9 @@ For plain JSON Schema `parameters`, such as tool schemas from an MCP server, it
 returns `undefined`: core-ai ships no JSON Schema validator, so validate those
 `arguments` yourself.
 
-It throws a `ValidationError` when `toolCall` is a call to another tool.
+It throws a `ValidationError` when `toolCall` is a call to another tool, or
+when the tool's `parameters` are not a usable schema, which a request with the
+tool rejects too.
 
 Send issues back to the model as an error tool result, and run the tool with
 `value`, not with the raw `ToolCall.arguments`. See

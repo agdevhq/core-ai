@@ -142,6 +142,41 @@ describe('transformStructuredOutputStream', () => {
         expect(events.at(-2)).toEqual({ type: 'object', object: { count: 5 } });
     });
 
+    it('parses only the structured output call arguments at finish', async () => {
+        const events = await collect(
+            transformStructuredOutputStream(
+                toAsyncIterable<StreamEvent>([
+                    {
+                        type: 'tool-call-start',
+                        toolCallId: '1',
+                        toolName: 'other',
+                    },
+                    {
+                        type: 'tool-call-delta',
+                        toolCallId: '1',
+                        argumentsDelta: '{"x":1}',
+                    },
+                    {
+                        type: 'tool-call-start',
+                        toolCallId: '2',
+                        toolName: 'answer',
+                    },
+                    {
+                        type: 'tool-call-delta',
+                        toolCallId: '2',
+                        argumentsDelta: '{"count":"6"}',
+                    },
+                    finish,
+                ]),
+                countSchema,
+                'test',
+                'answer'
+            )
+        );
+
+        expect(events.at(-2)).toEqual({ type: 'object', object: { count: 6 } });
+    });
+
     it('throws at finish when the stream had no payload', async () => {
         await expect(
             collect(

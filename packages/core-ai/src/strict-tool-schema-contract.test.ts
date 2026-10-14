@@ -127,6 +127,14 @@ describe('getStrictToolSchemaViolations', () => {
                 })
             )
         ).toEqual([]);
+        expect(
+            getStrictToolSchemaViolations('tool', {
+                type: 'object',
+                properties: { note: { $ref: '#/$defs/Maybe' } },
+                additionalProperties: false,
+                $defs: { Maybe: { type: ['string', 'null'] } },
+            })
+        ).toEqual([]);
     });
 
     it('rejects open objects from z.looseObject and z.record', () => {

@@ -484,11 +484,8 @@ export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
         const strict = tool.strict === true;
         const jsonSchema = getToolJsonSchema(tool);
-        // Strict mode caps optional parameters at 24 per request, so nullable
-        // and defaulted keys are required, the only optional keys the strict
-        // tool contract admits.
         const schema = strict
-            ? requireEveryKey(normalizeAnthropicJsonSchema(jsonSchema)).schema
+            ? normalizeAnthropicJsonSchema(jsonSchema)
             : jsonSchema;
 
         return {
@@ -553,10 +550,13 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
 /**
  * The strict normalization OpenAI-style APIs get, minus the numeric and length
  * constraints Anthropic's grammar also rejects. The schema's validator still
- * enforces them.
+ * enforces them. Nullable and defaulted keys are required, because Anthropic
+ * allows at most 24 optional parameters per request.
  */
 function normalizeAnthropicJsonSchema(schema: JsonSchema): JsonSchema {
-    return stripUnsupportedAnthropicKeywords(normalizeStrictJsonSchema(schema));
+    return requireEveryKey(
+        stripUnsupportedAnthropicKeywords(normalizeStrictJsonSchema(schema))
+    ).schema;
 }
 
 function stripUnsupportedAnthropicKeywords(node: JsonSchema): JsonSchema {

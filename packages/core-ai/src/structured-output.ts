@@ -61,8 +61,8 @@ export async function extractStructuredObject<TOutput>(
 /**
  * The streaming counterpart of {@link extractStructuredObject}: forwards text
  * and tool argument deltas as `object-delta` events and emits the validated
- * object when the call to `toolName` ends, or else at `finish` from the
- * buffered tool arguments or text.
+ * object when the call to `toolName` ends, or else at `finish` from that
+ * call's buffered arguments or the text.
  */
 export async function* transformStructuredOutputStream<
     TSchema extends SchemaInput,
@@ -74,7 +74,8 @@ export async function* transformStructuredOutputStream<
 ): AsyncIterable<ObjectStreamEvent<TSchema>> {
     let objectEmitted = false;
     let contentBuffer = '';
-    const toolArgumentDeltas = new Map<string, string>();
+    let toolCallId: string | undefined;
+    let toolArguments = '';
 
     for await (const event of stream) {
         if (event.type === 'text-delta') {
@@ -83,12 +84,15 @@ export async function* transformStructuredOutputStream<
             continue;
         }
 
+        if (event.type === 'tool-call-start' && event.toolName === toolName) {
+            toolCallId ??= event.toolCallId;
+            continue;
+        }
+
         if (event.type === 'tool-call-delta') {
-            const previous = toolArgumentDeltas.get(event.toolCallId) ?? '';
-            toolArgumentDeltas.set(
-                event.toolCallId,
-                `${previous}${event.argumentsDelta}`
-            );
+            if (event.toolCallId === toolCallId) {
+                toolArguments += event.argumentsDelta;
+            }
             yield { type: 'object-delta', text: event.argumentsDelta };
             continue;
         }
@@ -109,10 +113,7 @@ export async function* transformStructuredOutputStream<
 
         if (event.type === 'finish') {
             if (!objectEmitted) {
-                const payload = getBufferedPayload(
-                    contentBuffer,
-                    toolArgumentDeltas
-                );
+                const payload = toolArguments.trim() || contentBuffer.trim();
                 if (!payload) {
                     throw new StructuredOutputNoObjectGeneratedError(
                         'structured output stream ended without an object payload',
@@ -136,20 +137,6 @@ export async function* transformStructuredOutputStream<
             };
         }
     }
-}
-
-function getBufferedPayload(
-    contentBuffer: string,
-    toolArgumentDeltas: Map<string, string>
-): string | undefined {
-    for (const delta of toolArgumentDeltas.values()) {
-        const trimmed = delta.trim();
-        if (trimmed) {
-            return trimmed;
-        }
-    }
-
-    return contentBuffer.trim() || undefined;
 }
 
 function validateToolArguments<TOutput>(

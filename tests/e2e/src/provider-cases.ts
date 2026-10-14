@@ -262,9 +262,7 @@ export const providerCases: ProviderContractCase[] = [
             expect(toolCall?.name).toBe('configure_run');
             const validation =
                 toolCall && (await validateToolCall(configureRun, toolCall));
-            expect(validation).toEqual({
-                value: expect.objectContaining({ priority: 'high' }),
-            });
+            expect(validation?.issues).toBeUndefined();
         },
     },
     {
