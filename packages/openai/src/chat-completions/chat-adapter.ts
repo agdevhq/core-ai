@@ -664,6 +664,15 @@ export async function* transformStream(
                 if (partialToolCall.function?.name) {
                     current.name = partialToolCall.function.name;
                 }
+
+                if (wasNew) {
+                    yield {
+                        type: 'tool-call-start',
+                        toolCallId: current.id,
+                        toolName: current.name,
+                    };
+                }
+
                 if (partialToolCall.function?.arguments) {
                     current.arguments += partialToolCall.function.arguments;
                     yield {
@@ -674,14 +683,6 @@ export async function* transformStream(
                 }
 
                 bufferedToolCalls.set(partialToolCall.index, current);
-
-                if (wasNew) {
-                    yield {
-                        type: 'tool-call-start',
-                        toolCallId: current.id,
-                        toolName: current.name,
-                    };
-                }
             }
         }
 
