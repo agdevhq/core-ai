@@ -264,7 +264,20 @@ function resolveLocalRef(ref: unknown, root: Record<string, unknown>): unknown {
             /^#\/(\$defs|definitions)\/([^/]+)$/.exec(ref)) ||
         [];
     const definitions = container && root[container];
-    return name && isPlainObject(definitions) ? definitions[name] : undefined;
+    return name && isPlainObject(definitions)
+        ? definitions[decodePointerToken(name)]
+        : undefined;
+}
+
+/** Decodes a JSON Pointer token from a URI fragment (RFC 6901). */
+function decodePointerToken(token: string): string {
+    let decoded = token;
+    try {
+        decoded = decodeURIComponent(token);
+    } catch {
+        // Malformed percent-encoding: match the token literally.
+    }
+    return decoded.replaceAll('~1', '/').replaceAll('~0', '~');
 }
 
 /**
@@ -300,28 +313,29 @@ function requireNodeKeys(
         ) {
             return true;
         }
-        optionalKeyPaths.push(joinSchemaPath(path, `properties.${key}`));
+        optionalKeyPaths.push(joinPath(path, `properties.${key}`));
         return false;
     });
 
     const result = mapChildSchemaNodes(node, (child, segment) =>
-        requireNodeKeys(
-            child,
-            root,
-            joinSchemaPath(path, segment),
-            optionalKeyPaths
-        )
+        requireNodeKeys(child, root, joinPath(path, segment), optionalKeyPaths)
     );
     if (result.default === null) {
         delete result.default;
     }
 
     return requiredKeys.some((key) => !required.includes(key))
-        ? { ...result, required: requiredKeys }
+        ? {
+              ...result,
+              required: [
+                  ...requiredKeys,
+                  ...required.filter((key) => !requiredKeys.includes(key)),
+              ],
+          }
         : result;
 }
 
 /** Joins a dot path into a JSON Schema, e.g. `properties.limit`. */
-export function joinSchemaPath(path: string, segment: string): string {
+export function joinPath(path: string, segment: string): string {
     return path === '' ? segment : `${path}.${segment}`;
 }

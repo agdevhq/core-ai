@@ -156,15 +156,17 @@ describe('transformStructuredOutputStream', () => {
                         toolCallId: '1',
                         argumentsDelta: '{"x":1}',
                     },
-                    {
-                        type: 'tool-call-start',
-                        toolCallId: '2',
-                        toolName: 'answer',
-                    },
+                    // Mistral and Chat Completions announce a call after its
+                    // first delta
                     {
                         type: 'tool-call-delta',
                         toolCallId: '2',
                         argumentsDelta: '{"count":"6"}',
+                    },
+                    {
+                        type: 'tool-call-start',
+                        toolCallId: '2',
+                        toolName: 'answer',
                     },
                     finish,
                 ]),

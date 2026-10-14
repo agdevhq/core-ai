@@ -171,7 +171,7 @@ function toOpenAIStrictJsonSchema(
     const strict = requireEveryKey(normalizeStrictJsonSchema(schema));
     if (strict.optionalKeyPaths.length > 0) {
         throw new ValidationError(
-            `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: optional keys at ${strict.optionalKeyPaths.join(', ')}; strict mode requires every key, so make each one required or let it accept null (e.g. Zod's .nullable())`,
+            `structured output schema "${name}" cannot be sent as an OpenAI strict JSON Schema: optional keys at ${strict.optionalKeyPaths.join(', ')}; strict mode requires every key, so make each one required, let it accept null (e.g. Zod's .nullable()), or give it a default`,
             undefined,
             provider
         );

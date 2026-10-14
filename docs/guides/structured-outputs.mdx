@@ -318,7 +318,7 @@ const userSchema = z.object({
 });
 
 // Type is automatically inferred!
-type User = z.output<typeof userSchema>;
+type User = z.infer<typeof userSchema>;
 // { id: number; name: string; email: string; role: 'admin' | 'user' | 'guest' }
 
 const result = await generateObject({

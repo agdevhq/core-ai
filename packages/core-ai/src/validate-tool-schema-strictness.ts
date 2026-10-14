@@ -27,20 +27,17 @@ function getContractViolations(
     const cacheKey = isStandardSchema(tool.parameters)
         ? tool.parameters
         : undefined;
-    let violations = cacheKey && contractViolationCache.get(cacheKey);
-    if (violations === undefined) {
-        violations = getStrictToolSchemaViolations(
+    let cached = cacheKey && contractViolationCache.get(cacheKey);
+    if (cached === undefined) {
+        cached = getStrictToolSchemaViolations(
             tool.name,
             getToolJsonSchema(tool)
         ).map(({ path, message }) => ({ path, message }));
         if (cacheKey) {
-            contractViolationCache.set(cacheKey, violations);
+            contractViolationCache.set(cacheKey, cached);
         }
     }
-    return violations.map((violation) => ({
-        toolName: tool.name,
-        ...violation,
-    }));
+    return cached.map((violation) => ({ toolName: tool.name, ...violation }));
 }
 
 export type ValidateToolSchemaStrictnessOptions = {

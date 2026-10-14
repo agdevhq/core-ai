@@ -230,6 +230,7 @@ describe('canRequireOptionalKey', () => {
         const root = {
             $defs: {
                 Maybe: { type: ['string', 'null'] },
+                'a/b': { type: 'null' },
                 Loop: { $ref: '#/$defs/Loop' },
             },
         };
@@ -242,6 +243,7 @@ describe('canRequireOptionalKey', () => {
         );
         expect(accepts({ type: 'string', default: 'a' })).toBe(true);
         expect(accepts({ $ref: '#/$defs/Maybe' })).toBe(true);
+        expect(accepts({ $ref: '#/$defs/a~1b' })).toBe(true);
         expect(accepts({ $ref: '#/$defs/Loop' })).toBe(false);
         expect(accepts({ type: 'string' })).toBe(false);
         expect(accepts(true)).toBe(false);
@@ -260,7 +262,7 @@ describe('requireEveryKey', () => {
                 mode: { type: 'string', default: 'safe' },
                 nested: { $ref: '#/$defs/Nested' },
             },
-            required: ['nested'],
+            required: ['nested', 'extra'],
             $defs: {
                 Nested: {
                     type: 'object',
@@ -273,7 +275,7 @@ describe('requireEveryKey', () => {
             schema: {
                 type: 'object',
                 properties: schema.properties,
-                required: ['label', 'mode', 'nested'],
+                required: ['label', 'mode', 'nested', 'extra'],
                 $defs: {
                     Nested: {
                         type: 'object',

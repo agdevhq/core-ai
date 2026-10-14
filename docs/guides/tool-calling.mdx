@@ -501,7 +501,7 @@ const weatherTool = defineTool({
     parameters: weatherParameters,
 });
 
-type WeatherArgs = z.output<typeof weatherParameters>;
+type WeatherArgs = z.infer<typeof weatherParameters>;
 
 function getWeather(args: WeatherArgs): string {
     // Implement your weather API call here

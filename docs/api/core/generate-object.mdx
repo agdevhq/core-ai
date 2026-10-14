@@ -177,26 +177,7 @@ const result = await generateObject({
 
 ### Plain JSON Schema
 
-```typescript
-const result = await generateObject({
-  model,
-  messages: [
-    { role: 'user', content: 'Generate a person named John who is 30 years old' }
-  ],
-  schema: {
-    type: 'object',
-    properties: {
-      name: { type: 'string' },
-      age: { type: 'number' }
-    },
-    required: ['name', 'age'],
-    additionalProperties: false
-  }
-});
-
-// result.object is unknown: validate it before use
-console.log(result.object);
-```
+Pass plain JSON Schema as `schema` to get the parsed JSON, typed `unknown` and not validated. See [Plain JSON Schema](/guides/structured-outputs#plain-json-schema) for an example.
 
 ### Error handling
 

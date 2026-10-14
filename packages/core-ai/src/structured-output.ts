@@ -75,7 +75,7 @@ export async function* transformStructuredOutputStream<
     let objectEmitted = false;
     let contentBuffer = '';
     let toolCallId: string | undefined;
-    let toolArguments = '';
+    const toolArguments = new Map<string, string>();
 
     for await (const event of stream) {
         if (event.type === 'text-delta') {
@@ -90,9 +90,11 @@ export async function* transformStructuredOutputStream<
         }
 
         if (event.type === 'tool-call-delta') {
-            if (event.toolCallId === toolCallId) {
-                toolArguments += event.argumentsDelta;
-            }
+            toolArguments.set(
+                event.toolCallId,
+                (toolArguments.get(event.toolCallId) ?? '') +
+                    event.argumentsDelta
+            );
             yield { type: 'object-delta', text: event.argumentsDelta };
             continue;
         }
@@ -113,7 +115,9 @@ export async function* transformStructuredOutputStream<
 
         if (event.type === 'finish') {
             if (!objectEmitted) {
-                const payload = toolArguments.trim() || contentBuffer.trim();
+                const payload =
+                    (toolCallId && toolArguments.get(toolCallId)?.trim()) ||
+                    contentBuffer.trim();
                 if (!payload) {
                     throw new StructuredOutputNoObjectGeneratedError(
                         'structured output stream ended without an object payload',

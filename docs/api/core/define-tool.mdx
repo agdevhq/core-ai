@@ -181,7 +181,7 @@ import {
     resultToMessage,
     validateToolCall,
 } from '@core-ai/core-ai';
-import type { Message, StandardSchemaV1, ToolCall } from '@core-ai/core-ai';
+import type { Message, ToolCall } from '@core-ai/core-ai';
 import { z } from 'zod';
 
 const tools = {
@@ -201,43 +201,27 @@ const tools = {
     }),
 };
 
-type ToolOutcome = { content: string; isError?: boolean };
-
-function invalidArguments(
-    issues: readonly StandardSchemaV1.Issue[]
-): ToolOutcome {
-    return {
-        content: JSON.stringify({ error: 'Invalid arguments', issues }),
-        isError: true,
-    };
-}
-
 // Implement tool handlers. Each validates the call against its own tool and
 // gets the typed output of its schema.
-const toolHandlers: Record<
-    string,
-    (toolCall: ToolCall) => Promise<ToolOutcome>
-> = {
+const toolHandlers: Record<string, (toolCall: ToolCall) => Promise<string>> = {
     get_weather: async (toolCall) => {
         const validation = await validateToolCall(tools.get_weather, toolCall);
         if (validation.issues) {
-            return invalidArguments(validation.issues);
+            return JSON.stringify({ issues: validation.issues });
         }
         // Call weather API
-        return {
-            content: `The weather in ${validation.value.location} is sunny, 72°F`,
-        };
+        return `The weather in ${validation.value.location} is sunny, 72°F`;
     },
     get_time: async (toolCall) => {
         const validation = await validateToolCall(tools.get_time, toolCall);
         if (validation.issues) {
-            return invalidArguments(validation.issues);
+            return JSON.stringify({ issues: validation.issues });
         }
         const { timezone } = validation.value;
         const time = new Date().toLocaleString('en-US', {
             timeZone: timezone,
         });
-        return { content: `Current time in ${timezone}: ${time}` };
+        return `Current time in ${timezone}: ${time}`;
     },
 };
 
@@ -257,11 +241,14 @@ while (result.toolCalls.length > 0) {
 
     for (const toolCall of result.toolCalls) {
         const handler = toolHandlers[toolCall.name];
-        const outcome = handler
-            ? await handler(toolCall)
-            : { content: `Unknown tool: ${toolCall.name}`, isError: true };
 
-        messages.push({ role: 'tool', toolCallId: toolCall.id, ...outcome });
+        messages.push({
+            role: 'tool',
+            toolCallId: toolCall.id,
+            content: handler
+                ? await handler(toolCall)
+                : `Unknown tool: ${toolCall.name}`,
+        });
     }
 
     result = await generate({
@@ -425,7 +412,7 @@ const userTool = defineTool({
 });
 
 // TypeScript knows the parameter types
-type ToolParams = z.output<typeof userTool.parameters>;
+type ToolParams = z.infer<typeof userTool.parameters>;
 // { userId: number; includeProfile?: boolean | undefined }
 
 const handler = async (args: ToolParams) => {

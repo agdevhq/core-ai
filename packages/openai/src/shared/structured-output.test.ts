@@ -41,24 +41,6 @@ describe('createStructuredOutputRequestOptions (json-schema mode)', () => {
         });
     });
 
-    it('requires keys with a default, as the output schema did', () => {
-        const format = getJsonSchemaFormat(
-            z.object({
-                mode: z.enum(['fast', 'safe']).default('safe'),
-                nested: z.object({ retries: z.number().default(1) }),
-            })
-        );
-
-        expect(format).toMatchObject({
-            schema: {
-                required: ['mode', 'nested'],
-                properties: {
-                    nested: { required: ['retries'] },
-                },
-            },
-        });
-    });
-
     it('accepts plain JSON Schema', () => {
         expect(
             getJsonSchemaFormat({
@@ -112,40 +94,6 @@ describe('createStructuredOutputRequestOptions (json-schema mode)', () => {
         );
     });
 
-    it('requires optional keys whose type array allows null', () => {
-        expect(
-            getJsonSchemaFormat({
-                type: 'object',
-                properties: { note: { type: ['string', 'null'] } },
-            })
-        ).toMatchObject({
-            schema: {
-                properties: { note: { type: ['string', 'null'] } },
-                required: ['note'],
-            },
-        });
-    });
-
-    it('drops null defaults', () => {
-        expect(
-            getJsonSchemaFormat(
-                z.object({ note: z.string().nullable().default(null) })
-            )
-        ).toEqual({
-            type: 'json_schema',
-            name: 'answer',
-            strict: true,
-            schema: {
-                type: 'object',
-                properties: {
-                    note: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-                },
-                required: ['note'],
-                additionalProperties: false,
-            },
-        });
-    });
-
     it('rejects every optional key strict mode cannot express, by path', () => {
         const createFormat = () =>
             getJsonSchemaFormat({
@@ -165,7 +113,7 @@ describe('createStructuredOutputRequestOptions (json-schema mode)', () => {
             expect.objectContaining({
                 provider: 'openai',
                 message:
-                    'structured output schema "answer" cannot be sent as an OpenAI strict JSON Schema: optional keys at properties.note, properties.meta.properties.tag; strict mode requires every key, so make each one required or let it accept null (e.g. Zod\'s .nullable())',
+                    'structured output schema "answer" cannot be sent as an OpenAI strict JSON Schema: optional keys at properties.note, properties.meta.properties.tag; strict mode requires every key, so make each one required, let it accept null (e.g. Zod\'s .nullable()), or give it a default',
             })
         );
     });

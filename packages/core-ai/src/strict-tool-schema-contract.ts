@@ -5,7 +5,7 @@ import {
     isImplicitSafeIntegerBound,
     isObjectSchemaNode,
     isPlainObject,
-    joinSchemaPath,
+    joinPath,
 } from './json-schema.ts';
 
 /**
@@ -191,7 +191,7 @@ function walkNode(
         const hint = KEYWORD_HINTS[key];
         violations.push({
             toolName,
-            path: joinSchemaPath(path, key),
+            path: joinPath(path, key),
             message:
                 hint ??
                 `keyword "${key}" is outside the strict-capable subset; remove it and validate after parsing instead`,
@@ -207,7 +207,7 @@ function walkNode(
     for (const { segment, child } of getChildSchemaNodeEntries(node)) {
         walkNode(
             child,
-            joinSchemaPath(path, segment),
+            joinPath(path, segment),
             region,
             depth + 1,
             toolName,
@@ -231,7 +231,7 @@ function validateBounds(
         if (key in node && !isImplicitSafeIntegerBound(node, key)) {
             violations.push({
                 toolName,
-                path: joinSchemaPath(path, key),
+                path: joinPath(path, key),
                 message: BOUND_HINTS[key],
             });
         }
@@ -252,7 +252,7 @@ function validateType(
         if (typeof type !== 'string' || !ALLOWED_TYPES.has(type)) {
             violations.push({
                 toolName,
-                path: joinSchemaPath(path, 'type'),
+                path: joinPath(path, 'type'),
                 message: `type "${String(type)}" is outside the strict-capable subset (object, array, string, number, integer, boolean, null)`,
             });
         }
@@ -271,7 +271,7 @@ function validateFormat(
     if (!ALLOWED_STRING_FORMATS.has(node.format)) {
         violations.push({
             toolName,
-            path: joinSchemaPath(path, 'format'),
+            path: joinPath(path, 'format'),
             message: `format "${node.format}" is outside the strict-capable subset (${[...ALLOWED_STRING_FORMATS].join(', ')}); remove the format refinement (for URLs, use z.string() instead of z.url()) and validate after parsing instead`,
         });
     }
@@ -299,7 +299,7 @@ function validateObjectShape(
         if (!required.has(key) && !canRequireOptionalKey(property, root)) {
             violations.push({
                 toolName,
-                path: joinSchemaPath(path, `properties.${key}`),
+                path: joinPath(path, `properties.${key}`),
                 message: `"${key}" is optional and accepts neither null nor a default; strict schemas require every key — make it required, and let it accept null where it may be absent (in Zod, .nullable() instead of .optional())`,
             });
         }
@@ -308,7 +308,7 @@ function validateObjectShape(
     if ('additionalProperties' in node && node.additionalProperties !== false) {
         violations.push({
             toolName,
-            path: joinSchemaPath(path, 'additionalProperties'),
+            path: joinPath(path, 'additionalProperties'),
             message:
                 'open objects are not strict-capable; use z.object() with explicit keys instead of z.record(), .catchall(), .passthrough(), or z.looseObject()',
         });
@@ -336,7 +336,7 @@ function validateRef(
     if (!match) {
         violations.push({
             toolName,
-            path: joinSchemaPath(path, '$ref'),
+            path: joinPath(path, '$ref'),
             message: `only local references into $defs are strict-capable; found "${node.$ref}"`,
         });
         return;
