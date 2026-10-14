@@ -1,11 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 
-import { zodSchemaToJsonSchema } from './json-schema.ts';
+import { toJsonSchema } from './schema.ts';
+import type { SchemaInput } from './types.ts';
 import { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
 
-function violationsFor(schema: z.ZodType) {
-    return getStrictToolSchemaViolations('tool', zodSchemaToJsonSchema(schema));
+function violationsFor(schema: SchemaInput) {
+    return getStrictToolSchemaViolations('tool', toJsonSchema(schema));
 }
 
 describe('getStrictToolSchemaViolations', () => {
@@ -96,7 +97,7 @@ describe('getStrictToolSchemaViolations', () => {
     });
 
     it('exempts the implicit safe-integer bounds of z.int()', () => {
-        const schema = zodSchemaToJsonSchema(z.object({ count: z.int() }));
+        const schema = toJsonSchema(z.object({ count: z.int() }));
         expect(getStrictToolSchemaViolations('tool', schema)).toEqual([]);
     });
 
@@ -115,6 +116,25 @@ describe('getStrictToolSchemaViolations', () => {
         expect(violations).toHaveLength(1);
         expect(violations[0]?.path).toBe('properties.limit');
         expect(violations[0]?.message).toContain('.nullable()');
+    });
+
+    it('accepts optional keys that accept null or declare a default', () => {
+        expect(
+            violationsFor(
+                z.object({
+                    label: z.string().nullable().optional(),
+                    mode: z.enum(['fast', 'safe']).default('safe'),
+                })
+            )
+        ).toEqual([]);
+        expect(
+            getStrictToolSchemaViolations('tool', {
+                type: 'object',
+                properties: { note: { $ref: '#/$defs/Maybe' } },
+                additionalProperties: false,
+                $defs: { Maybe: { type: ['string', 'null'] } },
+            })
+        ).toEqual([]);
     });
 
     it('rejects open objects from z.looseObject and z.record', () => {
@@ -206,7 +226,7 @@ describe('getStrictToolSchemaViolations', () => {
             })
         );
         // Zod serializes the self-reference as `$ref: "#"`, not via $defs.
-        expect(zodSchemaToJsonSchema(category)).toMatchObject({
+        expect(toJsonSchema(category)).toMatchObject({
             properties: { children: { items: { $ref: '#' } } },
         });
 

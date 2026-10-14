@@ -1,5 +1,4 @@
 import type { Span } from '@opentelemetry/api';
-import type { z } from 'zod';
 import type {
     AssistantContentPart,
     ChatModel,
@@ -17,8 +16,9 @@ import type {
     Message,
     ToolSet,
     UserContentPart,
+    SchemaInput,
 } from '@core-ai/core-ai';
-import { zodSchemaToJsonSchema } from '@core-ai/core-ai';
+import { getToolJsonSchema } from '@core-ai/core-ai';
 
 type SpanAttributeValue =
     | string
@@ -250,7 +250,7 @@ export function setChatInputAttributes(
                     type: 'function',
                     name,
                     description: definition.description,
-                    parameters: zodSchemaToJsonSchema(definition.parameters),
+                    parameters: getToolJsonSchema(definition),
                 }))
             )
         );
@@ -282,7 +282,7 @@ export function setChatOutputAttributes(span: Span, result: GenerateResult): voi
     );
 }
 
-export function setObjectOutputAttributes<TSchema extends z.ZodType>(
+export function setObjectOutputAttributes<TSchema extends SchemaInput>(
     span: Span,
     result: GenerateObjectResult<TSchema>
 ): void {
@@ -358,7 +358,7 @@ export function setFinishReasonAttribute(span: Span, finishReason: FinishReason)
 export function setChatRequestAttributes(
     span: Span,
     model: ChatModel,
-    options: GenerateOptions | GenerateObjectOptions<z.ZodType>,
+    options: GenerateOptions | GenerateObjectOptions<SchemaInput>,
     outputType: 'text' | 'json'
 ): void {
     span.setAttribute('gen_ai.provider.name', model.provider);

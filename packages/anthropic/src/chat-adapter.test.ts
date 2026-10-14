@@ -888,6 +888,25 @@ describe('convertTools', () => {
         }
     });
 
+    it('should require nullable and defaulted keys of strict tools', () => {
+        const tools: ToolSet = {
+            search: defineTool({
+                name: 'search',
+                description: 'Search',
+                parameters: z.object({
+                    query: z.string(),
+                    label: z.string().nullable().optional(),
+                    mode: z.enum(['fast', 'safe']).default('safe'),
+                }),
+                strict: true,
+            }),
+        };
+
+        expect(convertTools(tools)[0]?.input_schema).toMatchObject({
+            required: ['query', 'label', 'mode'],
+        });
+    });
+
     it('should normalize strict tool schemas and leave non-strict ones raw', () => {
         const parameters = z.object({
             value: z.string().min(3),
@@ -1098,6 +1117,58 @@ describe('structured output helpers', () => {
                         schema: {
                             type: 'object',
                             additionalProperties: false,
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    it('should drop unsupported keywords only where they are schema keywords', () => {
+        const result = createStructuredOutputOptions({
+            messages: [{ role: 'user', content: 'Return a range' }],
+            schema: z.object({
+                minimum: z.number().min(0),
+                maxLength: z.int(),
+            }),
+        });
+
+        expect(result.providerOptions).toMatchObject({
+            anthropic: {
+                outputConfig: {
+                    format: {
+                        schema: {
+                            properties: {
+                                minimum: { type: 'number' },
+                                maxLength: { type: 'integer' },
+                            },
+                            required: ['minimum', 'maxLength'],
+                        },
+                    },
+                },
+            },
+        });
+    });
+
+    it('should send record value schemas as declared', () => {
+        // Anthropic rejects them with a 400 ("additionalProperties: object"
+        // is not supported); closing them instead would silently limit the
+        // model to an empty record.
+        const result = createStructuredOutputOptions({
+            messages: [{ role: 'user', content: 'Return tags' }],
+            schema: z.object({ tags: z.record(z.string(), z.string()) }),
+        });
+
+        expect(result.providerOptions).toMatchObject({
+            anthropic: {
+                outputConfig: {
+                    format: {
+                        schema: {
+                            properties: {
+                                tags: {
+                                    additionalProperties: { type: 'string' },
+                                },
+                            },
                         },
                     },
                 },

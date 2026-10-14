@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/opentelemetry",
-    "version": "0.33.0",
+    "version": "0.34.0",
     "description": "OpenTelemetry middleware for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -44,7 +44,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.33.0"
+        "@core-ai/core-ai": "^0.34.0"
     },
     "peerDependencies": {
         "@opentelemetry/api": "^1.9.1"
@@ -57,6 +57,6 @@
         "@opentelemetry/sdk-trace-base": "^2.9.0",
         "typescript": "^5.7.3",
         "vitest": "^3.2.4",
-        "zod": "^4.0.0"
+        "zod": "^4.2.0"
     }
 }

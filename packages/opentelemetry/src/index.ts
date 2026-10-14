@@ -1,6 +1,5 @@
 import { SpanKind, SpanStatusCode, trace } from '@opentelemetry/api';
 import type { Span } from '@opentelemetry/api';
-import type { z } from 'zod';
 import type {
     ChatModel,
     ChatModelMiddleware,
@@ -10,6 +9,7 @@ import type {
     ImageModelMiddleware,
     ObjectStream,
     StreamObjectOptions,
+    SchemaInput,
 } from '@core-ai/core-ai';
 import {
     createChatSpanName,
@@ -75,15 +75,16 @@ export function createOtelMiddleware(
                 async (span) => {
                     setChatRequestAttributes(span, model, generateOptions, 'text');
 
-                    if (recordContent) {
-                        setChatInputAttributes(
-                            span,
-                            generateOptions.messages,
-                            generateOptions.tools
-                        );
-                    }
-
                     try {
+                        // Inside the try: converting a tool schema can throw.
+                        if (recordContent) {
+                            setChatInputAttributes(
+                                span,
+                                generateOptions.messages,
+                                generateOptions.tools
+                            );
+                        }
+
                         const result = await execute();
                         setChatUsageAttributes(span, result.usage);
                         setFinishReasonAttribute(span, result.finishReason);
@@ -116,15 +117,16 @@ export function createOtelMiddleware(
                 async (span) => {
                     setChatRequestAttributes(span, model, generateOptions, 'text');
 
-                    if (recordContent) {
-                        setChatInputAttributes(
-                            span,
-                            generateOptions.messages,
-                            generateOptions.tools
-                        );
-                    }
-
                     try {
+                        // Inside the try: converting a tool schema can throw.
+                        if (recordContent) {
+                            setChatInputAttributes(
+                                span,
+                                generateOptions.messages,
+                                generateOptions.tools
+                            );
+                        }
+
                         const chatStream = await execute();
 
                         void chatStream.result
@@ -156,7 +158,7 @@ export function createOtelMiddleware(
                 }
             );
         },
-        generateObject: async <TSchema extends z.ZodType>(args: {
+        generateObject: async <TSchema extends SchemaInput>(args: {
             execute: (
                 options?: GenerateObjectOptions<TSchema>
             ) => Promise<GenerateObjectResult<TSchema>>;
@@ -200,7 +202,7 @@ export function createOtelMiddleware(
                 }
             );
         },
-        streamObject: async <TSchema extends z.ZodType>(args: {
+        streamObject: async <TSchema extends SchemaInput>(args: {
             execute: (
                 options?: StreamObjectOptions<TSchema>
             ) => Promise<ObjectStream<TSchema>>;

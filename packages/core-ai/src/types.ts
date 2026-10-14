@@ -1,4 +1,41 @@
-import type { z } from 'zod';
+import type {
+    StandardJSONSchemaV1,
+    StandardSchemaV1,
+} from './standard-schema.ts';
+
+/** A JSON Schema document, e.g. the object schema of a tool's parameters. */
+export type JsonSchema = Record<string, unknown>;
+
+/**
+ * A Standard Schema that can also produce JSON Schema, e.g. a Zod 4.2+
+ * schema. See https://standardschema.dev.
+ */
+export type StandardSchemaWithJson<
+    Input = unknown,
+    Output = Input,
+> = StandardSchemaV1<Input, Output> & StandardJSONSchemaV1<Input, Output>;
+
+/**
+ * A schema for tool parameters or structured output: a Standard Schema with
+ * JSON Schema support (validated by core-ai) or plain JSON Schema (sent as
+ * is, never validated by core-ai). Plain JSON Schema can have any object type,
+ * including interfaces such as `JSONSchema7`; a Standard Schema without JSON
+ * Schema support is rejected.
+ */
+export type SchemaInput =
+    | StandardSchemaWithJson
+    // Keeps inline object literals free of excess-property errors.
+    | JsonSchema
+    | (object & { readonly '~standard'?: never });
+
+/**
+ * The value a schema validates to: the Standard Schema's output type, or
+ * `unknown` for plain JSON Schema.
+ */
+export type InferSchemaOutput<TSchema extends SchemaInput> =
+    TSchema extends StandardSchemaV1
+        ? StandardSchemaV1.InferOutput<TSchema>
+        : unknown;
 
 export type Message =
     | SystemMessage
@@ -164,9 +201,14 @@ export type ToolResultMessage = {
     metadata?: Record<string, unknown>;
 };
 
-export type ToolDefinition<TParameters extends z.ZodType = z.ZodType> = {
+export type ToolDefinition<TParameters extends SchemaInput = SchemaInput> = {
     name: string;
     description: string;
+    /**
+     * A Standard Schema with JSON Schema support (e.g. Zod 4.2+), whose calls
+     * `validateToolCall` can validate, or plain JSON Schema, sent as is and
+     * validated by the caller.
+     */
     parameters: TParameters;
     /**
      * `true` opts this tool into provider-enforced schema adherence. The
@@ -270,10 +312,10 @@ export type ChatModel = {
     readonly capabilities: ModelCapabilities;
     generate(options: GenerateOptions): Promise<GenerateResult>;
     stream(options: GenerateOptions): Promise<ChatStream>;
-    generateObject<TSchema extends z.ZodType>(
+    generateObject<TSchema extends SchemaInput>(
         options: GenerateObjectOptions<TSchema>
     ): Promise<GenerateObjectResult<TSchema>>;
-    streamObject<TSchema extends z.ZodType>(
+    streamObject<TSchema extends SchemaInput>(
         options: StreamObjectOptions<TSchema>
     ): Promise<ObjectStream<TSchema>>;
 };
@@ -320,14 +362,14 @@ export type ChatModelMiddleware = {
         options: GenerateOptions;
         model: ChatModel;
     }) => Promise<ChatStream>;
-    generateObject?: <TSchema extends z.ZodType>(args: {
+    generateObject?: <TSchema extends SchemaInput>(args: {
         execute: (
             options?: GenerateObjectOptions<TSchema>
         ) => Promise<GenerateObjectResult<TSchema>>;
         options: GenerateObjectOptions<TSchema>;
         model: ChatModel;
     }) => Promise<GenerateObjectResult<TSchema>>;
-    streamObject?: <TSchema extends z.ZodType>(args: {
+    streamObject?: <TSchema extends SchemaInput>(args: {
         execute: (
             options?: StreamObjectOptions<TSchema>
         ) => Promise<ObjectStream<TSchema>>;
@@ -387,18 +429,27 @@ export type GenerateResult = {
     usage: ChatUsage;
 };
 
-export type GenerateObjectOptions<TSchema extends z.ZodType> =
+export type GenerateObjectOptions<TSchema extends SchemaInput> =
     BaseGenerateOptions & {
+        /**
+         * A Standard Schema with JSON Schema support (e.g. Zod 4.2+), whose
+         * validated output becomes `object`, or plain JSON Schema, whose
+         * parsed JSON is returned unvalidated.
+         */
         schema: TSchema;
         schemaName?: string;
         schemaDescription?: string;
     };
 
-export type StreamObjectOptions<TSchema extends z.ZodType> =
+export type StreamObjectOptions<TSchema extends SchemaInput> =
     GenerateObjectOptions<TSchema>;
 
-export type GenerateObjectResult<TSchema extends z.ZodType> = {
-    object: z.infer<TSchema>;
+export type GenerateObjectResult<TSchema extends SchemaInput> = {
+    /**
+     * The schema's validated output for a Standard Schema; the parsed JSON
+     * (`unknown`) for plain JSON Schema.
+     */
+    object: InferSchemaOutput<TSchema>;
     finishReason: FinishReason;
     usage: ChatUsage;
 };
@@ -489,9 +540,9 @@ export type ChatStream = AsyncIterable<StreamEvent> & {
     readonly events: Promise<readonly StreamEvent[]>;
 };
 
-export type ObjectStreamEvent<TSchema extends z.ZodType> =
+export type ObjectStreamEvent<TSchema extends SchemaInput> =
     | { type: 'object-delta'; text: string }
-    | { type: 'object'; object: z.infer<TSchema> }
+    | { type: 'object'; object: InferSchemaOutput<TSchema> }
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 
 /**
@@ -501,7 +552,7 @@ export type ObjectStreamEvent<TSchema extends z.ZodType> =
  * `result` settles independently of event consumption, and `events` resolves
  * with the observed history.
  */
-export type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
+export type ObjectStream<TSchema extends SchemaInput> = AsyncIterable<
     ObjectStreamEvent<TSchema>
 > & {
     readonly result: Promise<GenerateObjectResult<TSchema>>;

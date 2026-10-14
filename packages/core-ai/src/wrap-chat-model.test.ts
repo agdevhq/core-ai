@@ -14,8 +14,10 @@ import type {
     ChatStream,
     GenerateObjectResult,
     GenerateResult,
+    InferSchemaOutput,
     ObjectStream,
     ObjectStreamEvent,
+    SchemaInput,
     StreamEvent,
     StreamObjectOptions,
 } from './types.ts';
@@ -58,9 +60,9 @@ function createMockChatStream(text: string): ChatStream {
     return createChatStream(toAsyncIterable(events));
 }
 
-function createMockObjectStream<TSchema extends z.ZodType>(
+function createMockObjectStream<TSchema extends SchemaInput>(
     options: StreamObjectOptions<TSchema>,
-    object: z.infer<TSchema>
+    object: InferSchemaOutput<TSchema>
 ): ObjectStream<TSchema> {
     const events: ObjectStreamEvent<TSchema>[] = [
         {
@@ -100,7 +102,7 @@ function createMockChatModel(): {
         createMockChatStream('hello')
     );
     const generateObjectMock = vi.fn(
-        async <TSchema extends z.ZodType>(
+        async <TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ) =>
             ({
@@ -112,13 +114,13 @@ function createMockChatModel(): {
             }) as GenerateObjectResult<TSchema>
     ) as ChatModel['generateObject'];
     const streamObjectMock = vi.fn(
-        async <TSchema extends z.ZodType>(
+        async <TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ) =>
             createMockObjectStream(options, {
                 city: 'Berlin',
                 temperatureC: 21,
-            } as z.infer<TSchema>)
+            } as InferSchemaOutput<TSchema>)
     ) as ChatModel['streamObject'];
 
     return {

@@ -93,7 +93,8 @@ endpoint rejects strict tools it cannot enforce. See
 contract and error reasons.
 
 This tool behavior is separate from structured output. `generateObject()` and
-`streamObject()` use JSON Mode and then validate the returned object with Zod.
+`streamObject()` use JSON Mode and then validate the returned object against
+your schema when it is a Standard Schema.
 
 ## Examples
 
@@ -187,7 +188,7 @@ Do not pass custom `temperature` or `topP` values. The provider validates these 
 
 ## Structured output
 
-`generateObject()` and `streamObject()` use Moonshot JSON Mode (`response_format: { type: 'json_object' }`) and validate the returned JSON with your Zod schema.
+`generateObject()` and `streamObject()` use Moonshot JSON Mode (`response_format: { type: 'json_object' }`). JSON Mode does not enforce the schema, so core-ai validates the returned JSON when your schema is a Standard Schema, such as a Zod 4.2+ schema. With plain JSON Schema, validate `result.object` yourself.
 
 ```typescript
 import { createKimi } from '@core-ai/kimi';

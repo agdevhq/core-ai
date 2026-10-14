@@ -11,7 +11,7 @@ describe('createGoogleGenAI', () => {
 
         const chatModel = provider.chatModel('gemini-2.5-flash');
         const embeddingModel = provider.embeddingModel('gemini-embedding-001');
-        const imageModel = provider.imageModel('imagen-4.0-generate-001');
+        const imageModel = provider.imageModel('gemini-nano-banana-2.1');
 
         expect(chatModel.provider).toBe('google');
         expect(chatModel.modelId).toBe('gemini-2.5-flash');
@@ -20,7 +20,7 @@ describe('createGoogleGenAI', () => {
         expect(embeddingModel.modelId).toBe('gemini-embedding-001');
 
         expect(imageModel.provider).toBe('google');
-        expect(imageModel.modelId).toBe('imagen-4.0-generate-001');
+        expect(imageModel.modelId).toBe('gemini-nano-banana-2.1');
     });
 
     it('should use a shared client instance across model types', async () => {
@@ -41,15 +41,10 @@ describe('createGoogleGenAI', () => {
         const embedContent = vi.fn(async () => ({
             embeddings: [{ values: [0.1], statistics: { tokenCount: 1 } }],
         }));
-        const generateImages = vi.fn(async () => ({
-            generatedImages: [{ image: { imageBytes: 'abc' } }],
-        }));
-
         const provider = createGoogleGenAI({
             client: createMockClient({
                 generateContent,
                 embedContent,
-                generateImages,
             }),
         });
 
@@ -60,12 +55,11 @@ describe('createGoogleGenAI', () => {
             .embeddingModel('gemini-embedding-001')
             .embed({ input: 'hello' });
         await provider
-            .imageModel('imagen-4.0-generate-001')
+            .imageModel('gemini-nano-banana-2.1')
             .generate({ prompt: 'cat' });
 
-        expect(generateContent).toHaveBeenCalledTimes(1);
+        expect(generateContent).toHaveBeenCalledTimes(2);
         expect(embedContent).toHaveBeenCalledTimes(1);
-        expect(generateImages).toHaveBeenCalledTimes(1);
     });
 
     it('should attribute all model types and errors to a custom provider id', async () => {
@@ -79,9 +73,6 @@ describe('createGoogleGenAI', () => {
                     embedContent: async () => {
                         throw upstreamError;
                     },
-                    generateImages: async () => {
-                        throw upstreamError;
-                    },
                 }),
             },
             {
@@ -90,7 +81,7 @@ describe('createGoogleGenAI', () => {
         );
         const chatModel = provider.chatModel('gemini-2.5-flash');
         const embeddingModel = provider.embeddingModel('gemini-embedding-001');
-        const imageModel = provider.imageModel('imagen-4.0-generate-001');
+        const imageModel = provider.imageModel('gemini-nano-banana-2.1');
 
         expect(chatModel.provider).toBe('google-vertex');
         expect(embeddingModel.provider).toBe('google-vertex');
@@ -118,7 +109,6 @@ describe('createGoogleGenAI', () => {
 function createMockClient(overrides?: {
     generateContent?: (options: unknown) => Promise<unknown>;
     embedContent?: (options: unknown) => Promise<unknown>;
-    generateImages?: (options: unknown) => Promise<unknown>;
 }): GoogleGenAI {
     const generateContent =
         overrides?.generateContent ??
@@ -130,11 +120,6 @@ function createMockClient(overrides?: {
         (async () => {
             throw new Error('embedContent not implemented');
         });
-    const generateImages =
-        overrides?.generateImages ??
-        (async () => {
-            throw new Error('generateImages not implemented');
-        });
 
     return {
         models: {
@@ -143,7 +128,6 @@ function createMockClient(overrides?: {
                 throw new Error('generateContentStream not implemented');
             },
             embedContent,
-            generateImages,
         },
     } as unknown as GoogleGenAI;
 }

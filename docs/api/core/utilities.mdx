@@ -8,24 +8,34 @@ icon: 'toolbox'
 
 core-ai exports helpers for schema conversion, assistant message construction, stream creation, model middleware wrapping, reasoning effort clamping, and provider-specific metadata access.
 
-## zodSchemaToJsonSchema()
+## toJsonSchema()
 
-Convert a Zod schema to JSON Schema using Zod 4's native conversion APIs.
+Return the JSON Schema that core-ai sends for a schema. It applies the same conversion core-ai uses for tool parameters and structured output schemas.
 
 ```typescript
 import { z } from 'zod';
-import { zodSchemaToJsonSchema } from '@core-ai/core-ai';
+import { toJsonSchema } from '@core-ai/core-ai';
 
 const weatherSchema = z.object({
     city: z.string(),
     temperatureC: z.number(),
 });
 
-const jsonSchema = zodSchemaToJsonSchema(weatherSchema);
-console.log(jsonSchema);
+const jsonSchema = toJsonSchema(weatherSchema);
+console.log(JSON.stringify(jsonSchema));
 ```
 
-Use this helper when you need a JSON Schema outside the built-in model and tool helpers.
+```typescript
+function toJsonSchema(schema: SchemaInput): JsonSchema;
+```
+
+- A Standard Schema is converted to the JSON Schema of its input type (draft 2020-12).
+- Plain JSON Schema is returned unchanged.
+- A schema that cannot be converted throws a `ValidationError`.
+
+Use it when you store or measure schemas, for example to persist tool definitions or estimate token counts. You get the same JSON Schema core-ai hands to provider adapters, which apply only semantics-preserving provider transforms on top, such as the normalization for [strict tool schemas](/guides/tool-calling#strict-tool-schemas).
+
+Each call returns a copy, so changing it does not affect what core-ai sends.
 
 ## clampReasoningEffort()
 

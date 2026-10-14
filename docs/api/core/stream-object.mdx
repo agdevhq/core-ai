@@ -1,21 +1,21 @@
 ---
 title: 'streamObject()'
-description: 'Stream structured objects validated against Zod schemas in real-time'
+description: 'Stream structured objects from a Standard Schema or plain JSON Schema in real-time'
 icon: 'stream'
 ---
 
 ## Overview
 
-The `streamObject()` function streams structured objects from chat models in real-time, with progressive updates validated against a Zod schema. This is ideal for displaying partial results as they're being generated.
+The `streamObject()` function streams structured objects from chat models in real-time. It emits the raw JSON text as it arrives, then the final object. With a Standard Schema, such as a Zod 4.2+ schema, core-ai validates the final object. This is ideal for displaying partial results as they're being generated.
 
 ## Function signature
 
 ```typescript
-export async function streamObject<TSchema extends z.ZodType>(
+export async function streamObject<TSchema extends SchemaInput>(
     params: StreamObjectParams<TSchema>
 ): Promise<ObjectStream<TSchema>>
 
-export type StreamObjectParams<TSchema extends z.ZodType> = 
+export type StreamObjectParams<TSchema extends SchemaInput> =
     StreamObjectOptions<TSchema> & {
         model: ChatModel;
     };
@@ -31,8 +31,8 @@ export type StreamObjectParams<TSchema extends z.ZodType> =
   Array of messages in the conversation. Must not be empty.
 </ParamField>
 
-<ParamField path="schema" type="z.ZodType" required>
-  Zod schema that defines the structure of the object to generate.
+<ParamField path="schema" type="SchemaInput" required>
+  Schema of the object to generate: a Standard Schema with JSON Schema support, such as a Zod 4.2+ schema, or plain JSON Schema. See [Schemas](/guides/structured-outputs#schemas) for the supported libraries.
 </ParamField>
 
 <ParamField path="schemaName" type="string">
@@ -72,7 +72,7 @@ export type StreamObjectParams<TSchema extends z.ZodType> =
 Returns a `Promise<ObjectStream<TSchema>>`. `ObjectStream` is an async iterable of `ObjectStreamEvent` objects with two additional properties:
 
 ```typescript
-type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
+type ObjectStream<TSchema extends SchemaInput> = AsyncIterable<
     ObjectStreamEvent<TSchema>
 > & {
     readonly result: Promise<GenerateObjectResult<TSchema>>;
@@ -81,7 +81,7 @@ type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
 ```
 
 <ResponseField name="result" type="Promise<GenerateObjectResult<TSchema>>">
-  Resolves with the final validated object result when the stream completes. Rejects on abort or upstream failure.
+  Resolves with the final object result when the stream completes. Rejects on abort, upstream failure, or a structured output error.
 </ResponseField>
 
 <ResponseField name="events" type="Promise<readonly ObjectStreamEvent<TSchema>[]>">
@@ -95,11 +95,11 @@ type ObjectStream<TSchema extends z.ZodType> = AsyncIterable<
 ### ObjectStreamEvent types
 
 <ResponseField name="object-delta" type="{ type: 'object-delta'; text: string }">
-  Emitted for each chunk of the JSON object being generated.
+  Emitted for each chunk of the JSON object being generated. The text is raw and unvalidated.
 </ResponseField>
 
-<ResponseField name="object" type="{ type: 'object'; object: z.infer<TSchema> }">
-  Emitted once, when the full object payload has been validated.
+<ResponseField name="object" type="{ type: 'object'; object: InferSchemaOutput<TSchema> }">
+  Emitted once with the final object. For a Standard Schema, `object` is the validated output of the schema. For plain JSON Schema, it is the parsed JSON, typed `unknown` and not validated.
 </ResponseField>
 
 <ResponseField name="finish" type="{ type: 'finish'; finishReason: FinishReason; usage: ChatUsage }">
@@ -257,21 +257,23 @@ try {
 </Info>
 
 <Info>
-  The `object` event is emitted once with the complete validated object. Use `object-delta` events to show progressive updates while the JSON payload is still streaming.
+  The `object` event is emitted once with the complete object. core-ai validates only this final object, never the deltas. Use `object-delta` events to show progressive updates while the JSON payload is still streaming.
 </Info>
 
 ## Error handling
 
 Throws `ValidationError` if:
 - Messages array is empty
+- The schema cannot be converted to JSON Schema
 
 May also throw:
 - `CoreAIError` if the stream completes without generating an object
 - `ProviderError` if the provider returns an error during streaming
 
 May also throw structured output errors:
-- `StructuredOutputValidationError`
-- `StructuredOutputParseError`
+- `StructuredOutputValidationError` if the final object does not match a Standard Schema
+- `StructuredOutputParseError` if the output is not valid JSON
+- `StructuredOutputNoObjectGeneratedError` if the model returns no object
 
 ```typescript
 import { 

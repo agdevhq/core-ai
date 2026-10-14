@@ -1,14 +1,16 @@
 import {
+    canRequireOptionalKey,
     getChildSchemaNodeEntries,
     getSchemaDefinitionEntries,
     isImplicitSafeIntegerBound,
     isObjectSchemaNode,
     isPlainObject,
+    joinPath,
 } from './json-schema.ts';
 
 /**
  * A single violation of the strict-capable schema contract, reported against
- * the JSON Schema derived from the tool's Zod `parameters`.
+ * the JSON Schema of the tool's `parameters` (see `toJsonSchema`).
  */
 export type StrictToolSchemaViolation = {
     toolName: string;
@@ -109,8 +111,9 @@ const KEYWORD_HINTS: Record<string, string> = {
 
 /**
  * Checks the JSON Schema of a strict tool against the strict-capable schema
- * contract: closed objects with every key required, the basic type set, and
- * the keyword/format subset every strict-capable provider accepts.
+ * contract: closed objects whose keys are required, or optional but nullable
+ * or defaulted (see `canRequireOptionalKey`), the basic type set, and the
+ * keyword/format subset every strict-capable provider accepts.
  *
  * Pure and non-throwing — returns every violation found so callers can report
  * them all at once.
@@ -127,14 +130,23 @@ export function getStrictToolSchemaViolations(
             toolName,
             path: 'type',
             message:
-                'tool parameters must be an object at the root; wrap the schema in z.object()',
+                'tool parameters must be an object schema (type: "object") at the root, e.g. a z.object()',
         });
     }
 
-    walkNode(schema, '', 'root', 0, toolName, violations, refEdges);
+    walkNode(schema, '', 'root', 0, toolName, violations, refEdges, schema);
 
     for (const { segment, child } of getSchemaDefinitionEntries(schema)) {
-        walkNode(child, segment, segment, 0, toolName, violations, refEdges);
+        walkNode(
+            child,
+            segment,
+            segment,
+            0,
+            toolName,
+            violations,
+            refEdges,
+            schema
+        );
     }
 
     for (const region of findCyclicRegions(refEdges)) {
@@ -156,7 +168,8 @@ function walkNode(
     depth: number,
     toolName: string,
     violations: StrictToolSchemaViolation[],
-    refEdges: Map<string, Set<string>>
+    refEdges: Map<string, Set<string>>,
+    root: Record<string, unknown>
 ): void {
     if (!isPlainObject(node)) {
         return;
@@ -188,7 +201,7 @@ function walkNode(
     validateBounds(node, path, toolName, violations);
     validateType(node, path, toolName, violations);
     validateFormat(node, path, toolName, violations);
-    validateObjectShape(node, path, toolName, violations);
+    validateObjectShape(node, path, toolName, violations, root);
     validateRef(node, path, region, toolName, violations, refEdges);
 
     for (const { segment, child } of getChildSchemaNodeEntries(node)) {
@@ -199,7 +212,8 @@ function walkNode(
             depth + 1,
             toolName,
             violations,
-            refEdges
+            refEdges,
+            root
         );
     }
 }
@@ -267,7 +281,8 @@ function validateObjectShape(
     node: Record<string, unknown>,
     path: string,
     toolName: string,
-    violations: StrictToolSchemaViolation[]
+    violations: StrictToolSchemaViolation[],
+    root: Record<string, unknown>
 ): void {
     if (!isObjectSchemaNode(node)) {
         return;
@@ -280,12 +295,12 @@ function validateObjectShape(
             : []
     );
 
-    for (const key of Object.keys(properties)) {
-        if (!required.has(key)) {
+    for (const [key, property] of Object.entries(properties)) {
+        if (!required.has(key) && !canRequireOptionalKey(property, root)) {
             violations.push({
                 toolName,
                 path: joinPath(path, `properties.${key}`),
-                message: `"${key}" is optional; strict schemas require every key — use .nullable() instead of .optional() (note that .default() also makes a key optional)`,
+                message: `"${key}" is optional and accepts neither null nor a default; strict schemas require every key — make it required, and let it accept null where it may be absent (in Zod, .nullable() instead of .optional())`,
             });
         }
     }
@@ -365,8 +380,4 @@ function findCyclicRegions(refEdges: Map<string, Set<string>>): string[] {
     }
 
     return [...cyclic];
-}
-
-function joinPath(path: string, segment: string): string {
-    return path === '' ? segment : `${path}.${segment}`;
 }

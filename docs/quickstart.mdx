@@ -181,7 +181,7 @@ import { generate } from '@core-ai/core-ai';
 import { createGoogleGenAI } from '@core-ai/google-genai';
 
 const google = createGoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY });
-const model = google.chatModel('gemini-3.1-pro-preview');
+const model = google.chatModel('gemini-4-argon');
 
 const result = await generate({
   model,
@@ -209,7 +209,7 @@ Now that you have a working chat completion, explore more advanced features:
 
 <CardGroup cols={2}>
   <Card title="Structured outputs" icon="table" href="/guides/structured-outputs">
-    Generate type-safe JSON objects with Zod schemas
+    Generate type-safe JSON objects from a Standard Schema or JSON Schema
   </Card>
   <Card title="Tool calling" icon="wrench" href="/guides/tool-calling">
     Let AI call functions with validated parameters

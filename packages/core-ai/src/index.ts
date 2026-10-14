@@ -1,4 +1,8 @@
 export type {
+    JsonSchema,
+    StandardSchemaWithJson,
+    SchemaInput,
+    InferSchemaOutput,
     Message,
     SystemMessage,
     UserMessage,
@@ -105,11 +109,26 @@ export {
     parseRetryAfterSeconds,
     getRetryAfterSecondsFromError,
 } from './provider-error-utils.ts';
-export { defineTool } from './tool.ts';
+export type {
+    StandardJSONSchemaV1,
+    StandardSchemaV1,
+    StandardTypedV1,
+} from './standard-schema.ts';
+export { defineTool, validateToolCall } from './tool.ts';
+export type { ToolCallValidation } from './tool.ts';
 export {
+    mapChildSchemaNodes,
     normalizeStrictJsonSchema,
-    zodSchemaToJsonSchema,
+    requireEveryKey,
 } from './json-schema.ts';
+export { getToolJsonSchema, toJsonSchema } from './schema.ts';
+export type { NormalizedSchema } from './schema.ts';
+export {
+    extractStructuredObject,
+    normalizeStructuredOutputSchema,
+    parseStructuredOutput,
+    transformStructuredOutputStream,
+} from './structured-output.ts';
 export { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
 export type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
 export { stripModelDateSuffix } from './model-id.ts';

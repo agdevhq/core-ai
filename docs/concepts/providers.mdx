@@ -186,7 +186,7 @@ const claude = anthropicVertex.chatModel('claude-sonnet-4-6');
 ## Google GenAI
 
 Google GenAI provides access to Gemini models for chat, embeddings, and native
-image generation, plus dedicated Imagen models.
+image generation.
 
 ### Creating a Provider
 
@@ -214,16 +214,15 @@ type GoogleGenAIProviderOptions = {
 ### Getting Models
 
 ```typescript
-const gemini = google.chatModel('gemini-3.1-pro-preview');
+const gemini = google.chatModel('gemini-4-argon');
 const embeddings = google.embeddingModel('text-embedding-004');
-const image = google.imageModel('gemini-2.5-flash-image');
-const imagen = google.imageModel('imagen-4.0-generate-001');
+const image = google.imageModel('gemini-nano-banana-2.1');
 ```
 
 ## Google on Vertex AI
 
 Google on Vertex AI provides Gemini chat, embedding, and native image models
-plus Imagen through regional Google Cloud endpoints.
+through regional Google Cloud endpoints.
 
 ### Creating a Provider
 
@@ -253,7 +252,6 @@ type GoogleVertexProviderOptions = {
 const gemini = googleVertex.chatModel('gemini-2.5-flash');
 const embeddings = googleVertex.embeddingModel('gemini-embedding-001');
 const image = googleVertex.imageModel('gemini-2.5-flash-image');
-const imagen = googleVertex.imageModel('imagen-4.0-generate-001');
 ```
 
 <Note>
@@ -409,8 +407,8 @@ const openai = createOpenAI({ client: customClient });
 | Azure OpenAI           | ✓    | ✗          | ✗      | Azure deployments and Entra ID auth       |
 | Anthropic              | ✓    | ✗          | ✗      | Extended thinking, prompt caching         |
 | Anthropic on Vertex AI | ✓    | ✗          | ✗      | Claude on Google Cloud, ADC auth          |
-| Google GenAI           | ✓    | ✓          | ✓      | Gemini native images and Imagen           |
-| Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini native images and Imagen on Vertex |
+| Google GenAI           | ✓    | ✓          | ✓      | Gemini native images                      |
+| Google on Vertex AI    | ✓    | ✓          | ✓      | Gemini native images on Vertex            |
 | Mistral                | ✓    | ✓          | ✗      | Efficient open-source options             |
 | Omnifact               | ✓    | ✗          | ✗      | Organization gateway for enabled models   |
 | Kimi                   | ✓    | ✗          | ✗      | Preserved thinking, coding focus           |

@@ -87,7 +87,14 @@ class ValidationError extends CoreAIError {
 - Unsupported input modalities in user messages (`UnsupportedInputModalityError`)
 - Unsupported, excessive, or non-strict-capable strict tool schemas
   (`ToolSchemaStrictnessError`)
+- Tool `parameters` or a structured output `schema` that cannot be converted
+  to JSON Schema, including a Standard Schema without JSON Schema support
 - Invalid local request configuration
+
+core-ai does not check the tool call arguments a model returns.
+`validateToolCall()` checks them against a tool's Standard Schema and reports
+problems as issues instead of throwing. See
+[Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 `ToolSchemaStrictnessError` includes typed `providerId`, `modelId`,
 `toolNames`, `reason`, and optional `maxStrictTools` and `violations` fields.
@@ -350,7 +357,7 @@ try {
 
 ### StructuredOutputValidationError
 
-Thrown when the model's output doesn't match the Zod schema.
+Thrown when the model's output doesn't match a Standard Schema. core-ai never validates output against plain JSON Schema, so it never raises this error for one.
 
 ```typescript
 import {
@@ -386,7 +393,8 @@ try {
 
 **Properties:**
 
-- `issues`: Array of human-readable validation error messages
+- `issues`: Validation messages from the schema library, each formatted as
+  `path.to.key: message` (`<root>` for issues at the root)
 
 **When thrown:**
 

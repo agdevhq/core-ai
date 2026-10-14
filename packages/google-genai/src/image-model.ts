@@ -1,7 +1,6 @@
 import type {
     GenerateContentParameters,
     GenerateContentResponse,
-    GenerateImagesParameters,
 } from '@google/genai';
 import type {
     ImageGenerateOptions,
@@ -31,28 +30,17 @@ export function createGoogleGenAIImageModel(
                     options.providerOptions,
                     provider
                 );
-                return isGeminiImageModel(modelId)
-                    ? await generateGeminiImages(
-                          client,
-                          modelId,
-                          options,
-                          googleOptions
-                      )
-                    : await generateImagenImages(
-                          client,
-                          modelId,
-                          options,
-                          googleOptions
-                      );
+                return await generateGeminiImages(
+                    client,
+                    modelId,
+                    options,
+                    googleOptions
+                );
             } catch (error) {
                 throw wrapGoogleError(error, provider);
             }
         },
     };
-}
-
-function isGeminiImageModel(modelId: string): boolean {
-    return modelId.startsWith('gemini-');
 }
 
 async function generateGeminiImages(
@@ -118,93 +106,6 @@ function mapGeminiImageResponse(
 
             return [{ base64: inlineData.data }];
         }),
-    };
-}
-
-async function generateImagenImages(
-    client: GoogleGenAIClient,
-    modelId: string,
-    options: ImageGenerateOptions,
-    googleOptions: GoogleImageProviderOptions | undefined
-): Promise<ImageGenerateResult> {
-    const baseRequest: GenerateImagesParameters = {
-        model: modelId,
-        prompt: options.prompt,
-        config: {
-            ...(options.n !== undefined ? { numberOfImages: options.n } : {}),
-            ...mapSizeToImageConfig(options.size),
-        },
-    };
-    const providerConfig = mapImagenImageProviderOptionsToConfig(googleOptions);
-    const request: GenerateImagesParameters =
-        Object.keys(providerConfig).length > 0
-            ? {
-                  ...baseRequest,
-                  config: {
-                      ...baseRequest.config,
-                      ...providerConfig,
-                  },
-              }
-            : baseRequest;
-    const response = await client.models.generateImages(request);
-
-    return {
-        images: (response.generatedImages ?? []).map((image) => ({
-            base64: image.image?.imageBytes ?? undefined,
-            url: image.image?.gcsUri ?? undefined,
-            revisedPrompt: image.enhancedPrompt ?? undefined,
-        })),
-    };
-}
-
-function mapImagenImageProviderOptionsToConfig(
-    options: GoogleImageProviderOptions | undefined
-): Record<string, unknown> {
-    return {
-        ...(options?.outputGcsUri !== undefined
-            ? { outputGcsUri: options.outputGcsUri }
-            : {}),
-        ...(options?.negativePrompt !== undefined
-            ? { negativePrompt: options.negativePrompt }
-            : {}),
-        ...(options?.aspectRatio !== undefined
-            ? { aspectRatio: options.aspectRatio }
-            : {}),
-        ...(options?.guidanceScale !== undefined
-            ? { guidanceScale: options.guidanceScale }
-            : {}),
-        ...(options?.seed !== undefined ? { seed: options.seed } : {}),
-        ...(options?.safetyFilterLevel !== undefined
-            ? { safetyFilterLevel: options.safetyFilterLevel }
-            : {}),
-        ...(options?.personGeneration !== undefined
-            ? { personGeneration: options.personGeneration }
-            : {}),
-        ...(options?.includeSafetyAttributes !== undefined
-            ? { includeSafetyAttributes: options.includeSafetyAttributes }
-            : {}),
-        ...(options?.includeRaiReason !== undefined
-            ? { includeRaiReason: options.includeRaiReason }
-            : {}),
-        ...(options?.language !== undefined
-            ? { language: options.language }
-            : {}),
-        ...(options?.outputMimeType !== undefined
-            ? { outputMimeType: options.outputMimeType }
-            : {}),
-        ...(options?.outputCompressionQuality !== undefined
-            ? { outputCompressionQuality: options.outputCompressionQuality }
-            : {}),
-        ...(options?.addWatermark !== undefined
-            ? { addWatermark: options.addWatermark }
-            : {}),
-        ...(options?.labels !== undefined ? { labels: options.labels } : {}),
-        ...(options?.imageSize !== undefined
-            ? { imageSize: options.imageSize }
-            : {}),
-        ...(options?.enhancePrompt !== undefined
-            ? { enhancePrompt: options.enhancePrompt }
-            : {}),
     };
 }
 

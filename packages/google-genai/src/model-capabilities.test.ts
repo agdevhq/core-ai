@@ -15,14 +15,16 @@ describe('normalizeModelId', () => {
 });
 
 describe('getGoogleModelCapabilities', () => {
-    it.each(['gemini-3.1-pro-preview', 'gemini-2.5-flash', 'unknown'])(
-        'should accept only leading system messages for %s',
-        (modelId) => {
-            expect(
-                getGoogleModelCapabilities(modelId).messages.systemPlacement
-            ).toBe('leading');
-        }
-    );
+    it.each([
+        'gemini-4-argon',
+        'gemini-3.1-pro-preview',
+        'gemini-2.5-flash',
+        'unknown',
+    ])('should accept only leading system messages for %s', (modelId) => {
+        expect(
+            getGoogleModelCapabilities(modelId).messages.systemPlacement
+        ).toBe('leading');
+    });
 
     it('should resolve known model capabilities', () => {
         const capabilities = getGoogleModelCapabilities(
@@ -43,6 +45,7 @@ describe('getGoogleModelCapabilities', () => {
         ['gemini-3.5-flash', ['minimal', 'low', 'medium', 'high']],
         ['gemini-3.5-flash-lite', ['minimal', 'low', 'medium', 'high']],
         ['gemini-3.1-flash-lite', ['minimal', 'low', 'medium', 'high']],
+        ['gemini-4-argon', ['low', 'medium', 'high']],
         ['gemini-3.8-flash', ['low', 'medium', 'high']],
         ['gemini-3.7-flash', ['low', 'medium', 'high']],
         ['gemini-3-flash-preview', ['minimal', 'low', 'medium', 'high']],
@@ -91,25 +94,41 @@ describe('getGoogleModelCapabilities', () => {
         expect(capabilities.reasoning.restrictsSamplingParams).toBe(false);
     });
 
-    it('should resolve dated model IDs to the same capabilities', () => {
-        expect(getGoogleModelCapabilities('gemini-3.5-flash-20260215')).toEqual(
-            getGoogleModelCapabilities('gemini-3.5-flash')
-        );
-    });
-
-    it.each(['gemini-3.5-flash', 'gemini-2.5-pro', 'gemini-custom'])(
-        'should report multimodal input as supported for %s',
+    it.each(['gemini-3.5-flash', 'gemini-4-argon'])(
+        'should resolve a dated %s id to the same capabilities',
         (modelId) => {
-            expect(
-                getGoogleModelCapabilities(modelId).modalities.input
-            ).toEqual(['text', 'image', 'file', 'audio']);
-            expect(
-                getGoogleModelCapabilities(modelId).modalities.output
-            ).toEqual(['text']);
+            expect(getGoogleModelCapabilities(`${modelId}-20261013`)).toEqual(
+                getGoogleModelCapabilities(modelId)
+            );
         }
     );
 
+    it('should report that gemini-4-argon restricts sampling parameters', () => {
+        const capabilities = getGoogleModelCapabilities('gemini-4-argon');
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
+        expect(capabilities.reasoning.mode).toBe('always-on');
+    });
+
     it.each([
+        'gemini-4-argon',
+        'gemini-3.5-flash',
+        'gemini-2.5-pro',
+        'gemini-custom',
+    ])('should report multimodal input as supported for %s', (modelId) => {
+        expect(getGoogleModelCapabilities(modelId).modalities.input).toEqual([
+            'text',
+            'image',
+            'file',
+            'audio',
+        ]);
+        expect(getGoogleModelCapabilities(modelId).modalities.output).toEqual([
+            'text',
+        ]);
+    });
+
+    it.each([
+        'gemini-4-argon',
         'gemini-3.1-pro-preview',
         'gemini-3.1-flash-lite',
         'gemini-3-flash-preview',
@@ -140,6 +159,11 @@ describe('reasoning mapping', () => {
         ['gemini-3.5-flash', 'medium', 'MEDIUM'],
         ['gemini-3.5-flash', 'high', 'HIGH'],
         ['gemini-3.5-flash', 'max', 'HIGH'],
+        ['gemini-4-argon', 'minimal', 'LOW'],
+        ['gemini-4-argon', 'low', 'LOW'],
+        ['gemini-4-argon', 'medium', 'MEDIUM'],
+        ['gemini-4-argon', 'high', 'HIGH'],
+        ['gemini-4-argon', 'max', 'HIGH'],
         ['gemini-3.8-flash', 'minimal', 'LOW'],
         ['gemini-3.8-flash', 'medium', 'MEDIUM'],
         ['gemini-3.8-flash', 'max', 'HIGH'],
@@ -181,6 +205,7 @@ describe('reasoning mapping', () => {
 
 describe('output ceilings', () => {
     it.each([
+        'gemini-4-argon',
         'gemini-3.8-flash',
         'gemini-3.5-flash-lite',
         'gemini-3.1-pro-preview',

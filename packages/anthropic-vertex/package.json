@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/anthropic-vertex",
-    "version": "0.33.0",
+    "version": "0.34.0",
     "description": "Vertex AI Anthropic (Claude) provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -49,18 +49,16 @@
     },
     "dependencies": {
         "@anthropic-ai/vertex-sdk": "^0.19.0",
-        "@core-ai/anthropic": "^0.33.0",
-        "@core-ai/core-ai": "^0.33.0",
+        "@core-ai/anthropic": "^0.34.0",
+        "@core-ai/core-ai": "^0.34.0",
         "google-auth-library": "^10.2.0"
-    },
-    "peerDependencies": {
-        "zod": "^4.0.0"
     },
     "devDependencies": {
         "@core-ai/eslint-config": "*",
         "@core-ai/testing": "*",
         "@core-ai/typescript-config": "*",
         "typescript": "^5.7.3",
-        "vitest": "^3.2.4"
+        "vitest": "^3.2.4",
+        "zod": "^4.2.0"
     }
 }

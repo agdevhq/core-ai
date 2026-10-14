@@ -24,10 +24,10 @@ type ChatModel = {
     readonly capabilities: ModelCapabilities;
     generate(options: GenerateOptions): Promise<GenerateResult>;
     stream(options: GenerateOptions): Promise<ChatStream>;
-    generateObject<TSchema extends z.ZodType>(
+    generateObject<TSchema extends SchemaInput>(
         options: GenerateObjectOptions<TSchema>
     ): Promise<GenerateObjectResult<TSchema>>;
-    streamObject<TSchema extends z.ZodType>(
+    streamObject<TSchema extends SchemaInput>(
         options: StreamObjectOptions<TSchema>
     ): Promise<ObjectStream<TSchema>>;
 };
@@ -72,7 +72,7 @@ for await (const event of response) {
 
 ### Structured Output
 
-Generate type-safe structured data using Zod schemas:
+Generate type-safe structured data from a Standard Schema, such as a Zod 4.2+ schema, or plain JSON Schema:
 
 ```typescript
 import { z } from 'zod';

@@ -96,9 +96,8 @@ const result = await generateImage({
 console.log(result.images[0]?.base64);
 ```
 
-Gemini image models use native multimodal generation. Imagen models such as
-`imagen-4.0-generate-001` remain available through the same `imageModel()`
-factory when the selected Vertex AI region and project support them.
+Gemini image models use native multimodal generation and return base64 image
+data.
 
 ## Provider options and capabilities
 

@@ -12,7 +12,6 @@ import {
     type UsageInfo,
 } from '@mistralai/mistralai/models/components';
 import { unrecognized } from '@mistralai/mistralai/types';
-import type { z } from 'zod';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -22,6 +21,7 @@ import type {
     Message,
     ModelCapabilities,
     ReasoningEffort,
+    SchemaInput,
     StreamEvent,
     ToolCall,
     ToolChoice,
@@ -32,11 +32,12 @@ import {
     asObject,
     clampReasoningEffort,
     getProviderMetadata,
+    getToolJsonSchema,
+    normalizeStructuredOutputSchema,
     safeParseJsonObject,
     ValidationError,
     validateMessages,
     validateToolSchemaStrictness,
-    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
     parseMistralGenerateProviderOptions,
@@ -196,7 +197,7 @@ export function convertTools(tools: ToolSet): MistralFunctionTool[] {
             function: {
                 name: tool.name,
                 description: tool.description,
-                parameters: zodSchemaToJsonSchema(tool.parameters),
+                parameters: getToolJsonSchema(tool),
             },
         })
     );
@@ -217,13 +218,13 @@ export function convertToolChoice(
     };
 }
 
-export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+export function getStructuredOutputToolName<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): string {
     return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): GenerateOptions {
     const toolName = getStructuredOutputToolName(options);
@@ -236,7 +237,7 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
                 description:
                     options.schemaDescription ??
                     DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
-                parameters: options.schema,
+                parameters: normalizeStructuredOutputSchema(options).jsonSchema,
             },
         },
         toolChoice: {

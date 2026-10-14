@@ -11,16 +11,19 @@ import type {
     TextBlockParam,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
-import type { z } from 'zod';
 import {
     asObject,
     clampReasoningEffort,
     getProviderMetadata,
+    getToolJsonSchema,
+    mapChildSchemaNodes,
+    normalizeStrictJsonSchema,
+    normalizeStructuredOutputSchema,
+    requireEveryKey,
     ValidationError,
     safeParseJsonObject,
     validateMessages,
     validateToolSchemaStrictness,
-    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 
 export { wrapAnthropicError } from './anthropic-error.ts';
@@ -28,8 +31,10 @@ import type {
     FinishReason,
     GenerateObjectOptions,
     GenerateOptions,
+    JsonSchema,
     Message,
     ModelCapabilities,
+    SchemaInput,
     StreamEvent,
     SystemMessage,
     ToolResultMessage,
@@ -478,9 +483,10 @@ function convertUserContentPart(
 export function convertTools(tools: ToolSet): Tool[] {
     return Object.values(tools).map((tool) => {
         const strict = tool.strict === true;
+        const jsonSchema = getToolJsonSchema(tool);
         const schema = strict
-            ? toAnthropicJsonSchema(tool.parameters)
-            : zodSchemaToJsonSchema(tool.parameters);
+            ? normalizeAnthropicJsonSchema(jsonSchema)
+            : jsonSchema;
 
         return {
             name: tool.name,
@@ -507,11 +513,13 @@ export function convertToolChoice(choice: AgToolChoice): ToolChoice {
     };
 }
 
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>,
     provider = DEFAULT_PROVIDER_ID
 ): GenerateOptions {
-    const schema = toAnthropicJsonSchema(options.schema);
+    const schema = normalizeAnthropicJsonSchema(
+        normalizeStructuredOutputSchema(options).jsonSchema
+    );
     const schemaDescription = options.schemaDescription?.trim();
     if (schemaDescription && schemaDescription.length > 0) {
         schema.description = schemaDescription;
@@ -539,62 +547,27 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
     };
 }
 
-function toAnthropicJsonSchema(schema: z.ZodType): Record<string, unknown> {
-    return normalizeAnthropicJsonSchema(zodSchemaToJsonSchema(schema));
+/**
+ * The strict normalization OpenAI-style APIs get, minus the numeric and length
+ * constraints Anthropic's grammar also rejects. The schema's validator still
+ * enforces them. Nullable and defaulted keys are required, because Anthropic
+ * allows at most 24 optional parameters per request.
+ */
+function normalizeAnthropicJsonSchema(schema: JsonSchema): JsonSchema {
+    return requireEveryKey(
+        stripUnsupportedAnthropicKeywords(normalizeStrictJsonSchema(schema))
+    ).schema;
 }
 
-function normalizeAnthropicJsonSchema(value: unknown): Record<string, unknown> {
-    const normalized = normalizeAnthropicJsonValue(value);
-    return isJsonObject(normalized) ? normalized : {};
-}
-
-function normalizeAnthropicJsonValue(value: unknown): unknown {
-    if (Array.isArray(value)) {
-        return value.map(normalizeAnthropicJsonValue);
+function stripUnsupportedAnthropicKeywords(node: JsonSchema): JsonSchema {
+    const result = mapChildSchemaNodes(node, stripUnsupportedAnthropicKeywords);
+    for (const keyword of UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS) {
+        delete result[keyword];
     }
-
-    if (!isJsonObject(value)) {
-        return value;
+    if (typeof result.minItems === 'number' && result.minItems > 1) {
+        delete result.minItems;
     }
-
-    const normalized: Record<string, unknown> = {};
-
-    for (const [key, child] of Object.entries(value)) {
-        if (
-            key === '$schema' ||
-            UNSUPPORTED_ANTHROPIC_SCHEMA_KEYWORDS.has(key) ||
-            (key === 'minItems' && typeof child === 'number' && child > 1)
-        ) {
-            continue;
-        }
-        normalized[key] = normalizeAnthropicJsonValue(child);
-    }
-
-    // Zod emits `oneOf` only for z.discriminatedUnion(), whose branches are
-    // disjoint by construction, so `anyOf` accepts the same values and is the
-    // composition keyword Anthropic's schema subset supports.
-    if (Array.isArray(normalized.oneOf) && normalized.anyOf === undefined) {
-        normalized.anyOf = normalized.oneOf;
-        delete normalized.oneOf;
-    }
-
-    if (isObjectSchema(normalized)) {
-        normalized.additionalProperties = false;
-    }
-
-    return normalized;
-}
-
-function isObjectSchema(value: Record<string, unknown>): boolean {
-    return (
-        value.type === 'object' ||
-        Object.hasOwn(value, 'properties') ||
-        Object.hasOwn(value, 'required')
-    );
-}
-
-function isJsonObject(value: unknown): value is Record<string, unknown> {
-    return value !== null && typeof value === 'object' && !Array.isArray(value);
+    return result;
 }
 
 /**

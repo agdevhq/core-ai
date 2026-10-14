@@ -1,7 +1,5 @@
-import type { z } from 'zod';
-
 import { ToolSchemaStrictnessError } from './errors.ts';
-import { zodSchemaToJsonSchema } from './json-schema.ts';
+import { getToolJsonSchema, isStandardSchema } from './schema.ts';
 import {
     getStrictToolSchemaViolations,
     type StrictToolSchemaViolation,
@@ -11,26 +9,33 @@ import type { ModelCapabilities, ToolDefinition, ToolSet } from './types.ts';
 type ContractViolation = Omit<StrictToolSchemaViolation, 'toolName'>;
 
 /**
- * Contract results per Zod schema instance. Zod schemas are immutable and the
- * contract depends on nothing but the serialized schema, so a tool definition
- * reused across requests is serialized and walked once instead of on every
- * call. Keyed by the schema rather than the tool so the tool name can differ.
+ * Contract results per Standard Schema instance. Such schemas are immutable
+ * and the contract depends on nothing but their JSON Schema, so a tool
+ * definition reused across requests is walked once instead of on every call.
+ * Keyed by the schema rather than the tool so the tool name can differ.
+ * Plain JSON Schema objects are not cached: callers may mutate them between
+ * requests.
  */
 const contractViolationCache = new WeakMap<
-    z.ZodType,
+    object,
     readonly ContractViolation[]
 >();
 
 function getContractViolations(
     tool: ToolDefinition
 ): StrictToolSchemaViolation[] {
-    let cached = contractViolationCache.get(tool.parameters);
+    const cacheKey = isStandardSchema(tool.parameters)
+        ? tool.parameters
+        : undefined;
+    let cached = cacheKey && contractViolationCache.get(cacheKey);
     if (cached === undefined) {
         cached = getStrictToolSchemaViolations(
             tool.name,
-            zodSchemaToJsonSchema(tool.parameters)
+            getToolJsonSchema(tool)
         ).map(({ path, message }) => ({ path, message }));
-        contractViolationCache.set(tool.parameters, cached);
+        if (cacheKey) {
+            contractViolationCache.set(cacheKey, cached);
+        }
     }
     return cached.map((violation) => ({ toolName: tool.name, ...violation }));
 }

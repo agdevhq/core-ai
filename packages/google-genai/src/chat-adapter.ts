@@ -10,7 +10,6 @@ import {
     type Tool,
     type ToolConfig,
 } from '@google/genai';
-import type { z } from 'zod';
 import type {
     AssistantContentPart,
     FinishReason,
@@ -18,6 +17,7 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
+    SchemaInput,
     StreamEvent,
     ToolCall,
     ToolChoice,
@@ -26,10 +26,11 @@ import type {
 } from '@core-ai/core-ai';
 import {
     getProviderMetadata,
+    getToolJsonSchema,
+    normalizeStructuredOutputSchema,
     ValidationError,
     validateMessages,
     validateToolSchemaStrictness,
-    zodSchemaToJsonSchema,
 } from '@core-ai/core-ai';
 import {
     getGoogleModelCapabilities,
@@ -223,7 +224,7 @@ export function convertTools(tools: ToolSet): Tool[] {
         tools
     ).map((tool) => {
         const { $schema: _schema, ...parametersJsonSchema } =
-            zodSchemaToJsonSchema(tool.parameters);
+            getToolJsonSchema(tool);
 
         return {
             name: tool.name,
@@ -274,13 +275,13 @@ export function convertToolChoice(choice: ToolChoice): ToolConfig {
     };
 }
 
-export function getStructuredOutputToolName<TSchema extends z.ZodType>(
+export function getStructuredOutputToolName<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): string {
     return options.schemaName?.trim() || DEFAULT_STRUCTURED_OUTPUT_TOOL_NAME;
 }
 
-export function createStructuredOutputOptions<TSchema extends z.ZodType>(
+export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     options: GenerateObjectOptions<TSchema>
 ): GenerateOptions {
     const toolName = getStructuredOutputToolName(options);
@@ -294,7 +295,7 @@ export function createStructuredOutputOptions<TSchema extends z.ZodType>(
                 description:
                     options.schemaDescription ??
                     DEFAULT_STRUCTURED_OUTPUT_TOOL_DESCRIPTION,
-                parameters: options.schema,
+                parameters: normalizeStructuredOutputSchema(options).jsonSchema,
             },
         },
         toolChoice: {
@@ -367,6 +368,13 @@ export function createGenerateRequest(
         modelId,
         providerId: provider,
     });
+    rejectRestrictedSamplingParams(
+        modelId,
+        options,
+        capabilities,
+        googleOptions,
+        provider
+    );
     if (options.tools) {
         validateToolSchemaStrictness({
             tools: options.tools,
@@ -397,6 +405,47 @@ export function createGenerateRequest(
         contents: convertedMessages.contents,
         config: requestConfig,
     };
+}
+
+/**
+ * Models that report `restrictsSamplingParams` silently ignore `temperature`,
+ * `topP`, and `topK` while thinking, and reject the penalties with a 400.
+ * Fail early instead. An always-on model thinks even when `reasoning` is
+ * omitted, so the restriction applies then too.
+ */
+function rejectRestrictedSamplingParams(
+    modelId: string,
+    options: GenerateOptions,
+    capabilities: GoogleModelCapabilities,
+    googleOptions: GoogleGenerateProviderOptions | undefined,
+    provider: string
+): void {
+    const reasoningActive =
+        options.reasoning !== undefined ||
+        capabilities.reasoning.mode === 'always-on';
+    if (!reasoningActive || !capabilities.reasoning.restrictsSamplingParams) {
+        return;
+    }
+
+    const restricted = [
+        ['temperature', options.temperature],
+        ['topP', options.topP],
+        ['topK', googleOptions?.topK],
+        ['frequencyPenalty', googleOptions?.frequencyPenalty],
+        ['presencePenalty', googleOptions?.presencePenalty],
+    ] as const;
+
+    for (const [name, value] of restricted) {
+        if (value === undefined) {
+            continue;
+        }
+
+        throw new ValidationError(
+            `Google model "${modelId}" does not support ${name}`,
+            undefined,
+            provider
+        );
+    }
 }
 
 function mapSamplingToConfig(

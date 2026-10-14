@@ -14,7 +14,7 @@ async function main(): Promise<void> {
     const google = createGoogleGenAI({
         apiKey: getRequiredEnv('GOOGLE_API_KEY'),
     });
-    const model = google.chatModel('gemini-3-flash-preview');
+    const model = google.chatModel('gemini-4-argon');
 
     const result = await generate({
         model,
