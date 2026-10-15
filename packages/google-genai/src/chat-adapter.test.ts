@@ -1346,6 +1346,76 @@ describe('tool call thought signatures', () => {
     });
 });
 
+describe('function calls without ids', () => {
+    function createCallResponse(
+        ...functionCalls: { name: string; args: Record<string, unknown> }[]
+    ): GenerateContentResponse {
+        return asGenerateContentResponse({
+            candidates: [
+                {
+                    finishReason: GoogleFinishReason.STOP,
+                    content: {
+                        role: 'model',
+                        parts: functionCalls.map((functionCall) => ({
+                            functionCall,
+                        })),
+                    },
+                },
+            ],
+        });
+    }
+
+    it('should give parallel calls distinct ids without duplicating them', () => {
+        const { toolCalls } = mapGenerateResponse(
+            createCallResponse(
+                { name: 'search', args: { query: 'weather' } },
+                { name: 'search', args: { query: 'news' } }
+            )
+        );
+
+        expect(toolCalls).toEqual([
+            expect.objectContaining({ arguments: { query: 'weather' } }),
+            expect.objectContaining({ arguments: { query: 'news' } }),
+        ]);
+        expect(toolCalls[0]?.id).not.toBe(toolCalls[1]?.id);
+    });
+
+    it('should give calls of different responses distinct ids', () => {
+        const call = { name: 'search', args: { query: 'weather' } };
+        const [first] = mapGenerateResponse(createCallResponse(call)).toolCalls;
+        const [second] = mapGenerateResponse(
+            createCallResponse(call)
+        ).toolCalls;
+
+        expect(first?.id).toEqual(expect.any(String));
+        expect(first?.id).not.toBe(second?.id);
+    });
+
+    it('should keep calls streamed in separate chunks apart', async () => {
+        const events: StreamEvent[] = [];
+        for await (const event of transformStream(
+            toAsyncIterable<GenerateContentResponse>([
+                createCallResponse({ name: 'search', args: { query: 'a' } }),
+                createCallResponse({ name: 'lookup', args: { id: 'b' } }),
+            ])
+        )) {
+            events.push(event);
+        }
+
+        const ends = events.flatMap((event) =>
+            event.type === 'tool-call-end' ? [event.toolCall] : []
+        );
+        expect(ends).toEqual([
+            expect.objectContaining({
+                name: 'search',
+                arguments: { query: 'a' },
+            }),
+            expect.objectContaining({ name: 'lookup', arguments: { id: 'b' } }),
+        ]);
+        expect(ends[0]?.id).not.toBe(ends[1]?.id);
+    });
+});
+
 function asGenerateContentResponse(
     value: Partial<GenerateContentResponse>
 ): GenerateContentResponse {

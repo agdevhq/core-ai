@@ -122,4 +122,57 @@ describe('tool discovery (emulated)', () => {
         expect(result.toolCalls).toEqual([]);
         expect(result.finishReason).toBe('tool-calls');
     });
+
+    it('declares a strict discovered tool without strict instead of throwing', async () => {
+        const generateContent = vi.fn(
+            async (_request: unknown) =>
+                ({
+                    candidates: [
+                        {
+                            finishReason: 'STOP',
+                            content: {
+                                role: 'model',
+                                parts: [{ text: 'Booked.' }],
+                            },
+                        },
+                    ],
+                }) as unknown as GenerateContentResponse
+        );
+        const model = createGoogleGenAIChatModel(
+            {
+                models: { generateContent },
+            } as unknown as Pick<GoogleGenAI, 'models'>,
+            'gemini-3-flash'
+        );
+        const [user, assistant, discoveryResult] = history;
+        if (discoveryResult?.role !== 'tool-discovery' || !user || !assistant) {
+            throw new Error('unexpected history');
+        }
+
+        await model.generate({
+            messages: [
+                user,
+                assistant,
+                {
+                    ...discoveryResult,
+                    tools: discoveryResult.tools.map((tool) => ({
+                        ...tool,
+                        strict: true,
+                    })),
+                },
+            ],
+            toolDiscovery: {},
+        });
+
+        const request = generateContent.mock.calls[0]?.[0] as {
+            config: {
+                tools: { functionDeclarations: { name: string }[] }[];
+            };
+        };
+        expect(
+            request.config.tools[0]?.functionDeclarations.map(
+                (declaration) => declaration.name
+            )
+        ).toEqual([TOOL_DISCOVERY_TOOL_NAME, 'book_meeting']);
+    });
 });

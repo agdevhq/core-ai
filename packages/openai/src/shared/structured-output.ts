@@ -5,6 +5,7 @@ import type {
     SchemaInput,
 } from '@core-ai/core-ai';
 import {
+    emulateToolDiscoveryMessages,
     normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
     requireEveryKey,
@@ -48,7 +49,9 @@ export function createStructuredOutputRequestOptions<
     mode: OpenAIStructuredOutputMode = 'json-schema'
 ): OpenAIRequestOptions {
     const baseOptions: GenerateOptions = {
-        messages: options.messages,
+        // Structured output declares no discovered tools; discovery parts in
+        // the history render as ordinary tool calls and results.
+        messages: emulateToolDiscoveryMessages(options.messages),
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
@@ -96,7 +99,7 @@ export function createStructuredOutputRequestOptions<
         return {
             ...baseOptions,
             messages: insertStructuredOutputSystemMessage(
-                options.messages,
+                baseOptions.messages,
                 instruction
             ),
             structuredOutputFormat: {

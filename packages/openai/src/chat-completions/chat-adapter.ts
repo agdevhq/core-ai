@@ -464,7 +464,10 @@ export function mapGenerateResponse(
         reasoning,
         toolCalls,
         discoveryCalls: [],
-        finishReason: mapFinishReason(firstChoice.finish_reason),
+        finishReason: mapFinishReason(
+            firstChoice.finish_reason,
+            toolCalls.length > 0
+        ),
         usage: {
             inputTokens: response.usage?.prompt_tokens ?? 0,
             outputTokens: normalizeOutputTokens(
@@ -512,9 +515,17 @@ function mapFunctionToolCall(
     };
 }
 
-function mapFinishReason(reason: string | null): FinishReason {
+/**
+ * OpenAI finishes with `stop` when `tool_choice` names a function, and so do
+ * some OpenAI-compatible servers for any tool call. A choice that calls tools
+ * and stops finishes with `'tool-calls'`.
+ */
+function mapFinishReason(
+    reason: string | null,
+    hasToolCalls: boolean
+): FinishReason {
     if (reason === 'stop') {
-        return 'stop';
+        return hasToolCalls ? 'tool-calls' : 'stop';
     }
     if (reason === 'length') {
         return 'length';
@@ -689,7 +700,10 @@ export async function* transformStream(
         }
 
         if (choice.finish_reason) {
-            finishReason = mapFinishReason(choice.finish_reason);
+            finishReason = mapFinishReason(
+                choice.finish_reason,
+                bufferedToolCalls.size > 0
+            );
         }
 
         if (finishReason === 'tool-calls') {

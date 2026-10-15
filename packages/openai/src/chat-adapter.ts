@@ -25,6 +25,7 @@ import type {
     ToolDiscoveryCallPart,
     ToolDiscoveryResultMessage,
     ToolResultMessage,
+    ToolSnapshot,
     UserContentPart,
     ValidateMessagesOptions,
 } from '@core-ai/core-ai';
@@ -33,6 +34,7 @@ import {
     getEmulatedToolSet,
     getProviderMetadata,
     getToolDiscoveryArguments,
+    getToolDiscoveryResultText,
     clampReasoningEffort,
     resolveToolDiscovery,
     toToolDiscoveryToolCall,
@@ -124,15 +126,16 @@ type ConvertMessagesOptions = {
 
 type NativeToolDiscovery = {
     /**
-     * The request's tool names. Their definitions win, so they are left out
-     * of `tool_search_output` items and their calls carry no `namespace`.
+     * The latest snapshot of each discovered tool the request does not
+     * declare, by name. Names of the caller's tools are absent: their
+     * definitions win, so they are never loaded by `tool_search_output`.
      */
-    callerToolNames: ReadonlySet<string>;
-    /**
-     * Discovered tools the request does not declare. The API requires their
-     * replayed calls to carry a `namespace`, which equals the tool name.
-     */
-    discoveredToolNames: ReadonlySet<string>;
+    discoveredTools: ReadonlyMap<string, ToolSnapshot>;
+};
+
+/** Conversion state of the discovered tools loaded so far. */
+type NativeToolDiscoveryState = NativeToolDiscovery & {
+    loadedToolNames: Set<string>;
 };
 
 type ResponsesReasoningAdapterOptions = {
@@ -150,21 +153,52 @@ export function convertMessages(
 ): ResponseInputItem[] {
     const includeReasoning = options.includeReasoning ?? true;
     const providerId = options.providerId ?? DEFAULT_PROVIDER_ID;
-    return messages.flatMap((message) =>
-        convertMessage(
-            message,
-            includeReasoning,
-            providerId,
-            options.nativeToolDiscovery
-        )
-    );
+    const nativeToolDiscovery = options.nativeToolDiscovery && {
+        ...options.nativeToolDiscovery,
+        loadedToolNames: new Set<string>(),
+    };
+    const items: ResponseInputItem[] = [];
+    // Texts of native discovery results, sent once the step's tool outputs
+    // are complete.
+    let pendingNotes: string[] = [];
+
+    for (const message of messages) {
+        if (message.role !== 'tool' && message.role !== 'tool-discovery') {
+            items.push(...convertNotes(pendingNotes));
+            pendingNotes = [];
+        }
+
+        if (message.role === 'tool-discovery' && nativeToolDiscovery) {
+            const { output, text } = convertToolDiscoveryResult(
+                message,
+                nativeToolDiscovery
+            );
+            items.push(output);
+            if (text !== undefined) {
+                pendingNotes.push(text);
+            }
+            continue;
+        }
+
+        items.push(
+            ...convertMessage(
+                message,
+                includeReasoning,
+                providerId,
+                nativeToolDiscovery
+            )
+        );
+    }
+    items.push(...convertNotes(pendingNotes));
+
+    return items;
 }
 
 function convertMessage(
     message: Message,
     includeReasoning: boolean,
     providerId: string,
-    nativeToolDiscovery: NativeToolDiscovery | undefined
+    nativeToolDiscovery: NativeToolDiscoveryState | undefined
 ): ResponseInputItem[] {
     if (message.role === 'system') {
         return [
@@ -197,9 +231,7 @@ function convertMessage(
     }
 
     if (message.role === 'tool-discovery') {
-        return nativeToolDiscovery
-            ? convertToolDiscoveryResult(message, nativeToolDiscovery)
-            : [convertToolResult(toToolDiscoveryToolResult(message))];
+        return [convertToolResult(toToolDiscoveryToolResult(message))];
     }
 
     return [convertToolResult(message)];
@@ -215,33 +247,49 @@ function convertToolResult(message: ToolResultMessage): ResponseInputItem {
 
 /**
  * The discovered tools become deferred functions of a client
- * `tool_search_output`. It has no text field, so a note follows it as a
- * developer message.
+ * `tool_search_output`. Each tool is loaded once, by the first output that
+ * discovers it, with its latest snapshot. The output has no text field, so
+ * its note, or a default text when it loads nothing, is returned separately.
  */
 function convertToolDiscoveryResult(
     message: ToolDiscoveryResultMessage,
-    { callerToolNames }: NativeToolDiscovery
-): ResponseInputItem[] {
-    const items: ResponseInputItem[] = [
-        {
-            type: 'tool_search_output',
-            call_id: message.discoveryCallId,
-            execution: 'client',
-            status: 'completed',
-            tools: message.tools
-                .filter((tool) => !callerToolNames.has(tool.name))
-                .map((tool) => ({
-                    ...convertResponseTool(tool),
-                    defer_loading: true,
-                })),
-        },
-    ];
+    { discoveredTools, loadedToolNames }: NativeToolDiscoveryState
+): { output: ResponseInputItem; text?: string } {
+    const tools = message.tools.flatMap(({ name }) => {
+        const snapshot = discoveredTools.get(name);
+        if (snapshot === undefined || loadedToolNames.has(name)) {
+            return [];
+        }
+        loadedToolNames.add(name);
+        return [{ ...convertResponseTool(snapshot), defer_loading: true }];
+    });
+    const output: ResponseInputItem = {
+        type: 'tool_search_output',
+        call_id: message.discoveryCallId,
+        execution: 'client',
+        status: 'completed',
+        tools,
+    };
 
-    if (message.note?.trim()) {
-        items.push({ role: 'developer', content: message.note });
+    if (tools.length === 0) {
+        return { output, text: getToolDiscoveryResultText(message) };
     }
+    return message.note?.trim() ? { output, text: message.note } : { output };
+}
 
-    return items;
+/** The texts of native discovery results, as one user message. */
+function convertNotes(notes: readonly string[]): ResponseInputItem[] {
+    return notes.length > 0
+        ? [
+              {
+                  role: 'user',
+                  content: notes.map((text) => ({
+                      type: 'input_text' as const,
+                      text,
+                  })),
+              },
+          ]
+        : [];
 }
 
 function convertToolDiscoveryCall(
@@ -256,16 +304,20 @@ function convertToolDiscoveryCall(
     };
 }
 
+/**
+ * The API requires replayed calls to a tool loaded by `tool_search_output`
+ * to carry a `namespace`, which equals the tool name.
+ */
 function convertFunctionCall(
     toolCall: ToolCall,
-    nativeToolDiscovery: NativeToolDiscovery | undefined
+    nativeToolDiscovery: NativeToolDiscoveryState | undefined
 ): ResponseInputItem {
     return {
         type: 'function_call',
         call_id: toolCall.id,
         name: toolCall.name,
         arguments: JSON.stringify(toolCall.arguments),
-        ...(nativeToolDiscovery?.discoveredToolNames.has(toolCall.name)
+        ...(nativeToolDiscovery?.loadedToolNames.has(toolCall.name)
             ? { namespace: toolCall.name }
             : {}),
     } as ResponseInputItem;
@@ -275,7 +327,7 @@ function convertAssistantMessage(
     parts: AssistantContentPart[],
     includeReasoning: boolean,
     providerId: string,
-    nativeToolDiscovery: NativeToolDiscovery | undefined
+    nativeToolDiscovery: NativeToolDiscoveryState | undefined
 ): ResponseInputItem[] {
     const items: ResponseInputItem[] = [];
     const textParts: string[] = [];
@@ -502,11 +554,11 @@ function createRequestBase(
             ...(toolDiscovery.rendering === 'native'
                 ? {
                       nativeToolDiscovery: {
-                          callerToolNames: getToolNames(options.tools),
-                          discoveredToolNames: new Set(
-                              toolDiscovery.discoveredTools.map(
-                                  (tool) => tool.name
-                              )
+                          discoveredTools: new Map(
+                              toolDiscovery.discoveredTools.map((tool) => [
+                                  tool.name,
+                                  tool,
+                              ])
                           ),
                       },
                   }
@@ -547,10 +599,6 @@ function convertRequestTools(
             parameters: toolDiscovery.discoveryTool.parameters,
         },
     ];
-}
-
-function getToolNames(tools: GenerateOptions['tools']): Set<string> {
-    return new Set(Object.values(tools ?? {}).map((tool) => tool.name));
 }
 
 function validateResponsesMessages(options: ValidateMessagesOptions): void {

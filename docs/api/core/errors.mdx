@@ -57,8 +57,9 @@ This includes schemas core-ai cannot use: a tool's `parameters` or a structured 
 With [tool discovery](/guides/tool-discovery) in use, it also covers the discovery rules:
 
 - A tool or discovered tool named `core_ai_discover_tools` or `core_ai_deferred_tools_placeholder`, which core-ai reserves.
-- A discovery call without a `tool-discovery` message answering it.
-- A `tool-discovery` message that answers no preceding discovery call, or answers a call that is already answered.
+- A discovery call without a `tool-discovery` message answering it before the next user or assistant message.
+- A `tool-discovery` message that answers no discovery call of the preceding assistant message, or answers a call that is already answered.
+- A discovery call whose `id` another call of the same assistant message also uses.
 - A discovered tool whose `parameters` are not plain JSON Schema.
 - A `toolChoice` that names a tool outside `tools`.
 

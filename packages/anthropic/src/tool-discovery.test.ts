@@ -11,7 +11,11 @@ import {
     type ToolSnapshot,
 } from '@core-ai/core-ai';
 import { toAsyncIterable } from '@core-ai/testing';
-import { createStreamRequest, transformStream } from './chat-adapter.ts';
+import {
+    createStreamRequest,
+    createStructuredOutputOptions,
+    transformStream,
+} from './chat-adapter.ts';
 import { getAnthropicModelCapabilities } from './model-capabilities.ts';
 
 const NATIVE_MODEL = 'claude-sonnet-4-6';
@@ -363,6 +367,36 @@ describe('emulated tool discovery', () => {
             expect.objectContaining({
                 type: 'tool_use',
                 name: TOOL_DISCOVERY_TOOL_NAME,
+            })
+        );
+    });
+});
+
+describe('structured output after tool discovery', () => {
+    it('declares no discovered tools and replays discovery as tool calls', () => {
+        const request = createStreamRequest(
+            NATIVE_MODEL,
+            4096,
+            createStructuredOutputOptions({
+                messages: createHistory(),
+                schema: z.object({ title: z.string() }),
+            })
+        );
+
+        expect(request.tools).toBeUndefined();
+        expect(request.messages[1]?.content).toContainEqual({
+            type: 'tool_use',
+            id: 'toolu_discover',
+            name: TOOL_DISCOVERY_TOOL_NAME,
+            input: { query: 'calendar' },
+        });
+        expect(request.messages[2]?.content).toContainEqual(
+            expect.objectContaining({
+                type: 'tool_result',
+                tool_use_id: 'toolu_discover',
+                content: expect.stringContaining(
+                    'Discovered tools: book_meeting, cancel_meeting.'
+                ),
             })
         );
     });

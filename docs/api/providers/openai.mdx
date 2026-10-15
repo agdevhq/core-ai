@@ -286,17 +286,18 @@ contract and error reasons.
 
 ### Tool discovery
 
-On the Responses API, GPT-5.4 and later models report
-`tools.toolDiscovery: 'native'`; earlier models and unrecognized model IDs
-report `'emulated'`. Fine-tuned models inherit the base model's value. Chat
-Completions models always report `'emulated'`.
+On the Responses API, GPT-5.4 and later models with tool search report
+`tools.toolDiscovery: 'native'`. `gpt-5.4-nano`, `gpt-5.5-pro`, earlier models,
+and unrecognized model IDs report `'emulated'`. Fine-tuned models inherit the
+base model's value. Chat Completions models always report `'emulated'`.
 
 Natively, the discovery tool is a client-executed `tool_search` tool.
 Discovery calls and results travel as `tool_search_call` and
-`tool_search_output` items, and each `tool_search_output` carries its
-discovered tools as deferred functions. The request's `tools` stay the same
-when the model discovers tools, which keeps the prompt cache. A discovery
-result's `note` follows it as a developer message.
+`tool_search_output` items. Each discovered tool is loaded as a deferred
+function by the first `tool_search_output` that discovers it, with its latest
+snapshot. The request's `tools` stay the same when the model discovers tools,
+which keeps the prompt cache. Notes, and a default text for results that load
+no new tools, follow the step's tool results as a user message.
 
 Set `emulateToolDiscovery: true` to declare discovered tools as ordinary
 functions instead, for example behind a proxy that does not forward the tool

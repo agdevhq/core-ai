@@ -281,9 +281,10 @@ Every request declares, in this order:
 These rules follow from that:
 
 - **Your tools win.** When a tool in `tools` has the name of a discovered tool, core-ai declares only your definition. Use this to keep a tool declared regardless of history, for example after you summarize a conversation and drop its discovery results.
-- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests.
+- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests. A changed definition rewrites the prompt cache from the tool's first discovery on, so return the same snapshot unless the tool changed.
 - **Discovered tools stay declared** while their discovery results are in `messages`, also on requests that omit `toolDiscovery`. Without `toolDiscovery`, the model can call them but cannot discover more.
 - **There is no way to undeclare a discovered tool** while its discovery result is in the history. Removing discovery calls and results from `messages` changes the prompt prefix, so the next request rewrites the prompt cache.
+- **Structured output declares no discovered tools.** `generateObject()` and `streamObject()` send the discovery calls and results in `messages` as ordinary tool calls and results, so the model returns the object instead of calling a discovered tool.
 
 ## Tool choice
 
@@ -296,8 +297,9 @@ These rules follow from that:
 core-ai throws a [`ValidationError`](/api/core/errors#validationerror) before any provider call when a request that uses discovery has:
 
 - A tool in `tools` or a snapshot named `core_ai_discover_tools` or `core_ai_deferred_tools_placeholder`. core-ai reserves these names for its own tools.
-- A discovery call without a `tool-discovery` message answering it.
-- A `tool-discovery` message that answers no preceding discovery call, or that answers a call another message already answered.
+- A discovery call without a `tool-discovery` message answering it before the next user or assistant message.
+- A `tool-discovery` message that answers no discovery call of the preceding assistant message, or that answers a call another message already answered.
+- A discovery call whose `id` another call of the same assistant message also uses.
 - A snapshot whose `parameters` are not plain JSON Schema, such as a Zod schema. Convert it with `toJsonSchema()`.
 - A `toolChoice` that names a tool outside `tools`.
 
@@ -310,12 +312,12 @@ A request uses discovery when it sets `toolDiscovery` or its messages contain di
 - **`'native'`** uses the provider's deferred tool loading. On Anthropic, discovered tools are declared as deferred tools and loaded by references in the discovery results. On the OpenAI Responses API, the discovery tool is a client-executed `tool_search` tool, and discovered tools travel inside its results. The declarations at the start of the prompt stay the same, so the prompt cache survives each discovery.
 - **`'emulated'`** declares the discovery tool and the discovered tools as ordinary tools, and sends discovery results as text tool results. Each discovery changes the declared tool list, so on providers that cache tool declarations, the next request rewrites the prompt cache once.
 
-| Provider                                                       | `toolDiscovery`                                                                                                                                                |
-| -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anthropic, Anthropic Vertex                                    | `'native'` from Claude Opus 4.5, Sonnet 4.5, and Haiku 4.5 on, including unrecognized model IDs; `'emulated'` for Claude Opus 4.1, Opus 4, Sonnet 4, and older |
-| OpenAI, Azure OpenAI (Responses API)                           | `'native'` from GPT-5.4 on; `'emulated'` for earlier and unrecognized model IDs, including custom Azure deployment names                                       |
-| OpenAI and Azure OpenAI (Chat Completions)                     | `'emulated'`                                                                                                                                                   |
-| Google GenAI, Google Vertex, Mistral, xAI, Kimi, OpenAI Compat | `'emulated'`                                                                                                                                                   |
+| Provider                                                       | `toolDiscovery`                                                                                                                                                   |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anthropic, Anthropic Vertex                                    | `'native'` from Claude Opus 4.5, Sonnet 4.5, and Haiku 4.5 on, including unrecognized model IDs; `'emulated'` for Claude Opus 4.1, Opus 4, Sonnet 4, and older    |
+| OpenAI, Azure OpenAI (Responses API)                           | `'native'` from GPT-5.4 on, except `gpt-5.4-nano` and `gpt-5.5-pro`; `'emulated'` for earlier and unrecognized model IDs, including custom Azure deployment names |
+| OpenAI and Azure OpenAI (Chat Completions)                     | `'emulated'`                                                                                                                                                      |
+| Google GenAI, Google Vertex, Mistral, xAI, Kimi, OpenAI Compat | `'emulated'`                                                                                                                                                      |
 
 Set the provider option `emulateToolDiscovery: true` to force emulation on a native model, for example behind a proxy or gateway that does not forward the native blocks:
 
@@ -338,9 +340,14 @@ Conversation history does not depend on the mode. core-ai renders each request f
 
 Set `strict: true` on a snapshot to have the provider enforce its schema. Native and emulated discovery both honor it.
 
-core-ai checks strict snapshots like strict tools in `tools`: against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract) and against `model.capabilities.tools.strictSchemas`, including its `maxStrictTools` limit. On a model without strict tool support, a request that declares a strict snapshot throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror).
+core-ai checks the snapshots it declares strict against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract), like strict tools in `tools`, and throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror) for a snapshot outside it.
 
-Snapshots stay declared while their discovery results are in the history. Mark a snapshot strict only when every model the conversation may use supports strict tools.
+Snapshots stay declared while their discovery results are in the history. So that `strict` never blocks a later request on another model, core-ai declares a strict snapshot without it where the model cannot take it:
+
+- On a model without strict tool support (`model.capabilities.tools.strictSchemas.supported` is `false`).
+- Beyond the model's `maxStrictTools` limit. Your strict tools count first, and earlier discoveries keep `strict` before later ones.
+
+The provider then does not enforce that snapshot's schema, so validate the arguments of the calls you run, as the catalog in the example does.
 
 ## Next steps
 

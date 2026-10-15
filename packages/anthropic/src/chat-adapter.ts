@@ -15,6 +15,7 @@ import type {
 import {
     asObject,
     clampReasoningEffort,
+    emulateToolDiscoveryMessages,
     getEmulatedToolSet,
     getProviderMetadata,
     getToolDiscoveryArguments,
@@ -641,7 +642,9 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     }
 
     return {
-        messages: options.messages,
+        // Structured output declares no discovered tools; discovery parts in
+        // the history render as ordinary tool calls and results.
+        messages: emulateToolDiscoveryMessages(options.messages),
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
