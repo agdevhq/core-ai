@@ -178,8 +178,9 @@ contract, error reasons, and the parallel-tool-calls caveat.
 ### Tool discovery
 
 Root Azure v1 models use the OpenAI Responses API and report
-`tools.toolDiscovery` like OpenAI: `'native'` for GPT-5.4 and later model IDs,
-`'emulated'` for earlier ones. A custom deployment name that is not an OpenAI
+`tools.toolDiscovery` like OpenAI: `'native'` for GPT-5.4 and later model IDs
+except `gpt-5.4-nano` and `gpt-5.5-pro`, `'emulated'` for those and earlier
+ones. A custom deployment name that is not an OpenAI
 model ID reports `'emulated'`. Nested and classic models use Chat Completions
 and always report `'emulated'`.
 

@@ -259,9 +259,83 @@ describe('resolveToolDiscovery', () => {
         ];
 
         expect(() => resolveToolDiscovery({ messages }, EMULATED)).toThrow(
-            /does not answer a preceding tool-discovery-call/
+            /does not answer a tool-discovery-call part of the preceding assistant message/
         );
     });
+
+    it('rejects a discovery result that follows a later message', () => {
+        const [user, assistant, result] = createDiscoveryHistory([]);
+        if (!user || !assistant || !result) {
+            throw new Error('incomplete history');
+        }
+
+        expect(() =>
+            resolveToolDiscovery(
+                {
+                    messages: [
+                        user,
+                        assistant,
+                        { role: 'user', content: 'Any luck?' },
+                        result,
+                    ],
+                },
+                EMULATED
+            )
+        ).toThrow(
+            'Discovery call "d1" has no tool-discovery message answering it'
+        );
+    });
+
+    it('accepts discovery call ids reused by a later step', () => {
+        const messages = [
+            ...createDiscoveryHistory([snapshot('a')]),
+            ...createDiscoveryHistory([snapshot('b')]),
+        ];
+
+        expect(
+            resolveToolDiscovery({ messages }, EMULATED).discoveredTools.map(
+                (tool) => tool.name
+            )
+        ).toEqual(['a', 'b']);
+    });
+
+    it.each([
+        ['another discovery call', 'tool-discovery-call'],
+        ['a tool call', 'tool-call'],
+    ] as const)(
+        'rejects a discovery call sharing its id with %s of the same message',
+        (_label, otherType) => {
+            const messages: Message[] = [
+                { role: 'user', content: 'hi' },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'tool-discovery-call',
+                            discoveryCall: { id: 'c1' },
+                        },
+                        otherType === 'tool-call'
+                            ? {
+                                  type: 'tool-call',
+                                  toolCall: {
+                                      id: 'c1',
+                                      name: 'search',
+                                      arguments: {},
+                                  },
+                              }
+                            : {
+                                  type: 'tool-discovery-call',
+                                  discoveryCall: { id: 'c1' },
+                              },
+                    ],
+                },
+            ];
+
+            expect(() => resolveToolDiscovery({ messages }, EMULATED)).toThrow(
+                /shares its id with another call of the same assistant message/
+            );
+        }
+    );
 
     it('rejects a discovery call answered twice', () => {
         const messages: Message[] = [
@@ -288,6 +362,47 @@ describe('resolveToolDiscovery', () => {
         expect(() => resolveToolDiscovery({ messages }, EMULATED)).toThrow(
             /must have plain JSON Schema parameters/
         );
+    });
+
+    it('drops strict from discovered tools on models without strict support', () => {
+        const { discoveredTools } = resolveToolDiscovery(
+            {
+                messages: createDiscoveryHistory([
+                    { ...snapshot('book'), strict: true },
+                ]),
+            },
+            EMULATED
+        );
+
+        expect(discoveredTools).toEqual([snapshot('book')]);
+    });
+
+    it('keeps strict on the earliest discovered tools that fit the strict tool limit', () => {
+        const capabilities = createCapabilities('emulated');
+        capabilities.tools.strictSchemas = {
+            supported: true,
+            maxStrictTools: 2,
+        };
+
+        const { discoveredTools } = resolveToolDiscovery(
+            {
+                messages: createDiscoveryHistory([
+                    { ...snapshot('a'), strict: true },
+                    snapshot('b'),
+                    { ...snapshot('c'), strict: true },
+                ]),
+                tools: {
+                    search: { ...callerTools.search, strict: true },
+                },
+            },
+            { capabilities, providerId: 'test' }
+        );
+
+        expect(discoveredTools).toEqual([
+            { ...snapshot('a'), strict: true },
+            snapshot('b'),
+            snapshot('c'),
+        ]);
     });
 
     it('rejects a toolChoice that names a discovered tool', () => {

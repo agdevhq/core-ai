@@ -82,7 +82,8 @@ export type ResolvedToolDiscovery = (
     /**
      * The discovered tools to declare: the latest snapshot of each name, in
      * order of first discovery, without names the caller's `tools` declare
-     * (the caller's definition wins).
+     * (the caller's definition wins). Snapshots beyond the model's strict
+     * support are declared without `strict`.
      */
     discoveredTools: ToolSnapshot[];
 };
@@ -125,8 +126,12 @@ export function resolveToolDiscovery(
         assertNotReserved(name, 'tool', providerId);
     }
 
-    const discoveredTools = [...(snapshots ?? new Map()).values()].filter(
-        (tool) => !callerToolNames.has(tool.name)
+    const discoveredTools = limitStrictSnapshots(
+        [...(snapshots ?? new Map()).values()].filter(
+            (tool) => !callerToolNames.has(tool.name)
+        ),
+        options.tools,
+        capabilities
     );
     validateToolChoice(options.toolChoice, callerToolNames, providerId);
 
@@ -135,6 +140,40 @@ export function resolveToolDiscovery(
         !emulate
         ? { rendering: 'native', discoveryTool, discoveredTools }
         : { rendering: 'emulated', discoveryTool, discoveredTools };
+}
+
+/**
+ * Snapshots stay declared while their results are in the history, so a
+ * strict snapshot the model cannot take would fail every later request.
+ * Discovered tools beyond the model's strict support lose `strict` instead,
+ * in declared order: the caller's strict tools count first, and earlier
+ * discoveries keep it before later ones. Without `strict` the provider stops
+ * enforcing the schema; the tool is otherwise unchanged.
+ */
+function limitStrictSnapshots(
+    discoveredTools: readonly ToolSnapshot[],
+    callerTools: ToolSet | undefined,
+    capabilities: ModelCapabilities
+): ToolSnapshot[] {
+    const { strictSchemas } = capabilities.tools;
+    const callerStrictToolCount = Object.values(callerTools ?? {}).filter(
+        (tool) => tool.strict === true
+    ).length;
+    let available = strictSchemas.supported
+        ? (strictSchemas.maxStrictTools ?? Infinity) - callerStrictToolCount
+        : 0;
+
+    return discoveredTools.map((tool) => {
+        if (tool.strict !== true) {
+            return tool;
+        }
+        if (available > 0) {
+            available -= 1;
+            return tool;
+        }
+        const { strict: _strict, ...nonStrictTool } = tool;
+        return nonStrictTool;
+    });
 }
 
 function getToolDiscoveryTool(options: ToolDiscoveryOptions): ToolSnapshot {
@@ -303,22 +342,61 @@ export function getToolDiscoveryResultText(
  * The latest snapshot of every discovered tool, keyed by name in order of
  * first discovery, after validating the discovery parts of `messages`.
  * Returns `undefined` when the messages contain no discovery parts.
+ *
+ * Calls pair with their results per step: a tool-discovery message answers
+ * a call of the latest assistant message, and every call is answered before
+ * the next user or assistant message. Ids only need to be unique within a
+ * step, since some providers reuse generated ids across steps.
  */
 function getDiscoveredToolSnapshots(
     messages: readonly Message[],
     providerId: string
 ): Map<string, ToolSnapshot> | undefined {
-    const pendingCallIds = new Set<string>();
-    const answeredCallIds = new Set<string>();
+    // Discovery calls of the latest assistant message, and those of them
+    // that are not answered yet.
+    let stepCallIds = new Set<string>();
+    let pendingCallIds = new Set<string>();
     let snapshots: Map<string, ToolSnapshot> | undefined;
 
+    const assertStepAnswered = () => {
+        const [unanswered] = pendingCallIds;
+        if (unanswered !== undefined) {
+            throw new ValidationError(
+                `Discovery call "${unanswered}" has no tool-discovery message answering it. Answer every discovery call after its assistant message, before the next user or assistant message.`,
+                undefined,
+                providerId
+            );
+        }
+    };
+
     for (const message of messages) {
+        if (message.role === 'user' || message.role === 'assistant') {
+            assertStepAnswered();
+            stepCallIds = new Set();
+            pendingCallIds = new Set();
+        }
+
         if (message.role === 'assistant') {
+            const toolCallIds = new Set(
+                message.parts.flatMap((part) =>
+                    part.type === 'tool-call' ? [part.toolCall.id] : []
+                )
+            );
             for (const part of message.parts) {
-                if (part.type === 'tool-discovery-call') {
-                    snapshots ??= new Map();
-                    pendingCallIds.add(part.discoveryCall.id);
+                if (part.type !== 'tool-discovery-call') {
+                    continue;
                 }
+                const { id } = part.discoveryCall;
+                if (stepCallIds.has(id) || toolCallIds.has(id)) {
+                    throw new ValidationError(
+                        `Discovery call "${id}" shares its id with another call of the same assistant message; call ids must be unique within a message.`,
+                        undefined,
+                        providerId
+                    );
+                }
+                snapshots ??= new Map();
+                stepCallIds.add(id);
+                pendingCallIds.add(id);
             }
             continue;
         }
@@ -328,21 +406,15 @@ function getDiscoveredToolSnapshots(
         }
 
         snapshots ??= new Map();
-        if (answeredCallIds.has(message.discoveryCallId)) {
-            throw new ValidationError(
-                `Discovery call "${message.discoveryCallId}" is answered by more than one tool-discovery message; answer each discovery call exactly once.`,
-                undefined,
-                providerId
-            );
-        }
         if (!pendingCallIds.delete(message.discoveryCallId)) {
             throw new ValidationError(
-                `The tool-discovery message for "${message.discoveryCallId}" does not answer a preceding tool-discovery-call part.`,
+                stepCallIds.has(message.discoveryCallId)
+                    ? `Discovery call "${message.discoveryCallId}" is answered by more than one tool-discovery message; answer each discovery call exactly once.`
+                    : `The tool-discovery message for "${message.discoveryCallId}" does not answer a tool-discovery-call part of the preceding assistant message.`,
                 undefined,
                 providerId
             );
         }
-        answeredCallIds.add(message.discoveryCallId);
 
         for (const tool of message.tools) {
             validateSnapshot(tool, message.discoveryCallId, providerId);
@@ -352,15 +424,7 @@ function getDiscoveredToolSnapshots(
         }
     }
 
-    const [unanswered] = pendingCallIds;
-    if (unanswered !== undefined) {
-        throw new ValidationError(
-            `Discovery call "${unanswered}" has no tool-discovery message answering it. Answer every discovery call before the next request.`,
-            undefined,
-            providerId
-        );
-    }
-
+    assertStepAnswered();
     return snapshots;
 }
 

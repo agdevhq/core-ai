@@ -141,6 +141,15 @@ describe('tool discovery capability', () => {
         ).toBe('emulated');
     });
 
+    it.each(['gpt-5.4-nano', 'gpt-5.5-pro'])(
+        'is emulated on %s, which lacks tool search',
+        (modelId) => {
+            expect(
+                getOpenAIModelCapabilities(modelId).tools.toolDiscovery
+            ).toBe('emulated');
+        }
+    );
+
     it('is emulated on Chat Completions', () => {
         const model = createOpenAIChatCompletionsModel(
             { chat: {} as OpenAI['chat'] },
@@ -178,10 +187,10 @@ describe('native tool discovery', () => {
         ]);
     });
 
-    it('renders discovery calls, results, and notes as tool search items', () => {
+    it('renders discovery calls and results as tool search items, notes after the step', () => {
         const { input } = createRequest();
 
-        expect(input.slice(1, 5)).toEqual([
+        expect(input.slice(1, 6)).toEqual([
             {
                 type: 'tool_search_call',
                 call_id: 'call_discover',
@@ -219,7 +228,122 @@ describe('native tool discovery', () => {
                     },
                 ],
             },
-            { role: 'developer', content: 'The CRM source is unavailable.' },
+            {
+                type: 'function_call_output',
+                call_id: 'call_search',
+                output: 'Friday',
+            },
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'input_text',
+                        text: 'The CRM source is unavailable.',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('loads a rediscovered tool once, with its latest snapshot', () => {
+        const history: Message[] = [
+            ...createHistory(),
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-discovery-call',
+                        discoveryCall: {
+                            id: 'call_rediscover',
+                            names: ['book_meeting'],
+                        },
+                    },
+                ],
+            },
+            {
+                role: 'tool-discovery',
+                discoveryCallId: 'call_rediscover',
+                tools: [{ ...bookMeeting, description: 'Book a meeting v2' }],
+            },
+        ];
+
+        const outputs = createRequest({ messages: history }).input.filter(
+            (item) => item.type === 'tool_search_output'
+        );
+
+        expect(outputs.map((output) => output.tools)).toEqual([
+            [
+                expect.objectContaining({
+                    name: 'book_meeting',
+                    description: 'Book a meeting v2',
+                }),
+                expect.objectContaining({ name: 'cancel_meeting' }),
+            ],
+            [],
+        ]);
+        expect(createRequest({ messages: history }).input.at(-1)).toEqual({
+            role: 'user',
+            content: [
+                {
+                    type: 'input_text',
+                    text: 'Discovered tools: book_meeting. You can call them now.',
+                },
+            ],
+        });
+    });
+
+    it('tells the model when a discovery found nothing', () => {
+        const history = createHistory();
+        history[2] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_discover',
+            tools: [],
+        };
+
+        const { input } = createRequest({ messages: history });
+
+        expect(input.slice(3, 6)).toEqual([
+            expect.objectContaining({ type: 'tool_search_output', tools: [] }),
+            expect.objectContaining({ type: 'function_call_output' }),
+            {
+                role: 'user',
+                content: [
+                    {
+                        type: 'input_text',
+                        text: 'No matching tools were found.',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('adds no namespace to calls made before the tool was discovered', () => {
+        const history: Message[] = [
+            { role: 'user', content: 'Book it' },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-call',
+                        toolCall: {
+                            id: 'call_early',
+                            name: 'book_meeting',
+                            arguments: { title: 'Launch' },
+                        },
+                    },
+                ],
+            },
+            { role: 'tool', toolCallId: 'call_early', content: 'Booked.' },
+            ...createHistory().slice(1),
+        ];
+
+        const calls = createRequest({ messages: history }).input.filter(
+            (item) => item.name === 'book_meeting'
+        );
+
+        expect(calls).toEqual([
+            expect.not.objectContaining({ namespace: expect.anything() }),
+            expect.objectContaining({ namespace: 'book_meeting' }),
         ]);
     });
 

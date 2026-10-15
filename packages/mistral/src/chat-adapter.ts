@@ -236,7 +236,9 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     const toolName = getStructuredOutputToolName(options);
 
     return {
-        messages: options.messages,
+        // Structured output declares no discovered tools; discovery parts in
+        // the history render as ordinary tool calls and results.
+        messages: emulateToolDiscoveryMessages(options.messages),
         tools: {
             structured_output: {
                 name: toolName,

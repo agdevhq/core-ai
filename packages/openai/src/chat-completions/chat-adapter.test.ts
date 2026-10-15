@@ -764,6 +764,166 @@ describe('reasoning token accounting', () => {
     });
 });
 
+describe('finish reason with tool calls', () => {
+    it('should finish with tool-calls when a server reports stop for tool calls', () => {
+        const result = mapGenerateResponse(
+            asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'stop',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            refusal: null,
+                            tool_calls: [
+                                {
+                                    id: 'call_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'search',
+                                        arguments: '{"query":"weather"}',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            })
+        );
+
+        expect(result.finishReason).toBe('tool-calls');
+    });
+
+    it('should end streamed tool calls when a server reports stop', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_1',
+                                            function: {
+                                                name: 'search',
+                                                arguments:
+                                                    '{"query":"weather"}',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            { index: 0, finish_reason: 'stop', delta: {} },
+                        ],
+                    }),
+                ])
+            )
+        );
+
+        expect(events.slice(-2)).toEqual([
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'call_1',
+                    name: 'search',
+                    arguments: { query: 'weather' },
+                },
+            },
+            expect.objectContaining({
+                type: 'finish',
+                finishReason: 'tool-calls',
+            }),
+        ]);
+    });
+
+    it('should not end streamed tool calls on an unrecognized finish reason', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_1',
+                                            function: {
+                                                name: 'search',
+                                                arguments: '{"query":',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'abort' as 'stop',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ])
+            )
+        );
+
+        expect(events.map((event) => event.type)).not.toContain(
+            'tool-call-end'
+        );
+        expect(events.at(-1)).toMatchObject({
+            type: 'finish',
+            finishReason: 'unknown',
+        });
+    });
+
+    it('should keep length for truncated tool calls', () => {
+        const result = mapGenerateResponse(
+            asChatCompletion({
+                choices: [
+                    {
+                        index: 0,
+                        finish_reason: 'length',
+                        logprobs: null,
+                        message: {
+                            role: 'assistant',
+                            content: null,
+                            refusal: null,
+                            tool_calls: [
+                                {
+                                    id: 'call_1',
+                                    type: 'function',
+                                    function: {
+                                        name: 'search',
+                                        arguments: '{"query":',
+                                    },
+                                },
+                            ],
+                        },
+                    },
+                ],
+            })
+        );
+
+        expect(result.finishReason).toBe('length');
+    });
+});
+
 describe('reasoning support', () => {
     it('should fold reasoning parts into text content wrapped in <thinking> tags', () => {
         const messages: Message[] = [

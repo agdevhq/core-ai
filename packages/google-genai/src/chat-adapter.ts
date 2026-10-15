@@ -294,7 +294,9 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     const toolName = getStructuredOutputToolName(options);
 
     return {
-        messages: options.messages,
+        // Structured output declares no discovered tools; discovery parts in
+        // the history render as ordinary tool calls and results.
+        messages: emulateToolDiscoveryMessages(options.messages),
         reasoning: options.reasoning,
         tools: {
             structured_output: {
@@ -519,12 +521,17 @@ export function mapGenerateResponse(
     };
 }
 
+/**
+ * Gemini may omit function call ids or leave them empty. A generated id
+ * keeps every call of a conversation distinct, so each result pairs with its
+ * own call.
+ */
 function mapFunctionCall(
     toolCall: GoogleFunctionCall,
     index: number
 ): ToolCall {
     return {
-        id: toolCall.id ?? `tool-${index}`,
+        id: toolCall.id || `call_${crypto.randomUUID()}`,
         name: toolCall.name ?? `tool-${index}`,
         arguments: asObject(toolCall.args),
     };
@@ -774,8 +781,8 @@ function extractAssistantParts(
     response: GenerateContentResponse
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
-    const seenToolCalls = new Set<string>();
     const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
+    let functionCallCount = 0;
 
     for (const part of candidateParts) {
         if (part.thought) {
@@ -797,23 +804,19 @@ function extractAssistantParts(
         }
 
         if (part.functionCall) {
-            const toolCall = mapFunctionCall(part.functionCall, 0);
-            const key = `${toolCall.id}:${toolCall.name}`;
-            if (!seenToolCalls.has(key)) {
-                seenToolCalls.add(key);
-                const thoughtSignature = readThoughtSignature(part);
-                parts.push({
-                    type: 'tool-call',
-                    toolCall,
-                    ...(thoughtSignature
-                        ? {
-                              providerMetadata: {
-                                  google: { thoughtSignature },
-                              },
-                          }
-                        : {}),
-                });
-            }
+            const thoughtSignature = readThoughtSignature(part);
+            parts.push({
+                type: 'tool-call',
+                toolCall: mapFunctionCall(part.functionCall, functionCallCount),
+                ...(thoughtSignature
+                    ? {
+                          providerMetadata: {
+                              google: { thoughtSignature },
+                          },
+                      }
+                    : {}),
+            });
+            functionCallCount += 1;
             continue;
         }
 
@@ -825,19 +828,17 @@ function extractAssistantParts(
         }
     }
 
-    for (const [index, functionCall] of (
-        response.functionCalls ?? []
-    ).entries()) {
-        const toolCall = mapFunctionCall(functionCall, index);
-        const key = `${toolCall.id}:${toolCall.name}`;
-        if (seenToolCalls.has(key)) {
-            continue;
+    // The SDK derives `functionCalls` from the candidate parts, so it only
+    // adds calls when the response has no function call parts.
+    if (functionCallCount === 0) {
+        for (const [index, functionCall] of (
+            response.functionCalls ?? []
+        ).entries()) {
+            parts.push({
+                type: 'tool-call',
+                toolCall: mapFunctionCall(functionCall, index),
+            });
         }
-        seenToolCalls.add(key);
-        parts.push({
-            type: 'tool-call',
-            toolCall,
-        });
     }
 
     if (parts.length === 0) {

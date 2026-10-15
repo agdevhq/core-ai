@@ -200,15 +200,6 @@ async function* transformStructuredOutputStream<TSchema extends SchemaInput>(
             continue;
         }
 
-        if (event.type === 'tool-call-delta') {
-            contentBuffer += event.argumentsDelta;
-            yield {
-                type: 'object-delta',
-                text: event.argumentsDelta,
-            };
-            continue;
-        }
-
         if (event.type === 'finish') {
             const rawOutput = requireStructuredOutputPayload(
                 event.finishReason,
