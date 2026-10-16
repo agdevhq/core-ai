@@ -3,7 +3,7 @@ import { z } from 'zod';
 import {
     FinishReason as GoogleFinishReason,
     FunctionCallingConfigMode,
-    type GenerateContentResponse,
+    GenerateContentResponse,
 } from '@google/genai';
 import {
     createGenerateRequest,
@@ -1347,10 +1347,16 @@ describe('tool call thought signatures', () => {
 });
 
 describe('function calls without ids', () => {
+    // A real SDK response, whose `functionCalls` getter repeats the calls of
+    // the candidate parts.
     function createCallResponse(
-        ...functionCalls: { name: string; args: Record<string, unknown> }[]
+        ...functionCalls: {
+            id?: string;
+            name: string;
+            args: Record<string, unknown>;
+        }[]
     ): GenerateContentResponse {
-        return asGenerateContentResponse({
+        return Object.assign(new GenerateContentResponse(), {
             candidates: [
                 {
                     finishReason: GoogleFinishReason.STOP,
@@ -1377,6 +1383,19 @@ describe('function calls without ids', () => {
             expect.objectContaining({ arguments: { query: 'weather' } }),
             expect.objectContaining({ arguments: { query: 'news' } }),
         ]);
+        expect(toolCalls[0]?.id).not.toBe(toolCalls[1]?.id);
+    });
+
+    it('should give calls with empty ids distinct ids', () => {
+        const { toolCalls } = mapGenerateResponse(
+            createCallResponse(
+                { id: '', name: 'search', args: { query: 'weather' } },
+                { id: '', name: 'search', args: { query: 'news' } }
+            )
+        );
+
+        expect(toolCalls).toHaveLength(2);
+        expect(toolCalls[0]?.id).toMatch(/^call_/);
         expect(toolCalls[0]?.id).not.toBe(toolCalls[1]?.id);
     });
 

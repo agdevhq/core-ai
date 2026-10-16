@@ -1,7 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import type { Mistral } from '@mistralai/mistralai';
-import { TOOL_DISCOVERY_TOOL_NAME, type Message } from '@core-ai/core-ai';
+import {
+    TOOL_DISCOVERY_TOOL_NAME,
+    ValidationError,
+    type Message,
+} from '@core-ai/core-ai';
 import { toAsyncIterable } from '@core-ai/testing';
+import {
+    createGenerateRequest,
+    createStructuredOutputOptions,
+} from './chat-adapter.ts';
 import { createMistralChatModel } from './chat-model.ts';
 
 const history: Message[] = [
@@ -154,5 +163,51 @@ describe('tool discovery (emulated)', () => {
                 discoveryCall: { id: 'call_2', query: 'calendar' },
             },
         ]);
+    });
+});
+
+describe('structured output after tool discovery', () => {
+    const schema = z.object({ title: z.string() });
+    const [user, assistant] = history;
+    const historyWithTools: Message[] = [
+        ...(user && assistant ? [user, assistant] : []),
+        {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_1',
+            tools: [
+                {
+                    name: 'book',
+                    description: 'Book a meeting',
+                    parameters: { type: 'object', properties: {} },
+                },
+            ],
+        },
+    ];
+
+    it('declares only the structured output tool', () => {
+        const request = createGenerateRequest(
+            'mistral-medium-latest',
+            createStructuredOutputOptions({
+                messages: historyWithTools,
+                schema,
+            })
+        );
+
+        expect(request.tools).toEqual([
+            expect.objectContaining({
+                function: expect.objectContaining({
+                    name: 'core_ai_generate_object',
+                }),
+            }),
+        ]);
+    });
+
+    it('rejects an unanswered discovery call', () => {
+        expect(() =>
+            createStructuredOutputOptions({
+                messages: historyWithTools.slice(0, 2),
+                schema,
+            })
+        ).toThrow(ValidationError);
     });
 });

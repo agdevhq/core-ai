@@ -90,7 +90,10 @@ export function createMistralChatModel(
         async generateObject<TSchema extends SchemaInput>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                options,
+                provider
+            );
             const result = await generateChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
             const object = await extractStructuredObject(
@@ -109,7 +112,10 @@ export function createMistralChatModel(
         async streamObject<TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                options,
+                provider
+            );
             const stream = await streamChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
 

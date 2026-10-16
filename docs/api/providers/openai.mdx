@@ -296,8 +296,9 @@ Discovery calls and results travel as `tool_search_call` and
 `tool_search_output` items. Each discovered tool is loaded as a deferred
 function by the first `tool_search_output` that discovers it, with its latest
 snapshot. The request's `tools` stay the same when the model discovers tools,
-which keeps the prompt cache. Notes, and a default text for results that load
-no new tools, follow the step's tool results as a user message.
+which keeps the prompt cache. `tool_search_output` holds no text, so the
+`note` of an empty result follows the step's tool results as a developer
+message, which keeps the step's reasoning.
 
 Set `emulateToolDiscovery: true` to declare discovered tools as ordinary
 functions instead, for example behind a proxy that does not forward the tool

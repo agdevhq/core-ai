@@ -1,6 +1,7 @@
 import { ValidationError } from './errors.ts';
 import { isPlainObject } from './json-schema.ts';
 import { isStandardSchema } from './schema.ts';
+import { assertStrictToolSchemaContract } from './validate-tool-schema-strictness.ts';
 import type {
     AssistantContentPart,
     AssistantMessage,
@@ -91,24 +92,34 @@ export type ResolvedToolDiscovery = (
 export type ResolveToolDiscoveryOptions = {
     capabilities: ModelCapabilities;
     providerId: string;
+    modelId: string;
     /** Forces emulation, e.g. from a provider option. */
     emulate?: boolean;
 };
 
 /**
  * Validates the tool discovery parts of a request and resolves how to render
- * them. Throws a `ValidationError` before any provider call for reserved
- * tool names, unanswered discovery calls, discovery results without a call,
- * snapshots whose `parameters` are not plain JSON Schema, and a `toolChoice`
- * that names a tool outside `tools`. Without discovery parts or
- * `toolDiscovery`, nothing is checked.
+ * them. Without discovery parts or `toolDiscovery`, nothing is checked.
+ *
+ * Throws a `ValidationError` before any provider call for reserved tool
+ * names, snapshots whose `parameters` are not plain JSON Schema, a
+ * `toolChoice` that names a tool outside `tools`, and discovery calls and
+ * results that do not pair up within their step (see
+ * {@link validateToolDiscoveryMessages}). Throws a `ToolSchemaStrictnessError`
+ * for a declared strict snapshot outside the strict-capable schema contract,
+ * on every model, so a history fails the same way wherever it is sent.
  */
 export function resolveToolDiscovery(
     options: Pick<
         GenerateOptions,
         'messages' | 'tools' | 'toolChoice' | 'toolDiscovery'
     >,
-    { capabilities, providerId, emulate = false }: ResolveToolDiscoveryOptions
+    {
+        capabilities,
+        providerId,
+        modelId,
+        emulate = false,
+    }: ResolveToolDiscoveryOptions
 ): ResolvedToolDiscovery {
     const discoveryTool =
         options.toolDiscovery === undefined
@@ -126,10 +137,15 @@ export function resolveToolDiscovery(
         assertNotReserved(name, 'tool', providerId);
     }
 
+    const declaredSnapshots = [...(snapshots ?? new Map()).values()].filter(
+        (tool) => !callerToolNames.has(tool.name)
+    );
+    assertStrictToolSchemaContract(
+        declaredSnapshots.filter((tool) => tool.strict === true),
+        { providerId, modelId }
+    );
     const discoveredTools = limitStrictSnapshots(
-        [...(snapshots ?? new Map()).values()].filter(
-            (tool) => !callerToolNames.has(tool.name)
-        ),
+        declaredSnapshots,
         options.tools,
         capabilities
     );
@@ -323,30 +339,48 @@ export function createToolDiscoveryCallPart(
 
 /**
  * The text of a discovery result where it is rendered as text: every
- * emulated result, and empty results natively.
+ * emulated result, and empty results natively. An empty result says why with
+ * its note, or else that nothing was found.
  */
 export function getToolDiscoveryResultText(
     message: Pick<ToolDiscoveryResultMessage, 'tools' | 'note'>
 ): string {
-    const note = message.note?.trim() ? message.note : undefined;
     if (message.tools.length === 0) {
-        return note ?? EMPTY_DISCOVERY_RESULT_TEXT;
+        return getToolDiscoveryNote(message) ?? EMPTY_DISCOVERY_RESULT_TEXT;
     }
 
     const names = message.tools.map((tool) => tool.name).join(', ');
-    const text = `Discovered tools: ${names}. You can call them now.`;
-    return note ? `${text}\n\n${note}` : text;
+    return `Discovered tools: ${names}. You can call them now.`;
+}
+
+/** The note of a discovery result, unless it is empty or whitespace. */
+export function getToolDiscoveryNote(
+    message: Pick<ToolDiscoveryResultMessage, 'note'>
+): string | undefined {
+    return message.note?.trim() ? message.note : undefined;
+}
+
+/**
+ * Validates the discovery calls and results of `messages` as
+ * {@link resolveToolDiscovery} does, for requests that send them without
+ * declaring discovered tools, such as structured output. Calls pair with
+ * their results per step: a tool-discovery message answers a call of the
+ * preceding assistant message, every call is answered before the next user
+ * or assistant message, and call ids are unique within a message.
+ */
+export function validateToolDiscoveryMessages(
+    messages: readonly Message[],
+    providerId: string
+): void {
+    getDiscoveredToolSnapshots(messages, providerId);
 }
 
 /**
  * The latest snapshot of every discovered tool, keyed by name in order of
  * first discovery, after validating the discovery parts of `messages`.
- * Returns `undefined` when the messages contain no discovery parts.
- *
- * Calls pair with their results per step: a tool-discovery message answers
- * a call of the latest assistant message, and every call is answered before
- * the next user or assistant message. Ids only need to be unique within a
- * step, since some providers reuse generated ids across steps.
+ * Returns `undefined` when the messages contain no discovery parts. Pairing
+ * is per step, so ids only need to be unique within a message: some
+ * providers reuse generated ids across steps.
  */
 function getDiscoveredToolSnapshots(
     messages: readonly Message[],
@@ -411,6 +445,14 @@ function getDiscoveredToolSnapshots(
                 stepCallIds.has(message.discoveryCallId)
                     ? `Discovery call "${message.discoveryCallId}" is answered by more than one tool-discovery message; answer each discovery call exactly once.`
                     : `The tool-discovery message for "${message.discoveryCallId}" does not answer a tool-discovery-call part of the preceding assistant message.`,
+                undefined,
+                providerId
+            );
+        }
+
+        if (message.tools.length > 0 && getToolDiscoveryNote(message)) {
+            throw new ValidationError(
+                `The tool-discovery message for "${message.discoveryCallId}" has both tools and a note; a note only explains a result without tools.`,
                 undefined,
                 providerId
             );

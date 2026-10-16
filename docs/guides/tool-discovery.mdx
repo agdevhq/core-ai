@@ -72,13 +72,13 @@ type ToolDiscoveryResultMessage = {
     discoveryCallId: string;
     /** The discovered tools; empty when nothing matched. */
     tools: ToolSnapshot[];
-    /** Optional short note for the model. */
+    /** Explains an empty result to the model. */
     note?: string;
     metadata?: Record<string, unknown>;
 };
 ```
 
-Place it with the step's tool results: after the assistant message and before the next request, in any order relative to `tool` messages. Use `note` for a short message to the model, such as "The billing tools are unavailable right now." When nothing matches, return an empty `tools` array. The model then receives your `note`, or a default text saying that no tools were found.
+Place it with the step's tool results: after the assistant message and before the next request, in any order relative to `tool` messages. When nothing matches, return an empty `tools` array, optionally with a `note` that tells the model why, such as "The billing tools are unavailable right now." The model then receives your `note`. Without one, it receives a default text saying that no tools were found, except natively on OpenAI, where the empty result speaks for itself. A `note` is only allowed without tools: neither native API can carry text next to loaded tools. Put standing guidance, such as which queries work or that empty results mean a tool doesn't exist, in `toolDiscovery.description`.
 
 ### Tool snapshots
 
@@ -281,10 +281,10 @@ Every request declares, in this order:
 These rules follow from that:
 
 - **Your tools win.** When a tool in `tools` has the name of a discovered tool, core-ai declares only your definition. Use this to keep a tool declared regardless of history, for example after you summarize a conversation and drop its discovery results.
-- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests. A changed definition rewrites the prompt cache from the tool's first discovery on, so return the same snapshot unless the tool changed.
+- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests. A changed definition rewrites the prompt cache from where the tool is defined, so return the same snapshot unless the tool changed: from its first discovery with native discovery, from the tool declarations at the start of the prompt with emulated discovery.
 - **Discovered tools stay declared** while their discovery results are in `messages`, also on requests that omit `toolDiscovery`. Without `toolDiscovery`, the model can call them but cannot discover more.
 - **There is no way to undeclare a discovered tool** while its discovery result is in the history. Removing discovery calls and results from `messages` changes the prompt prefix, so the next request rewrites the prompt cache.
-- **Structured output declares no discovered tools.** `generateObject()` and `streamObject()` send the discovery calls and results in `messages` as ordinary tool calls and results, so the model returns the object instead of calling a discovered tool.
+- **Structured output declares no discovered tools.** `generateObject()` and `streamObject()` validate the discovery calls and results in `messages` like `generate()` does, then send them as ordinary tool calls and results, so the model returns the object instead of calling a discovered tool.
 
 ## Tool choice
 
@@ -300,6 +300,7 @@ core-ai throws a [`ValidationError`](/api/core/errors#validationerror) before an
 - A discovery call without a `tool-discovery` message answering it before the next user or assistant message.
 - A `tool-discovery` message that answers no discovery call of the preceding assistant message, or that answers a call another message already answered.
 - A discovery call whose `id` another call of the same assistant message also uses.
+- A `tool-discovery` message with both `tools` and a `note`.
 - A snapshot whose `parameters` are not plain JSON Schema, such as a Zod schema. Convert it with `toJsonSchema()`.
 - A `toolChoice` that names a tool outside `tools`.
 
@@ -340,14 +341,16 @@ Conversation history does not depend on the mode. core-ai renders each request f
 
 Set `strict: true` on a snapshot to have the provider enforce its schema. Native and emulated discovery both honor it.
 
-core-ai checks the snapshots it declares strict against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract), like strict tools in `tools`, and throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror) for a snapshot outside it.
+core-ai checks every strict snapshot it declares against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract), like strict tools in `tools`, and throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror) for a snapshot outside it. The check runs on every model, so a snapshot outside the contract fails on the first request after its discovery, wherever the conversation runs.
 
-Snapshots stay declared while their discovery results are in the history. So that `strict` never blocks a later request on another model, core-ai declares a strict snapshot without it where the model cannot take it:
+Snapshots stay declared while their discovery results are in the history, so core-ai declares a strict snapshot without `strict` where the model cannot take it:
 
 - On a model without strict tool support (`model.capabilities.tools.strictSchemas.supported` is `false`).
 - Beyond the model's `maxStrictTools` limit. Your strict tools count first, and earlier discoveries keep `strict` before later ones.
 
 The provider then does not enforce that snapshot's schema, so validate the arguments of the calls you run, as the catalog in the example does.
+
+Anthropic also limits the complexity of a request's strict tools: at most 16 parameters with union types, and an overall size limit (see [Provider support](/guides/tool-calling#provider-support)). core-ai does not check these, and strict snapshots add up over a conversation, so mark a snapshot strict only when its tool needs it.
 
 ## Next steps
 

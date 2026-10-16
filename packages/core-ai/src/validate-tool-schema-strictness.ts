@@ -92,6 +92,21 @@ export function validateToolSchemaStrictness({
         });
     }
 
+    assertStrictToolSchemaContract(strictTools, { providerId, modelId });
+}
+
+/**
+ * Throws {@link ToolSchemaStrictnessError} (`invalid-schema`) when a schema of
+ * `strictTools` falls outside the strict-capable schema contract, whatever
+ * the model supports.
+ */
+export function assertStrictToolSchemaContract(
+    strictTools: readonly ToolDefinition[],
+    {
+        providerId,
+        modelId,
+    }: Pick<ValidateToolSchemaStrictnessOptions, 'providerId' | 'modelId'>
+): void {
     const violations = strictTools.flatMap(getContractViolations);
     if (violations.length > 0) {
         throw new ToolSchemaStrictnessError({

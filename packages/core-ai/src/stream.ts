@@ -233,7 +233,13 @@ export function createChatStream(
                     });
                     break;
                 case 'tool-discovery-call':
-                    appendCallPart({ ...event });
+                    appendCallPart({
+                        type: 'tool-discovery-call',
+                        discoveryCall: event.discoveryCall,
+                        ...(event.providerMetadata
+                            ? { providerMetadata: event.providerMetadata }
+                            : {}),
+                    });
                     break;
                 case 'finish':
                     setFinish(event);

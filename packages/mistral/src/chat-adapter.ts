@@ -34,6 +34,7 @@ import {
     clampReasoningEffort,
     emulateToolDiscoveryMessages,
     getEmulatedToolSet,
+    getStructuredOutputMessages,
     getProviderMetadata,
     getToolJsonSchema,
     normalizeStructuredOutputSchema,
@@ -231,14 +232,13 @@ export function getStructuredOutputToolName<TSchema extends SchemaInput>(
 }
 
 export function createStructuredOutputOptions<TSchema extends SchemaInput>(
-    options: GenerateObjectOptions<TSchema>
+    options: GenerateObjectOptions<TSchema>,
+    providerId = 'mistral'
 ): GenerateOptions {
     const toolName = getStructuredOutputToolName(options);
 
     return {
-        // Structured output declares no discovered tools; discovery parts in
-        // the history render as ordinary tool calls and results.
-        messages: emulateToolDiscoveryMessages(options.messages),
+        messages: getStructuredOutputMessages(options.messages, providerId),
         tools: {
             structured_output: {
                 name: toolName,
@@ -317,7 +317,7 @@ function createRequestBase(
     });
     const tools = getEmulatedToolSet(
         options.tools,
-        resolveToolDiscovery(options, { capabilities, providerId })
+        resolveToolDiscovery(options, { capabilities, providerId, modelId })
     );
     if (tools) {
         validateToolSchemaStrictness({
