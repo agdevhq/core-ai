@@ -1,7 +1,7 @@
 import { toAsyncIterable } from '@core-ai/testing';
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
-import { ValidationError } from './errors.ts';
+import { ToolSchemaStrictnessError, ValidationError } from './errors.ts';
 import { finalizeGenerateResult } from './finalize-result.ts';
 import {
     MULTIMODAL_INPUT_MODALITIES,
@@ -9,6 +9,7 @@ import {
 } from './model-capabilities.ts';
 import { resultToMessage } from './result-to-message.ts';
 import { createChatStream } from './stream.ts';
+import { getStructuredOutputMessages } from './structured-output.ts';
 import { getSystemMessagePlacementIssues } from './system-message-placement.ts';
 import {
     createToolDiscoveryCallPart,
@@ -50,10 +51,12 @@ function createCapabilities(
 const NATIVE = {
     capabilities: createCapabilities('native'),
     providerId: 'test',
+    modelId: 'test-model',
 };
 const EMULATED = {
     capabilities: createCapabilities('emulated'),
     providerId: 'test',
+    modelId: 'test-model',
 };
 
 function snapshot(name: string, description = `${name} tool`): ToolSnapshot {
@@ -71,6 +74,30 @@ const callerTools = {
         parameters: z.object({ query: z.string() }),
     },
 } satisfies ToolSet;
+
+const STRICT = {
+    ...EMULATED,
+    capabilities: {
+        ...EMULATED.capabilities,
+        tools: {
+            ...EMULATED.capabilities.tools,
+            strictSchemas: { supported: true },
+        },
+    },
+} satisfies typeof EMULATED;
+
+/** Strict, with a keyword the strict-capable schema contract excludes. */
+const outsideStrictContract: ToolSnapshot = {
+    name: 'lookup',
+    description: 'Look up a record',
+    parameters: {
+        type: 'object',
+        properties: { id: { type: 'string', minLength: 1 } },
+        required: ['id'],
+        additionalProperties: false,
+    },
+    strict: true,
+};
 
 /** A user turn, a discovery call, and its result. */
 function createDiscoveryHistory(
@@ -286,6 +313,52 @@ describe('resolveToolDiscovery', () => {
         );
     });
 
+    it('rejects a discovery result that follows a later assistant message', () => {
+        const [user, assistant, result] = createDiscoveryHistory([]);
+        if (!user || !assistant || !result) {
+            throw new Error('incomplete history');
+        }
+
+        expect(() =>
+            resolveToolDiscovery(
+                {
+                    messages: [
+                        user,
+                        assistant,
+                        {
+                            role: 'assistant',
+                            parts: [{ type: 'text', text: 'Still looking.' }],
+                        },
+                        result,
+                    ],
+                },
+                EMULATED
+            )
+        ).toThrow(
+            'Discovery call "d1" has no tool-discovery message answering it'
+        );
+    });
+
+    it('rejects a note next to discovered tools', () => {
+        expect(() =>
+            resolveToolDiscovery(
+                {
+                    messages: createDiscoveryHistory(
+                        [snapshot('book')],
+                        'The CRM source is unavailable.'
+                    ),
+                },
+                EMULATED
+            )
+        ).toThrow(/has both tools and a note/);
+        expect(() =>
+            resolveToolDiscovery(
+                { messages: createDiscoveryHistory([snapshot('book')], '  ') },
+                EMULATED
+            )
+        ).not.toThrow();
+    });
+
     it('accepts discovery call ids reused by a later step', () => {
         const messages = [
             ...createDiscoveryHistory([snapshot('a')]),
@@ -395,7 +468,7 @@ describe('resolveToolDiscovery', () => {
                     search: { ...callerTools.search, strict: true },
                 },
             },
-            { capabilities, providerId: 'test' }
+            { ...EMULATED, capabilities }
         );
 
         expect(discoveredTools).toEqual([
@@ -403,6 +476,42 @@ describe('resolveToolDiscovery', () => {
             snapshot('b'),
             snapshot('c'),
         ]);
+    });
+
+    it.each([
+        ['a model without strict support', EMULATED],
+        ['a model with strict support', STRICT],
+    ] as const)(
+        'rejects a strict snapshot outside the strict contract on %s',
+        (_label, options) => {
+            expect(() =>
+                resolveToolDiscovery(
+                    {
+                        messages: createDiscoveryHistory([
+                            outsideStrictContract,
+                        ]),
+                    },
+                    options
+                )
+            ).toThrow(ToolSchemaStrictnessError);
+        }
+    );
+
+    it('accepts a strict snapshot outside the contract that a caller tool overrides', () => {
+        expect(() =>
+            resolveToolDiscovery(
+                {
+                    messages: createDiscoveryHistory([outsideStrictContract]),
+                    tools: {
+                        search: {
+                            ...callerTools.search,
+                            name: outsideStrictContract.name,
+                        },
+                    },
+                },
+                EMULATED
+            )
+        ).not.toThrow();
     });
 
     it('rejects a toolChoice that names a discovered tool', () => {
@@ -466,10 +575,7 @@ describe('emulateToolDiscoveryMessages', () => {
     it('renders discovery calls and results as tool calls and text results', () => {
         expect(
             emulateToolDiscoveryMessages(
-                createDiscoveryHistory(
-                    [snapshot('book'), snapshot('cancel')],
-                    'The CRM source is unavailable.'
-                )
+                createDiscoveryHistory([snapshot('book'), snapshot('cancel')])
             ).slice(1)
         ).toEqual([
             {
@@ -492,7 +598,7 @@ describe('emulateToolDiscoveryMessages', () => {
                 role: 'tool',
                 toolCallId: 'd1',
                 content:
-                    'Discovered tools: book, cancel. You can call them now.\n\nThe CRM source is unavailable.',
+                    'Discovered tools: book, cancel. You can call them now.',
             },
         ]);
     });
@@ -512,6 +618,48 @@ describe('getToolDiscoveryResultText', () => {
         expect(
             getToolDiscoveryResultText({ tools: [], note: 'Try "crm".' })
         ).toBe('Try "crm".');
+    });
+
+    it('ignores whitespace-only notes', () => {
+        expect(getToolDiscoveryResultText({ tools: [], note: '  ' })).toBe(
+            'No matching tools were found.'
+        );
+        expect(
+            getToolDiscoveryResultText({ tools: [snapshot('a')], note: ' \n' })
+        ).toBe('Discovered tools: a. You can call them now.');
+    });
+});
+
+describe('getStructuredOutputMessages', () => {
+    it('sends discovery history as ordinary tool calls and results', () => {
+        const messages = getStructuredOutputMessages(
+            createDiscoveryHistory([snapshot('book')]),
+            'test'
+        );
+
+        expect(messages.slice(1)).toEqual([
+            {
+                role: 'assistant',
+                parts: [
+                    expect.objectContaining({
+                        type: 'tool-call',
+                        toolCall: expect.objectContaining({
+                            name: TOOL_DISCOVERY_TOOL_NAME,
+                        }),
+                    }),
+                ],
+            },
+            expect.objectContaining({ role: 'tool', toolCallId: 'd1' }),
+        ]);
+    });
+
+    it('rejects an unanswered discovery call', () => {
+        expect(() =>
+            getStructuredOutputMessages(
+                createDiscoveryHistory([]).slice(0, 2),
+                'test'
+            )
+        ).toThrow(ValidationError);
     });
 });
 

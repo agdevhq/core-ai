@@ -15,9 +15,9 @@ import type {
 import {
     asObject,
     clampReasoningEffort,
-    emulateToolDiscoveryMessages,
     getEmulatedToolSet,
     getProviderMetadata,
+    getStructuredOutputMessages,
     getToolDiscoveryArguments,
     getToolDiscoveryResultText,
     getToolJsonSchema,
@@ -125,23 +125,8 @@ export function convertMessages(
     const cacheTtls: AnthropicCacheTtl[] = [];
     const convertedMessages: MessageParam[] = [];
     let previousInputWasTool = false;
-    // A `tool_result` with `tool_reference` blocks cannot hold text, so the
-    // notes of native discovery results follow the step's tool results.
-    let pendingNotes: TextBlockParam[] = [];
-
-    const flushNotes = () => {
-        const lastMessage = convertedMessages.at(-1);
-        if (pendingNotes.length > 0 && Array.isArray(lastMessage?.content)) {
-            lastMessage.content.push(...pendingNotes);
-        }
-        pendingNotes = [];
-    };
 
     for (const message of messages) {
-        if (message.role !== 'tool' && message.role !== 'tool-discovery') {
-            flushNotes();
-        }
-
         if (message.role === 'system') {
             const block = convertSystemMessage(message, provider);
             if (!block) {
@@ -266,9 +251,6 @@ export function convertMessages(
             toolResultBlock = convertToolResultMessage(message, provider);
         } else if (toolDiscovery === 'native') {
             toolResultBlock = convertToolDiscoveryResult(message);
-            if (message.tools.length > 0 && message.note?.trim()) {
-                pendingNotes.push({ type: 'text', text: message.note });
-            }
         } else {
             toolResultBlock = convertToolResultMessage(
                 toToolDiscoveryToolResult(message),
@@ -297,7 +279,6 @@ export function convertMessages(
 
         previousInputWasTool = true;
     }
-    flushNotes();
 
     return {
         system: system.length > 0 ? system : undefined,
@@ -477,7 +458,9 @@ function convertToolResultMessage(
 
 /**
  * References load the discovered tools, which the request declares as
- * deferred tools. An empty result has nothing to reference, so it is text.
+ * deferred tools; a result with references cannot also hold text. An empty
+ * result has nothing to reference, so it is text: its note, or that nothing
+ * was found.
  */
 function convertToolDiscoveryResult(
     message: ToolDiscoveryResultMessage
@@ -642,9 +625,7 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     }
 
     return {
-        // Structured output declares no discovered tools; discovery parts in
-        // the history render as ordinary tool calls and results.
-        messages: emulateToolDiscoveryMessages(options.messages),
+        messages: getStructuredOutputMessages(options.messages, provider),
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
@@ -751,6 +732,7 @@ export function createStreamRequest(
     const toolDiscovery = resolveToolDiscovery(options, {
         capabilities,
         providerId: provider,
+        modelId,
         emulate: anthropicOptions?.emulateToolDiscovery,
     });
     const converted = convertMessages(

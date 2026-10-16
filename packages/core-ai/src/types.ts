@@ -240,11 +240,16 @@ export type ToolDiscoveryResultMessage = {
     /** `id` of the answered `ToolDiscoveryCall`. */
     discoveryCallId: string;
     /**
-     * The discovered tools. They stay declared on every later request while
-     * this message is in the history; may be empty when nothing was found.
+     * The discovered tools. They stay declared on later `generate` and
+     * `stream` requests while this message is in the history, unless `tools`
+     * declares the same name; may be empty when nothing was found.
      */
     tools: ToolSnapshot[];
-    /** Optional short note for the model, e.g. that a source is unavailable. */
+    /**
+     * Explains a result without tools to the model, e.g. that a source is
+     * unavailable or which query to try instead. Only allowed when `tools`
+     * is empty; put standing guidance in `ToolDiscoveryOptions.description`.
+     */
     note?: string;
     /**
      * Application-owned metadata for this message. Provider adapters ignore
@@ -373,8 +378,8 @@ export type ModelCapabilities = {
         strictSchemas: ToolSchemaStrictnessCapabilities;
         /**
          * Whether discovered tools are delivered natively by the provider or
-         * emulated by declaring them as ordinary tools. Both behave the same
-         * for the application.
+         * emulated by declaring them as ordinary tools. Application code is
+         * the same for both.
          */
         toolDiscovery: ToolDiscoverySupport;
     };

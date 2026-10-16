@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
+import type Anthropic from '@anthropic-ai/sdk';
 import type { RawMessageStreamEvent } from '@anthropic-ai/sdk/resources/messages/messages';
 import {
-    createChatStream,
     TOOL_DISCOVERY_PLACEHOLDER_TOOL_NAME,
     TOOL_DISCOVERY_TOOL_NAME,
     ToolSchemaStrictnessError,
@@ -14,8 +14,9 @@ import { toAsyncIterable } from '@core-ai/testing';
 import {
     createStreamRequest,
     createStructuredOutputOptions,
-    transformStream,
+    getAnthropicRequestBetas,
 } from './chat-adapter.ts';
+import { createAnthropicChatModel } from './chat-model.ts';
 import { getAnthropicModelCapabilities } from './model-capabilities.ts';
 
 const NATIVE_MODEL = 'claude-sonnet-4-6';
@@ -45,7 +46,7 @@ const searchTool = {
 
 /**
  * One step with a discovery call and a tool call, answered by a tool result
- * and a discovery result with a note, then a call to the discovered tool.
+ * and a discovery result, then a call to the discovered tool.
  */
 function createHistory(): Message[] {
     return [
@@ -76,7 +77,6 @@ function createHistory(): Message[] {
             role: 'tool-discovery',
             discoveryCallId: 'toolu_discover',
             tools: [bookMeeting, cancelMeeting],
-            note: 'The CRM source is unavailable.',
         },
         {
             role: 'assistant',
@@ -202,22 +202,33 @@ describe('native tool discovery', () => {
                         { type: 'tool_reference', tool_name: 'cancel_meeting' },
                     ],
                 },
-                { type: 'text', text: 'The CRM source is unavailable.' },
             ],
         });
     });
 
-    it('keeps the note after tool results that follow the discovery result', () => {
+    it('sends no whitespace-only note', () => {
         const history = createHistory();
-        const { messages } = createRequest({
-            messages: [...history.slice(0, 2), history[3]!, history[2]!],
-        });
+        const discoveryResult = history[3];
+        if (discoveryResult?.role !== 'tool-discovery') {
+            throw new Error('unexpected history');
+        }
+        history[3] = { ...discoveryResult, note: '  ' };
 
-        expect(messages[2]?.content).toMatchObject([
-            { type: 'tool_result', tool_use_id: 'toolu_discover' },
-            { type: 'tool_result', tool_use_id: 'toolu_search' },
-            { type: 'text', text: 'The CRM source is unavailable.' },
-        ]);
+        const { messages } = createRequest({ messages: history });
+
+        expect(messages[2]?.content).not.toContainEqual(
+            expect.objectContaining({ type: 'text' })
+        );
+    });
+
+    it('enables interleaved thinking for discovery without caller tools', () => {
+        expect(
+            getAnthropicRequestBetas('claude-sonnet-4-5', {
+                messages: [{ role: 'user', content: 'Book a meeting' }],
+                reasoning: { effort: 'medium' },
+                toolDiscovery: {},
+            })
+        ).toEqual(['interleaved-thinking-2025-05-14']);
     });
 
     it('answers an empty discovery with text', () => {
@@ -350,7 +361,7 @@ describe('emulated tool discovery', () => {
                 type: 'tool_result',
                 tool_use_id: 'toolu_discover',
                 content:
-                    'Discovered tools: book_meeting, cancel_meeting. You can call them now.\n\nThe CRM source is unavailable.',
+                    'Discovered tools: book_meeting, cancel_meeting. You can call them now.',
             });
         }
     );
@@ -403,65 +414,83 @@ describe('structured output after tool discovery', () => {
 });
 
 describe('discovery calls in responses', () => {
-    it('streams a call to the discovery tool as a discovery call', async () => {
-        const events: RawMessageStreamEvent[] = [
-            {
-                type: 'message_start',
-                message: {
-                    id: 'msg_1',
-                    type: 'message',
-                    role: 'assistant',
-                    model: NATIVE_MODEL,
-                    content: [],
-                    stop_reason: null,
-                    stop_sequence: null,
-                    usage: { input_tokens: 10, output_tokens: 0 },
-                },
+    const events = [
+        {
+            type: 'message_start',
+            message: {
+                id: 'msg_1',
+                type: 'message',
+                role: 'assistant',
+                model: NATIVE_MODEL,
+                content: [],
+                stop_reason: null,
+                stop_sequence: null,
+                usage: { input_tokens: 10, output_tokens: 0 },
             },
-            {
-                type: 'content_block_start',
-                index: 0,
-                content_block: {
-                    type: 'tool_use',
-                    id: 'toolu_discover',
-                    name: TOOL_DISCOVERY_TOOL_NAME,
-                    input: {},
-                },
+        },
+        {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+                type: 'tool_use',
+                id: 'toolu_discover',
+                name: TOOL_DISCOVERY_TOOL_NAME,
+                input: {},
             },
-            {
-                type: 'content_block_delta',
-                index: 0,
-                delta: {
-                    type: 'input_json_delta',
-                    partial_json: '{"names":["book_meeting"]}',
-                },
+        },
+        {
+            type: 'content_block_delta',
+            index: 0,
+            delta: {
+                type: 'input_json_delta',
+                partial_json: '{"names":["book_meeting"]}',
             },
-            { type: 'content_block_stop', index: 0 },
-            {
-                type: 'message_delta',
-                delta: { stop_reason: 'tool_use', stop_sequence: null },
-                usage: { output_tokens: 5 },
-            },
-        ] as unknown as RawMessageStreamEvent[];
+        },
+        { type: 'content_block_stop', index: 0 },
+        {
+            type: 'message_delta',
+            delta: { stop_reason: 'tool_use', stop_sequence: null },
+            usage: { output_tokens: 5 },
+        },
+    ] as unknown as RawMessageStreamEvent[];
+    const discoveryCall = { id: 'toolu_discover', names: ['book_meeting'] };
 
-        const stream = createChatStream(
-            transformStream(toAsyncIterable(events)),
+    function createModel() {
+        return createAnthropicChatModel(
             {
-                request: { toolDiscovery: {} },
-            }
+                messages: {
+                    create: async () => toAsyncIterable(events),
+                },
+            } as unknown as Pick<Anthropic, 'messages'>,
+            NATIVE_MODEL,
+            { defaultMaxTokens: 4096 }
         );
-        const result = await stream.result;
+    }
+
+    it('returns a call to the discovery tool as a discovery call', async () => {
+        const result = await createModel().generate({
+            messages: [{ role: 'user', content: 'Book a meeting' }],
+            toolDiscovery: {},
+        });
 
         expect(result.parts).toEqual([
-            {
-                type: 'tool-discovery-call',
-                discoveryCall: {
-                    id: 'toolu_discover',
-                    names: ['book_meeting'],
-                },
-            },
+            { type: 'tool-discovery-call', discoveryCall },
         ]);
+        expect(result.discoveryCalls).toEqual([discoveryCall]);
         expect(result.toolCalls).toEqual([]);
         expect(result.finishReason).toBe('tool-calls');
+    });
+
+    it('streams a call to the discovery tool as one discovery call event', async () => {
+        const stream = await createModel().stream({
+            messages: [{ role: 'user', content: 'Book a meeting' }],
+            toolDiscovery: {},
+        });
+
+        const eventTypes = (await stream.events).map((event) => event.type);
+        expect(eventTypes).toContain('tool-discovery-call');
+        expect(eventTypes).not.toContain('tool-call-start');
+        expect(eventTypes).not.toContain('tool-call-delta');
+        expect((await stream.result).discoveryCalls).toEqual([discoveryCall]);
     });
 });

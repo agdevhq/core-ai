@@ -201,13 +201,13 @@ type ToolDiscoveryResultMessage = {
     /** `id` of the answered `ToolDiscoveryCallPart`. */
     discoveryCallId: string;
     tools: ToolSnapshot[];
-    /** Optional short note for the model. */
+    /** Explains an empty result to the model; only allowed without tools. */
     note?: string;
     metadata?: Record<string, unknown>;
 };
 ```
 
-Answers one `ToolDiscoveryCallPart`. Place it with the step's tool results: after the assistant message, in any order relative to `ToolResultMessage`s. `tools` may be empty when nothing matched. The tools it lists stay declared on every later request while the message is in the history.
+Answers one `ToolDiscoveryCallPart`. Place it with the step's tool results: after the assistant message, in any order relative to `ToolResultMessage`s. `tools` may be empty when nothing matched; `note` can then tell the model why. The tools it lists stay declared on later `generate()` and `stream()` requests while the message is in the history, unless `tools` declares the same name.
 
 `metadata` on message parts, tool calls, tool results, and discovery results is for your application and middleware. It stays in conversation history and generated results, but core-ai does not send it to provider APIs.
 
@@ -451,8 +451,8 @@ from the response formats used by `generateObject()` and `streamObject()`.
 `tools.toolDiscovery` is `'native'` when the model delivers discovered tools
 through the provider's deferred tool loading, which keeps the prompt cache when
 the model discovers tools. `'emulated'` declares discovered tools as ordinary
-tools, so each discovery changes the tool declarations. Both behave the same for
-your application. See
+tools, so each discovery changes the tool declarations. Your application code is
+the same for both. See
 [Native and emulated discovery](/guides/tool-discovery#native-and-emulated-discovery).
 
 `messages.systemPlacement` describes where a model accepts a system message

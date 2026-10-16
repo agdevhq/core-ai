@@ -34,7 +34,7 @@ import {
     getEmulatedToolSet,
     getProviderMetadata,
     getToolDiscoveryArguments,
-    getToolDiscoveryResultText,
+    getToolDiscoveryNote,
     clampReasoningEffort,
     resolveToolDiscovery,
     toToolDiscoveryToolCall,
@@ -158,24 +158,23 @@ export function convertMessages(
         loadedToolNames: new Set<string>(),
     };
     const items: ResponseInputItem[] = [];
-    // Texts of native discovery results, sent once the step's tool outputs
-    // are complete.
+    // Notes of native discovery results, sent once the step's tool outputs
+    // are complete: before the next user or assistant message.
     let pendingNotes: string[] = [];
 
     for (const message of messages) {
-        if (message.role !== 'tool' && message.role !== 'tool-discovery') {
+        if (message.role === 'user' || message.role === 'assistant') {
             items.push(...convertNotes(pendingNotes));
             pendingNotes = [];
         }
 
         if (message.role === 'tool-discovery' && nativeToolDiscovery) {
-            const { output, text } = convertToolDiscoveryResult(
-                message,
-                nativeToolDiscovery
+            items.push(
+                convertToolDiscoveryResult(message, nativeToolDiscovery)
             );
-            items.push(output);
-            if (text !== undefined) {
-                pendingNotes.push(text);
+            const note = getToolDiscoveryNote(message);
+            if (note !== undefined) {
+                pendingNotes.push(note);
             }
             continue;
         }
@@ -248,13 +247,12 @@ function convertToolResult(message: ToolResultMessage): ResponseInputItem {
 /**
  * The discovered tools become deferred functions of a client
  * `tool_search_output`. Each tool is loaded once, by the first output that
- * discovers it, with its latest snapshot. The output has no text field, so
- * its note, or a default text when it loads nothing, is returned separately.
+ * discovers it, with its latest snapshot.
  */
 function convertToolDiscoveryResult(
     message: ToolDiscoveryResultMessage,
     { discoveredTools, loadedToolNames }: NativeToolDiscoveryState
-): { output: ResponseInputItem; text?: string } {
+): ResponseInputItem {
     const tools = message.tools.flatMap(({ name }) => {
         const snapshot = discoveredTools.get(name);
         if (snapshot === undefined || loadedToolNames.has(name)) {
@@ -263,26 +261,25 @@ function convertToolDiscoveryResult(
         loadedToolNames.add(name);
         return [{ ...convertResponseTool(snapshot), defer_loading: true }];
     });
-    const output: ResponseInputItem = {
+    return {
         type: 'tool_search_output',
         call_id: message.discoveryCallId,
         execution: 'client',
         status: 'completed',
         tools,
     };
-
-    if (tools.length === 0) {
-        return { output, text: getToolDiscoveryResultText(message) };
-    }
-    return message.note?.trim() ? { output, text: message.note } : { output };
 }
 
-/** The texts of native discovery results, as one user message. */
+/**
+ * `tool_search_output` has no text field, so the notes of empty results
+ * follow the step's tool outputs as one developer message. A user message
+ * there would end the turn and drop the step's reasoning.
+ */
 function convertNotes(notes: readonly string[]): ResponseInputItem[] {
     return notes.length > 0
         ? [
               {
-                  role: 'user',
+                  role: 'developer',
                   content: notes.map((text) => ({
                       type: 'input_text' as const,
                       text,
@@ -500,6 +497,7 @@ function createRequest(
     const toolDiscovery = resolveToolDiscovery(options, {
         capabilities: resolved.capabilities,
         providerId: resolved.providerId,
+        modelId,
         emulate: openaiOptions?.emulateToolDiscovery,
     });
     const request: Record<string, unknown> = {

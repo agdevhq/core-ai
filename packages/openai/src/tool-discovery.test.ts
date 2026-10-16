@@ -9,8 +9,11 @@ import type { ChatCompletion } from 'openai/resources/chat/completions/completio
 import {
     createChatStream,
     TOOL_DISCOVERY_TOOL_NAME,
+    ToolSchemaStrictnessError,
+    ValidationError,
     type GenerateOptions,
     type Message,
+    type StreamEvent,
     type ToolSnapshot,
 } from '@core-ai/core-ai';
 import { toAsyncIterable } from '@core-ai/testing';
@@ -20,10 +23,15 @@ import {
     transformStream,
 } from './chat-adapter.ts';
 import { createOpenAIChatCompletionsModel } from './chat-completions/chat-model.ts';
+import { createOpenAIChatModel } from './chat-model.ts';
 import {
     getOpenAIModelCapabilities,
     toOpenAIResponsesCapabilities,
 } from './model-capabilities.ts';
+import {
+    createStructuredOutputRequestOptions,
+    type OpenAIStructuredOutputMode,
+} from './shared/structured-output.ts';
 
 const NATIVE_MODEL = 'gpt-5.4';
 const EMULATED_MODEL = 'gpt-5.2';
@@ -50,7 +58,7 @@ const searchTool = {
     parameters: z.object({ query: z.string() }),
 };
 
-function createHistory(note?: string): Message[] {
+function createHistory(): Message[] {
     return [
         { role: 'user', content: 'Book a meeting about the launch' },
         {
@@ -81,7 +89,6 @@ function createHistory(note?: string): Message[] {
                 { ...cancelMeeting, name: 'search' },
                 cancelMeeting,
             ],
-            ...(note ? { note } : {}),
         },
         { role: 'tool', toolCallId: 'call_search', content: 'Friday' },
         {
@@ -108,7 +115,7 @@ function createRequest(
     return createGenerateRequest(
         modelId,
         {
-            messages: createHistory('The CRM source is unavailable.'),
+            messages: createHistory(),
             tools: { search: searchTool },
             toolDiscovery: { description: 'Discoverable: calendar tools.' },
             ...options,
@@ -187,7 +194,7 @@ describe('native tool discovery', () => {
         ]);
     });
 
-    it('renders discovery calls and results as tool search items, notes after the step', () => {
+    it('renders discovery calls and results as tool search items', () => {
         const { input } = createRequest();
 
         expect(input.slice(1, 6)).toEqual([
@@ -233,15 +240,10 @@ describe('native tool discovery', () => {
                 call_id: 'call_search',
                 output: 'Friday',
             },
-            {
-                role: 'user',
-                content: [
-                    {
-                        type: 'input_text',
-                        text: 'The CRM source is unavailable.',
-                    },
-                ],
-            },
+            expect.objectContaining({
+                type: 'function_call',
+                call_id: 'call_book',
+            }),
         ]);
     });
 
@@ -281,18 +283,41 @@ describe('native tool discovery', () => {
             ],
             [],
         ]);
-        expect(createRequest({ messages: history }).input.at(-1)).toEqual({
-            role: 'user',
-            content: [
-                {
-                    type: 'input_text',
-                    text: 'Discovered tools: book_meeting. You can call them now.',
-                },
-            ],
-        });
+        expect(createRequest({ messages: history }).input.at(-1)).toEqual(
+            expect.objectContaining({
+                type: 'tool_search_output',
+                tools: [],
+            })
+        );
     });
 
-    it('tells the model when a discovery found nothing', () => {
+    it('sends the note of an empty result as a developer message after the step', () => {
+        const history = createHistory();
+        history[2] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_discover',
+            tools: [],
+            note: 'The CRM source is unavailable.',
+        };
+
+        const { input } = createRequest({ messages: history.slice(0, 4) });
+
+        expect(input.slice(3)).toEqual([
+            expect.objectContaining({ type: 'tool_search_output', tools: [] }),
+            expect.objectContaining({ type: 'function_call_output' }),
+            {
+                role: 'developer',
+                content: [
+                    {
+                        type: 'input_text',
+                        text: 'The CRM source is unavailable.',
+                    },
+                ],
+            },
+        ]);
+    });
+
+    it('sends nothing more for an empty result without a note', () => {
         const history = createHistory();
         history[2] = {
             role: 'tool-discovery',
@@ -300,21 +325,11 @@ describe('native tool discovery', () => {
             tools: [],
         };
 
-        const { input } = createRequest({ messages: history });
+        const { input } = createRequest({ messages: history.slice(0, 4) });
 
-        expect(input.slice(3, 6)).toEqual([
-            expect.objectContaining({ type: 'tool_search_output', tools: [] }),
-            expect.objectContaining({ type: 'function_call_output' }),
-            {
-                role: 'user',
-                content: [
-                    {
-                        type: 'input_text',
-                        text: 'No matching tools were found.',
-                    },
-                ],
-            },
-        ]);
+        expect(input.at(-1)).toEqual(
+            expect.objectContaining({ type: 'function_call_output' })
+        );
     });
 
     it('adds no namespace to calls made before the tool was discovered', () => {
@@ -350,7 +365,7 @@ describe('native tool discovery', () => {
     it('replays calls to discovered tools with their namespace', () => {
         const { input } = createRequest();
 
-        expect(input[6]).toEqual({
+        expect(input.find((item) => item.call_id === 'call_book')).toEqual({
             type: 'function_call',
             call_id: 'call_book',
             name: 'book_meeting',
@@ -381,6 +396,44 @@ describe('native tool discovery', () => {
                 },
             }),
         ]);
+    });
+
+    it('rejects strict discovered tools outside the strict contract', () => {
+        const history = createHistory();
+        history[2] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_discover',
+            tools: [
+                {
+                    ...bookMeeting,
+                    parameters: {
+                        ...bookMeeting.parameters,
+                        properties: { title: { type: 'string', minLength: 1 } },
+                    },
+                    strict: true,
+                },
+            ],
+        };
+
+        expect(() => createRequest({ messages: history })).toThrow(
+            ToolSchemaStrictnessError
+        );
+    });
+
+    it('sends no whitespace-only note', () => {
+        const history = createHistory();
+        history[2] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_discover',
+            tools: [],
+            note: '  ',
+        };
+
+        const { input } = createRequest({ messages: history });
+
+        expect(input).not.toContainEqual(
+            expect.objectContaining({ role: 'developer' })
+        );
     });
 });
 
@@ -414,7 +467,7 @@ describe('emulated tool discovery', () => {
                 {
                     type: 'function_call_output',
                     call_id: 'call_discover',
-                    output: 'Discovered tools: book_meeting, search, cancel_meeting. You can call them now.\n\nThe CRM source is unavailable.',
+                    output: 'Discovered tools: book_meeting, search, cancel_meeting. You can call them now.',
                 },
             ]);
             expect(request.input[5]).not.toHaveProperty('namespace');
@@ -562,5 +615,180 @@ describe('Chat Completions tool discovery', () => {
             { id: 'call_2', names: ['cancel_meeting'] },
         ]);
         expect(result.finishReason).toBe('tool-calls');
+    });
+});
+
+describe('discovery calls through the models', () => {
+    const discoveryCall = { id: 'call_d', names: ['book_meeting'] };
+    const arguments_ = '{"names":["book_meeting"]}';
+    const functionCall = {
+        type: 'function_call',
+        id: 'fc_1',
+        call_id: 'call_d',
+        name: TOOL_DISCOVERY_TOOL_NAME,
+        arguments: arguments_,
+        status: 'completed',
+    };
+    const messages: Message[] = [{ role: 'user', content: 'Book a meeting' }];
+
+    function createResponsesModel(create: () => Promise<unknown>) {
+        return createOpenAIChatModel(
+            { responses: { create } } as unknown as Pick<OpenAI, 'responses'>,
+            EMULATED_MODEL,
+            toOpenAIResponsesCapabilities(
+                getOpenAIModelCapabilities(EMULATED_MODEL)
+            )
+        );
+    }
+
+    function expectOneDiscoveryEvent(events: readonly StreamEvent[]) {
+        const types = events.map((event) => event.type);
+        expect(
+            types.filter((type) => type === 'tool-discovery-call')
+        ).toHaveLength(1);
+        expect(types).not.toContain('tool-call-start');
+        expect(types).not.toContain('tool-call-delta');
+    }
+
+    it('returns emulated Responses discovery calls as discovery calls', async () => {
+        const model = createResponsesModel(async () => ({
+            status: 'completed',
+            output: [functionCall],
+        }));
+
+        const result = await model.generate({ messages, toolDiscovery: {} });
+
+        expect(result.discoveryCalls).toEqual([discoveryCall]);
+        expect(result.toolCalls).toEqual([]);
+        expect(result.finishReason).toBe('tool-calls');
+    });
+
+    it('streams emulated Responses discovery calls as one event', async () => {
+        const model = createResponsesModel(async () =>
+            toAsyncIterable([
+                {
+                    type: 'response.output_item.added',
+                    output_index: 0,
+                    item: { ...functionCall, arguments: '' },
+                },
+                {
+                    type: 'response.function_call_arguments.delta',
+                    output_index: 0,
+                    item_id: 'fc_1',
+                    delta: arguments_,
+                },
+                {
+                    type: 'response.output_item.done',
+                    output_index: 0,
+                    item: functionCall,
+                },
+                {
+                    type: 'response.completed',
+                    response: { status: 'completed', output: [functionCall] },
+                },
+            ])
+        );
+
+        const stream = await model.stream({ messages, toolDiscovery: {} });
+
+        expectOneDiscoveryEvent(await stream.events);
+        expect((await stream.result).discoveryCalls).toEqual([discoveryCall]);
+    });
+
+    it('streams Chat Completions discovery calls as one event', async () => {
+        const model = createOpenAIChatCompletionsModel(
+            {
+                chat: {
+                    completions: {
+                        create: async () =>
+                            toAsyncIterable([
+                                {
+                                    choices: [
+                                        {
+                                            index: 0,
+                                            finish_reason: null,
+                                            delta: {
+                                                tool_calls: [
+                                                    {
+                                                        index: 0,
+                                                        id: 'call_d',
+                                                        type: 'function',
+                                                        function: {
+                                                            name: TOOL_DISCOVERY_TOOL_NAME,
+                                                            arguments:
+                                                                arguments_,
+                                                        },
+                                                    },
+                                                ],
+                                            },
+                                        },
+                                    ],
+                                },
+                                {
+                                    choices: [
+                                        {
+                                            index: 0,
+                                            finish_reason: 'tool_calls',
+                                            delta: {},
+                                        },
+                                    ],
+                                },
+                            ]),
+                    },
+                } as unknown as OpenAI['chat'],
+            },
+            NATIVE_MODEL,
+            { capabilities: getOpenAIModelCapabilities(NATIVE_MODEL) }
+        );
+
+        const stream = await model.stream({ messages, toolDiscovery: {} });
+
+        expectOneDiscoveryEvent(await stream.events);
+        expect((await stream.result).discoveryCalls).toEqual([discoveryCall]);
+    });
+});
+
+describe('structured output after tool discovery', () => {
+    const schema = z.object({ title: z.string() });
+
+    it.each(['json-schema', 'tool', 'json-object'] as const)(
+        'declares no discovered tools in %s mode',
+        (mode: OpenAIStructuredOutputMode) => {
+            const request = createGenerateRequest(
+                NATIVE_MODEL,
+                createStructuredOutputRequestOptions(
+                    { messages: createHistory(), schema },
+                    'openai',
+                    mode
+                ),
+                {
+                    capabilities: toOpenAIResponsesCapabilities(
+                        getOpenAIModelCapabilities(NATIVE_MODEL)
+                    ),
+                }
+            ) as unknown as {
+                tools?: { name: string }[];
+                input: Record<string, unknown>[];
+            };
+
+            expect((request.tools ?? []).map((tool) => tool.name)).toEqual(
+                mode === 'tool' ? ['core_ai_generate_object'] : []
+            );
+            expect(request.input).toContainEqual(
+                expect.objectContaining({
+                    type: 'function_call',
+                    name: TOOL_DISCOVERY_TOOL_NAME,
+                })
+            );
+        }
+    );
+
+    it('rejects an unanswered discovery call', () => {
+        expect(() =>
+            createStructuredOutputRequestOptions(
+                { messages: createHistory().slice(0, 2), schema },
+                'openai'
+            )
+        ).toThrow(ValidationError);
     });
 });

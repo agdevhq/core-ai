@@ -127,6 +127,7 @@ export { getToolJsonSchema, toJsonSchema } from './schema.ts';
 export type { NormalizedSchema } from './schema.ts';
 export {
     extractStructuredObject,
+    getStructuredOutputMessages,
     normalizeStructuredOutputSchema,
     parseStructuredOutput,
     transformStructuredOutputStream,
@@ -137,6 +138,7 @@ export {
     emulateToolDiscoveryMessages,
     getEmulatedToolSet,
     getToolDiscoveryArguments,
+    getToolDiscoveryNote,
     getToolDiscoveryResultText,
     resolveToolDiscovery,
     toToolDiscoveryToolCall,

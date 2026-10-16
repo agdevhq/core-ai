@@ -291,6 +291,7 @@ function createRequestBase(
         resolveToolDiscovery(options, {
             capabilities: adapterOptions.capabilities,
             providerId: adapterOptions.providerId,
+            modelId,
             emulate: true,
         })
     );

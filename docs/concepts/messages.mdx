@@ -175,7 +175,7 @@ const discoveryResult: ToolDiscoveryResultMessage = {
 };
 ```
 
-Answer each discovery call with exactly one discovery result, placed with the step's tool results. The tools it lists stay declared on every later request while the message is in the history.
+Answer each discovery call with exactly one discovery result, placed with the step's tool results. The tools it lists stay declared on later `generate()` and `stream()` requests while the message is in the history, unless `tools` declares the same name. When nothing matched, `tools` is empty and an optional `note` tells the model why.
 
 ## User Content Parts
 

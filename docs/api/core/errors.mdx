@@ -60,6 +60,7 @@ With [tool discovery](/guides/tool-discovery) in use, it also covers the discove
 - A discovery call without a `tool-discovery` message answering it before the next user or assistant message.
 - A `tool-discovery` message that answers no discovery call of the preceding assistant message, or answers a call that is already answered.
 - A discovery call whose `id` another call of the same assistant message also uses.
+- A `tool-discovery` message with both `tools` and a `note`.
 - A discovered tool whose `parameters` are not plain JSON Schema.
 - A `toolChoice` that names a tool outside `tools`.
 

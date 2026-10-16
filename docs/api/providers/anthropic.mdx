@@ -207,8 +207,9 @@ so a discovery keeps the prompt cache. Declaring the first deferred tool does
 change the prefix, so every native request also declares a deferred
 placeholder tool, `core_ai_deferred_tools_placeholder`, which the model never
 loads. Deferred loading is then active from the first request on, and the
-first discovery keeps the cache too. A discovery result's `note` is sent as a
-text block after the step's tool results, and an empty result is sent as text.
+first discovery keeps the cache too. A result that loads tools holds only
+`tool_reference` blocks. An empty result is sent as text: its `note`, or that
+no tools were found.
 
 Set `emulateToolDiscovery: true` to declare discovered tools as ordinary tools
 instead, for example behind a proxy that does not forward deferred tools or

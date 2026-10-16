@@ -892,6 +892,48 @@ describe('finish reason with tool calls', () => {
         });
     });
 
+    it('should start a streamed tool call before its first delta', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_1',
+                                            function: {
+                                                name: 'search',
+                                                arguments: '{"query":"a"}',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                ])
+            )
+        );
+
+        expect(events.slice(0, 2)).toEqual([
+            {
+                type: 'tool-call-start',
+                toolCallId: 'call_1',
+                toolName: 'search',
+            },
+            {
+                type: 'tool-call-delta',
+                toolCallId: 'call_1',
+                argumentsDelta: '{"query":"a"}',
+            },
+        ]);
+    });
+
     it('should keep length for truncated tool calls', () => {
         const result = mapGenerateResponse(
             asChatCompletion({
