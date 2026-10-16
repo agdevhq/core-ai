@@ -6,6 +6,10 @@ import type {
 } from './types.ts';
 import type { CoreAIError } from './errors.ts';
 import { createStream } from './base-stream.ts';
+import {
+    finalizeStreamEvents,
+    type FinalizeResultRequest,
+} from './finalize-result.ts';
 import { mapStreamErrors } from './map-stream-errors.ts';
 
 export type CreateChatStreamOptions = {
@@ -16,6 +20,11 @@ export type CreateChatStreamOptions = {
      * Already-typed core-ai errors pass through unchanged.
      */
     mapError?: (error: unknown) => CoreAIError;
+    /**
+     * The request this stream answers. With `toolDiscovery`, calls to the
+     * discovery tool arrive as `tool-discovery-call` events.
+     */
+    request?: FinalizeResultRequest;
 };
 
 export function createChatStream(
@@ -24,7 +33,7 @@ export function createChatStream(
         | (() => Promise<AsyncIterable<StreamEvent>>),
     options: CreateChatStreamOptions = {}
 ): ChatStream {
-    const { signal, mapError } = options;
+    const { signal, mapError, request } = options;
     const resolvedSource: AsyncIterable<StreamEvent> =
         typeof source === 'function'
             ? (async function* () {
@@ -34,6 +43,9 @@ export function createChatStream(
     const sourceWithMappedErrors = mapError
         ? mapStreamErrors(resolvedSource, mapError)
         : resolvedSource;
+    const finalizedSource = request
+        ? finalizeStreamEvents(sourceWithMappedErrors, request)
+        : sourceWithMappedErrors;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
     let textMetadata: Record<string, unknown> | undefined;
@@ -142,19 +154,12 @@ export function createChatStream(
         textBuffer += text;
     };
 
-    const appendToolCall = (
-        toolCall: Extract<StreamEvent, { type: 'tool-call-end' }>['toolCall'],
-        providerMetadata?: Record<string, Record<string, unknown>>
-    ) => {
+    const appendCallPart = (part: AssistantContentPart) => {
         flushText();
         insideText = false;
         flushReasoning();
         insideReasoning = false;
-        parts.push({
-            type: 'tool-call',
-            toolCall,
-            ...(providerMetadata ? { providerMetadata } : {}),
-        });
+        parts.push(part);
     };
 
     const setFinish = (event: Extract<StreamEvent, { type: 'finish' }>) => {
@@ -166,6 +171,7 @@ export function createChatStream(
         const contentSegments: string[] = [];
         const reasoningSegments: string[] = [];
         const toolCalls: GenerateResult['toolCalls'] = [];
+        const discoveryCalls: GenerateResult['discoveryCalls'] = [];
 
         for (const part of parts) {
             if (part.type === 'text') {
@@ -178,6 +184,8 @@ export function createChatStream(
             }
             if (part.type === 'tool-call') {
                 toolCalls.push(part.toolCall);
+            } else if (part.type === 'tool-discovery-call') {
+                discoveryCalls.push(part.discoveryCall);
             }
         }
 
@@ -188,11 +196,12 @@ export function createChatStream(
             content: content.length > 0 ? content : null,
             reasoning: reasoning.length > 0 ? reasoning : null,
             toolCalls,
+            discoveryCalls,
         };
     };
 
     return createStream({
-        source: sourceWithMappedErrors,
+        source: finalizedSource,
         signal,
         reduceEvent(event) {
             switch (event.type) {
@@ -215,7 +224,22 @@ export function createChatStream(
                     endText(event.metadata);
                     break;
                 case 'tool-call-end':
-                    appendToolCall(event.toolCall, event.providerMetadata);
+                    appendCallPart({
+                        type: 'tool-call',
+                        toolCall: event.toolCall,
+                        ...(event.providerMetadata
+                            ? { providerMetadata: event.providerMetadata }
+                            : {}),
+                    });
+                    break;
+                case 'tool-discovery-call':
+                    appendCallPart({
+                        type: 'tool-discovery-call',
+                        discoveryCall: event.discoveryCall,
+                        ...(event.providerMetadata
+                            ? { providerMetadata: event.providerMetadata }
+                            : {}),
+                    });
                     break;
                 case 'finish':
                     setFinish(event);
@@ -227,13 +251,15 @@ export function createChatStream(
         finalizeResult() {
             flushText();
             flushReasoning();
-            const { content, reasoning, toolCalls } = collectFinalizedData();
+            const { content, reasoning, toolCalls, discoveryCalls } =
+                collectFinalizedData();
 
             return {
                 parts,
                 content,
                 reasoning,
                 toolCalls,
+                discoveryCalls,
                 finishReason,
                 usage,
             };

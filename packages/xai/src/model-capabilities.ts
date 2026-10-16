@@ -38,6 +38,8 @@ function createCapabilities(
         modalities: XAI_MODALITIES,
         tools: {
             strictSchemas: SUPPORTED_TOOL_SCHEMA_STRICTNESS,
+            // Client-executed `tool_search` is not verified on xAI.
+            toolDiscovery: 'emulated',
         },
         messages: { systemPlacement: 'anywhere' },
     };

@@ -175,6 +175,27 @@ requests server-side, and core-ai does not pre-validate the version. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
 contract, error reasons, and the parallel-tool-calls caveat.
 
+### Tool discovery
+
+Root Azure v1 models use the OpenAI Responses API and report
+`tools.toolDiscovery` like OpenAI: `'native'` for GPT-5.4 and later model IDs
+except `gpt-5.4-nano` and `gpt-5.5-pro`, `'emulated'` for those and earlier
+ones. A custom deployment name that is not an OpenAI
+model ID reports `'emulated'`. Nested and classic models use Chat Completions
+and always report `'emulated'`.
+
+To force emulation on a native model, set `emulateToolDiscovery: true` under
+the `azure-openai` key:
+
+```typescript
+providerOptions: {
+    'azure-openai': { emulateToolDiscovery: true },
+}
+```
+
+See [OpenAI tool discovery](/api/providers/openai#tool-discovery) and the
+[Tool Discovery guide](/guides/tool-discovery).
+
 ## Reasoning metadata
 
 On Azure v1 Responses, encrypted reasoning is stored under the `azure-openai`

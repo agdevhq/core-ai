@@ -171,6 +171,16 @@ function serializeAssistantContentParts(
             };
         }
 
+        if (part.type === 'tool-discovery-call') {
+            const { id, names, query } = part.discoveryCall;
+            return {
+                type: 'tool_discovery_call',
+                id,
+                ...(names ? { names } : {}),
+                ...(query !== undefined ? { query } : {}),
+            };
+        }
+
         return {
             type: 'tool_call',
             id: part.toolCall.id,
@@ -209,6 +219,21 @@ export function setChatInputAttributes(
             inputMessages.push({
                 role: 'assistant',
                 parts: serializeAssistantContentParts(message.parts),
+            });
+            continue;
+        }
+
+        if (message.role === 'tool-discovery') {
+            inputMessages.push({
+                role: 'tool',
+                parts: [
+                    {
+                        type: 'tool_discovery_result',
+                        id: message.discoveryCallId,
+                        tools: message.tools.map((tool) => tool.name),
+                        ...(message.note ? { note: message.note } : {}),
+                    },
+                ],
             });
             continue;
         }
@@ -257,7 +282,10 @@ export function setChatInputAttributes(
     }
 }
 
-export function setChatOutputAttributes(span: Span, result: GenerateResult): void {
+export function setChatOutputAttributes(
+    span: Span,
+    result: GenerateResult
+): void {
     const parts = serializeAssistantContentParts(result.parts);
 
     setSpanAttribute(
@@ -273,7 +301,8 @@ export function setChatOutputAttributes(span: Span, result: GenerateResult): voi
     );
 
     const outputValue =
-        result.content ?? (parts.length > 0 ? safeJsonStringify(parts) : undefined);
+        result.content ??
+        (parts.length > 0 ? safeJsonStringify(parts) : undefined);
 
     setSpanAttribute(
         span,
@@ -315,7 +344,10 @@ export function setObjectOutputAttributes<TSchema extends SchemaInput>(
     span.setAttribute('output.value', objectContent);
 }
 
-export function setEmbedInputAttributes(span: Span, input: string | string[]): void {
+export function setEmbedInputAttributes(
+    span: Span,
+    input: string | string[]
+): void {
     setSpanAttribute(
         span,
         'input.value',
@@ -351,7 +383,10 @@ export function setEmbedUsageAttributes(
     span.setAttribute('gen_ai.usage.input_tokens', usage.inputTokens);
 }
 
-export function setFinishReasonAttribute(span: Span, finishReason: FinishReason): void {
+export function setFinishReasonAttribute(
+    span: Span,
+    finishReason: FinishReason
+): void {
     span.setAttribute('gen_ai.response.finish_reasons', [finishReason]);
 }
 
@@ -365,11 +400,7 @@ export function setChatRequestAttributes(
     span.setAttribute('gen_ai.request.model', model.modelId);
     span.setAttribute('gen_ai.operation.name', 'chat');
     span.setAttribute('gen_ai.output.type', outputType);
-    setSpanAttribute(
-        span,
-        'gen_ai.request.temperature',
-        options.temperature
-    );
+    setSpanAttribute(span, 'gen_ai.request.temperature', options.temperature);
     setSpanAttribute(span, 'gen_ai.request.max_tokens', options.maxTokens);
     setSpanAttribute(span, 'gen_ai.request.top_p', options.topP);
 

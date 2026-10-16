@@ -248,8 +248,8 @@ let result = await generate({
     tools,
 });
 
-// Execute tools and continue conversation
-while (result.toolCalls.length > 0) {
+// Execute tools and continue while the model waits for results
+while (result.finishReason === 'tool-calls') {
     messages.push(resultToMessage(result));
 
     for (const toolCall of result.toolCalls) {

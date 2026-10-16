@@ -9,17 +9,26 @@ import type {
     Tool,
     ToolChoice,
     TextBlockParam,
+    ToolReferenceBlockParam,
     ToolResultBlockParam,
 } from '@anthropic-ai/sdk/resources/messages/messages';
 import {
     asObject,
     clampReasoningEffort,
+    getEmulatedToolSet,
     getProviderMetadata,
+    getStructuredOutputMessages,
+    getToolDiscoveryArguments,
+    getToolDiscoveryResultText,
     getToolJsonSchema,
     mapChildSchemaNodes,
     normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
     requireEveryKey,
+    resolveToolDiscovery,
+    TOOL_DISCOVERY_PLACEHOLDER_TOOL_NAME,
+    TOOL_DISCOVERY_TOOL_NAME,
+    toToolDiscoveryToolResult,
     ValidationError,
     safeParseJsonObject,
     validateMessages,
@@ -34,9 +43,12 @@ import type {
     JsonSchema,
     Message,
     ModelCapabilities,
+    ResolvedToolDiscovery,
     SchemaInput,
     StreamEvent,
     SystemMessage,
+    ToolDefinition,
+    ToolDiscoveryResultMessage,
     ToolResultMessage,
     ToolSet,
     UserContentPart,
@@ -99,10 +111,15 @@ export type ConvertedAnthropicMessages = {
  * System messages before the first non-system message become top-level
  * `system` blocks; later ones stay in place as `role: 'system'` messages.
  * Placement is validated beforehand against the model's capabilities.
+ *
+ * Discovery calls are `tool_use` blocks for the discovery tool. With
+ * `toolDiscovery: 'native'`, discovery results reference the discovered
+ * tools with `tool_reference` blocks; otherwise they are text tool results.
  */
 export function convertMessages(
     messages: Message[],
-    provider = DEFAULT_PROVIDER_ID
+    provider = DEFAULT_PROVIDER_ID,
+    toolDiscovery: ResolvedToolDiscovery['rendering'] = 'emulated'
 ): ConvertedAnthropicMessages {
     const system: TextBlockParam[] = [];
     const cacheTtls: AnthropicCacheTtl[] = [];
@@ -163,6 +180,16 @@ export function convertMessages(
                     continue;
                 }
 
+                if (part.type === 'tool-discovery-call') {
+                    contentBlocks.push({
+                        type: 'tool_use',
+                        id: part.discoveryCall.id,
+                        name: TOOL_DISCOVERY_TOOL_NAME,
+                        input: getToolDiscoveryArguments(part.discoveryCall),
+                    });
+                    continue;
+                }
+
                 // 'anthropic' here is the shared reasoning-metadata namespace
                 // key, not a provider id — it stays fixed even for sibling
                 // providers like anthropic-vertex, so it is intentionally not
@@ -219,7 +246,17 @@ export function convertMessages(
             continue;
         }
 
-        const toolResultBlock = convertToolResultMessage(message, provider);
+        let toolResultBlock: ToolResultBlockParam;
+        if (message.role === 'tool') {
+            toolResultBlock = convertToolResultMessage(message, provider);
+        } else if (toolDiscovery === 'native') {
+            toolResultBlock = convertToolDiscoveryResult(message);
+        } else {
+            toolResultBlock = convertToolResultMessage(
+                toToolDiscoveryToolResult(message),
+                provider
+            );
+        }
         if (toolResultBlock.cache_control) {
             cacheTtls.push(getCacheTtl(toolResultBlock.cache_control));
         }
@@ -419,6 +456,30 @@ function convertToolResultMessage(
     };
 }
 
+/**
+ * References load the discovered tools, which the request declares as
+ * deferred tools; a result with references cannot also hold text. An empty
+ * result has nothing to reference, so it is text: its note, or that nothing
+ * was found.
+ */
+function convertToolDiscoveryResult(
+    message: ToolDiscoveryResultMessage
+): ToolResultBlockParam {
+    return {
+        type: 'tool_result',
+        tool_use_id: message.discoveryCallId,
+        content:
+            message.tools.length > 0
+                ? message.tools.map(
+                      (tool): ToolReferenceBlockParam => ({
+                          type: 'tool_reference',
+                          tool_name: tool.name,
+                      })
+                  )
+                : getToolDiscoveryResultText(message),
+    };
+}
+
 function convertUserContentPart(
     part: UserContentPart
 ): TextBlockParam | ImageBlockParam | DocumentBlockParam {
@@ -481,20 +542,58 @@ function convertUserContentPart(
  * constraints reach the model as hints, matching the other providers.
  */
 export function convertTools(tools: ToolSet): Tool[] {
-    return Object.values(tools).map((tool) => {
-        const strict = tool.strict === true;
-        const jsonSchema = getToolJsonSchema(tool);
-        const schema = strict
-            ? normalizeAnthropicJsonSchema(jsonSchema)
-            : jsonSchema;
+    return Object.values(tools).map((tool) => convertTool(tool));
+}
 
-        return {
-            name: tool.name,
-            description: tool.description,
-            input_schema: schema as Tool['input_schema'],
-            ...(strict ? { strict: true } : {}),
-        };
-    });
+function convertTool(tool: ToolDefinition, deferLoading = false): Tool {
+    const strict = tool.strict === true;
+    const jsonSchema = getToolJsonSchema(tool);
+    const schema = strict
+        ? normalizeAnthropicJsonSchema(jsonSchema)
+        : jsonSchema;
+
+    return {
+        name: tool.name,
+        description: tool.description,
+        input_schema: schema as Tool['input_schema'],
+        ...(strict ? { strict: true } : {}),
+        ...(deferLoading ? { defer_loading: true } : {}),
+    };
+}
+
+/**
+ * Declaring the first deferred tool changes the rendered prompt prefix
+ * (observed: about 93 tokens) and so rewrites the whole prompt cache. This
+ * never-referenced deferred tool keeps that mode active from the first
+ * native request on, so later discoveries keep the cache.
+ */
+const DEFERRAL_PLACEHOLDER_TOOL: Tool = {
+    name: TOOL_DISCOVERY_PLACEHOLDER_TOOL_NAME,
+    description: 'Placeholder that is never loaded. Do not call it.',
+    input_schema: { type: 'object', properties: {} },
+    defer_loading: true,
+};
+
+/**
+ * The request's tools. Natively, the caller's tools and the discovery tool
+ * come first, then the deferral placeholder and the discovered tools, which
+ * are deferred and loaded by the `tool_reference` blocks of discovery
+ * results. Emulated, every tool is an ordinary tool.
+ */
+function convertRequestTools(
+    tools: ToolSet | undefined,
+    toolDiscovery: ResolvedToolDiscovery
+): Tool[] {
+    if (toolDiscovery.rendering === 'emulated') {
+        return convertTools(getEmulatedToolSet(tools, toolDiscovery) ?? {});
+    }
+
+    return [
+        ...convertTools(tools ?? {}),
+        convertTool(toolDiscovery.discoveryTool),
+        DEFERRAL_PLACEHOLDER_TOOL,
+        ...toolDiscovery.discoveredTools.map((tool) => convertTool(tool, true)),
+    ];
 }
 
 export function convertToolChoice(choice: AgToolChoice): ToolChoice {
@@ -526,7 +625,7 @@ export function createStructuredOutputOptions<TSchema extends SchemaInput>(
     }
 
     return {
-        messages: options.messages,
+        messages: getStructuredOutputMessages(options.messages, provider),
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
@@ -630,7 +729,17 @@ export function createStreamRequest(
         modelId,
         providerId: provider,
     });
-    const converted = convertMessages(options.messages, provider);
+    const toolDiscovery = resolveToolDiscovery(options, {
+        capabilities,
+        providerId: provider,
+        modelId,
+        emulate: anthropicOptions?.emulateToolDiscovery,
+    });
+    const converted = convertMessages(
+        options.messages,
+        provider,
+        toolDiscovery.rendering
+    );
     validateCacheBreakpoints({
         cacheTtls: converted.cacheTtls,
         requestCacheControl: anthropicOptions?.cacheControl,
@@ -639,14 +748,16 @@ export function createStreamRequest(
         ),
         providerId: provider,
     });
-    if (options.tools) {
+    const declaredTools = getEmulatedToolSet(options.tools, toolDiscovery);
+    if (declaredTools) {
         validateToolSchemaStrictness({
-            tools: options.tools,
+            tools: declaredTools,
             capabilities,
             providerId: provider,
             modelId,
         });
     }
+    const tools = convertRequestTools(options.tools, toolDiscovery);
 
     // Key order is load-bearing. Vertex AI multi-region and global endpoints
     // were observed (not documented) to route cache lookups by the leading
@@ -672,9 +783,7 @@ export function createStreamRequest(
     );
     return {
         model: modelId,
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
-            : {}),
+        ...(tools.length > 0 ? { tools } : {}),
         ...(converted.system !== undefined ? { system: converted.system } : {}),
         messages: converted.messages,
         ...settings,
@@ -891,10 +1000,13 @@ export function getAnthropicRequestBetas(
         provider
     );
     const configuredBetas = providerOptions?.betas ?? [];
+    const declaresTools =
+        Object.keys(options.tools ?? {}).length > 0 ||
+        options.toolDiscovery !== undefined ||
+        options.messages.some((message) => message.role === 'tool-discovery');
     const shouldEnableInterleavedThinking =
         options.reasoning !== undefined &&
-        options.tools !== undefined &&
-        Object.keys(options.tools).length > 0 &&
+        declaresTools &&
         requiresAnthropicInterleavedThinkingBeta(modelId);
 
     return uniqueStrings([

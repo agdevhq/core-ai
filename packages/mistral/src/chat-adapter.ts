@@ -14,6 +14,7 @@ import {
 import { unrecognized } from '@mistralai/mistralai/types';
 import type {
     AssistantContentPart,
+    EmulatedMessage,
     FinishReason,
     GenerateObjectOptions,
     GenerateOptions,
@@ -31,9 +32,13 @@ import type {
 import {
     asObject,
     clampReasoningEffort,
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
+    getStructuredOutputMessages,
     getProviderMetadata,
     getToolJsonSchema,
     normalizeStructuredOutputSchema,
+    resolveToolDiscovery,
     safeParseJsonObject,
     ValidationError,
     validateMessages,
@@ -66,14 +71,16 @@ export function convertMessages(
 ): MistralMessage[] {
     const includeReasoning = options.includeReasoning ?? true;
 
-    return messages.flatMap((message) => {
+    // Tool discovery is emulated: discovery calls become calls to the
+    // discovery tool and discovery results become text tool results.
+    return emulateToolDiscoveryMessages(messages).flatMap((message) => {
         const convertedMessage = convertMessage(message, includeReasoning);
         return convertedMessage ? [convertedMessage] : [];
     });
 }
 
 function convertMessage(
-    message: Message,
+    message: EmulatedMessage,
     includeReasoning: boolean
 ): MistralMessage | undefined {
     if (message.role === 'system') {
@@ -225,12 +232,13 @@ export function getStructuredOutputToolName<TSchema extends SchemaInput>(
 }
 
 export function createStructuredOutputOptions<TSchema extends SchemaInput>(
-    options: GenerateObjectOptions<TSchema>
+    options: GenerateObjectOptions<TSchema>,
+    providerId = 'mistral'
 ): GenerateOptions {
     const toolName = getStructuredOutputToolName(options);
 
     return {
-        messages: options.messages,
+        messages: getStructuredOutputMessages(options.messages, providerId),
         tools: {
             structured_output: {
                 name: toolName,
@@ -307,9 +315,13 @@ function createRequestBase(
         modelId,
         providerId,
     });
-    if (options.tools) {
+    const tools = getEmulatedToolSet(
+        options.tools,
+        resolveToolDiscovery(options, { capabilities, providerId, modelId })
+    );
+    if (tools) {
         validateToolSchemaStrictness({
-            tools: options.tools,
+            tools,
             capabilities,
             providerId,
             modelId,
@@ -321,8 +333,8 @@ function createRequestBase(
         messages: convertMessages(options.messages, {
             includeReasoning: capabilities.reasoning.mode !== 'unsupported',
         }),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
+        ...(tools && Object.keys(tools).length > 0
+            ? { tools: convertTools(tools) }
             : {}),
         ...(options.toolChoice
             ? { toolChoice: convertToolChoice(options.toolChoice) }
@@ -431,6 +443,7 @@ export function mapGenerateResponse(
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'unknown',
             usage: mapUsage(response.usage),
         };
@@ -442,6 +455,7 @@ export function mapGenerateResponse(
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: mapFinishReason(firstChoice.finishReason),
             usage: mapUsage(response.usage),
         };
@@ -464,6 +478,7 @@ export function mapGenerateResponse(
         content: content.length > 0 ? content : null,
         reasoning: reasoning.length > 0 ? reasoning : null,
         toolCalls,
+        discoveryCalls: [],
         finishReason:
             toolCalls.length > 0 && mappedFinishReason !== 'content-filter'
                 ? 'tool-calls'
@@ -592,6 +607,14 @@ export async function* transformStream(
                     current.name = partialToolCall.function.name;
                 }
 
+                if (isNew) {
+                    yield {
+                        type: 'tool-call-start',
+                        toolCallId: current.id,
+                        toolName: current.name,
+                    };
+                }
+
                 const argumentDelta = partialToolCall.function.arguments;
                 if (typeof argumentDelta === 'string') {
                     current.arguments += argumentDelta;
@@ -614,14 +637,6 @@ export async function* transformStream(
                 }
 
                 bufferedToolCalls.set(streamIndex, current);
-
-                if (isNew) {
-                    yield {
-                        type: 'tool-call-start',
-                        toolCallId: current.id,
-                        toolName: current.name,
-                    };
-                }
             }
         }
 

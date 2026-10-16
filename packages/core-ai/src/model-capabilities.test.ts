@@ -43,7 +43,10 @@ describe('modality helpers', () => {
         const capabilities: ModelCapabilities = {
             reasoning,
             modalities: MULTIMODAL_INPUT_MODALITIES,
-            tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+            tools: {
+                strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                toolDiscovery: 'emulated',
+            },
             messages: { systemPlacement: 'anywhere' },
         };
 
@@ -59,7 +62,10 @@ describe('modality helpers', () => {
         const capabilities: ModelCapabilities = {
             reasoning,
             modalities: TEXT_ONLY_MODALITIES,
-            tools: { strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS },
+            tools: {
+                strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                toolDiscovery: 'emulated',
+            },
             messages: { systemPlacement: 'anywhere' },
         };
 

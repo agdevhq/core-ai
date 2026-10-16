@@ -77,6 +77,8 @@ function createCapabilities(config: {
         modalities: GOOGLE_INPUT_MODALITIES,
         tools: {
             strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+            // Gemini has no deferred tool loading.
+            toolDiscovery: 'emulated',
         },
         messages: { systemPlacement: 'leading' },
     };

@@ -106,17 +106,18 @@ const anthropic = createAnthropic({
 
 ## Provider support
 
-| Feature             | Support              |
-| ------------------- | -------------------- |
-| Chat Completion     | Yes                  |
-| Streaming           | Yes                  |
-| Function Calling    | Yes                  |
-| Strict Tool Schemas | Yes, selected models |
-| Vision              | Yes                  |
-| Reasoning           | Yes                  |
-| Prompt Caching      | Yes                  |
-| Embeddings          | No                   |
-| Image Generation    | No                   |
+| Feature             | Support                    |
+| ------------------- | -------------------------- |
+| Chat Completion     | Yes                        |
+| Streaming           | Yes                        |
+| Function Calling    | Yes                        |
+| Strict Tool Schemas | Yes, selected models       |
+| Tool Discovery      | Yes; native on Claude 4.5+ |
+| Vision              | Yes                        |
+| Reasoning           | Yes                        |
+| Prompt Caching      | Yes                        |
+| Embeddings          | No                         |
+| Image Generation    | No                         |
 
 ## Model capabilities
 
@@ -156,6 +157,9 @@ For registered Claude models:
   `modalities.output` is `['text']`.
 - `tools.strictSchemas` reports whether the model supports strict tool schemas.
   Supported models report `{ supported: true, maxStrictTools: 20 }`.
+- `tools.toolDiscovery` is `'native'` for Claude 4.5 and later models and
+  `'emulated'` for older ones. See
+  [Tool discovery](/api/providers/anthropic#tool-discovery).
 - `messages.systemPlacement` is `'before-reply'` from Claude Opus 4.8,
   Sonnet 5, and Haiku 5.5 on, and `'leading'` for earlier models. See
   [System messages](/api/providers/anthropic#system-messages).
@@ -188,6 +192,41 @@ reach the model as hints. Strict tool schemas do not change Anthropic's
 structured response format for `generateObject()` and `streamObject()`. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
 contract, error reasons, and cross-provider behavior.
+
+### Tool discovery
+
+Claude Opus 4.5, Sonnet 4.5, Haiku 4.5, and later models report
+`tools.toolDiscovery: 'native'`, and so do unrecognized model IDs. Claude
+Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, and Claude 3.x models report
+`'emulated'`.
+
+Natively, discovered tools are declared as deferred tools
+(`defer_loading: true`), and each discovery result loads them with
+`tool_reference` blocks. Adding deferred tools keeps the cached prompt prefix,
+so a discovery keeps the prompt cache. Declaring the first deferred tool does
+change the prefix, so every native request also declares a deferred
+placeholder tool, `core_ai_deferred_tools_placeholder`, which the model never
+loads. Deferred loading is then active from the first request on, and the
+first discovery keeps the cache too. A result that loads tools holds only
+`tool_reference` blocks. An empty result is sent as text: its `note`, or that
+no tools were found.
+
+Set `emulateToolDiscovery: true` to declare discovered tools as ordinary tools
+instead, for example behind a proxy that does not forward deferred tools or
+`tool_reference` blocks:
+
+```typescript
+const result = await generate({
+    model: anthropic.chatModel('claude-sonnet-4-6'),
+    messages,
+    toolDiscovery: { description: 'Discoverable tools: get_order_status.' },
+    providerOptions: {
+        anthropic: { emulateToolDiscovery: true },
+    },
+});
+```
+
+See [Tool Discovery](/guides/tool-discovery) for the agent loop and rules.
 
 ### System messages
 
@@ -518,9 +557,12 @@ const result = await generate({
 ```
 
 Available fields: `topK`, `stopSequences`, `betas`, `outputConfig`,
-and `cacheControl`.
+`cacheControl`, and `emulateToolDiscovery`.
 
 - `betas` are sent through the `anthropic-beta` request header.
+- `emulateToolDiscovery` renders tool discovery with ordinary tools on models
+  that support it natively. See
+  [Tool discovery](/api/providers/anthropic#tool-discovery).
 
 System, user, and tool result messages accept their own options under the
 same key. The only field is `cacheControl`. See

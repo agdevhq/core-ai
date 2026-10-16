@@ -19,7 +19,8 @@ type Message =
     | SystemMessage
     | UserMessage
     | AssistantMessage
-    | ToolResultMessage;
+    | ToolResultMessage
+    | ToolDiscoveryResultMessage;
 ```
 
 ### SystemMessage
@@ -104,7 +105,11 @@ type AssistantMessage = {
     parts: AssistantContentPart[];
 };
 
-type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
+type AssistantContentPart =
+    | AssistantTextPart
+    | ReasoningPart
+    | ToolCallPart
+    | ToolDiscoveryCallPart;
 ```
 
 ### AssistantTextPart
@@ -153,6 +158,27 @@ type ToolCall = {
 };
 ```
 
+### ToolDiscoveryCallPart
+
+```typescript
+type ToolDiscoveryCall = {
+    id: string;
+    /** Exact tool names the model asked for. */
+    names?: string[];
+    /** Keywords describing the capability the model needs. */
+    query?: string;
+    metadata?: Record<string, unknown>;
+};
+
+type ToolDiscoveryCallPart = {
+    type: 'tool-discovery-call';
+    discoveryCall: ToolDiscoveryCall;
+    providerMetadata?: Record<string, Record<string, unknown>>;
+};
+```
+
+A call from the model asking for tools the request does not declare yet (see [`GenerateOptions.toolDiscovery`](#generateoptions)). Answer it with one [`ToolDiscoveryResultMessage`](#tooldiscoveryresultmessage) before the next request. The part wraps the call as `ToolCallPart` wraps a `ToolCall`. Discovery calls appear in `GenerateResult.discoveryCalls`, never in `toolCalls`. `providerMetadata` follows the same ownership rules as on `ToolCallPart`. See [Tool Discovery](/guides/tool-discovery).
+
 ### ToolResultMessage
 
 ```typescript
@@ -167,7 +193,23 @@ type ToolResultMessage = {
 };
 ```
 
-`metadata` on message parts, tool calls, and tool results is for your application and middleware. It stays in conversation history and generated results, but core-ai does not send it to provider APIs.
+### ToolDiscoveryResultMessage
+
+```typescript
+type ToolDiscoveryResultMessage = {
+    role: 'tool-discovery';
+    /** `id` of the answered `ToolDiscoveryCallPart`. */
+    discoveryCallId: string;
+    tools: ToolSnapshot[];
+    /** Explains an empty result to the model; only allowed without tools. */
+    note?: string;
+    metadata?: Record<string, unknown>;
+};
+```
+
+Answers one `ToolDiscoveryCallPart`. Place it with the step's tool results: after the assistant message, in any order relative to `ToolResultMessage`s. `tools` may be empty when nothing matched; `note` can then tell the model why. The tools it lists stay declared on later `generate()` and `stream()` requests while the message is in the history, unless `tools` declares the same name.
+
+`metadata` on message parts, tool calls, tool results, and discovery results is for your application and middleware. It stays in conversation history and generated results, but core-ai does not send it to provider APIs.
 
 ## Schema types
 
@@ -243,6 +285,24 @@ The result of [`validateToolCall()`](/api/core/define-tool#validatetoolcall): th
 type ToolSet = Record<string, ToolDefinition>;
 ```
 
+### ToolSnapshot
+
+```typescript
+type ToolSnapshot = ToolDefinition<JsonSchema>;
+```
+
+A discovered tool, returned in a [`ToolDiscoveryResultMessage`](#tooldiscoveryresultmessage). Its `parameters` are plain JSON Schema, so messages stay plain data and render byte for byte on every request. Produce them from a Standard Schema with [`toJsonSchema()`](/api/core/utilities#tojsonschema). core-ai does not validate calls to discovered tools.
+
+### ToolDiscoveryOptions
+
+```typescript
+type ToolDiscoveryOptions = {
+    description?: string;
+};
+```
+
+`description` is appended to the discovery tool's default description, which only explains how discovery works. Use it, for example, to list the discoverable tool names.
+
 ### ToolChoice
 
 ```typescript
@@ -252,6 +312,8 @@ type ToolChoice =
     | 'required'
     | { type: 'tool'; toolName: string };
 ```
+
+With tool discovery in use, `{ type: 'tool', toolName }` may only name a tool in `tools`. `'none'` also keeps the model from discovering tools, and a discovery call satisfies `'required'`.
 
 ## Model types
 
@@ -287,6 +349,8 @@ type ChatOutputModality = 'text' | 'image' | 'audio' | 'video';
 
 type SystemMessagePlacement = 'leading' | 'before-reply' | 'anywhere';
 
+type ToolDiscoverySupport = 'native' | 'emulated';
+
 type ModelCapabilities = {
     reasoning: {
         mode: 'unsupported' | 'optional' | 'always-on';
@@ -316,6 +380,7 @@ type ModelCapabilities = {
         strictSchemas:
             | { supported: false }
             | { supported: true; maxStrictTools?: number };
+        toolDiscovery: ToolDiscoverySupport;
     };
     messages: {
         systemPlacement: SystemMessagePlacement;
@@ -336,6 +401,7 @@ type ModelCapabilities = {
 | `modalities.output`                  | Modalities the model can emit as assistant content                   |
 | `tools.strictSchemas.supported`      | Whether `strict: true` is available for tool schemas                 |
 | `tools.strictSchemas.maxStrictTools` | Optional per-request limit on the number of strict tools             |
+| `tools.toolDiscovery`                | Whether discovered tools are delivered natively or emulated          |
 | `messages.systemPlacement`           | Where system messages may appear after the first non-system message  |
 | `output.maxTokens`                   | Verified output ceiling for one response, reasoning included         |
 
@@ -382,11 +448,18 @@ tools are forwarded and the provider rejects them if the model genuinely lacks
 support. Strict tool schemas only govern tool arguments. They are separate
 from the response formats used by `generateObject()` and `streamObject()`.
 
+`tools.toolDiscovery` is `'native'` when the model delivers discovered tools
+through the provider's deferred tool loading, which keeps the prompt cache when
+the model discovers tools. `'emulated'` declares discovered tools as ordinary
+tools, so each discovery changes the tool declarations. Your application code is
+the same for both. See
+[Native and emulated discovery](/guides/tool-discovery#native-and-emulated-discovery).
+
 `messages.systemPlacement` describes where a model accepts a system message
 that comes after the first non-system message. `'leading'` accepts none,
-`'before-reply'` accepts one directly after a user or tool message when it is
-last or followed by an assistant message, and `'anywhere'` accepts any
-position. A system message that breaks the rule throws
+`'before-reply'` accepts one directly after a user, tool, or tool discovery
+result message when it is last or followed by an assistant message, and
+`'anywhere'` accepts any position. A system message that breaks the rule throws
 `UnsupportedSystemMessagePlacementError` before the provider request. Call
 `getSystemMessagePlacementIssues(messages, placement)` to check a conversation
 without sending it. Unknown Claude model IDs resolve to `'before-reply'`.
@@ -497,8 +570,11 @@ Extends `BaseGenerateOptions` with tool support.
 type GenerateOptions = BaseGenerateOptions & {
     tools?: ToolSet;
     toolChoice?: ToolChoice;
+    toolDiscovery?: ToolDiscoveryOptions;
 };
 ```
+
+`toolDiscovery` enables tool discovery: core-ai declares its discovery tool, and the model's calls to it arrive as [`ToolDiscoveryCallPart`](#tooldiscoverycallpart)s. Keep it set consistently within a conversation; switching it costs a prompt cache rewrite. See [Tool Discovery](/guides/tool-discovery).
 
 ### GenerateObjectOptions
 
@@ -530,10 +606,13 @@ type GenerateResult = {
     content: string | null;
     reasoning: string | null;
     toolCalls: ToolCall[];
+    discoveryCalls: ToolDiscoveryCall[];
     finishReason: FinishReason;
     usage: ChatUsage;
 };
 ```
+
+`toolCalls` holds the calls to your tools and to discovered tools; `discoveryCalls` holds the [discovery calls](#tooldiscoverycallpart). Both list the calls of `parts` in order. `finishReason` is `'tool-calls'` when either has pending calls: answer both before the next request.
 
 ### GenerateObjectResult
 
@@ -592,8 +671,11 @@ type StreamEvent =
           toolCall: ToolCall;
           providerMetadata?: Record<string, Record<string, unknown>>;
       }
+    | ToolDiscoveryCallPart
     | { type: 'finish'; finishReason: FinishReason; usage: ChatUsage };
 ```
+
+A discovery call streams as a single `tool-discovery-call` event, a complete [`ToolDiscoveryCallPart`](#tooldiscoverycallpart), when the model finishes it. It has no start or delta events.
 
 ### ObjectStream
 

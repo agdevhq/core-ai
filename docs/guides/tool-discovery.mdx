@@ -1,0 +1,370 @@
+---
+title: Tool Discovery
+description: Start agents with a few tools and let the model discover more on demand
+---
+
+Tool discovery lets an agent start with a small set of tools and ask for more while it works. Your request declares its usual `tools` plus a discovery tool. The model calls the discovery tool to find what it needs, your application returns the matching tool definitions, and from then on the model calls those tools by their real names with their real schemas, on every provider.
+
+core-ai does not search for tools or run them. Each `generate()` or `stream()` call is one model call. Your agent loop answers discovery calls the same way it answers tool calls.
+
+## When to use it
+
+Use tool discovery when declaring every tool up front is too much:
+
+- Large or dynamic catalogs, such as the tools of several MCP servers, plugins, or per-tenant integrations.
+- Long conversations that need more tools over time, where you want to keep the prompt short and the prompt cache stable.
+
+If your agent has a handful of tools, declare them in `tools` instead.
+
+## Enable discovery
+
+Set `toolDiscovery` on `generate()` or `stream()`:
+
+```typescript
+const result = await generate({
+    model,
+    messages,
+    tools: { search_docs: searchDocsTool }, // always declared
+    toolDiscovery: {
+        description:
+            'Discoverable tools: get_order_status, cancel_order, refund_payment.',
+    },
+});
+```
+
+core-ai declares a discovery tool next to your `tools`. The model calls it with exact tool `names`, when it knows them, or with a keyword `query`. The discovery tool's default description explains how discovery works; `description` is appended to it.
+
+How you tell the model what it can discover is your choice: list the tool names in `description`, describe the catalog in a system message, or rely on `query` alone.
+
+<Tip>
+    Keep `toolDiscovery` and its `description` the same for the whole
+    conversation. They are part of the tool declarations, so changing them
+    rewrites the prompt cache.
+</Tip>
+
+## Discovery calls
+
+The model's calls to the discovery tool arrive in `result.discoveryCalls`, next to `result.toolCalls`:
+
+```typescript
+type ToolDiscoveryCall = {
+    id: string;
+    /** Exact tool names the model asked for. */
+    names?: string[];
+    /** Keywords describing the capability the model needs. */
+    query?: string;
+    metadata?: Record<string, unknown>;
+};
+```
+
+In `result.parts`, each one is a `ToolDiscoveryCallPart`, `{ type: 'tool-discovery-call', discoveryCall, providerMetadata? }`, just as a tool call is a `ToolCallPart` wrapping a `ToolCall`. Discovery calls never appear in `result.toolCalls`. Calls to tools the model discovered earlier do: they are ordinary tool calls.
+
+`finishReason` is `'tool-calls'` when tool calls or discovery calls are pending, so continue your loop while it is `'tool-calls'` and answer both `toolCalls` and `discoveryCalls`. A step can contain only discovery calls, so a loop that checks `toolCalls.length` alone stops too early.
+
+## Answer discovery calls
+
+Answer each discovery call with exactly one `tool-discovery` message:
+
+```typescript
+type ToolDiscoveryResultMessage = {
+    role: 'tool-discovery';
+    /** `id` of the answered discovery call. */
+    discoveryCallId: string;
+    /** The discovered tools; empty when nothing matched. */
+    tools: ToolSnapshot[];
+    /** Explains an empty result to the model. */
+    note?: string;
+    metadata?: Record<string, unknown>;
+};
+```
+
+Place it with the step's tool results: after the assistant message and before the next request, in any order relative to `tool` messages. When nothing matches, return an empty `tools` array, optionally with a `note` that tells the model why, such as "The billing tools are unavailable right now." The model then receives your `note`. Without one, it receives a default text saying that no tools were found, except natively on OpenAI, where the empty result speaks for itself. A `note` is only allowed without tools: neither native API can carry text next to loaded tools. Put standing guidance, such as which queries work or that empty results mean a tool doesn't exist, in `toolDiscovery.description`.
+
+### Tool snapshots
+
+A `ToolSnapshot` is a tool definition whose `parameters` are plain JSON Schema:
+
+```typescript
+type ToolSnapshot = ToolDefinition<JsonSchema>;
+```
+
+Convert a Standard Schema, such as a Zod schema, with [`toJsonSchema()`](/api/core/utilities#tojsonschema). Tools from an MCP server already carry JSON Schema:
+
+```typescript
+import type { ToolSnapshot } from '@core-ai/core-ai';
+
+const snapshot: ToolSnapshot = {
+    name: mcpTool.name,
+    description: mcpTool.description ?? '',
+    parameters: mcpTool.inputSchema,
+};
+```
+
+Plain JSON Schema keeps the conversation plain data that you can store and reload. core-ai renders each snapshot byte for byte the same on every request, which keeps the prompt cache stable.
+
+<Warning>
+    Snapshots are plain JSON Schema, so `validateToolCall()` cannot validate
+    calls to discovered tools. Validate `arguments` yourself before you run the
+    tool, or declare the tool in `tools` with a Standard Schema. See [Validate
+    tool calls](/guides/tool-calling#validate-tool-calls).
+</Warning>
+
+## Agent loop
+
+This loop keeps a small in-memory catalog, answers discovery calls from it, and runs the discovered tools. Each catalog entry keeps its Standard Schema to validate calls, and a JSON Schema snapshot for the model:
+
+```typescript
+import {
+    generate,
+    resultToMessage,
+    toJsonSchema,
+    type Message,
+    type StandardSchemaWithJson,
+    type ToolCall,
+    type ToolDiscoveryCall,
+    type ToolResultMessage,
+    type ToolSnapshot,
+} from '@core-ai/core-ai';
+import { createOpenAI } from '@core-ai/openai';
+import { z } from 'zod';
+
+const openai = createOpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const model = openai.chatModel('gpt-5.4-mini');
+
+type CatalogTool = {
+    snapshot: ToolSnapshot;
+    execute: (call: ToolCall) => Promise<ToolResultMessage>;
+};
+
+function catalogTool<TArgs>(
+    name: string,
+    description: string,
+    parameters: StandardSchemaWithJson<unknown, TArgs>,
+    run: (args: TArgs) => Promise<unknown>
+): CatalogTool {
+    return {
+        // Snapshots hold plain JSON Schema
+        snapshot: { name, description, parameters: toJsonSchema(parameters) },
+        execute: async (call) => {
+            // Snapshots are plain JSON Schema: validate with the catalog's schema
+            const validation = await parameters['~standard'].validate(
+                call.arguments
+            );
+            if (validation.issues) {
+                return {
+                    role: 'tool',
+                    toolCallId: call.id,
+                    content: JSON.stringify({ issues: validation.issues }),
+                    isError: true,
+                };
+            }
+            return {
+                role: 'tool',
+                toolCallId: call.id,
+                content: JSON.stringify(await run(validation.value)),
+            };
+        },
+    };
+}
+
+const catalog = new Map(
+    [
+        catalogTool(
+            'get_order_status',
+            'Look up the shipping status of an order by its id',
+            z.object({ orderId: z.string() }),
+            async ({ orderId }) => ({ orderId, status: 'shipped' })
+        ),
+        catalogTool(
+            'cancel_order',
+            'Cancel an order that has not shipped yet',
+            z.object({ orderId: z.string(), reason: z.string() }),
+            async ({ orderId }) => ({ orderId, cancelled: true })
+        ),
+    ].map((tool) => [tool.snapshot.name, tool])
+);
+
+// Your search: exact names, then a naive keyword match
+function findTools(call: ToolDiscoveryCall): ToolSnapshot[] {
+    const words = (call.query ?? '').toLowerCase().split(/\W+/);
+    return [...catalog.values()]
+        .map((tool) => tool.snapshot)
+        .filter(
+            (tool) =>
+                call.names?.includes(tool.name) ||
+                words.some(
+                    (word) =>
+                        word.length > 3 &&
+                        tool.description.toLowerCase().includes(word)
+                )
+        );
+}
+
+async function runTool(call: ToolCall): Promise<ToolResultMessage> {
+    const tool = catalog.get(call.name);
+    if (!tool) {
+        return {
+            role: 'tool',
+            toolCallId: call.id,
+            content: `Unknown tool: ${call.name}`,
+            isError: true,
+        };
+    }
+    return tool.execute(call);
+}
+
+const messages: Message[] = [
+    { role: 'user', content: 'Where is my order A-1042?' },
+];
+
+for (let step = 0; step < 10; step += 1) {
+    const result = await generate({
+        model,
+        messages,
+        toolDiscovery: {
+            description: `Discoverable tools: ${[...catalog.keys()].join(', ')}.`,
+        },
+    });
+    messages.push(resultToMessage(result));
+
+    if (result.finishReason !== 'tool-calls') {
+        console.log(result.content);
+        break;
+    }
+
+    // Answer every tool call and discovery call of this step
+    for (const call of result.toolCalls) {
+        messages.push(await runTool(call));
+    }
+    for (const call of result.discoveryCalls) {
+        messages.push({
+            role: 'tool-discovery',
+            discoveryCallId: call.id,
+            tools: findTools(call),
+        });
+    }
+}
+```
+
+A typical run takes three steps: the model discovers `get_order_status`, calls it, and answers with the shipping status. Replace `findTools` with your own search, such as keyword search over MCP tool lists or an embedding index.
+
+## Streaming
+
+With `stream()`, a discovery call arrives as one complete `tool-discovery-call` event when the model finishes it. The event has the same fields as `ToolDiscoveryCallPart`, as `tool-call-end` carries a `toolCall`; there are no start or delta events for discovery calls.
+
+```typescript
+import { stream } from '@core-ai/core-ai';
+
+const chatStream = await stream({ model, messages, toolDiscovery });
+
+for await (const event of chatStream) {
+    if (event.type === 'text-delta') {
+        process.stdout.write(event.text);
+    } else if (event.type === 'tool-discovery-call') {
+        const { names, query } = event.discoveryCall;
+        console.log('\nDiscovering tools:', names ?? query);
+    }
+}
+
+// Answer result.discoveryCalls as with generate()
+const result = await chatStream.result;
+```
+
+## Declared tools
+
+Every request declares, in this order:
+
+1. Your `tools`.
+2. The discovery tool, when the request sets `toolDiscovery`.
+3. The discovered tools from the `tool-discovery` messages in `messages`: the latest snapshot of each name, in order of first discovery.
+
+These rules follow from that:
+
+- **Your tools win.** When a tool in `tools` has the name of a discovered tool, core-ai declares only your definition. Use this to keep a tool declared regardless of history, for example after you summarize a conversation and drop its discovery results.
+- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests. A changed definition rewrites the prompt cache from where the tool is defined, so return the same snapshot unless the tool changed: from its first discovery with native discovery, from the tool declarations at the start of the prompt with emulated discovery.
+- **Discovered tools stay declared** while their discovery results are in `messages`, also on requests that omit `toolDiscovery`. Without `toolDiscovery`, the model can call them but cannot discover more.
+- **There is no way to undeclare a discovered tool** while its discovery result is in the history. Removing discovery calls and results from `messages` changes the prompt prefix, so the next request rewrites the prompt cache.
+- **Structured output declares no discovered tools.** `generateObject()` and `streamObject()` validate the discovery calls and results in `messages` like `generate()` does, then send them as ordinary tool calls and results, so the model returns the object instead of calling a discovered tool.
+
+## Tool choice
+
+- `{ type: 'tool', toolName }` may only name a tool in `tools`. To force a discovered tool, also declare it in `tools`.
+- `'none'` keeps the model from calling any tool, including the discovery tool.
+- A discovery call satisfies `'required'`.
+
+## Validation
+
+core-ai throws a [`ValidationError`](/api/core/errors#validationerror) before any provider call when a request that uses discovery has:
+
+- A tool in `tools` or a snapshot named `core_ai_discover_tools` or `core_ai_deferred_tools_placeholder`. core-ai reserves these names for its own tools.
+- A discovery call without a `tool-discovery` message answering it before the next user or assistant message.
+- A `tool-discovery` message that answers no discovery call of the preceding assistant message, or that answers a call another message already answered.
+- A discovery call whose `id` another call of the same assistant message also uses.
+- A `tool-discovery` message with both `tools` and a `note`.
+- A snapshot whose `parameters` are not plain JSON Schema, such as a Zod schema. Convert it with `toJsonSchema()`.
+- A `toolChoice` that names a tool outside `tools`.
+
+A request uses discovery when it sets `toolDiscovery` or its messages contain discovery calls or results. Other requests are not checked against these rules.
+
+## Native and emulated discovery
+
+`model.capabilities.tools.toolDiscovery` reports how a model delivers discovered tools. Your code is the same for both.
+
+- **`'native'`** uses the provider's deferred tool loading. On Anthropic, discovered tools are declared as deferred tools and loaded by references in the discovery results. On the OpenAI Responses API, the discovery tool is a client-executed `tool_search` tool, and discovered tools travel inside its results. The declarations at the start of the prompt stay the same, so the prompt cache survives each discovery.
+- **`'emulated'`** declares the discovery tool and the discovered tools as ordinary tools, and sends discovery results as text tool results. Each discovery changes the declared tool list, so on providers that cache tool declarations, the next request rewrites the prompt cache once.
+
+| Provider                                                       | `toolDiscovery`                                                                                                                                                   |
+| -------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Anthropic, Anthropic Vertex                                    | `'native'` from Claude Opus 4.5, Sonnet 4.5, and Haiku 4.5 on, including unrecognized model IDs; `'emulated'` for Claude Opus 4.1, Opus 4, Sonnet 4, and older    |
+| OpenAI, Azure OpenAI (Responses API)                           | `'native'` from GPT-5.4 on, except `gpt-5.4-nano` and `gpt-5.5-pro`; `'emulated'` for earlier and unrecognized model IDs, including custom Azure deployment names |
+| OpenAI and Azure OpenAI (Chat Completions)                     | `'emulated'`                                                                                                                                                      |
+| Google GenAI, Google Vertex, Mistral, xAI, Kimi, OpenAI Compat | `'emulated'`                                                                                                                                                      |
+
+Set the provider option `emulateToolDiscovery: true` to force emulation on a native model, for example behind a proxy or gateway that does not forward the native blocks:
+
+```typescript
+const result = await generate({
+    model,
+    messages,
+    toolDiscovery,
+    providerOptions: {
+        anthropic: { emulateToolDiscovery: true },
+    },
+});
+```
+
+The option is available under the `anthropic`, `anthropic-vertex`, `openai`, and `azure-openai` keys. On OpenAI and Azure OpenAI, only the Responses API accepts it.
+
+Conversation history does not depend on the mode. core-ai renders each request from the provider-neutral messages, so you can continue a conversation on another model or provider. A request renders natively only when it sets `toolDiscovery` and the model supports native discovery. Switching between native and emulated rendering within a conversation, for example by omitting `toolDiscovery` on a native model, rewrites the prompt cache once.
+
+## Strict snapshots
+
+Set `strict: true` on a snapshot to have the provider enforce its schema. Native and emulated discovery both honor it.
+
+core-ai checks every strict snapshot it declares against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract), like strict tools in `tools`, and throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror) for a snapshot outside it. The check runs on every model, so a snapshot outside the contract fails on the first request after its discovery, wherever the conversation runs.
+
+Snapshots stay declared while their discovery results are in the history, so core-ai declares a strict snapshot without `strict` where the model cannot take it:
+
+- On a model without strict tool support (`model.capabilities.tools.strictSchemas.supported` is `false`).
+- Beyond the model's `maxStrictTools` limit. Your strict tools count first, and earlier discoveries keep `strict` before later ones.
+
+The provider then does not enforce that snapshot's schema, so validate the arguments of the calls you run, as the catalog in the example does.
+
+Anthropic also limits the complexity of a request's strict tools: at most 16 parameters with union types, and an overall size limit (see [Provider support](/guides/tool-calling#provider-support)). core-ai does not check these, and strict snapshots add up over a conversation, so mark a snapshot strict only when its tool needs it.
+
+## Next steps
+
+<CardGroup cols={2}>
+    <Card title="Tool Calling" icon="wrench" href="/guides/tool-calling">
+        Define, validate, and run tools
+    </Card>
+    <Card title="Streaming" icon="water" href="/guides/streaming">
+        Handle stream events
+    </Card>
+    <Card title="Messages" icon="comments" href="/concepts/messages">
+        Message roles and content parts
+    </Card>
+    <Card title="Types" icon="brackets" href="/api/core/types">
+        Type reference for discovery parts and messages
+    </Card>
+</CardGroup>

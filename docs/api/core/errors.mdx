@@ -56,6 +56,16 @@ Thrown when core-ai rejects invalid caller input or local request configuration 
 
 This includes schemas core-ai cannot use: a tool's `parameters` or a structured output `schema` that cannot be converted to JSON Schema, a Standard Schema without JSON Schema support, or a value that is neither kind of schema. The message names the tool or schema, and `cause` holds the schema library's conversion error when there is one.
 
+With [tool discovery](/guides/tool-discovery) in use, it also covers the discovery rules:
+
+- A tool or discovered tool named `core_ai_discover_tools` or `core_ai_deferred_tools_placeholder`, which core-ai reserves.
+- A discovery call without a `tool-discovery` message answering it before the next user or assistant message.
+- A `tool-discovery` message that answers no discovery call of the preceding assistant message, or answers a call that is already answered.
+- A discovery call whose `id` another call of the same assistant message also uses.
+- A `tool-discovery` message with both `tools` and a `note`.
+- A discovered tool whose `parameters` are not plain JSON Schema.
+- A `toolChoice` that names a tool outside `tools`.
+
 ```typescript
 export class ValidationError extends CoreAIError {
     constructor(message: string, cause?: unknown, provider?: string) {

@@ -6,6 +6,7 @@ import {
     type ModelCapabilities,
     type ReasoningEffort,
     type SystemMessagePlacement,
+    type ToolDiscoverySupport,
 } from '@core-ai/core-ai';
 
 export type AnthropicModelCapabilities = ModelCapabilities;
@@ -30,6 +31,7 @@ const MAX_EFFORTS = [
 function createCapabilities(
     supportedEfforts: readonly ReasoningEffort[],
     supportsStrictToolSchemas: boolean,
+    toolDiscovery: ToolDiscoverySupport,
     reasoningMode: 'optional' | 'always-on',
     systemPlacement: SystemMessagePlacement,
     maxOutputTokens: number | undefined
@@ -56,6 +58,7 @@ function createCapabilities(
                       maxStrictTools: 20,
                   }
                 : UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+            toolDiscovery,
         },
         messages: { systemPlacement },
     };
@@ -79,12 +82,14 @@ const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
 ]);
 
 /**
- * Models known NOT to support strict tool schemas (pre-4.5 generations, per
- * Anthropic's structured-outputs docs). Unknown and future model ids resolve
- * to supported: strict is per-tool opt-in, so an explicit `strict: true` is
- * forwarded optimistically and the API rejects it if genuinely unsupported.
+ * Pre-4.5 generations: known NOT to support strict tool schemas (per
+ * Anthropic's structured-outputs docs) or deferred tool loading
+ * (`defer_loading` with `tool_reference`, used for native tool discovery).
+ * Unknown and future model ids resolve to supported: both are opt-in, so
+ * they are forwarded optimistically and the API rejects them if genuinely
+ * unsupported.
  */
-const NON_STRICT_TOOL_SCHEMA_MODELS = new Set([
+const PRE_4_5_MODELS = new Set([
     'claude-opus-4-1',
     'claude-opus-4',
     'claude-sonnet-4',
@@ -117,7 +122,7 @@ const LEADING_SYSTEM_MESSAGE_MODELS = new Set([
     'claude-opus-4-5',
     'claude-sonnet-4-5',
     'claude-haiku-4-5',
-    ...NON_STRICT_TOOL_SCHEMA_MODELS,
+    ...PRE_4_5_MODELS,
 ]);
 
 const MANUAL_THINKING_MODELS = new Set([
@@ -242,6 +247,7 @@ export function getAnthropicModelCapabilities(
     return createCapabilities(
         supportedEfforts,
         supportsAnthropicStrictToolSchemas(modelId),
+        supportsAnthropicNativeToolDiscovery(modelId) ? 'native' : 'emulated',
         isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional',
         getAnthropicSystemPlacement(modelId),
         MAX_OUTPUT_TOKENS[normalizeModelId(modelId)]
@@ -293,7 +299,11 @@ export function rejectsAnthropicForcedToolChoiceAlways(
 }
 
 export function supportsAnthropicStrictToolSchemas(modelId: string): boolean {
-    return !NON_STRICT_TOOL_SCHEMA_MODELS.has(normalizeModelId(modelId));
+    return !PRE_4_5_MODELS.has(normalizeModelId(modelId));
+}
+
+export function supportsAnthropicNativeToolDiscovery(modelId: string): boolean {
+    return !PRE_4_5_MODELS.has(normalizeModelId(modelId));
 }
 
 export function requiresAnthropicInterleavedThinkingBeta(

@@ -45,6 +45,7 @@
                             "guides/streaming",
                             "guides/structured-outputs",
                             "guides/tool-calling",
+                            "guides/tool-discovery",
                             "guides/embeddings",
                             "guides/image-generation",
                             "guides/multi-modal"

@@ -254,9 +254,10 @@ Use `@core-ai/openai-compat` if it returns nonstandard compatible fields.
 ## Model capabilities
 
 `ChatModel.capabilities` describes the selected model and API. The exported
-`getOpenAIModelCapabilities(modelId)` helper returns the base Chat Completions
-capabilities. The Responses model factory applies its additional API-specific
-restrictions.
+`getOpenAIModelCapabilities(modelId)` helper returns the registry capabilities
+for a model ID. Each model factory then applies its API's restrictions: the
+Responses factory drops audio input, and the Chat Completions factory reports
+`tools.toolDiscovery` as `'emulated'`.
 
 ### Strict tool schemas
 
@@ -282,6 +283,39 @@ Strict function tools are independent of the JSON Schema response formats used
 by `generateObject()` and `streamObject()`. See
 [Strict tool schemas](/guides/tool-calling#strict-tool-schemas) for the schema
 contract and error reasons.
+
+### Tool discovery
+
+On the Responses API, GPT-5.4 and later models with tool search report
+`tools.toolDiscovery: 'native'`. `gpt-5.4-nano`, `gpt-5.5-pro`, earlier models,
+and unrecognized model IDs report `'emulated'`. Fine-tuned models inherit the
+base model's value. Chat Completions models always report `'emulated'`.
+
+Natively, the discovery tool is a client-executed `tool_search` tool.
+Discovery calls and results travel as `tool_search_call` and
+`tool_search_output` items. Each discovered tool is loaded as a deferred
+function by the first `tool_search_output` that discovers it, with its latest
+snapshot. The request's `tools` stay the same when the model discovers tools,
+which keeps the prompt cache. `tool_search_output` holds no text, so the
+`note` of an empty result follows the step's tool results as a developer
+message, which keeps the step's reasoning.
+
+Set `emulateToolDiscovery: true` to declare discovered tools as ordinary
+functions instead, for example behind a proxy that does not forward the tool
+search items:
+
+```typescript
+const result = await generate({
+    model: openai.chatModel('gpt-5.4'),
+    messages,
+    toolDiscovery: { description: 'Discoverable tools: get_order_status.' },
+    providerOptions: {
+        openai: { emulateToolDiscovery: true },
+    },
+});
+```
+
+See [Tool Discovery](/guides/tool-discovery) for the agent loop and rules.
 
 ### Structured output schemas
 
@@ -470,7 +504,10 @@ const result = await generate({
 });
 ```
 
-Available fields: `store`, `serviceTier` (`'auto'` | `'default'` | `'flex'` | `'scale'` | `'priority'`), `include`, `parallelToolCalls`, `user`.
+Available fields: `store`, `serviceTier` (`'auto'` | `'default'` | `'flex'` | `'scale'` | `'priority'`), `include`, `parallelToolCalls`, `user`, `emulateToolDiscovery`.
+
+`emulateToolDiscovery` renders tool discovery with ordinary functions on models
+that support it natively. See [Tool discovery](/api/providers/openai#tool-discovery).
 
 <Note>
     Responses requests default to `store: false`. If reasoning is enabled,
@@ -506,8 +543,8 @@ const result = await generate({
 
 <Note>
     Chat Completions uses `reasoning_effort` instead of the Responses API
-    reasoning payload shape. Chat Completions options do not support `include`
-    field.
+    reasoning payload shape. Chat Completions options do not support the
+    `include` and `emulateToolDiscovery` fields.
 </Note>
 
 ### Embed options

@@ -575,6 +575,17 @@ if (result.finishReason === 'tool-calls') {
 }
 ```
 
+## Tool discovery
+
+For large tool sets, such as the tools of several MCP servers, declare a few
+tools up front and let the model discover the rest with `toolDiscovery`. See
+[Tool Discovery](/guides/tool-discovery).
+
+With discovery enabled, `finishReason: 'tool-calls'` also covers pending
+discovery calls, which arrive in `result.discoveryCalls` and never in
+`toolCalls`. Loop while `finishReason` is `'tool-calls'` and answer both
+`toolCalls` and `discoveryCalls`: a step can contain only discovery calls.
+
 ## Tool Calling with Streaming
 
 Handle tool calls during streaming:
@@ -869,7 +880,11 @@ if (firstResult.finishReason === 'tool-calls') {
     <Card title="Streaming" icon="water" href="/guides/streaming">
         Stream tool calls in real-time
     </Card>
-    <Card title="Multi-Modal" icon="images" href="/guides/multi-modal">
-        Use tools with image inputs
+    <Card
+        title="Tool Discovery"
+        icon="magnifying-glass"
+        href="/guides/tool-discovery"
+    >
+        Let the model discover tools on demand
     </Card>
 </CardGroup>

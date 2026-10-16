@@ -15,6 +15,7 @@ import {
     createObjectStream,
     createChatStream,
     extractStructuredObject,
+    finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
 } from '@core-ai/core-ai';
@@ -58,7 +59,7 @@ export function createMistralChatModel(
         const response = await callMistralChatApi(() =>
             client.chat.complete(request, { signal: options.signal })
         );
-        return mapGenerateResponse(response);
+        return finalizeGenerateResult(mapGenerateResponse(response), options);
     }
 
     async function streamChat(options: GenerateOptions): Promise<ChatStream> {
@@ -75,6 +76,7 @@ export function createMistralChatModel(
             {
                 signal: options.signal,
                 mapError: wrapMistralError,
+                request: options,
             }
         );
     }
@@ -88,7 +90,10 @@ export function createMistralChatModel(
         async generateObject<TSchema extends SchemaInput>(
             options: GenerateObjectOptions<TSchema>
         ): Promise<GenerateObjectResult<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                options,
+                provider
+            );
             const result = await generateChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
             const object = await extractStructuredObject(
@@ -107,7 +112,10 @@ export function createMistralChatModel(
         async streamObject<TSchema extends SchemaInput>(
             options: StreamObjectOptions<TSchema>
         ): Promise<ObjectStream<TSchema>> {
-            const structuredOptions = createStructuredOutputOptions(options);
+            const structuredOptions = createStructuredOutputOptions(
+                options,
+                provider
+            );
             const stream = await streamChat(structuredOptions);
             const toolName = getStructuredOutputToolName(options);
 
