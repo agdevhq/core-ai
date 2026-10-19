@@ -575,6 +575,30 @@ describe('resolveToolDiscovery', () => {
         }
     );
 
+    it('rejects a superseded strict snapshot outside the strict contract', () => {
+        const messages: Message[] = [
+            ...createDiscoveryHistory([outsideStrictContract]),
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-discovery-call',
+                        discoveryCall: { id: 'd2' },
+                    },
+                ],
+            },
+            {
+                role: 'tool-discovery',
+                discoveryCallId: 'd2',
+                tools: [{ ...outsideStrictContract, strict: false }],
+            },
+        ];
+
+        expect(() => resolveToolDiscovery({ messages }, STRICT)).toThrow(
+            ToolSchemaStrictnessError
+        );
+    });
+
     it('accepts a strict snapshot outside the contract that a caller tool overrides', () => {
         expect(() =>
             resolveToolDiscovery(

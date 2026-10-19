@@ -119,9 +119,9 @@ export type ResolveToolDiscoveryOptions = {
  * are not plain JSON Schema, a `toolChoice` that names a tool outside
  * `tools`, and discovery calls and results that do not pair up within their
  * step (see {@link validateToolDiscoveryMessages}). Throws a
- * `ToolSchemaStrictnessError` for a declared strict snapshot outside the
- * strict-capable schema contract, on every model, so a history fails the
- * same way wherever it is sent.
+ * `ToolSchemaStrictnessError` for a strict snapshot in the history outside
+ * the strict-capable schema contract, unless a caller tool declares its name,
+ * on every model, so a history fails the same way wherever it is sent.
  */
 export function resolveToolDiscovery(
     options: Pick<
@@ -151,12 +151,22 @@ export function resolveToolDiscovery(
         assertNotReserved(name, 'tool', providerId);
     }
 
+    // Every strict snapshot, not only the latest of each name: providers
+    // that render each discovery result as stored send them all.
+    assertStrictToolSchemaContract(
+        options.messages.flatMap((message) =>
+            message.role === 'tool-discovery'
+                ? message.tools.filter(
+                      (tool) =>
+                          tool.strict === true &&
+                          !callerToolNames.has(tool.name)
+                  )
+                : []
+        ),
+        { providerId, modelId }
+    );
     const declaredSnapshots = [...(snapshots ?? new Map()).values()].filter(
         (tool) => !callerToolNames.has(tool.name)
-    );
-    assertStrictToolSchemaContract(
-        declaredSnapshots.filter((tool) => tool.strict === true),
-        { providerId, modelId }
     );
     const discoveredTools = limitStrictSnapshots(
         declaredSnapshots,

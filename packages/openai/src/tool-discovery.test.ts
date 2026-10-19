@@ -247,7 +247,7 @@ describe('native tool discovery', () => {
         ]);
     });
 
-    it('loads a rediscovered tool once, with its latest snapshot', () => {
+    it('renders each output as stored, so a refresh leaves earlier outputs unchanged', () => {
         const history: Message[] = [
             ...createHistory(),
             {
@@ -269,26 +269,88 @@ describe('native tool discovery', () => {
             },
         ];
 
-        const outputs = createRequest({ messages: history }).input.filter(
-            (item) => item.type === 'tool_search_output'
-        );
+        const { input } = createRequest({ messages: history });
+        const before = createRequest({ messages: createHistory() }).input;
 
-        expect(outputs.map((output) => output.tools)).toEqual([
+        expect(input.slice(0, before.length)).toEqual(before);
+        expect(
+            input
+                .filter((item) => item.type === 'tool_search_output')
+                .map((output) => output.tools)
+        ).toEqual([
+            [
+                expect.objectContaining({
+                    name: 'book_meeting',
+                    description: bookMeeting.description,
+                }),
+                expect.objectContaining({ name: 'cancel_meeting' }),
+            ],
             [
                 expect.objectContaining({
                     name: 'book_meeting',
                     description: 'Book a meeting v2',
                 }),
-                expect.objectContaining({ name: 'cancel_meeting' }),
             ],
-            [],
         ]);
-        expect(createRequest({ messages: history }).input.at(-1)).toEqual(
-            expect.objectContaining({
-                type: 'tool_search_output',
-                tools: [],
-            })
+    });
+
+    it('drops strict from every rendering of a tool whose latest snapshot is not strict', () => {
+        const strictBook: ToolSnapshot = {
+            ...bookMeeting,
+            strict: true,
+            parameters: {
+                type: 'object',
+                properties: { title: { type: 'string' } },
+                required: ['title'],
+                additionalProperties: false,
+            },
+        };
+        const history: Message[] = [
+            { role: 'user', content: 'Book a meeting' },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-discovery-call',
+                        discoveryCall: {
+                            id: 'call_1',
+                            names: ['book_meeting'],
+                        },
+                    },
+                ],
+            },
+            {
+                role: 'tool-discovery',
+                discoveryCallId: 'call_1',
+                tools: [strictBook],
+            },
+            {
+                role: 'assistant',
+                parts: [
+                    {
+                        type: 'tool-discovery-call',
+                        discoveryCall: {
+                            id: 'call_2',
+                            names: ['book_meeting'],
+                        },
+                    },
+                ],
+            },
+            {
+                role: 'tool-discovery',
+                discoveryCallId: 'call_2',
+                tools: [{ ...strictBook, strict: false }],
+            },
+        ];
+
+        const outputs = createRequest({ messages: history }).input.filter(
+            (item) => item.type === 'tool_search_output'
         );
+
+        expect(outputs.map((output) => output.tools)).toEqual([
+            [expect.objectContaining({ name: 'book_meeting', strict: false })],
+            [expect.objectContaining({ name: 'book_meeting', strict: false })],
+        ]);
     });
 
     it('sends the note of an empty result as a developer message after the step', () => {

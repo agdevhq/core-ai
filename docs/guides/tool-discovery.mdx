@@ -287,7 +287,13 @@ Every request declares, in this order:
 These rules follow from that:
 
 - **Your tools win.** When a tool in `tools` has the name of a discovered tool, core-ai declares only your definition. Use this to keep a tool declared regardless of history, for example after you summarize a conversation and drop its discovery results.
-- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests. A changed definition rewrites the prompt cache from where the tool is defined, so return the same snapshot unless the tool changed: from its first discovery with native discovery, from the tool declarations at the start of the prompt with emulated discovery.
+- **Re-discovery refreshes.** Returning a snapshot for a name that was already discovered replaces its definition on later requests. What a changed definition costs depends on the rendering:
+    - Natively on OpenAI, each discovery result keeps the snapshots it holds and the model uses the newest definition, so a refresh keeps the prompt cache.
+    - Natively on Anthropic, the deferred tool declarations carry the latest snapshot, so a changed definition rewrites the prompt cache from that declaration on.
+    - With emulated discovery, the tool declarations at the start of the prompt carry the latest snapshot, so a changed definition rewrites the whole prompt cache.
+
+    Return the same snapshot unless the tool changed.
+
 - **Discovered tools stay declared** while their discovery results are in `messages`, also on requests that omit `toolDiscovery`. Without `toolDiscovery`, the model can call them but cannot discover more.
 - **There is no way to undeclare a discovered tool** while its discovery result is in the history. Removing discovery calls and results from `messages` changes the prompt prefix, so the next request rewrites the prompt cache.
 - **Structured output declares no discovered tools.** `generateObject()` and `streamObject()` validate the discovery calls and results in `messages` like `generate()` does, then send them as ordinary tool calls and results, so the model returns the object instead of calling a discovered tool.
@@ -348,7 +354,7 @@ Conversation history does not depend on the mode. core-ai renders each request f
 
 Set `strict: true` on a snapshot to have the provider enforce its schema. Native and emulated discovery both honor it.
 
-core-ai checks every strict snapshot it declares against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract), like strict tools in `tools`, and throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror) for a snapshot outside it. The check runs on every model, so a snapshot outside the contract fails on the first request after its discovery, wherever the conversation runs.
+core-ai checks every strict snapshot in the history against the [strict-capable schema contract](/guides/tool-calling#strict-capable-schema-contract), like strict tools in `tools`, and throws [`ToolSchemaStrictnessError`](/api/core/errors#toolschemastrictnesserror) for a snapshot outside it. That includes snapshots a later discovery replaced, which native OpenAI rendering still sends. Only names your `tools` declare are exempt. The check runs on every model, so a snapshot outside the contract fails on the first request after its discovery, wherever the conversation runs.
 
 Snapshots stay declared while their discovery results are in the history, so core-ai declares a strict snapshot without `strict` where the model cannot take it:
 

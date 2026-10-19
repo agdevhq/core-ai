@@ -293,10 +293,13 @@ base model's value. Chat Completions models always report `'emulated'`.
 
 Natively, the discovery tool is a client-executed `tool_search` tool.
 Discovery calls and results travel as `tool_search_call` and
-`tool_search_output` items. Each discovered tool is loaded as a deferred
-function by the first `tool_search_output` that discovers it, with its latest
-snapshot. The request's `tools` stay the same when the model discovers tools,
-which keeps the prompt cache. `tool_search_output` holds no text, so the
+`tool_search_output` items. Each `tool_search_output` loads the snapshots of
+its discovery result as deferred functions, exactly as stored. The request's
+`tools` and earlier outputs stay the same when the model discovers tools, which
+keeps the prompt cache. When a later discovery returns a changed snapshot, the
+model uses the newest definition, and the cache still holds. A snapshot whose
+name your `tools` declare is left out, and a snapshot keeps `strict` only while
+the latest snapshot of its name does. `tool_search_output` holds no text, so the
 `note` of an empty result follows the step's tool results as a developer
 message, which keeps the step's reasoning.
 

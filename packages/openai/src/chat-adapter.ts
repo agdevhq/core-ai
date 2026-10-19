@@ -128,13 +128,14 @@ type ConvertMessagesOptions = {
 type NativeToolDiscovery = {
     /**
      * The latest snapshot of each discovered tool the request does not
-     * declare, by name. Names of the caller's tools are absent: their
-     * definitions win, so they are never loaded by `tool_search_output`.
+     * declare, by name, with `strict` as the model can take it. Names of the
+     * caller's tools are absent: their definitions win, so they are never
+     * loaded by `tool_search_output`.
      */
     discoveredTools: ReadonlyMap<string, ToolSnapshot>;
 };
 
-/** Conversion state of the discovered tools loaded so far. */
+/** Conversion state: the names loaded by the outputs converted so far. */
 type NativeToolDiscoveryState = NativeToolDiscovery & {
     loadedToolNames: Set<string>;
 };
@@ -247,20 +248,31 @@ function convertToolResult(message: ToolResultMessage): ResponseInputItem {
 
 /**
  * The discovered tools become deferred functions of a client
- * `tool_search_output`. Each tool is loaded once, by the first output that
- * discovers it, with its latest snapshot.
+ * `tool_search_output`, each output with the snapshots it holds. Earlier
+ * outputs never change, so a refreshed definition keeps the prompt cache,
+ * and the model uses the newest definition of a name (live-verified).
+ * Caller-named snapshots are omitted, and a snapshot keeps `strict` only
+ * while its name's latest snapshot does.
  */
 function convertToolDiscoveryResult(
     message: ToolDiscoveryResultMessage,
     { discoveredTools, loadedToolNames }: NativeToolDiscoveryState
 ): ResponseInputItem {
-    const tools = message.tools.flatMap(({ name }) => {
-        const snapshot = discoveredTools.get(name);
-        if (snapshot === undefined || loadedToolNames.has(name)) {
+    const tools = message.tools.flatMap((tool) => {
+        const latest = discoveredTools.get(tool.name);
+        if (latest === undefined) {
             return [];
         }
-        loadedToolNames.add(name);
-        return [{ ...convertResponseTool(snapshot), defer_loading: true }];
+        loadedToolNames.add(tool.name);
+        const { strict: _strict, ...nonStrictTool } = tool;
+        return [
+            {
+                ...convertResponseTool(
+                    latest.strict === true ? tool : nonStrictTool
+                ),
+                defer_loading: true,
+            },
+        ];
     });
     return {
         type: 'tool_search_output',
