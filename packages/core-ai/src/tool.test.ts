@@ -2,7 +2,12 @@ import { describe, expect, expectTypeOf, it } from 'vitest';
 import { z } from 'zod';
 import { ValidationError } from './errors.ts';
 import type { StandardSchemaV1 } from './standard-schema.ts';
-import { defineTool, validateToolCall } from './tool.ts';
+import {
+    defineTool,
+    PORTABLE_TOOL_NAME_PATTERN,
+    toPortableToolName,
+    validateToolCall,
+} from './tool.ts';
 import type { ToolDefinition } from './types.ts';
 
 describe('defineTool', () => {
@@ -115,4 +120,44 @@ describe('validateToolCall', () => {
             })
         ).rejects.toThrow(ValidationError);
     });
+});
+
+describe('toPortableToolName', () => {
+    it.each(['search', '_private', 'book-meeting_2', 'a'.repeat(128)])(
+        'returns the valid name %s unchanged',
+        (name) => {
+            expect(toPortableToolName(name)).toBe(name);
+        }
+    );
+
+    // Pinned: results end up in conversation histories, so they must not
+    // change between versions.
+    it.each([
+        ['github.create_issue', 'github_create_issue_18gj7ag'],
+        ['1tool', '_1tool_11g4vxi'],
+        ['', '__0ztntfp'],
+        ['été.outil', '_t__outil_0z4tku8'],
+    ])('converts %j to %j', (name, expected) => {
+        expect(toPortableToolName(name)).toBe(expected);
+    });
+
+    it('keeps names apart that convert to the same characters', () => {
+        expect(toPortableToolName('a.b')).not.toBe(toPortableToolName('a:b'));
+    });
+
+    it('truncates long names to 128 characters, hash included', () => {
+        const name = toPortableToolName(`${'a'.repeat(200)}.b`);
+
+        expect(name).toHaveLength(128);
+        expect(name).toMatch(/^a+_[0-9a-z]{7}$/);
+    });
+
+    it.each(['-tool', 'server:tool', 'a b', 'x'.repeat(300), '🙂'])(
+        'returns a portable name for %j',
+        (name) => {
+            expect(toPortableToolName(name)).toMatch(
+                PORTABLE_TOOL_NAME_PATTERN
+            );
+        }
+    );
 });

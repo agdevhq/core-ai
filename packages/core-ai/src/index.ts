@@ -120,7 +120,7 @@ export type {
     StandardSchemaV1,
     StandardTypedV1,
 } from './standard-schema.ts';
-export { defineTool, validateToolCall } from './tool.ts';
+export { defineTool, toPortableToolName, validateToolCall } from './tool.ts';
 export type { ToolCallValidation } from './tool.ts';
 export {
     mapChildSchemaNodes,

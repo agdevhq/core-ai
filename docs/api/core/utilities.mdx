@@ -6,7 +6,7 @@ icon: 'toolbox'
 
 ## Overview
 
-core-ai exports helpers for schema conversion, assistant message construction, stream creation, model middleware wrapping, reasoning effort clamping, and provider-specific metadata access.
+core-ai exports helpers for schema conversion, portable tool names, assistant message construction, stream creation, model middleware wrapping, reasoning effort clamping, and provider-specific metadata access.
 
 ## toJsonSchema()
 
@@ -36,6 +36,28 @@ function toJsonSchema(schema: SchemaInput): JsonSchema;
 Use it when you store or measure schemas, for example to persist tool definitions or estimate token counts. You get the same JSON Schema core-ai hands to provider adapters, which apply only semantics-preserving provider transforms on top, such as the normalization for [strict tool schemas](/guides/tool-calling#strict-tool-schemas).
 
 Each call returns a copy, so changing it does not affect what core-ai sends.
+
+## toPortableToolName()
+
+Return a tool name every provider accepts, for tool names you do not control, such as MCP tool names.
+
+```typescript
+import { toPortableToolName } from '@core-ai/core-ai';
+
+toPortableToolName('search'); // 'search'
+toPortableToolName('github.create_issue'); // 'github_create_issue_18gj7ag'
+```
+
+```typescript
+function toPortableToolName(name: string): string;
+```
+
+- A name of letters, digits, underscores, and dashes that starts with a letter or underscore and has at most 128 characters is returned unchanged.
+- Any other name has each other character replaced with `_`, gets a leading `_` unless it starts with a letter or underscore, and ends with `_` and a 7-character hash of the original name. The result is truncated to 128 characters, hash included.
+
+The result depends only on the name you pass. It stays the same across requests, releases, and changes to your tool catalog, which keeps conversation histories and the prompt cache valid. The hash keeps names apart that would otherwise convert to the same one, such as `a.b` and `a:b`.
+
+The model calls the tool by the converted name, so keep a map from the converted name to the original one and translate tool calls back. Discovered tools must have such a name; see [Tool snapshots](/guides/tool-discovery#tool-snapshots).
 
 ## clampReasoningEffort()
 

@@ -1,6 +1,7 @@
 import { ValidationError } from './errors.ts';
 import { isPlainObject } from './json-schema.ts';
 import { getToolJsonSchema, isStandardSchema } from './schema.ts';
+import { PORTABLE_TOOL_NAME_PATTERN } from './tool.ts';
 import {
     assertStrictToolSchemaContract,
     countUnionParameters,
@@ -62,16 +63,6 @@ const TOOL_DISCOVERY_PARAMETERS: JsonSchema = Object.freeze({
 });
 
 const EMPTY_DISCOVERY_RESULT_TEXT = 'No matching tools were found.';
-
-/**
- * Tool names every provider accepts (live-verified: OpenAI and Anthropic
- * allow only these characters, Gemini requires a leading letter or
- * underscore, and OpenAI, Anthropic, and Gemini allow at most 128
- * characters). Discovered tools stay declared while their results are in the
- * history, so a name outside it would fail every later request on some
- * provider.
- */
-const PORTABLE_TOOL_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_-]{0,127}$/;
 
 /**
  * How a request renders tool discovery, decided per request from the neutral
@@ -527,9 +518,12 @@ function validateSnapshot(
     providerId: string
 ): void {
     assertNotReserved(tool.name, 'discovered tool', providerId);
+    // Discovered tools stay declared while their results are in the
+    // history, so a name some provider rejects would fail every later
+    // request there.
     if (!PORTABLE_TOOL_NAME_PATTERN.test(tool.name)) {
         throw new ValidationError(
-            `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") has a name some providers reject; use letters, digits, underscores, and dashes, start with a letter or underscore, and keep it to 128 characters.`,
+            `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") has a name some providers reject; use letters, digits, underscores, and dashes, start with a letter or underscore, and keep it to 128 characters, or convert it with toPortableToolName().`,
             undefined,
             providerId
         );

@@ -95,16 +95,23 @@ type ToolSnapshot = ToolDefinition<JsonSchema>;
 Convert a Standard Schema, such as a Zod schema, with [`toJsonSchema()`](/api/core/utilities#tojsonschema). Tools from an MCP server already carry JSON Schema:
 
 ```typescript
-import type { ToolSnapshot } from '@core-ai/core-ai';
+import { toPortableToolName, type ToolSnapshot } from '@core-ai/core-ai';
 
-const snapshot: ToolSnapshot = {
-    name: mcpTool.name,
-    description: mcpTool.description ?? '',
-    parameters: mcpTool.inputSchema,
-};
+// Model-facing name → MCP tool name, to translate calls back
+const mcpToolNames = new Map<string, string>();
+
+function toSnapshot(mcpTool: McpTool): ToolSnapshot {
+    const name = toPortableToolName(mcpTool.name);
+    mcpToolNames.set(name, mcpTool.name);
+    return {
+        name,
+        description: mcpTool.description ?? '',
+        parameters: mcpTool.inputSchema,
+    };
+}
 ```
 
-A snapshot's `name` may contain letters, digits, underscores, and dashes, must start with a letter or underscore, and has at most 128 characters: the names every provider accepts. MCP tool names can contain other characters, such as the dot in `github.create_issue`. Map them to a valid name, such as `github_create_issue`, and map calls back to the MCP tool when you run them.
+A snapshot's `name` may contain letters, digits, underscores, and dashes, must start with a letter or underscore, and has at most 128 characters: the names every provider accepts. MCP tool names can contain other characters, such as the dot in `github.create_issue`. [`toPortableToolName()`](/api/core/utilities#toportabletoolname) returns a valid name unchanged and converts any other one, such as `github.create_issue` to `github_create_issue_18gj7ag`. The model then calls the tool by that name, and lists it in a discovery call's `names`, so translate both back with your map before you run the MCP tool or search your catalog.
 
 Plain JSON Schema keeps the conversation plain data that you can store and reload. core-ai renders each snapshot byte for byte the same on every request, which keeps the prompt cache stable.
 
