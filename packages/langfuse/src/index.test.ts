@@ -272,6 +272,7 @@ describe('@core-ai/langfuse', () => {
                 content: 'Hello',
                 parts: [{ type: 'text', text: 'Hello' }],
                 toolCalls: [],
+                discoveryCalls: [],
                 finishReason: 'stop',
             },
         });
@@ -317,6 +318,53 @@ describe('@core-ai/langfuse', () => {
             },
             metadata: {
                 reasoningTokens: 2_000,
+            },
+        });
+    });
+
+    it('records discovery calls in generate output', async () => {
+        const discoveryCall = {
+            id: 'discovery-1',
+            names: ['get_weather'],
+            query: 'weather forecast',
+        };
+        const model = createMockChatModel({
+            generate: vi.fn(async () => ({
+                parts: [
+                    { type: 'tool-discovery-call' as const, discoveryCall },
+                ],
+                content: null,
+                reasoning: null,
+                toolCalls: [],
+                discoveryCalls: [discoveryCall],
+                finishReason: 'tool-calls' as const,
+                usage: createChatUsage(),
+            })),
+        });
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createLangfuseMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [{ role: 'user', content: 'What is the weather?' }],
+        });
+
+        const observation = expectDefined(observations[0]);
+
+        expect(observation.update).toHaveBeenNthCalledWith(2, {
+            usageDetails: {
+                input: 5,
+                output: 3,
+                input_cache_read: 0,
+                input_cache_creation: 0,
+            },
+            output: {
+                parts: [{ type: 'tool-discovery-call', discoveryCall }],
+                toolCalls: [],
+                discoveryCalls: [discoveryCall],
+                finishReason: 'tool-calls',
             },
         });
     });
@@ -438,6 +486,7 @@ describe('@core-ai/langfuse', () => {
                 content: 'Hello',
                 parts: [{ type: 'text', text: 'Hello' }],
                 toolCalls: [],
+                discoveryCalls: [],
                 finishReason: 'stop',
             },
         });

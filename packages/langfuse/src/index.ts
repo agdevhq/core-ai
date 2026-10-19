@@ -146,6 +146,7 @@ function createChatOutput(result: GenerateResult): ObservationAttributes {
     return {
         parts: result.parts,
         toolCalls: result.toolCalls,
+        discoveryCalls: result.discoveryCalls,
         finishReason: result.finishReason,
         ...(result.content !== null ? { content: result.content } : {}),
         ...(result.reasoning !== null ? { reasoning: result.reasoning } : {}),
