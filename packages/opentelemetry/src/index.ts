@@ -15,6 +15,7 @@ import {
     createChatSpanName,
     createEmbedSpanName,
     createImageSpanName,
+    getDeclaredTools,
     setChatInputAttributes,
     setChatOutputAttributes,
     setChatRequestAttributes,
@@ -76,12 +77,13 @@ export function createOtelMiddleware(
                     setChatRequestAttributes(span, model, generateOptions, 'text');
 
                     try {
-                        // Inside the try: converting a tool schema can throw.
+                        // Inside the try: converting a tool schema or resolving tool
+                        // discovery can throw.
                         if (recordContent) {
                             setChatInputAttributes(
                                 span,
                                 generateOptions.messages,
-                                generateOptions.tools
+                                getDeclaredTools(model, generateOptions)
                             );
                         }
 
@@ -118,12 +120,13 @@ export function createOtelMiddleware(
                     setChatRequestAttributes(span, model, generateOptions, 'text');
 
                     try {
-                        // Inside the try: converting a tool schema can throw.
+                        // Inside the try: converting a tool schema or resolving tool
+                        // discovery can throw.
                         if (recordContent) {
                             setChatInputAttributes(
                                 span,
                                 generateOptions.messages,
-                                generateOptions.tools
+                                getDeclaredTools(model, generateOptions)
                             );
                         }
 

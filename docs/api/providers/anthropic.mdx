@@ -617,8 +617,8 @@ const result = await generate({
 
 ### Message cache control
 
-Set `cacheControl` on a system, user, or tool result message to place an
-explicit cache breakpoint at the end of that message. Each breakpoint can use
+Set `cacheControl` on a system, user, tool result, or discovery result message
+to place an explicit cache breakpoint at the end of that message. Each breakpoint can use
 its own TTL. A common setup for agent loops caches the static system prompt for
 an hour and lets request-level caching follow the growing conversation:
 
@@ -650,8 +650,9 @@ The breakpoint goes on the last content block the message produces:
 - A user message with string content is sent as a single text block that
   carries the breakpoint.
 - A user message with content parts marks its last part.
-- A tool result message marks its `tool_result` block. Consecutive tool
-  results share one user turn, and each keeps its own breakpoint.
+- A tool result or discovery result message marks its `tool_result` block.
+  Consecutive tool results share one user turn, and each keeps its own
+  breakpoint.
 
 A user message with `cacheControl` must end with a non-empty part. An empty
 message or an empty last text part throws `ValidationError`, since Anthropic

@@ -18,7 +18,11 @@ import type {
     UserContentPart,
     SchemaInput,
 } from '@core-ai/core-ai';
-import { getToolJsonSchema } from '@core-ai/core-ai';
+import {
+    getEmulatedToolSet,
+    getToolJsonSchema,
+    resolveToolDiscovery,
+} from '@core-ai/core-ai';
 
 type SpanAttributeValue =
     | string
@@ -190,6 +194,26 @@ function serializeAssistantContentParts(
     });
 }
 
+/**
+ * The tools the model is offered: the caller's tools plus, with tool
+ * discovery, the discovery tool and the discovered tools. Resolving
+ * discovery validates the history; an invalid one throws the error the
+ * model call would throw.
+ */
+export function getDeclaredTools(
+    model: ChatModel,
+    options: GenerateOptions
+): ToolSet | undefined {
+    return getEmulatedToolSet(
+        options.tools,
+        resolveToolDiscovery(options, {
+            capabilities: model.capabilities,
+            providerId: model.provider,
+            modelId: model.modelId,
+        })
+    );
+}
+
 export function setChatInputAttributes(
     span: Span,
     messages: Message[],
@@ -271,9 +295,9 @@ export function setChatInputAttributes(
             span,
             'gen_ai.tool.definitions',
             safeJsonStringify(
-                Object.entries(tools).map(([name, definition]) => ({
+                Object.values(tools).map((definition) => ({
                     type: 'function',
-                    name,
+                    name: definition.name,
                     description: definition.description,
                     parameters: getToolJsonSchema(definition),
                 }))

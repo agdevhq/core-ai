@@ -231,6 +231,59 @@ describe('@core-ai/opentelemetry', () => {
         expect(span.attributes['output.value']).toBe('Hello');
     });
 
+    it('records the discovery tool and discovered tools as tool definitions', async () => {
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createOtelMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [
+                { role: 'user', content: 'Book a meeting' },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'tool-discovery-call',
+                            discoveryCall: { id: 'd1', query: 'calendar' },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool-discovery',
+                    discoveryCallId: 'd1',
+                    tools: [
+                        {
+                            name: 'book_meeting',
+                            description: 'Book a meeting',
+                            parameters: { type: 'object', properties: {} },
+                        },
+                    ],
+                },
+            ],
+            tools: {
+                lookup: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: { type: 'object', properties: {} },
+                },
+            },
+            toolDiscovery: {},
+        });
+
+        const span = expectDefined(exporter.getFinishedSpans()[0]);
+        const definitions = JSON.parse(
+            String(span.attributes['gen_ai.tool.definitions'])
+        ) as Array<{ name: string }>;
+        expect(definitions.map((definition) => definition.name)).toEqual([
+            'search',
+            'core_ai_discover_tools',
+            'book_meeting',
+        ]);
+    });
+
     it('records audio parts when content recording is enabled', async () => {
         const model = createMockChatModel();
         const wrappedModel = wrapChatModel({

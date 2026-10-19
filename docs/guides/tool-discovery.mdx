@@ -74,11 +74,15 @@ type ToolDiscoveryResultMessage = {
     tools: ToolSnapshot[];
     /** Explains an empty result to the model. */
     note?: string;
+    /** Options for the tool result it is sent as, keyed by provider id. */
+    providerOptions?: ToolResultMessageProviderOptions;
     metadata?: Record<string, unknown>;
 };
 ```
 
 Place it with the step's tool results: after the assistant message and before the next request, in any order relative to `tool` messages. When nothing matches, return an empty `tools` array, optionally with a `note` that tells the model why, such as "The billing tools are unavailable right now." The model then receives your `note`. Without one, it receives a default text saying that no tools were found, except natively on OpenAI, where the empty result speaks for itself. A `note` is only allowed without tools: neither native API can carry text next to loaded tools. Put standing guidance, such as which queries work or that empty results mean a tool doesn't exist, in `toolDiscovery.description`.
+
+`providerOptions` work as on a `tool` message, such as an Anthropic [cache breakpoint](/api/providers/anthropic#message-cache-control) on the discovery result.
 
 ### Tool snapshots
 

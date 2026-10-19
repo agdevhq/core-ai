@@ -934,6 +934,126 @@ describe('finish reason with tool calls', () => {
         ]);
     });
 
+    it('should start a streamed tool call once a later chunk names it', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_1',
+                                            function: {
+                                                arguments: '{"query":',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_late',
+                                            function: {
+                                                name: 'search',
+                                                arguments: '"a"}',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'tool_calls',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ])
+            )
+        );
+
+        expect(events.slice(0, 3)).toEqual([
+            {
+                type: 'tool-call-start',
+                toolCallId: 'call_late',
+                toolName: 'search',
+            },
+            {
+                type: 'tool-call-delta',
+                toolCallId: 'call_late',
+                argumentsDelta: '{"query":"a"}',
+            },
+            {
+                type: 'tool-call-end',
+                toolCall: {
+                    id: 'call_late',
+                    name: 'search',
+                    arguments: { query: 'a' },
+                },
+            },
+        ]);
+    });
+
+    it('should start an unnamed tool call before ending it', async () => {
+        const events = await collectEvents(
+            transformStream(
+                toAsyncIterable([
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_1',
+                                            function: { arguments: '{}' },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: 'tool_calls',
+                                delta: {},
+                            },
+                        ],
+                    }),
+                ])
+            )
+        );
+
+        expect(events.map((event) => event.type)).toEqual([
+            'tool-call-start',
+            'tool-call-delta',
+            'tool-call-end',
+            'finish',
+        ]);
+    });
+
     it('should keep length for truncated tool calls', () => {
         const result = mapGenerateResponse(
             asChatCompletion({

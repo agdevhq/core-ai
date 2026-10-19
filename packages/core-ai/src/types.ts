@@ -252,6 +252,11 @@ export type ToolDiscoveryResultMessage = {
      */
     note?: string;
     /**
+     * Provider-specific options for the tool result this message is sent as,
+     * keyed by provider id, such as an Anthropic cache breakpoint.
+     */
+    providerOptions?: ToolResultMessageProviderOptions;
+    /**
      * Application-owned metadata for this message. Provider adapters ignore
      * this field and never serialize it to provider APIs.
      */

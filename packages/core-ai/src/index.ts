@@ -136,7 +136,10 @@ export {
     parseStructuredOutput,
     transformStructuredOutputStream,
 } from './structured-output.ts';
-export { finalizeGenerateResult } from './finalize-result.ts';
+export {
+    finalizeGenerateResult,
+    getDiscoveryCalls,
+} from './finalize-result.ts';
 export {
     createToolDiscoveryCallPart,
     emulateToolDiscoveryMessages,

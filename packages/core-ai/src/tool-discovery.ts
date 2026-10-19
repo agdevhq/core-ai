@@ -334,6 +334,9 @@ export function toToolDiscoveryToolResult(
         role: 'tool',
         toolCallId: message.discoveryCallId,
         content: getToolDiscoveryResultText(message),
+        ...(message.providerOptions
+            ? { providerOptions: message.providerOptions }
+            : {}),
     };
 }
 

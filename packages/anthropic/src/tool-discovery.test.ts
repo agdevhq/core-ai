@@ -422,6 +422,64 @@ describe('emulated tool discovery', () => {
     });
 });
 
+describe('cache breakpoints on discovery results', () => {
+    function withCacheControl(history: Message[]): Message[] {
+        return history.map((message) =>
+            message.role === 'tool-discovery'
+                ? {
+                      ...message,
+                      providerOptions: {
+                          anthropic: { cacheControl: { type: 'ephemeral' } },
+                      },
+                  }
+                : message
+        );
+    }
+
+    it.each([
+        ['natively', {}],
+        [
+            'emulated',
+            { providerOptions: { anthropic: { emulateToolDiscovery: true } } },
+        ],
+    ] as const)('places the breakpoint on the result %s', (_label, options) => {
+        const request = createRequest({
+            ...options,
+            messages: withCacheControl(createHistory()),
+        });
+
+        expect(request.messages[2]?.content).toContainEqual(
+            expect.objectContaining({
+                type: 'tool_result',
+                tool_use_id: 'toolu_discover',
+                cache_control: { type: 'ephemeral' },
+            })
+        );
+    });
+
+    it('counts the breakpoint toward the request limit', () => {
+        const history = withCacheControl(createHistory()).map((message) =>
+            message.role === 'tool' || message.role === 'user'
+                ? {
+                      ...message,
+                      providerOptions: {
+                          anthropic: { cacheControl: { type: 'ephemeral' } },
+                      },
+                  }
+                : message
+        ) as Message[];
+
+        expect(() =>
+            createRequest({
+                messages: history,
+                providerOptions: {
+                    anthropic: { cacheControl: { type: 'ephemeral' } },
+                },
+            })
+        ).toThrow(/at most 4 cache breakpoints/);
+    });
+});
+
 describe('structured output after tool discovery', () => {
     it('declares no discovered tools and replays discovery as tool calls', () => {
         const request = createStreamRequest(

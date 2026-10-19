@@ -49,7 +49,7 @@ export function finalizeGenerateResult(
 }
 
 /** The discovery calls among `parts`, in order. */
-function getDiscoveryCalls(
+export function getDiscoveryCalls(
     parts: readonly AssistantContentPart[]
 ): ToolDiscoveryCall[] {
     return parts.flatMap((part) =>

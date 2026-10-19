@@ -258,7 +258,7 @@ const result = await generate({
 });
 ```
 
-System, user, and tool result messages take their options under the same key.
+System, user, tool result, and discovery result messages take their options under the same key.
 For example, set a per-message cache breakpoint with
 `providerOptions: { 'anthropic-vertex': { cacheControl: { type: 'ephemeral', ttl: '1h' } } }`
 on any of them.

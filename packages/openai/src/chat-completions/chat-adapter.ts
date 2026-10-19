@@ -540,18 +540,34 @@ function mapFinishReason(
     return 'unknown';
 }
 
+type BufferedToolCall = {
+    id: string;
+    name: string;
+    arguments: string;
+    started: boolean;
+};
+
+function* startToolCall(toolCall: BufferedToolCall): Iterable<StreamEvent> {
+    toolCall.started = true;
+    yield {
+        type: 'tool-call-start',
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+    };
+    if (toolCall.arguments) {
+        yield {
+            type: 'tool-call-delta',
+            toolCallId: toolCall.id,
+            argumentsDelta: toolCall.arguments,
+        };
+    }
+}
+
 export async function* transformStream(
     stream: AsyncIterable<ChatCompletionChunk>,
     adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ): AsyncIterable<StreamEvent> {
-    const bufferedToolCalls = new Map<
-        number,
-        {
-            id: string;
-            name: string;
-            arguments: string;
-        }
-    >();
+    const bufferedToolCalls = new Map<number, BufferedToolCall>();
     const emittedToolCalls = new Set<string>();
 
     let finishReason: FinishReason = 'unknown';
@@ -666,37 +682,35 @@ export async function* transformStream(
                     partialToolCall.index
                 ) ?? {
                     id: partialToolCall.id ?? `tool-${partialToolCall.index}`,
-                    name: partialToolCall.function?.name ?? '',
+                    name: '',
                     arguments: '',
+                    started: false,
                 };
 
-                const wasNew = !bufferedToolCalls.has(partialToolCall.index);
-
-                if (partialToolCall.id) {
+                // The id and name are fixed once the call has started, so
+                // every event of the call carries the same ones.
+                if (partialToolCall.id && !current.started) {
                     current.id = partialToolCall.id;
                 }
-                if (partialToolCall.function?.name) {
+                if (partialToolCall.function?.name && !current.started) {
                     current.name = partialToolCall.function.name;
                 }
+                const argumentsDelta =
+                    partialToolCall.function?.arguments ?? '';
+                current.arguments += argumentsDelta;
+                bufferedToolCalls.set(partialToolCall.index, current);
 
-                if (wasNew) {
-                    yield {
-                        type: 'tool-call-start',
-                        toolCallId: current.id,
-                        toolName: current.name,
-                    };
-                }
-
-                if (partialToolCall.function?.arguments) {
-                    current.arguments += partialToolCall.function.arguments;
+                // Some servers send the name after the first chunk; the call
+                // starts once it is known, with the arguments buffered so far.
+                if (!current.started && current.name) {
+                    yield* startToolCall(current);
+                } else if (current.started && argumentsDelta) {
                     yield {
                         type: 'tool-call-delta',
                         toolCallId: current.id,
-                        argumentsDelta: partialToolCall.function.arguments,
+                        argumentsDelta,
                     };
                 }
-
-                bufferedToolCalls.set(partialToolCall.index, current);
             }
         }
 
@@ -715,6 +729,9 @@ export async function* transformStream(
                     continue;
                 }
 
+                if (!toolCall.started) {
+                    yield* startToolCall(toolCall);
+                }
                 emittedToolCalls.add(toolCall.id);
                 yield {
                     type: 'tool-call-end',

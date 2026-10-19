@@ -250,7 +250,7 @@ export function convertMessages(
         if (message.role === 'tool') {
             toolResultBlock = convertToolResultMessage(message, provider);
         } else if (toolDiscovery === 'native') {
-            toolResultBlock = convertToolDiscoveryResult(message);
+            toolResultBlock = convertToolDiscoveryResult(message, provider);
         } else {
             toolResultBlock = convertToolResultMessage(
                 toToolDiscoveryToolResult(message),
@@ -463,8 +463,14 @@ function convertToolResultMessage(
  * was found.
  */
 function convertToolDiscoveryResult(
-    message: ToolDiscoveryResultMessage
+    message: ToolDiscoveryResultMessage,
+    provider: string
 ): ToolResultBlockParam {
+    const cacheControl = parseAnthropicMessageProviderOptions(
+        message.providerOptions,
+        provider
+    )?.cacheControl;
+
     return {
         type: 'tool_result',
         tool_use_id: message.discoveryCallId,
@@ -477,6 +483,7 @@ function convertToolDiscoveryResult(
                       })
                   )
                 : getToolDiscoveryResultText(message),
+        ...(cacheControl ? { cache_control: cacheControl } : {}),
     };
 }
 

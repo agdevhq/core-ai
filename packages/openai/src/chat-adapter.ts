@@ -31,6 +31,7 @@ import type {
 } from '@core-ai/core-ai';
 import {
     createToolDiscoveryCallPart,
+    getDiscoveryCalls,
     getEmulatedToolSet,
     getProviderMetadata,
     getToolDiscoveryArguments,
@@ -727,20 +728,18 @@ export function mapGenerateResponse(
     const content = getTextContent(parts);
     const reasoning = getReasoningText(parts);
     const toolCalls = getToolCalls(parts);
-    const hasPendingCalls = parts.some(
-        (part) =>
-            part.type === 'tool-call' || part.type === 'tool-discovery-call'
-    );
+    const discoveryCalls = getDiscoveryCalls(parts);
 
     return {
         parts,
         content,
         reasoning,
         toolCalls,
-        discoveryCalls: parts.flatMap((part) =>
-            part.type === 'tool-discovery-call' ? [part.discoveryCall] : []
+        discoveryCalls,
+        finishReason: mapFinishReason(
+            response,
+            toolCalls.length > 0 || discoveryCalls.length > 0
         ),
-        finishReason: mapFinishReason(response, hasPendingCalls),
         usage: mapUsage(response.usage),
     };
 }
