@@ -64,7 +64,7 @@ With [tool discovery](/guides/tool-discovery) in use, it also covers the discove
 - A discovery call whose `id` another call of the same assistant message also uses.
 - A `tool-discovery` message with both `tools` and a `note`.
 - A discovered tool whose `name` some provider rejects.
-- A discovered tool whose `parameters` are not plain JSON Schema.
+- A discovered tool whose `parameters` are not plain JSON Schema, or not an object schema with `type: "object"` at the root.
 - A `toolChoice` that names a tool outside `tools`.
 
 ```typescript

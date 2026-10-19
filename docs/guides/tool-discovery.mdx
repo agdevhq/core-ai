@@ -86,7 +86,7 @@ Place it with the step's tool results: after the assistant message and before th
 
 ### Tool snapshots
 
-A `ToolSnapshot` is a tool definition whose `parameters` are plain JSON Schema:
+A `ToolSnapshot` is a tool definition whose `parameters` are plain JSON Schema for an object, with `type: "object"` at the root:
 
 ```typescript
 type ToolSnapshot = ToolDefinition<JsonSchema>;
@@ -315,6 +315,7 @@ core-ai throws a [`ValidationError`](/api/core/errors#validationerror) before an
 - A `tool-discovery` message with both `tools` and a `note`.
 - A snapshot whose `name` some provider rejects. See [Tool snapshots](#tool-snapshots).
 - A snapshot whose `parameters` are not plain JSON Schema, such as a Zod schema. Convert it with `toJsonSchema()`.
+- A snapshot whose `parameters` are not an object schema with `type: "object"` at the root. See [Tool snapshots](#tool-snapshots).
 - A `toolChoice` that names a tool outside `tools`.
 
 A request uses discovery when it sets `toolDiscovery` or its messages contain discovery calls or results. Other requests are not checked against these rules.

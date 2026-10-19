@@ -437,6 +437,26 @@ describe('resolveToolDiscovery', () => {
         );
     });
 
+    it.each([
+        ['a string schema', { type: 'string' }],
+        ['an array schema', { type: 'array', items: { type: 'string' } }],
+        [
+            'a root anyOf',
+            { anyOf: [{ type: 'object', properties: {} }, { type: 'null' }] },
+        ],
+        ['a schema without type', { properties: { a: { type: 'string' } } }],
+        ['an empty schema', {}],
+        ['a nullable object', { type: ['object', 'null'], properties: {} }],
+    ])('rejects snapshots whose parameters are %s', (_label, parameters) => {
+        const messages = createDiscoveryHistory([
+            { name: 'book', description: 'Book', parameters },
+        ]);
+
+        expect(() => resolveToolDiscovery({ messages }, EMULATED)).toThrow(
+            /must have an object schema as parameters/
+        );
+    });
+
     it('drops strict from discovered tools on models without strict support', () => {
         const { discoveredTools } = resolveToolDiscovery(
             {

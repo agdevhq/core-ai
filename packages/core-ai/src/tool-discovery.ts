@@ -14,7 +14,6 @@ import type {
     ModelCapabilities,
     SystemMessage,
     ToolCallPart,
-    ToolDefinition,
     ToolDiscoveryCall,
     ToolDiscoveryCallPart,
     ToolDiscoveryOptions,
@@ -116,7 +115,7 @@ export type ResolveToolDiscoveryOptions = {
  *
  * Throws a `ValidationError` before any provider call for reserved tool
  * names, snapshots whose name some provider rejects or whose `parameters`
- * are not plain JSON Schema, a `toolChoice` that names a tool outside
+ * are not a plain JSON object schema, a `toolChoice` that names a tool outside
  * `tools`, and discovery calls and results that do not pair up within their
  * step (see {@link validateToolDiscoveryMessages}). Throws a
  * `ToolSchemaStrictnessError` for a strict snapshot in the history outside
@@ -523,7 +522,7 @@ function getDiscoveredToolSnapshots(
 }
 
 function validateSnapshot(
-    tool: ToolDefinition,
+    tool: ToolSnapshot,
     discoveryCallId: string,
     providerId: string
 ): void {
@@ -538,6 +537,15 @@ function validateSnapshot(
     if (!isPlainObject(tool.parameters) || isStandardSchema(tool.parameters)) {
         throw new ValidationError(
             `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") must have plain JSON Schema parameters; convert schema objects with toJsonSchema().`,
+            undefined,
+            providerId
+        );
+    }
+    // OpenAI and Anthropic reject any other root (live-verified), so the
+    // snapshot would fail every later request there.
+    if (tool.parameters.type !== 'object') {
+        throw new ValidationError(
+            `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") must have an object schema as parameters, with type: "object" at the root; some providers reject any other schema.`,
             undefined,
             providerId
         );
