@@ -170,7 +170,7 @@ section for their semantics.
 
 Per-tool `strict: true` follows the model capabilities of the underlying
 Anthropic provider: Claude 4.5 and later models report
-`{ supported: true, maxStrictTools: 20 }`. There is no provider-level switch —
+`{ supported: true, maxStrictTools: 20, maxUnionParameters: 16 }`. There is no provider-level switch —
 the `strictToolSchemasEnabled` option was removed. See
 [Anthropic strict tool schemas](/api/providers/anthropic#strict-tool-schemas)
 and the [tool-calling guide](/guides/tool-calling#strict-tool-schemas).

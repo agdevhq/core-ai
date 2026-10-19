@@ -99,8 +99,9 @@ problems as issues instead of throwing. See
 [Validate tool calls](/guides/tool-calling#validate-tool-calls).
 
 `ToolSchemaStrictnessError` includes typed `providerId`, `modelId`,
-`toolNames`, `reason`, and optional `maxStrictTools` and `violations` fields.
-Its `reason` is one of `'unsupported'`, `'limit-exceeded'`, or
+`toolNames`, `reason`, and optional `maxStrictTools`, `maxUnionParameters`,
+`unionParameterCount`, and `violations` fields. Its `reason` is one of
+`'unsupported'`, `'limit-exceeded'`, `'union-limit-exceeded'`, or
 `'invalid-schema'`. Core-ai throws it before the provider request. See the
 [errors reference](/api/core/errors#toolschemastrictnesserror) for the complete
 shape.

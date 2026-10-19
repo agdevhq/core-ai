@@ -7,13 +7,17 @@ import {
     TEXT_ONLY_MODALITIES,
     UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
 } from './model-capabilities.ts';
+import { getToolJsonSchema } from './schema.ts';
 import type {
     ModelCapabilities,
     ToolDefinition,
     ToolSchemaStrictnessCapabilities,
     ToolSet,
 } from './types.ts';
-import { validateToolSchemaStrictness } from './validate-tool-schema-strictness.ts';
+import {
+    countUnionParameters,
+    validateToolSchemaStrictness,
+} from './validate-tool-schema-strictness.ts';
 
 function createCapabilities(
     strictSchemas: ToolSchemaStrictnessCapabilities
@@ -243,6 +247,189 @@ describe('validateToolSchemaStrictness', () => {
                 ),
                 providerId: 'openai',
                 modelId: 'gpt-4o',
+            })
+        ).not.toThrow();
+    });
+});
+
+function closedObject(
+    properties: Record<string, Record<string, unknown>>,
+    extra: Record<string, unknown> = {}
+): Record<string, unknown> {
+    return {
+        type: 'object',
+        properties,
+        required: Object.keys(properties),
+        additionalProperties: false,
+        ...extra,
+    };
+}
+
+function nullableFields(
+    prefix: string,
+    count: number
+): Record<string, Record<string, unknown>> {
+    return Object.fromEntries(
+        Array.from({ length: count }, (_, index) => [
+            `${prefix}${index}`,
+            { type: ['string', 'null'] },
+        ])
+    );
+}
+
+// Each case mirrors a live probe of Anthropic's union parameter count.
+describe('countUnionParameters', () => {
+    it.each([
+        ['type arrays with null', closedObject(nullableFields('a', 3)), 3],
+        [
+            'anyOf with null',
+            closedObject({
+                a: { anyOf: [{ type: 'string' }, { type: 'null' }] },
+            }),
+            1,
+        ],
+        [
+            'non-null unions',
+            closedObject({
+                a: { anyOf: [{ type: 'string' }, { type: 'number' }] },
+                b: { type: ['string', 'number'] },
+                c: { oneOf: [{ type: 'string' }, { type: 'number' }] },
+            }),
+            3,
+        ],
+        [
+            'nested objects at any depth',
+            closedObject({
+                outer: closedObject({
+                    inner: closedObject(nullableFields('n', 2)),
+                }),
+            }),
+            2,
+        ],
+        [
+            'objects in array items',
+            closedObject({
+                list: {
+                    type: 'array',
+                    items: closedObject(nullableFields('n', 2)),
+                },
+            }),
+            2,
+        ],
+        [
+            'anyOf branches and the union property itself',
+            closedObject({
+                variant: {
+                    anyOf: [
+                        closedObject(nullableFields('x', 2)),
+                        closedObject(nullableFields('y', 2)),
+                    ],
+                },
+            }),
+            5,
+        ],
+        [
+            'only the node of a type-array object',
+            closedObject({
+                maybe: closedObject(nullableFields('n', 3), {
+                    type: ['object', 'null'],
+                }),
+            }),
+            1,
+        ],
+        [
+            'no union array items',
+            closedObject({
+                list: { type: 'array', items: { type: ['string', 'null'] } },
+            }),
+            0,
+        ],
+        ['no enums with null', closedObject({ a: { enum: ['a', null] } }), 0],
+        [
+            'no $defs, referenced or not',
+            closedObject(
+                { a: { $ref: '#/$defs/Pair' }, b: { $ref: '#/$defs/Pair' } },
+                { $defs: { Pair: closedObject(nullableFields('n', 2)) } }
+            ),
+            0,
+        ],
+    ])('counts %s', (_label, schema, expected) => {
+        expect(countUnionParameters(schema)).toBe(expected);
+    });
+
+    it('counts Zod nullable fields', () => {
+        const tool: ToolDefinition = {
+            name: 'save',
+            description: 'Save',
+            parameters: z.object({
+                title: z.string().nullable(),
+                tags: z.array(z.object({ label: z.string().nullable() })),
+            }),
+        };
+
+        expect(countUnionParameters(getToolJsonSchema(tool))).toBe(2);
+    });
+});
+
+describe('validateToolSchemaStrictness union parameter limit', () => {
+    const unionTool = (name: string, count: number, strict = true) => ({
+        name,
+        description: name,
+        parameters: closedObject(nullableFields('f', count)),
+        strict,
+    });
+    const capabilities = createCapabilities({
+        supported: true,
+        maxUnionParameters: 16,
+    });
+
+    it('accepts union parameters up to the limit across strict tools', () => {
+        expect(() =>
+            validateToolSchemaStrictness({
+                tools: createToolSet([
+                    unionTool('a', 9),
+                    unionTool('b', 7),
+                    unionTool('plain', 20, false),
+                ]),
+                capabilities,
+                providerId: 'anthropic',
+                modelId: 'claude',
+            })
+        ).not.toThrow();
+    });
+
+    it('rejects strict tools beyond the limit', () => {
+        try {
+            validateToolSchemaStrictness({
+                tools: createToolSet([
+                    unionTool('a', 9),
+                    unionTool('b', 9),
+                    createTool('none', true),
+                ]),
+                capabilities,
+                providerId: 'anthropic',
+                modelId: 'claude',
+            });
+            expect.unreachable();
+        } catch (error) {
+            expect(error).toBeInstanceOf(ToolSchemaStrictnessError);
+            const strictnessError = error as ToolSchemaStrictnessError;
+            expect(strictnessError.reason).toBe('union-limit-exceeded');
+            expect(strictnessError.toolNames).toEqual(['a', 'b']);
+            expect(strictnessError.maxUnionParameters).toBe(16);
+            expect(strictnessError.unionParameterCount).toBe(18);
+        }
+    });
+
+    it('does not count without a limit', () => {
+        expect(() =>
+            validateToolSchemaStrictness({
+                tools: createToolSet([unionTool('a', 40)]),
+                capabilities: createCapabilities(
+                    SUPPORTED_TOOL_SCHEMA_STRICTNESS
+                ),
+                providerId: 'openai',
+                modelId: 'gpt',
             })
         ).not.toThrow();
     });

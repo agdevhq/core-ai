@@ -331,7 +331,16 @@ export type ChatOutputModality = 'text' | 'image' | 'audio' | 'video';
 
 export type ToolSchemaStrictnessCapabilities =
     | { supported: false }
-    | { supported: true; maxStrictTools?: number };
+    | {
+          supported: true;
+          maxStrictTools?: number;
+          /**
+           * Per-request limit on union-typed parameters across all strict
+           * tools: properties whose schema is an `anyOf` / `oneOf` or a
+           * `type` array, nullable keys included.
+           */
+          maxUnionParameters?: number;
+      };
 
 /**
  * Where a model accepts system messages that come after the first

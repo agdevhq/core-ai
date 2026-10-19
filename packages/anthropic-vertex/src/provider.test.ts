@@ -140,6 +140,7 @@ describe('createAnthropicVertex', () => {
         expect(model.capabilities.tools.strictSchemas).toEqual({
             supported: true,
             maxStrictTools: 20,
+            maxUnionParameters: 16,
         });
 
         await model.generate({

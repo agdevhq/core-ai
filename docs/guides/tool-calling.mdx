@@ -92,7 +92,8 @@ const model = createOpenAI().chatModel('gpt-5-mini');
 const strictSchemas = model.capabilities.tools.strictSchemas;
 
 if (strictSchemas.supported) {
-    console.log(strictSchemas.maxStrictTools); // provider limit, if any
+    console.log(strictSchemas.maxStrictTools); // provider limits, if any
+    console.log(strictSchemas.maxUnionParameters);
 }
 ```
 
@@ -111,6 +112,10 @@ before the provider request. Its `reason` is one of:
 - `'unsupported'` — the model is known not to support strict tool schemas.
 - `'limit-exceeded'` — the request contains more strict tools than the
   provider's `maxStrictTools` limit.
+- `'union-limit-exceeded'` — the request's strict tools have more union-typed
+  parameters than the provider's `maxUnionParameters` limit. A union-typed
+  parameter is a property whose schema is an `anyOf`, a `oneOf`, or a `type`
+  array, including every nullable key.
 - `'invalid-schema'` — a strict tool's schema is outside the strict-capable
   contract. The error carries a `violations` array naming each offending
   schema path:
@@ -133,7 +138,7 @@ yourself if you need guaranteed adherence.
 
 | Provider                     | Strict tool schemas                                                                                                                                                    |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Anthropic                    | Yes, on Claude 4.5 and later models; at most 20 strict tools per request                                                                                               |
+| Anthropic                    | Yes, on Claude 4.5 and later models; at most 20 strict tools and 16 union-typed parameters per request                                                                 |
 | Anthropic Vertex             | Yes; requires the `structured_outputs` partner-model feature in your organization policy — see [Anthropic Vertex](/api/providers/anthropic-vertex#strict-tool-schemas) |
 | OpenAI                       | Yes                                                                                                                                                                    |
 | Azure OpenAI                 | Yes; classic deployments need `api-version` `2024-08-01-preview` or later                                                                                              |
@@ -154,10 +159,9 @@ strict mode on its own; on Chat Completions, which is non-strict by default,
 the field is omitted. Anthropic follows the same split: strict tools get the
 provider's normalization (which also drops the numeric and length constraints
 its strict grammar rejects), non-strict tools are sent raw. Anthropic also
-limits the complexity of strict schemas: at most 16 parameters with union types
-(nullable keys count) across a request's strict tools, and an overall size
-limit ("Schema is too complex"). It rejects larger schemas with a provider
-error.
+rejects a single strict schema it finds too complex ("Schema is too complex";
+30 plain required keys in one tool exceed it) with a provider error. core-ai
+cannot check that limit because Anthropic does not publish it.
 
 <Warning>
     Strict generation reduces invalid arguments but does not make tool execution

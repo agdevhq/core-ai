@@ -100,6 +100,8 @@ const snapshot: ToolSnapshot = {
 };
 ```
 
+A snapshot's `name` may contain letters, digits, underscores, and dashes, must start with a letter or underscore, and has at most 128 characters: the names every provider accepts. MCP tool names can contain other characters, such as the dot in `github.create_issue`. Map them to a valid name, such as `github_create_issue`, and map calls back to the MCP tool when you run them.
+
 Plain JSON Schema keeps the conversation plain data that you can store and reload. core-ai renders each snapshot byte for byte the same on every request, which keeps the prompt cache stable.
 
 <Warning>
@@ -301,6 +303,7 @@ core-ai throws a [`ValidationError`](/api/core/errors#validationerror) before an
 - A `tool-discovery` message that answers no discovery call of the preceding assistant message, or that answers a call another message already answered.
 - A discovery call whose `id` another call of the same assistant message also uses.
 - A `tool-discovery` message with both `tools` and a `note`.
+- A snapshot whose `name` some provider rejects. See [Tool snapshots](#tool-snapshots).
 - A snapshot whose `parameters` are not plain JSON Schema, such as a Zod schema. Convert it with `toJsonSchema()`.
 - A `toolChoice` that names a tool outside `tools`.
 
@@ -346,11 +349,11 @@ core-ai checks every strict snapshot it declares against the [strict-capable sch
 Snapshots stay declared while their discovery results are in the history, so core-ai declares a strict snapshot without `strict` where the model cannot take it:
 
 - On a model without strict tool support (`model.capabilities.tools.strictSchemas.supported` is `false`).
-- Beyond the model's `maxStrictTools` limit. Your strict tools count first, and earlier discoveries keep `strict` before later ones.
+- Beyond the model's `maxStrictTools` or `maxUnionParameters` limit. Your strict tools count first. Then each snapshot, in order of first discovery, keeps `strict` while it still fits both limits.
 
 The provider then does not enforce that snapshot's schema, so validate the arguments of the calls you run, as the catalog in the example does.
 
-Anthropic also limits the complexity of a request's strict tools: at most 16 parameters with union types, and an overall size limit (see [Provider support](/guides/tool-calling#provider-support)). core-ai does not check these, and strict snapshots add up over a conversation, so mark a snapshot strict only when its tool needs it.
+Anthropic also rejects a single strict schema it finds too complex (see [Provider support](/guides/tool-calling#provider-support)). core-ai cannot check that limit, so keep strict snapshots small.
 
 ## Next steps
 

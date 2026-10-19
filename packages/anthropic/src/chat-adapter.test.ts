@@ -998,6 +998,39 @@ describe('strict tool validation', () => {
         ).toThrowError(/supports at most 20 strict tools/);
     });
 
+    it('should allow 16 union-typed parameters across strict tools and reject 17', () => {
+        const nullableTool = (name: string, count: number) => ({
+            name,
+            description: name,
+            strict: true,
+            parameters: {
+                type: 'object',
+                properties: Object.fromEntries(
+                    Array.from({ length: count }, (_, index) => [
+                        `f${index}`,
+                        { type: ['string', 'null'] },
+                    ])
+                ),
+                required: Array.from({ length: count }, (_, i) => `f${i}`),
+                additionalProperties: false,
+            },
+        });
+
+        expect(() =>
+            createStreamRequest('claude-sonnet-4-6', 4096, {
+                messages,
+                tools: { a: nullableTool('a', 8), b: nullableTool('b', 8) },
+            })
+        ).not.toThrow();
+
+        expect(() =>
+            createStreamRequest('claude-sonnet-4-6', 4096, {
+                messages,
+                tools: { a: nullableTool('a', 8), b: nullableTool('b', 9) },
+            })
+        ).toThrowError(/supports at most 16 union-typed parameters/);
+    });
+
     it('should not count plain tools toward the strict tool limit', () => {
         expect(() =>
             createStreamRequest('claude-sonnet-4-6', 4096, {

@@ -1,7 +1,10 @@
 import { ValidationError } from './errors.ts';
 import { isPlainObject } from './json-schema.ts';
-import { isStandardSchema } from './schema.ts';
-import { assertStrictToolSchemaContract } from './validate-tool-schema-strictness.ts';
+import { getToolJsonSchema, isStandardSchema } from './schema.ts';
+import {
+    assertStrictToolSchemaContract,
+    countUnionParameters,
+} from './validate-tool-schema-strictness.ts';
 import type {
     AssistantContentPart,
     AssistantMessage,
@@ -62,6 +65,16 @@ const TOOL_DISCOVERY_PARAMETERS: JsonSchema = Object.freeze({
 const EMPTY_DISCOVERY_RESULT_TEXT = 'No matching tools were found.';
 
 /**
+ * Tool names every provider accepts (live-verified: OpenAI and Anthropic
+ * allow only these characters, Gemini requires a leading letter or
+ * underscore, and OpenAI, Anthropic, and Gemini allow at most 128
+ * characters). Discovered tools stay declared while their results are in the
+ * history, so a name outside it would fail every later request on some
+ * provider.
+ */
+const PORTABLE_TOOL_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_-]{0,127}$/;
+
+/**
  * How a request renders tool discovery, decided per request from the neutral
  * messages, so a history produced under one mode renders under the other.
  */
@@ -102,12 +115,13 @@ export type ResolveToolDiscoveryOptions = {
  * them. Without discovery parts or `toolDiscovery`, nothing is checked.
  *
  * Throws a `ValidationError` before any provider call for reserved tool
- * names, snapshots whose `parameters` are not plain JSON Schema, a
- * `toolChoice` that names a tool outside `tools`, and discovery calls and
- * results that do not pair up within their step (see
- * {@link validateToolDiscoveryMessages}). Throws a `ToolSchemaStrictnessError`
- * for a declared strict snapshot outside the strict-capable schema contract,
- * on every model, so a history fails the same way wherever it is sent.
+ * names, snapshots whose name some provider rejects or whose `parameters`
+ * are not plain JSON Schema, a `toolChoice` that names a tool outside
+ * `tools`, and discovery calls and results that do not pair up within their
+ * step (see {@link validateToolDiscoveryMessages}). Throws a
+ * `ToolSchemaStrictnessError` for a declared strict snapshot outside the
+ * strict-capable schema contract, on every model, so a history fails the
+ * same way wherever it is sent.
  */
 export function resolveToolDiscovery(
     options: Pick<
@@ -161,9 +175,10 @@ export function resolveToolDiscovery(
 /**
  * Snapshots stay declared while their results are in the history, so a
  * strict snapshot the model cannot take would fail every later request.
- * Discovered tools beyond the model's strict support lose `strict` instead,
- * in declared order: the caller's strict tools count first, and earlier
- * discoveries keep it before later ones. Without `strict` the provider stops
+ * Discovered tools beyond the model's strict support lose `strict` instead:
+ * the caller's strict tools count first against `maxStrictTools` and
+ * `maxUnionParameters`, then each discovered tool, in declared order, keeps
+ * `strict` while it still fits both. Without `strict` the provider stops
  * enforcing the schema; the tool is otherwise unchanged.
  */
 function limitStrictSnapshots(
@@ -172,24 +187,48 @@ function limitStrictSnapshots(
     capabilities: ModelCapabilities
 ): ToolSnapshot[] {
     const { strictSchemas } = capabilities.tools;
-    const callerStrictToolCount = Object.values(callerTools ?? {}).filter(
+    if (!strictSchemas.supported) {
+        return discoveredTools.map(withoutStrict);
+    }
+
+    const callerStrictTools = Object.values(callerTools ?? {}).filter(
         (tool) => tool.strict === true
-    ).length;
-    let available = strictSchemas.supported
-        ? (strictSchemas.maxStrictTools ?? Infinity) - callerStrictToolCount
-        : 0;
+    );
+    const { maxStrictTools = Infinity, maxUnionParameters } = strictSchemas;
+    let availableTools = maxStrictTools - callerStrictTools.length;
+    let availableUnionParameters =
+        maxUnionParameters === undefined
+            ? Infinity
+            : maxUnionParameters -
+              callerStrictTools.reduce(
+                  (total, tool) =>
+                      total + countUnionParameters(getToolJsonSchema(tool)),
+                  0
+              );
 
     return discoveredTools.map((tool) => {
         if (tool.strict !== true) {
             return tool;
         }
-        if (available > 0) {
-            available -= 1;
+        const unionParameters =
+            maxUnionParameters === undefined
+                ? 0
+                : countUnionParameters(tool.parameters);
+        if (availableTools > 0 && unionParameters <= availableUnionParameters) {
+            availableTools -= 1;
+            availableUnionParameters -= unionParameters;
             return tool;
         }
-        const { strict: _strict, ...nonStrictTool } = tool;
-        return nonStrictTool;
+        return withoutStrict(tool);
     });
+}
+
+function withoutStrict(tool: ToolSnapshot): ToolSnapshot {
+    if (tool.strict !== true) {
+        return tool;
+    }
+    const { strict: _strict, ...nonStrictTool } = tool;
+    return nonStrictTool;
 }
 
 function getToolDiscoveryTool(options: ToolDiscoveryOptions): ToolSnapshot {
@@ -476,6 +515,13 @@ function validateSnapshot(
     providerId: string
 ): void {
     assertNotReserved(tool.name, 'discovered tool', providerId);
+    if (!PORTABLE_TOOL_NAME_PATTERN.test(tool.name)) {
+        throw new ValidationError(
+            `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") has a name some providers reject; use letters, digits, underscores, and dashes, start with a letter or underscore, and keep it to 128 characters.`,
+            undefined,
+            providerId
+        );
+    }
     if (!isPlainObject(tool.parameters) || isStandardSchema(tool.parameters)) {
         throw new ValidationError(
             `Discovered tool "${tool.name}" (discovery call "${discoveryCallId}") must have plain JSON Schema parameters; convert schema objects with toJsonSchema().`,

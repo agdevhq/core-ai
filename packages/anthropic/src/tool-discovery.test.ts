@@ -324,6 +324,45 @@ describe('native tool discovery', () => {
         });
     });
 
+    it('declares discovered tools beyond the union parameter limit without strict', () => {
+        const withNullables = (name: string): ToolSnapshot => ({
+            name,
+            description: name,
+            strict: true,
+            parameters: {
+                type: 'object',
+                properties: Object.fromEntries(
+                    Array.from({ length: 9 }, (_, index) => [
+                        `f${index}`,
+                        { type: ['string', 'null'] },
+                    ])
+                ),
+                required: Array.from({ length: 9 }, (_, i) => `f${i}`),
+                additionalProperties: false,
+            },
+        });
+        const history = createHistory();
+        history[3] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'toolu_discover',
+            tools: [
+                withNullables('alpha_record'),
+                withNullables('beta_record'),
+            ],
+        };
+
+        const tools = createRequest({ messages: history }).tools ?? [];
+
+        expect(
+            tools
+                .filter((tool) => tool.name.endsWith('_record'))
+                .map((tool) => [tool.name, 'strict' in tool])
+        ).toEqual([
+            ['alpha_record', true],
+            ['beta_record', false],
+        ]);
+    });
+
     it('rejects strict discovered tools outside the strict contract', () => {
         const history = createHistory();
         history[3] = {

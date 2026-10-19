@@ -27,6 +27,7 @@ export class ValidationError extends CoreAIError {
 export type ToolSchemaStrictnessErrorReason =
     | 'unsupported'
     | 'limit-exceeded'
+    | 'union-limit-exceeded'
     | 'invalid-schema';
 
 export type ToolSchemaStrictnessErrorOptions = {
@@ -36,6 +37,11 @@ export type ToolSchemaStrictnessErrorOptions = {
 } & (
     | { reason: 'unsupported' }
     | { reason: 'limit-exceeded'; maxStrictTools: number }
+    | {
+          reason: 'union-limit-exceeded';
+          maxUnionParameters: number;
+          unionParameterCount: number;
+      }
     | {
           reason: 'invalid-schema';
           violations: readonly StrictToolSchemaViolation[];
@@ -48,6 +54,8 @@ export class ToolSchemaStrictnessError extends ValidationError {
     public readonly toolNames: readonly string[];
     public readonly reason: ToolSchemaStrictnessErrorReason;
     public readonly maxStrictTools?: number;
+    public readonly maxUnionParameters?: number;
+    public readonly unionParameterCount?: number;
     public readonly violations?: readonly StrictToolSchemaViolation[];
 
     constructor(options: ToolSchemaStrictnessErrorOptions) {
@@ -63,6 +71,10 @@ export class ToolSchemaStrictnessError extends ValidationError {
         this.reason = options.reason;
         if (options.reason === 'limit-exceeded') {
             this.maxStrictTools = options.maxStrictTools;
+        }
+        if (options.reason === 'union-limit-exceeded') {
+            this.maxUnionParameters = options.maxUnionParameters;
+            this.unionParameterCount = options.unionParameterCount;
         }
         if (options.reason === 'invalid-schema') {
             this.violations = options.violations;
@@ -83,6 +95,8 @@ function getToolSchemaStrictnessErrorMessage(
             const toolWord = options.maxStrictTools === 1 ? 'tool' : 'tools';
             return `${options.providerId} model "${options.modelId}" supports at most ${options.maxStrictTools} strict ${toolWord}, but received ${options.toolNames.length}: ${tools}`;
         }
+        case 'union-limit-exceeded':
+            return `${options.providerId} model "${options.modelId}" supports at most ${options.maxUnionParameters} union-typed parameters across strict tools, but received ${options.unionParameterCount} in ${tools}`;
         case 'invalid-schema': {
             const violations = options.violations
                 .map(

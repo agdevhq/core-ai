@@ -63,6 +63,7 @@ With [tool discovery](/guides/tool-discovery) in use, it also covers the discove
 - A `tool-discovery` message that answers no discovery call of the preceding assistant message, or answers a call that is already answered.
 - A discovery call whose `id` another call of the same assistant message also uses.
 - A `tool-discovery` message with both `tools` and a `note`.
+- A discovered tool whose `name` some provider rejects.
 - A discovered tool whose `parameters` are not plain JSON Schema.
 - A `toolChoice` that names a tool outside `tools`.
 
@@ -121,6 +122,7 @@ Extends `ValidationError`.
 type ToolSchemaStrictnessErrorReason =
     | 'unsupported'
     | 'limit-exceeded'
+    | 'union-limit-exceeded'
     | 'invalid-schema';
 
 type StrictToolSchemaViolation = {
@@ -135,6 +137,8 @@ class ToolSchemaStrictnessError extends ValidationError {
     readonly toolNames: readonly string[];
     readonly reason: ToolSchemaStrictnessErrorReason;
     readonly maxStrictTools?: number;
+    readonly maxUnionParameters?: number;
+    readonly unionParameterCount?: number;
     readonly violations?: readonly StrictToolSchemaViolation[];
 }
 ```
@@ -156,12 +160,24 @@ class ToolSchemaStrictnessError extends ValidationError {
 <ParamField path="reason" type="ToolSchemaStrictnessErrorReason">
     Machine-readable failure category. `unsupported` means the model does not
     support strict tool schemas. `limit-exceeded` means the request contains
-    more strict tools than the provider allows. `invalid-schema` means a strict
-    tool's schema is outside the strict-capable contract.
+    more strict tools than the provider allows. `union-limit-exceeded` means the
+    strict tools have more union-typed parameters than the provider allows.
+    `invalid-schema` means a strict tool's schema is outside the strict-capable
+    contract.
 </ParamField>
 
 <ParamField path="maxStrictTools" type="number | undefined">
     Provider limit when `reason` is `limit-exceeded`.
+</ParamField>
+
+<ParamField path="maxUnionParameters" type="number | undefined">
+    Provider limit when `reason` is `union-limit-exceeded`.
+</ParamField>
+
+<ParamField path="unionParameterCount" type="number | undefined">
+    Union-typed parameters across the request's strict tools when `reason` is
+    `union-limit-exceeded`. `toolNames` then lists the strict tools that have
+    any.
 </ParamField>
 
 <ParamField

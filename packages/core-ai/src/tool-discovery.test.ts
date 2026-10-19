@@ -478,6 +478,84 @@ describe('resolveToolDiscovery', () => {
         ]);
     });
 
+    it('keeps strict on discovered tools while their union parameters fit the limit', () => {
+        const capabilities = createCapabilities('emulated');
+        capabilities.tools.strictSchemas = {
+            supported: true,
+            maxUnionParameters: 6,
+        };
+        const withNullables = (name: string, count: number): ToolSnapshot => ({
+            name,
+            description: `${name} tool`,
+            strict: true,
+            parameters: {
+                type: 'object',
+                properties: Object.fromEntries(
+                    Array.from({ length: count }, (_, index) => [
+                        `f${index}`,
+                        { type: ['string', 'null'] },
+                    ])
+                ),
+                required: Array.from({ length: count }, (_, i) => `f${i}`),
+                additionalProperties: false,
+            },
+        });
+
+        const { discoveredTools } = resolveToolDiscovery(
+            {
+                messages: createDiscoveryHistory([
+                    withNullables('a', 3),
+                    withNullables('b', 3),
+                    withNullables('c', 1),
+                ]),
+                tools: {
+                    search: {
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({
+                            query: z.string().nullable(),
+                            cursor: z.string().nullable(),
+                        }),
+                        strict: true,
+                    },
+                },
+            },
+            { ...EMULATED, capabilities }
+        );
+
+        expect(discoveredTools.map((tool) => tool.strict)).toEqual([
+            true,
+            undefined,
+            true,
+        ]);
+    });
+
+    it.each(['github.create_issue', '1tool', '-tool', 'a'.repeat(129)])(
+        'rejects the discovered tool name %s',
+        (name) => {
+            expect(() =>
+                resolveToolDiscovery(
+                    { messages: createDiscoveryHistory([snapshot(name)]) },
+                    EMULATED
+                )
+            ).toThrow(/has a name some providers reject/);
+        }
+    );
+
+    it('accepts discovered tool names every provider accepts', () => {
+        expect(() =>
+            resolveToolDiscovery(
+                {
+                    messages: createDiscoveryHistory([
+                        snapshot('_book-meeting_2'),
+                        snapshot('a'.repeat(128)),
+                    ]),
+                },
+                EMULATED
+            )
+        ).not.toThrow();
+    });
+
     it.each([
         ['a model without strict support', EMULATED],
         ['a model with strict support', STRICT],

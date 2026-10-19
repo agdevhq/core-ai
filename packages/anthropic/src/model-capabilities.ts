@@ -48,14 +48,18 @@ function createCapabilities(
         },
         modalities: MULTIMODAL_INPUT_MODALITIES,
         tools: {
-            // The cap is enforced by the API but absent from Anthropic's docs
-            // pages; the rejection reads: 'Too many strict tools (22). The
-            // maximum number of strict tools supported is 20. Try reducing
-            // the number of tools marked as strict.'
+            // Both caps are enforced by the API but absent from Anthropic's
+            // docs pages; the rejections read: 'Too many strict tools (22).
+            // The maximum number of strict tools supported is 20. Try
+            // reducing the number of tools marked as strict.' and 'Schemas
+            // contains too many parameters with union types (18 parameters
+            // with type arrays or anyOf). [...] (limit: 16 parameters with
+            // unions)'.
             strictSchemas: supportsStrictToolSchemas
                 ? {
                       ...SUPPORTED_TOOL_SCHEMA_STRICTNESS,
                       maxStrictTools: 20,
+                      maxUnionParameters: 16,
                   }
                 : UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
             toolDiscovery,
