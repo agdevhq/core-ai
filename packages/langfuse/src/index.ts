@@ -106,17 +106,26 @@ function createImageModelParameters(
     });
 }
 
-function createChatUsageDetails(usage: ChatUsage): Record<string, number> {
+/**
+ * Langfuse prices a usage key only when the model's price definition has a key
+ * with the same name, so these names follow Langfuse's managed definitions.
+ * Reasoning stays inside `output`: Claude definitions don't price
+ * `output_reasoning`, and every provider bills reasoning at the output rate.
+ * The reasoning count goes to metadata instead, which Langfuse merges per key.
+ */
+function createChatUsageAttributes(usage: ChatUsage): ObservationAttributes {
     const { cacheReadTokens, cacheWriteTokens } = usage.inputTokenDetails;
-    const reasoningTokens = usage.outputTokenDetails.reasoningTokens ?? 0;
+    const { reasoningTokens } = usage.outputTokenDetails;
 
     return {
-        input: usage.inputTokens - cacheReadTokens - cacheWriteTokens,
-        output: usage.outputTokens - reasoningTokens,
-        cache_read_input: cacheReadTokens,
-        cache_creation_input: cacheWriteTokens,
-        ...(usage.outputTokenDetails.reasoningTokens !== undefined
-            ? { reasoning_output: usage.outputTokenDetails.reasoningTokens }
+        usageDetails: {
+            input: usage.inputTokens - cacheReadTokens - cacheWriteTokens,
+            output: usage.outputTokens,
+            input_cache_read: cacheReadTokens,
+            input_cache_creation: cacheWriteTokens,
+        },
+        ...(reasoningTokens !== undefined
+            ? { metadata: { reasoningTokens } }
             : {}),
     };
 }
@@ -299,7 +308,7 @@ export function createLangfuseMiddleware(
                     recordContent,
                 }),
                 createSuccessAttributes: (result) => ({
-                    usageDetails: createChatUsageDetails(result.usage),
+                    ...createChatUsageAttributes(result.usage),
                     ...(recordContent
                         ? {
                               output: createChatOutput(result),
@@ -323,7 +332,7 @@ export function createLangfuseMiddleware(
                     recordContent,
                 }),
                 createSuccessAttributes: (result) => ({
-                    usageDetails: createChatUsageDetails(result.usage),
+                    ...createChatUsageAttributes(result.usage),
                     ...(recordContent
                         ? {
                               output: createChatOutput(result),
@@ -353,7 +362,7 @@ export function createLangfuseMiddleware(
                     recordContent,
                 }),
                 createSuccessAttributes: (result) => ({
-                    usageDetails: createChatUsageDetails(result.usage),
+                    ...createChatUsageAttributes(result.usage),
                     ...(recordContent
                         ? {
                               output: result.object,
@@ -386,7 +395,7 @@ export function createLangfuseMiddleware(
                     recordContent,
                 }),
                 createSuccessAttributes: (result) => ({
-                    usageDetails: createChatUsageDetails(result.usage),
+                    ...createChatUsageAttributes(result.usage),
                     ...(recordContent
                         ? {
                               output: result.object,

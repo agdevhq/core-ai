@@ -263,8 +263,8 @@ describe('@core-ai/langfuse', () => {
             usageDetails: {
                 input: 5,
                 output: 3,
-                cache_read_input: 0,
-                cache_creation_input: 0,
+                input_cache_read: 0,
+                input_cache_creation: 0,
             },
             output: {
                 content: 'Hello',
@@ -274,6 +274,49 @@ describe('@core-ai/langfuse', () => {
             },
         });
         expect(observation.end).toHaveBeenCalledTimes(1);
+    });
+
+    it('reports cache and reasoning usage under Langfuse-priced keys', async () => {
+        const model = createMockChatModel({
+            generate: vi.fn(async () => ({
+                ...createGenerateResult('Hello'),
+                usage: {
+                    inputTokens: 221_000,
+                    outputTokens: 5_000,
+                    inputTokenDetails: {
+                        cacheReadTokens: 200_000,
+                        cacheWriteTokens: 20_000,
+                    },
+                    outputTokenDetails: {
+                        reasoningTokens: 2_000,
+                    },
+                },
+            })),
+        });
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createLangfuseMiddleware(),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [{ role: 'user', content: 'Hi' }],
+            metadata: { team: 'ai' },
+        });
+
+        const observation = expectDefined(observations[0]);
+
+        expect(observation.update).toHaveBeenNthCalledWith(2, {
+            usageDetails: {
+                input: 1_000,
+                output: 5_000,
+                input_cache_read: 200_000,
+                input_cache_creation: 20_000,
+            },
+            metadata: {
+                reasoningTokens: 2_000,
+            },
+        });
     });
 
     it('omits input and output content by default', async () => {
@@ -297,8 +340,8 @@ describe('@core-ai/langfuse', () => {
             usageDetails: {
                 input: 5,
                 output: 3,
-                cache_read_input: 0,
-                cache_creation_input: 0,
+                input_cache_read: 0,
+                input_cache_creation: 0,
             },
         });
     });
@@ -337,8 +380,8 @@ describe('@core-ai/langfuse', () => {
             usageDetails: {
                 input: 5,
                 output: 3,
-                cache_read_input: 0,
-                cache_creation_input: 0,
+                input_cache_read: 0,
+                input_cache_creation: 0,
             },
             output: { answer: '42' },
         });
@@ -386,8 +429,8 @@ describe('@core-ai/langfuse', () => {
             usageDetails: {
                 input: 5,
                 output: 3,
-                cache_read_input: 0,
-                cache_creation_input: 0,
+                input_cache_read: 0,
+                input_cache_creation: 0,
             },
             output: {
                 content: 'Hello',
@@ -514,8 +557,8 @@ describe('@core-ai/langfuse', () => {
             usageDetails: {
                 input: 5,
                 output: 3,
-                cache_read_input: 0,
-                cache_creation_input: 0,
+                input_cache_read: 0,
+                input_cache_creation: 0,
             },
             output: { city: 'Berlin', temperatureC: 21 },
         });
