@@ -125,7 +125,9 @@ Each Langfuse observation includes:
 | `modelParameters` | Temperature, max tokens, top-p (when set) |
 | `input` | Input messages (when `recordContent` is `true`) |
 | `output` | Response content (when `recordContent` is `true`) |
-| `usageDetails` | Input tokens, output tokens, cache tokens, reasoning tokens |
-| `metadata` | Custom metadata from the options |
+| `usageDetails` | `input` (uncached), `output` (including reasoning), `input_cache_read`, `input_cache_creation` |
+| `metadata` | Custom metadata from the options, plus `reasoningTokens` when the provider reports it |
 | `level` | Set to `ERROR` on failures |
 | `statusMessage` | Error message on failures |
+
+The `usageDetails` keys match the names in Langfuse's managed model prices, so Langfuse prices cached input at the cache rates. Reasoning tokens stay in `output`, because providers bill them at the output rate and Claude price definitions have no separate reasoning key.
