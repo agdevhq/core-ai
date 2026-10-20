@@ -29,33 +29,20 @@ const MAX_TOOL_NAME_LENGTH = 128;
  * Returns a tool name every provider accepts. A valid name is returned
  * unchanged. Any other name has each character outside letters, digits,
  * underscores, and dashes replaced with `_`, gets a leading `_` unless it
- * starts with a letter or underscore, and ends with `_` and a hash of the
- * original name, truncated so the result has at most 128 characters.
+ * starts with a letter or underscore, and is truncated to 128 characters.
  *
- * The result depends only on `name`, so it is stable across requests and
- * catalog changes, and the hash keeps names apart that would otherwise
- * convert to the same one (`a.b` and `a:b`). Keep a map from the result to
- * the original name to translate calls back.
+ * The conversion can map different names to the same one (`a.b` and `a:b`
+ * both become `a_b`), so check that your converted names stay unique, and
+ * keep a map from each to its original name to translate calls back.
  */
 export function toPortableToolName(name: string): string {
     if (PORTABLE_TOOL_NAME_PATTERN.test(name)) {
         return name;
     }
 
-    const suffix = `_${hashToolName(name)}`;
     const replaced = name.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const base = /^[a-zA-Z_]/.test(replaced) ? replaced : `_${replaced}`;
-    return `${base.slice(0, MAX_TOOL_NAME_LENGTH - suffix.length)}${suffix}`;
-}
-
-/** 32-bit FNV-1a over the UTF-8 bytes of `name`, in base 36. */
-function hashToolName(name: string): string {
-    let hash = 0x811c9dc5;
-    for (const byte of new TextEncoder().encode(name)) {
-        hash ^= byte;
-        hash = Math.imul(hash, 0x01000193);
-    }
-    return (hash >>> 0).toString(36).padStart(7, '0');
+    const prefixed = /^[a-zA-Z_]/.test(replaced) ? replaced : `_${replaced}`;
+    return prefixed.slice(0, MAX_TOOL_NAME_LENGTH);
 }
 
 /**

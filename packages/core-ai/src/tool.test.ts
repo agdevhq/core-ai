@@ -133,23 +133,24 @@ describe('toPortableToolName', () => {
     // Pinned: results end up in conversation histories, so they must not
     // change between versions.
     it.each([
-        ['github.create_issue', 'github_create_issue_18gj7ag'],
-        ['1tool', '_1tool_11g4vxi'],
-        ['', '__0ztntfp'],
-        ['été.outil', '_t__outil_0z4tku8'],
+        ['github.create_issue', 'github_create_issue'],
+        ['1tool', '_1tool'],
+        ['-tool', '_-tool'],
+        ['', '_'],
+        ['été.outil', '_t__outil'],
     ])('converts %j to %j', (name, expected) => {
         expect(toPortableToolName(name)).toBe(expected);
     });
 
-    it('keeps names apart that convert to the same characters', () => {
-        expect(toPortableToolName('a.b')).not.toBe(toPortableToolName('a:b'));
+    it('converts different names to the same one when only invalid characters differ', () => {
+        expect(toPortableToolName('a.b')).toBe('a_b');
+        expect(toPortableToolName('a:b')).toBe('a_b');
     });
 
-    it('truncates long names to 128 characters, hash included', () => {
-        const name = toPortableToolName(`${'a'.repeat(200)}.b`);
-
-        expect(name).toHaveLength(128);
-        expect(name).toMatch(/^a+_[0-9a-z]{7}$/);
+    it('truncates long names to 128 characters', () => {
+        expect(toPortableToolName(`${'a'.repeat(200)}.b`)).toBe(
+            'a'.repeat(128)
+        );
     });
 
     it.each(['-tool', 'server:tool', 'a b', 'x'.repeat(300), '🙂'])(

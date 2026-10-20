@@ -111,7 +111,7 @@ function toSnapshot(mcpTool: McpTool): ToolSnapshot {
 }
 ```
 
-A snapshot's `name` may contain letters, digits, underscores, and dashes, must start with a letter or underscore, and has at most 128 characters: the names every provider accepts. MCP tool names can contain other characters, such as the dot in `github.create_issue`. [`toPortableToolName()`](/api/core/utilities#toportabletoolname) returns a valid name unchanged and converts any other one, such as `github.create_issue` to `github_create_issue_18gj7ag`. The model then calls the tool by that name, and lists it in a discovery call's `names`, so translate both back with your map before you run the MCP tool or search your catalog.
+A snapshot's `name` may contain letters, digits, underscores, and dashes, must start with a letter or underscore, and has at most 128 characters: the names every provider accepts. MCP tool names can contain other characters, such as the dot in `github.create_issue`. [`toPortableToolName()`](/api/core/utilities#toportabletoolname) returns a valid name unchanged and converts any other one, such as `github.create_issue` to `github_create_issue`. Different names can convert to the same one, so check that your converted names stay unique. The model then calls the tool by that name, and lists it in a discovery call's `names`, so translate both back with your map before you run the MCP tool or search your catalog.
 
 Plain JSON Schema keeps the conversation plain data that you can store and reload. core-ai renders each snapshot byte for byte the same on every request, which keeps the prompt cache stable.
 
