@@ -969,7 +969,28 @@ describe('finish reason with tool calls', () => {
                                             id: 'call_late',
                                             function: {
                                                 name: 'search',
-                                                arguments: '"a"}',
+                                                arguments: '"a"',
+                                            },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    // A changed id or name after the start does not apply.
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            id: 'call_other',
+                                            function: {
+                                                name: 'other',
+                                                arguments: '}',
                                             },
                                         },
                                     ],
@@ -990,7 +1011,7 @@ describe('finish reason with tool calls', () => {
             )
         );
 
-        expect(events.slice(0, 3)).toEqual([
+        expect(events.slice(0, 4)).toEqual([
             {
                 type: 'tool-call-start',
                 toolCallId: 'call_late',
@@ -999,7 +1020,12 @@ describe('finish reason with tool calls', () => {
             {
                 type: 'tool-call-delta',
                 toolCallId: 'call_late',
-                argumentsDelta: '{"query":"a"}',
+                argumentsDelta: '{"query":"a"',
+            },
+            {
+                type: 'tool-call-delta',
+                toolCallId: 'call_late',
+                argumentsDelta: '}',
             },
             {
                 type: 'tool-call-end',
@@ -1026,7 +1052,23 @@ describe('finish reason with tool calls', () => {
                                         {
                                             index: 0,
                                             id: 'call_1',
-                                            function: { arguments: '{}' },
+                                            function: { arguments: '{"a":' },
+                                        },
+                                    ],
+                                },
+                            },
+                        ],
+                    }),
+                    asChunk({
+                        choices: [
+                            {
+                                index: 0,
+                                finish_reason: null,
+                                delta: {
+                                    tool_calls: [
+                                        {
+                                            index: 0,
+                                            function: { arguments: '1}' },
                                         },
                                     ],
                                 },
@@ -1046,11 +1088,18 @@ describe('finish reason with tool calls', () => {
             )
         );
 
-        expect(events.map((event) => event.type)).toEqual([
-            'tool-call-start',
-            'tool-call-delta',
-            'tool-call-end',
-            'finish',
+        // Nothing is emitted until the end, then the buffered arguments once.
+        expect(events.slice(0, 3)).toEqual([
+            { type: 'tool-call-start', toolCallId: 'call_1', toolName: '' },
+            {
+                type: 'tool-call-delta',
+                toolCallId: 'call_1',
+                argumentsDelta: '{"a":1}',
+            },
+            {
+                type: 'tool-call-end',
+                toolCall: { id: 'call_1', name: '', arguments: { a: 1 } },
+            },
         ]);
     });
 

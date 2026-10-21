@@ -299,9 +299,12 @@ its discovery result as deferred functions, exactly as stored. The request's
 keeps the prompt cache. When a later discovery returns a changed snapshot, the
 model uses the newest definition, and the cache still holds. A snapshot whose
 name your `tools` declare is left out, and a snapshot keeps `strict` only while
-the latest snapshot of its name does. `tool_search_output` holds no text, so the
-`note` of an empty result follows the step's tool results as a developer
-message, which keeps the step's reasoning.
+the latest snapshot of its name does. So when a name's latest snapshot changes
+strictness (a refresh, a caller tool taking over the name, or the strict-tool
+limits stripping `strict`), its earlier outputs re-render and the cache is
+rewritten from the first one. `tool_search_output` holds no text, so the `note` of an empty result
+follows the step's tool results as a developer message, which keeps the step's
+reasoning.
 
 Set `emulateToolDiscovery: true` to declare discovered tools as ordinary
 functions instead, for example behind a proxy that does not forward the tool

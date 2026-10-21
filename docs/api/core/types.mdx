@@ -203,8 +203,8 @@ type ToolDiscoveryResultMessage = {
     tools: ToolSnapshot[];
     /** Explains an empty result to the model; only allowed without tools. */
     note?: string;
-    /** Options for the tool result it is sent as, keyed by provider id. */
-    providerOptions?: ToolResultMessageProviderOptions;
+    /** Options for this discovery result, keyed by provider id. */
+    providerOptions?: ToolDiscoveryResultMessageProviderOptions;
     metadata?: Record<string, unknown>;
 };
 ```
@@ -527,6 +527,10 @@ interface UserMessageProviderOptions {
 }
 
 interface ToolResultMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+interface ToolDiscoveryResultMessageProviderOptions {
     [key: string]: Record<string, unknown> | undefined;
 }
 

@@ -51,7 +51,10 @@ function toError(error: unknown): Error {
 }
 
 function recordError(span: Span, error: unknown): void {
-    span.setAttribute('error.type', error instanceof Error ? error.name : '_OTHER');
+    span.setAttribute(
+        'error.type',
+        error instanceof Error ? error.name : '_OTHER'
+    );
     span.setStatus({
         code: SpanStatusCode.ERROR,
         message: getErrorMessage(error),
@@ -74,11 +77,15 @@ export function createOtelMiddleware(
                     kind: SpanKind.CLIENT,
                 },
                 async (span) => {
-                    setChatRequestAttributes(span, model, generateOptions, 'text');
+                    setChatRequestAttributes(
+                        span,
+                        model,
+                        generateOptions,
+                        'text'
+                    );
 
                     try {
-                        // Inside the try: converting a tool schema or resolving tool
-                        // discovery can throw.
+                        // Inside the try: converting a tool schema can throw.
                         if (recordContent) {
                             setChatInputAttributes(
                                 span,
@@ -117,11 +124,15 @@ export function createOtelMiddleware(
                     kind: SpanKind.CLIENT,
                 },
                 async (span) => {
-                    setChatRequestAttributes(span, model, generateOptions, 'text');
+                    setChatRequestAttributes(
+                        span,
+                        model,
+                        generateOptions,
+                        'text'
+                    );
 
                     try {
-                        // Inside the try: converting a tool schema or resolving tool
-                        // discovery can throw.
+                        // Inside the try: converting a tool schema can throw.
                         if (recordContent) {
                             setChatInputAttributes(
                                 span,
@@ -135,7 +146,10 @@ export function createOtelMiddleware(
                         void chatStream.result
                             .then((result) => {
                                 setChatUsageAttributes(span, result.usage);
-                                setFinishReasonAttribute(span, result.finishReason);
+                                setFinishReasonAttribute(
+                                    span,
+                                    result.finishReason
+                                );
 
                                 if (recordContent) {
                                     setChatOutputAttributes(span, result);
@@ -177,7 +191,12 @@ export function createOtelMiddleware(
                     kind: SpanKind.CLIENT,
                 },
                 async (span) => {
-                    setChatRequestAttributes(span, model, generateOptions, 'json');
+                    setChatRequestAttributes(
+                        span,
+                        model,
+                        generateOptions,
+                        'json'
+                    );
 
                     if (recordContent) {
                         setChatInputAttributes(span, generateOptions.messages);
@@ -221,7 +240,12 @@ export function createOtelMiddleware(
                     kind: SpanKind.CLIENT,
                 },
                 async (span) => {
-                    setChatRequestAttributes(span, model, generateOptions, 'json');
+                    setChatRequestAttributes(
+                        span,
+                        model,
+                        generateOptions,
+                        'json'
+                    );
 
                     if (recordContent) {
                         setChatInputAttributes(span, generateOptions.messages);
@@ -233,7 +257,10 @@ export function createOtelMiddleware(
                         void objectStream.result
                             .then((result) => {
                                 setChatUsageAttributes(span, result.usage);
-                                setFinishReasonAttribute(span, result.finishReason);
+                                setFinishReasonAttribute(
+                                    span,
+                                    result.finishReason
+                                );
 
                                 if (recordContent) {
                                     setObjectOutputAttributes(span, result);

@@ -53,7 +53,7 @@ function toPortableToolName(name: string): string;
 ```
 
 - A name of letters, digits, underscores, and dashes that starts with a letter or underscore and has at most 128 characters is returned unchanged.
-- Any other name has each other character replaced with `_`, gets a leading `_` unless it starts with a letter or underscore, and is truncated to 128 characters.
+- Any other name has each other character replaced with `_`, gets a leading `_` unless it starts with a letter or underscore, and is truncated to 128 characters. Characters are replaced per UTF-16 code unit without Unicode normalization, so `🙂` becomes `__`.
 
 The result depends only on the name you pass, so it stays the same across requests and releases, which keeps conversation histories and the prompt cache valid. Different names can convert to the same one, such as `a.b` and `a:b` to `a_b`. Check that the converted names in your tool catalog stay unique, and rename a tool yourself where they don't.
 

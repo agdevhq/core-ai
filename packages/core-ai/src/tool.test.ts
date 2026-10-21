@@ -138,6 +138,8 @@ describe('toPortableToolName', () => {
         ['-tool', '_-tool'],
         ['', '_'],
         ['été.outil', '_t__outil'],
+        ['🙂', '__'],
+        ['e\u0301', 'e_'],
     ])('converts %j to %j', (name, expected) => {
         expect(toPortableToolName(name)).toBe(expected);
     });

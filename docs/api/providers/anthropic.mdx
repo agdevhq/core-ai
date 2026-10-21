@@ -178,14 +178,15 @@ pages do not list them:
   20").
 - At most 16 union-typed parameters across the request's strict tools
   ("limit: 16 parameters with unions"). Every property whose schema is an
-  `anyOf` or a `type` array counts, including nullable keys, in nested objects,
-  array items, and `anyOf` branches. Unions directly under `items`, `enum`s
-  with `null`, `$defs`, and the properties of an object whose `type` is an
-  array do not count.
-  Older models — Claude Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, and Claude 3.x —
-  report `{ supported: false }` and reject explicit `strict: true` locally.
-  Unrecognized model IDs resolve optimistically to supported, so future Claude
-  models work without a registry update.
+  `anyOf`, a `oneOf`, or a `type` array with more than one entry counts,
+  including nullable keys, in nested objects, array items, and `anyOf` and
+  `oneOf` branches. Unions directly under `items`, `enum`s with `null`, `$defs`, and
+  the properties of an object whose `type` is an array do not count.
+
+Older models — Claude Opus 4.1, Opus 4, Sonnet 4, Sonnet 3.7, and Claude 3.x —
+report `{ supported: false }` and reject explicit `strict: true` locally.
+Unrecognized model IDs resolve optimistically to supported, so future Claude
+models work without a registry update.
 
 Only strict tools and structured-output schemas go through Anthropic's schema
 normalization (`$schema` stripped, `additionalProperties: false` added,

@@ -2,4 +2,4 @@
 '@core-ai/core-ai': minor
 ---
 
-`ToolDiscoveryResultMessage` accepts `providerOptions` (`ToolResultMessageProviderOptions`), the options for the tool result a discovery result is sent as; emulated rendering forwards them to that tool result. Adds the adapter helper `getDiscoveryCalls`.
+`ToolDiscoveryResultMessage` accepts `providerOptions`, typed by the new `ToolDiscoveryResultMessageProviderOptions` interface for provider packages to augment; emulated rendering forwards them to the tool result the discovery result becomes. Adds the adapter helper `getDiscoveryCalls`.

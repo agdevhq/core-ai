@@ -206,19 +206,24 @@ describe('native tool discovery', () => {
         });
     });
 
-    it('sends no whitespace-only note', () => {
-        const history = createHistory();
-        const discoveryResult = history[3];
-        if (discoveryResult?.role !== 'tool-discovery') {
-            throw new Error('unexpected history');
-        }
-        history[3] = { ...discoveryResult, note: '  ' };
+    it('answers an empty discovery with a whitespace-only note with the default text', () => {
+        const { messages } = createRequest({
+            messages: [
+                ...createHistory().slice(0, 3),
+                {
+                    role: 'tool-discovery',
+                    discoveryCallId: 'toolu_discover',
+                    tools: [],
+                    note: '  ',
+                },
+            ],
+        });
 
-        const { messages } = createRequest({ messages: history });
-
-        expect(messages[2]?.content).not.toContainEqual(
-            expect.objectContaining({ type: 'text' })
-        );
+        expect(messages[2]?.content).toContainEqual({
+            type: 'tool_result',
+            tool_use_id: 'toolu_discover',
+            content: 'No matching tools were found.',
+        });
     });
 
     it('enables interleaved thinking for discovery without caller tools', () => {

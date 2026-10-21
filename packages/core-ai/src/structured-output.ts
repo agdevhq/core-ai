@@ -35,8 +35,8 @@ export function normalizeStructuredOutputSchema<TSchema extends SchemaInput>(
 /**
  * The messages of a `generateObject` / `streamObject` request. Structured
  * output declares no discovered tools, so the discovery calls and results of
- * the history are validated as on `generate` and then sent as ordinary tool
- * calls and results.
+ * the history are validated as on `generate`, except for the strict-capable
+ * schema contract, and then sent as ordinary tool calls and results.
  */
 export function getStructuredOutputMessages(
     messages: readonly Message[],

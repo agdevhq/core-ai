@@ -161,13 +161,34 @@ export function convertMessages(
     };
     const items: ResponseInputItem[] = [];
     // Notes of native discovery results, sent once the step's tool outputs
-    // are complete: before the next user or assistant message.
+    // are complete: before the next user or assistant message, or before a
+    // system message once every call of the step is answered.
     let pendingNotes: string[] = [];
+    let unansweredCallIds = new Set<string>();
 
     for (const message of messages) {
-        if (message.role === 'user' || message.role === 'assistant') {
+        if (
+            message.role === 'user' ||
+            message.role === 'assistant' ||
+            (message.role === 'system' && unansweredCallIds.size === 0)
+        ) {
             items.push(...convertNotes(pendingNotes));
             pendingNotes = [];
+        }
+        if (message.role === 'assistant') {
+            unansweredCallIds = new Set(
+                message.parts.flatMap((part) =>
+                    part.type === 'tool-call'
+                        ? [part.toolCall.id]
+                        : part.type === 'tool-discovery-call'
+                          ? [part.discoveryCall.id]
+                          : []
+                )
+            );
+        } else if (message.role === 'tool') {
+            unansweredCallIds.delete(message.toolCallId);
+        } else if (message.role === 'tool-discovery') {
+            unansweredCallIds.delete(message.discoveryCallId);
         }
 
         if (message.role === 'tool-discovery' && nativeToolDiscovery) {
@@ -248,11 +269,13 @@ function convertToolResult(message: ToolResultMessage): ResponseInputItem {
 
 /**
  * The discovered tools become deferred functions of a client
- * `tool_search_output`, each output with the snapshots it holds. Earlier
- * outputs never change, so a refreshed definition keeps the prompt cache,
- * and the model uses the newest definition of a name (live-verified).
+ * `tool_search_output`, each output with the snapshots it holds. A refreshed
+ * definition leaves earlier outputs as they are, so it keeps the prompt
+ * cache, and the model uses the newest definition of a name (live-verified).
  * Caller-named snapshots are omitted, and a snapshot keeps `strict` only
- * while its name's latest snapshot does.
+ * while its name's latest snapshot does: a refresh that changes whether a
+ * name is strict, or a caller tool taking over its name, re-renders every
+ * earlier output of that name and rewrites the cache from the first one.
  */
 function convertToolDiscoveryResult(
     message: ToolDiscoveryResultMessage,

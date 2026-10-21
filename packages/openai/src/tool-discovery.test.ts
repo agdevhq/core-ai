@@ -379,6 +379,69 @@ describe('native tool discovery', () => {
         ]);
     });
 
+    it('sends the note before a system message that follows the step', () => {
+        const history = createHistory();
+        history[2] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_discover',
+            tools: [],
+            note: 'The CRM source is unavailable.',
+        };
+
+        const { input } = createRequest({
+            messages: [
+                ...history.slice(0, 4),
+                { role: 'system', content: 'Answer briefly.' },
+            ],
+        });
+
+        expect(input.slice(5)).toEqual([
+            {
+                role: 'developer',
+                content: [
+                    {
+                        type: 'input_text',
+                        text: 'The CRM source is unavailable.',
+                    },
+                ],
+            },
+            { role: 'developer', content: 'Answer briefly.' },
+        ]);
+    });
+
+    it('keeps the note after the step when a system message interrupts it', () => {
+        const history = createHistory();
+        history[2] = {
+            role: 'tool-discovery',
+            discoveryCallId: 'call_discover',
+            tools: [],
+            note: 'The CRM source is unavailable.',
+        };
+
+        const { input } = createRequest({
+            messages: [
+                ...history.slice(0, 3),
+                { role: 'system', content: 'Answer briefly.' },
+                history[3] as Message,
+            ],
+        });
+
+        expect(input.slice(3)).toEqual([
+            expect.objectContaining({ type: 'tool_search_output' }),
+            { role: 'developer', content: 'Answer briefly.' },
+            expect.objectContaining({ type: 'function_call_output' }),
+            {
+                role: 'developer',
+                content: [
+                    {
+                        type: 'input_text',
+                        text: 'The CRM source is unavailable.',
+                    },
+                ],
+            },
+        ]);
+    });
+
     it('sends nothing more for an empty result without a note', () => {
         const history = createHistory();
         history[2] = {

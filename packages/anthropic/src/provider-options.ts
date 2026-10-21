@@ -1,6 +1,7 @@
 import type {
     GenerateProviderOptions,
     SystemMessageProviderOptions,
+    ToolDiscoveryResultMessageProviderOptions,
     ToolResultMessageProviderOptions,
     UserMessageProviderOptions,
 } from '@core-ai/core-ai';
@@ -81,8 +82,14 @@ export const anthropicToolResultMessageProviderOptionsSchema =
 export type AnthropicToolResultMessageProviderOptions =
     AnthropicMessageProviderOptions;
 
+export const anthropicToolDiscoveryResultMessageProviderOptionsSchema =
+    anthropicMessageProviderOptionsSchema;
+export type AnthropicToolDiscoveryResultMessageProviderOptions =
+    AnthropicMessageProviderOptions;
+
 /**
- * Reads system, user or tool result message options namespaced under
+ * Reads system, user, tool result or discovery result message options
+ * namespaced under
  * `providerId` (`model.provider`), like
  * {@link parseAnthropicGenerateProviderOptions}.
  */
@@ -91,6 +98,7 @@ export function parseAnthropicMessageProviderOptions(
         | SystemMessageProviderOptions
         | UserMessageProviderOptions
         | ToolResultMessageProviderOptions
+        | ToolDiscoveryResultMessageProviderOptions
         | undefined,
     providerId: string
 ): AnthropicMessageProviderOptions | undefined {
@@ -117,6 +125,10 @@ declare module '@core-ai/core-ai' {
 
     interface ToolResultMessageProviderOptions {
         anthropic?: AnthropicToolResultMessageProviderOptions;
+    }
+
+    interface ToolDiscoveryResultMessageProviderOptions {
+        anthropic?: AnthropicToolDiscoveryResultMessageProviderOptions;
     }
 }
 

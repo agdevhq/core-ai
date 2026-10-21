@@ -115,7 +115,7 @@ before the provider request. Its `reason` is one of:
 - `'union-limit-exceeded'` — the request's strict tools have more union-typed
   parameters than the provider's `maxUnionParameters` limit. A union-typed
   parameter is a property whose schema is an `anyOf`, a `oneOf`, or a `type`
-  array, including every nullable key.
+  array with more than one entry, including every nullable key.
 - `'invalid-schema'` — a strict tool's schema is outside the strict-capable
   contract. The error carries a `violations` array naming each offending
   schema path:

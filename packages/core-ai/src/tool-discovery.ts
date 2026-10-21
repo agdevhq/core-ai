@@ -108,10 +108,10 @@ export type ResolveToolDiscoveryOptions = {
  * names, snapshots whose name some provider rejects or whose `parameters`
  * are not a plain JSON object schema, a `toolChoice` that names a tool outside
  * `tools`, and discovery calls and results that do not pair up within their
- * step (see {@link validateToolDiscoveryMessages}). Throws a
- * `ToolSchemaStrictnessError` for a strict snapshot in the history outside
- * the strict-capable schema contract, unless a caller tool declares its name,
- * on every model, so a history fails the same way wherever it is sent.
+ * step. Throws a `ToolSchemaStrictnessError` for a strict snapshot in the
+ * history outside the strict-capable schema contract, unless a caller tool
+ * declares its name, on every model, so a history fails the same way on
+ * every model it is sent to.
  */
 export function resolveToolDiscovery(
     options: Pick<
@@ -141,20 +141,10 @@ export function resolveToolDiscovery(
         assertNotReserved(name, 'tool', providerId);
     }
 
-    // Every strict snapshot, not only the latest of each name: providers
-    // that render each discovery result as stored send them all.
-    assertStrictToolSchemaContract(
-        options.messages.flatMap((message) =>
-            message.role === 'tool-discovery'
-                ? message.tools.filter(
-                      (tool) =>
-                          tool.strict === true &&
-                          !callerToolNames.has(tool.name)
-                  )
-                : []
-        ),
-        { providerId, modelId }
-    );
+    assertStrictSnapshotContract(options.messages, snapshots, callerToolNames, {
+        providerId,
+        modelId,
+    });
     const declaredSnapshots = [...(snapshots ?? new Map()).values()].filter(
         (tool) => !callerToolNames.has(tool.name)
     );
@@ -381,8 +371,8 @@ export function createToolDiscoveryCallPart(
 
 /**
  * The text of a discovery result where it is rendered as text: every
- * emulated result, and empty results natively. An empty result says why with
- * its note, or else that nothing was found.
+ * emulated result, and empty results on native Anthropic. An empty result
+ * says why with its note, or else that nothing was found.
  */
 export function getToolDiscoveryResultText(
     message: Pick<ToolDiscoveryResultMessage, 'tools' | 'note'>
@@ -408,13 +398,44 @@ export function getToolDiscoveryNote(
  * declaring discovered tools, such as structured output. Calls pair with
  * their results per step: a tool-discovery message answers a call of the
  * preceding assistant message, every call is answered before the next user
- * or assistant message, and call ids are unique within a message.
+ * or assistant message, and call ids are unique within a message. Strict
+ * snapshots are not checked against the strict-capable schema contract:
+ * these requests declare no snapshot, strict or not.
  */
 export function validateToolDiscoveryMessages(
     messages: readonly Message[],
     providerId: string
 ): void {
     getDiscoveredToolSnapshots(messages, providerId);
+}
+
+/**
+ * Checks every strict snapshot of a name whose latest snapshot is strict,
+ * not only the latest: native OpenAI renders each discovery result as stored
+ * and keeps `strict` on all of a name's snapshots while its latest one is
+ * strict. A name whose latest snapshot is not strict is sent without `strict`
+ * everywhere, so a later discovery can replace a snapshot outside the
+ * contract. Names a caller tool declares are exempt.
+ */
+function assertStrictSnapshotContract(
+    messages: readonly Message[],
+    latestSnapshots: ReadonlyMap<string, ToolSnapshot> | undefined,
+    callerToolNames: ReadonlySet<string>,
+    options: { providerId: string; modelId: string }
+): void {
+    assertStrictToolSchemaContract(
+        messages.flatMap((message) =>
+            message.role === 'tool-discovery'
+                ? message.tools.filter(
+                      (tool) =>
+                          tool.strict === true &&
+                          latestSnapshots?.get(tool.name)?.strict === true &&
+                          !callerToolNames.has(tool.name)
+                  )
+                : []
+        ),
+        options
+    );
 }
 
 /**
@@ -500,8 +521,17 @@ function getDiscoveredToolSnapshots(
             );
         }
 
+        const names = new Set<string>();
         for (const tool of message.tools) {
             validateSnapshot(tool, message.discoveryCallId, providerId);
+            if (names.has(tool.name)) {
+                throw new ValidationError(
+                    `The tool-discovery message for "${message.discoveryCallId}" lists the tool "${tool.name}" more than once; each discovered tool needs a unique name.`,
+                    undefined,
+                    providerId
+                );
+            }
+            names.add(tool.name);
             // Replacing a value keeps the key's first insertion position:
             // order of first discovery, latest snapshot.
             snapshots.set(tool.name, tool);

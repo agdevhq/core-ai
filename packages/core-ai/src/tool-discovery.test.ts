@@ -339,6 +339,22 @@ describe('resolveToolDiscovery', () => {
         );
     });
 
+    it('rejects a tool name listed twice in one discovery result', () => {
+        expect(() =>
+            resolveToolDiscovery(
+                {
+                    messages: createDiscoveryHistory([
+                        snapshot('book'),
+                        snapshot('book'),
+                    ]),
+                },
+                EMULATED
+            )
+        ).toThrow(
+            'The tool-discovery message for "d1" lists the tool "book" more than once'
+        );
+    });
+
     it('rejects a note next to discovered tools', () => {
         expect(() =>
             resolveToolDiscovery(
@@ -595,8 +611,8 @@ describe('resolveToolDiscovery', () => {
         }
     );
 
-    it('rejects a superseded strict snapshot outside the strict contract', () => {
-        const messages: Message[] = [
+    function rediscover(replacement: ToolSnapshot): Message[] {
+        return [
             ...createDiscoveryHistory([outsideStrictContract]),
             {
                 role: 'assistant',
@@ -610,13 +626,43 @@ describe('resolveToolDiscovery', () => {
             {
                 role: 'tool-discovery',
                 discoveryCallId: 'd2',
-                tools: [{ ...outsideStrictContract, strict: false }],
+                tools: [replacement],
             },
         ];
+    }
 
-        expect(() => resolveToolDiscovery({ messages }, STRICT)).toThrow(
-            ToolSchemaStrictnessError
-        );
+    it('rejects a replaced strict snapshot outside the contract while the latest is strict', () => {
+        const insideContract: ToolSnapshot = {
+            ...outsideStrictContract,
+            parameters: {
+                type: 'object',
+                properties: { id: { type: 'string' } },
+                required: ['id'],
+                additionalProperties: false,
+            },
+        };
+        expect(() =>
+            resolveToolDiscovery(
+                { messages: createDiscoveryHistory([insideContract]) },
+                STRICT
+            )
+        ).not.toThrow();
+
+        expect(() =>
+            resolveToolDiscovery(
+                { messages: rediscover(insideContract) },
+                STRICT
+            )
+        ).toThrow(ToolSchemaStrictnessError);
+    });
+
+    it('accepts a replaced strict snapshot outside the contract once the latest is not strict', () => {
+        const messages = rediscover({
+            ...outsideStrictContract,
+            strict: false,
+        });
+
+        expect(() => resolveToolDiscovery({ messages }, STRICT)).not.toThrow();
     });
 
     it('accepts a strict snapshot outside the contract that a caller tool overrides', () => {
@@ -782,6 +828,15 @@ describe('getStructuredOutputMessages', () => {
                 'test'
             )
         ).toThrow(ValidationError);
+    });
+
+    it('does not check strict snapshots, since it declares none', () => {
+        expect(() =>
+            getStructuredOutputMessages(
+                createDiscoveryHistory([outsideStrictContract]),
+                'test'
+            )
+        ).not.toThrow();
     });
 });
 

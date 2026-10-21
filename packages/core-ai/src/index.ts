@@ -42,6 +42,7 @@ export type {
     SystemMessageProviderOptions,
     UserMessageProviderOptions,
     ToolResultMessageProviderOptions,
+    ToolDiscoveryResultMessageProviderOptions,
     EmbedProviderOptions,
     ImageProviderOptions,
     GenerateOptions,

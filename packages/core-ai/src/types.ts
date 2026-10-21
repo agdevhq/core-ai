@@ -252,10 +252,10 @@ export type ToolDiscoveryResultMessage = {
      */
     note?: string;
     /**
-     * Provider-specific options for the tool result this message is sent as,
-     * keyed by provider id, such as an Anthropic cache breakpoint.
+     * Provider-specific options for this discovery result, keyed by provider
+     * id, such as an Anthropic cache breakpoint.
      */
-    providerOptions?: ToolResultMessageProviderOptions;
+    providerOptions?: ToolDiscoveryResultMessageProviderOptions;
     /**
      * Application-owned metadata for this message. Provider adapters ignore
      * this field and never serialize it to provider APIs.
@@ -342,7 +342,7 @@ export type ToolSchemaStrictnessCapabilities =
           /**
            * Per-request limit on union-typed parameters across all strict
            * tools: properties whose schema is an `anyOf` / `oneOf` or a
-           * `type` array, nullable keys included.
+           * `type` array with more than one entry, nullable keys included.
            */
           maxUnionParameters?: number;
       };
@@ -437,6 +437,15 @@ export interface UserMessageProviderOptions {
 
 /** Per-tool-result-message provider options, like {@link SystemMessageProviderOptions}. */
 export interface ToolResultMessageProviderOptions {
+    [key: string]: Record<string, unknown> | undefined;
+}
+
+/**
+ * Per-discovery-result-message provider options, like
+ * {@link SystemMessageProviderOptions}. Emulated rendering sends them as the
+ * options of the tool result the discovery result becomes.
+ */
+export interface ToolDiscoveryResultMessageProviderOptions {
     [key: string]: Record<string, unknown> | undefined;
 }
 

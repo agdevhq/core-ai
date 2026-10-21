@@ -196,22 +196,27 @@ function serializeAssistantContentParts(
 
 /**
  * The tools the model is offered: the caller's tools plus, with tool
- * discovery, the discovery tool and the discovered tools. Resolving
- * discovery validates the history; an invalid one throws the error the
- * model call would throw.
+ * discovery, the discovery tool and the discovered tools. A history that
+ * fails discovery validation records only the caller's tools: telemetry
+ * never fails a call, and middleware after this one may still fix the
+ * history before the model call validates it.
  */
 export function getDeclaredTools(
     model: ChatModel,
     options: GenerateOptions
 ): ToolSet | undefined {
-    return getEmulatedToolSet(
-        options.tools,
-        resolveToolDiscovery(options, {
-            capabilities: model.capabilities,
-            providerId: model.provider,
-            modelId: model.modelId,
-        })
-    );
+    try {
+        return getEmulatedToolSet(
+            options.tools,
+            resolveToolDiscovery(options, {
+                capabilities: model.capabilities,
+                providerId: model.provider,
+                modelId: model.modelId,
+            })
+        );
+    } catch {
+        return options.tools;
+    }
 }
 
 export function setChatInputAttributes(
