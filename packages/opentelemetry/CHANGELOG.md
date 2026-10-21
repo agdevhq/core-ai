@@ -1,5 +1,20 @@
 # @core-ai/opentelemetry
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Record discovery calls and discovery results in the input and output message attributes.
+
+### Patch Changes
+
+- aa18a92: `gen_ai.tool.definitions` lists the tools the model is offered: with tool discovery, also the discovery tool and the discovered tools. Each definition carries the tool's own name instead of its key in `tools`. A history that fails discovery validation records only the caller's tools and never fails the call.
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/core-ai@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

@@ -1,5 +1,13 @@
 # @core-ai/axiom
 
+## 0.36.0
+
+### Patch Changes
+
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/opentelemetry@0.36.0
+
 ## 0.35.0
 
 ### Patch Changes

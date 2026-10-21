@@ -1,5 +1,25 @@
 # @core-ai/anthropic-vertex
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Strict-capable Claude models report `maxUnionParameters: 16`, so strict tools with more than 16 union-typed parameters in total, nullable keys included, throw `ToolSchemaStrictnessError` locally instead of failing with a provider error.
+- aa18a92: Support tool discovery natively on Claude 4.5 models and later: discovered tools are declared with `defer_loading` and loaded by `tool_reference` blocks, which keeps the prompt cache intact. Older models emulate discovery with ordinary tools. The `emulateToolDiscovery` provider option under the `anthropic-vertex` key forces emulation.
+- aa18a92: Discovery results accept `cacheControl` under the `anthropic-vertex` key (the new `AnthropicVertexToolDiscoveryResultMessageProviderOptions` type), natively and emulated, so a step that ends with a discovery result can carry an explicit cache breakpoint.
+
+### Patch Changes
+
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/core-ai@0.36.0
+    - @core-ai/anthropic@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

@@ -1,5 +1,20 @@
 # @core-ai/core-ai
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Add `toPortableToolName()`, which returns a tool name every provider accepts: valid names unchanged, any other name with invalid characters replaced by `_`, a leading `_` where needed, and at most 128 characters. Characters are replaced per UTF-16 code unit, and the result depends only on the name, so it stays the same across releases. Use it for names you do not control, such as MCP tool names, check that the converted names stay unique, and map tool calls back to the original name.
+- aa18a92: Add `ModelCapabilities.tools.strictSchemas.maxUnionParameters`, a per-request limit on union-typed parameters (properties whose schema is an `anyOf`, a `oneOf`, or a `type` array with more than one entry, nullable keys included) across a request's strict tools. Strict tools beyond it throw `ToolSchemaStrictnessError` with the new reason `'union-limit-exceeded'` and its `maxUnionParameters` and `unionParameterCount` fields before the provider request.
+
+    **Type change:** `ToolSchemaStrictnessErrorReason` gains `'union-limit-exceeded'`, so exhaustive switches over it must handle it.
+
+- aa18a92: Add tool discovery. With `toolDiscovery` set on `generate` / `stream`, core-ai declares a discovery tool; the model's calls to it arrive as `ToolDiscoveryCall`s in the new `result.discoveryCalls` (never in `toolCalls`; in `parts` as `ToolDiscoveryCallPart`s wrapping them, streamed as one `tool-discovery-call` event), and the application answers each with a `ToolDiscoveryResultMessage` (`discoveryCallId`) listing `ToolSnapshot`s (tool definitions with plain JSON Schema parameters), or no tools and an optional `note` explaining why. Discovered tools are then callable by their real names on every provider and stay declared while their results are in the history. `finishReason: 'tool-calls'` covers pending discovery calls, so loop on `finishReason` and answer both `toolCalls` and `discoveryCalls`. Discovery calls pair with their results per step. Malformed discovery histories, a `note` next to tools, a tool name listed twice in one result, reserved tool names, snapshot names some provider rejects (only letters, digits, underscores, and dashes, starting with a letter or underscore, up to 128 characters), snapshot `parameters` that are not an object schema with `type: "object"` at the root, and a `toolChoice` naming a non-caller tool throw `ValidationError` before any provider call, also on `generateObject` / `streamObject`, which declare no discovered tools. Every strict snapshot in the history, including ones a later discovery replaced while the latest snapshot of that name is strict, is checked against the strict-capable schema contract on every model by `generate` / `stream` (structured output declares no snapshot and skips it), and declared without `strict` on models without strict tool support or beyond their `maxStrictTools` or `maxUnionParameters` limit.
+
+    **Type change:** `ModelCapabilities` gains a required `tools.toolDiscovery` field (`'native' | 'emulated'`) and `GenerateResult` a required `discoveryCalls` array, so code that builds either by hand must add them. `Message`, `AssistantContentPart`, and `StreamEvent` gain the new members, so exhaustive switches over them must handle them. Adds adapter helpers (`resolveToolDiscovery`, `getEmulatedToolSet`, `emulateToolDiscoveryMessages`, `getStructuredOutputMessages`, and others); `finalizeGenerateResult` and the `request` option of `createChatStream` turn calls to the discovery tool into discovery calls.
+
+- aa18a92: `ToolDiscoveryResultMessage` accepts `providerOptions`, typed by the new `ToolDiscoveryResultMessageProviderOptions` interface for provider packages to augment; emulated rendering forwards them to the tool result the discovery result becomes. Adds the adapter helper `getDiscoveryCalls`.
+
 ## 0.35.0
 
 ### Minor Changes

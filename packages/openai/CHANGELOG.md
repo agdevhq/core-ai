@@ -1,5 +1,22 @@
 # @core-ai/openai
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Support tool discovery natively on the Responses API from GPT-5.4 on (except `gpt-5.4-nano` and `gpt-5.5-pro`), with a client-executed `tool_search` tool: discovered tools are delivered as deferred functions in `tool_search_output` items, each output as stored, so discoveries and refreshed definitions keep the prompt cache intact (unless a refresh changes whether a name is strict, which re-renders its earlier outputs) and the model uses the newest definition of a name, and replayed calls to them carry their `namespace`. The `note` of an empty result follows the step's tool outputs as a developer message. Other models and the Chat Completions API emulate discovery with ordinary function tools. The `emulateToolDiscovery` Responses provider option forces emulation.
+
+### Patch Changes
+
+- aa18a92: Chat Completions streams start a tool call once its name is known, with the arguments received so far, and keep its id fixed from then on. Servers that send the name after the first chunk no longer produce a nameless `tool-call-start`, so a discovery call streams as a single `tool-discovery-call` event there too.
+- aa18a92: Chat Completions responses that call tools finish with `'tool-calls'` when the API reports `stop`, as OpenAI does when `toolChoice` names a tool and some OpenAI-compatible servers do for every tool call. Streams now emit those calls' `tool-call-end` events instead of dropping them, and tool-based `generateObject` / `streamObject` report `'tool-calls'`.
+- aa18a92: Chat Completions streams emit `tool-call-start` before a tool call's first `tool-call-delta`, like the other adapters. The first delta came first before.
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/core-ai@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

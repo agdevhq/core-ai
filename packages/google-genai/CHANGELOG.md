@@ -1,5 +1,20 @@
 # @core-ai/google-genai
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Support tool discovery by emulation: the discovery tool and discovered tools are declared as ordinary function tools.
+
+### Patch Changes
+
+- aa18a92: Function calls that Gemini returns without an id get a generated, unique id. Parallel calls, calls streamed in separate chunks, and calls of later responses shared fallback ids before, so a call could be dropped or its result paired with the wrong call.
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/core-ai@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

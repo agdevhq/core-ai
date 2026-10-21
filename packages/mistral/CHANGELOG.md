@@ -1,5 +1,20 @@
 # @core-ai/mistral
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Support tool discovery by emulation: the discovery tool and discovered tools are declared as ordinary function tools.
+
+### Patch Changes
+
+- aa18a92: Streams emit `tool-call-start` before a tool call's first `tool-call-delta`, like the other adapters. The first delta came first before.
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/core-ai@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes
