@@ -113,6 +113,7 @@ export function createAnthropicChatModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapAnthropicError(error, provider),
+                request: options,
             }
         );
     }
@@ -195,15 +196,6 @@ async function* transformStructuredOutputStream<TSchema extends SchemaInput>(
             yield {
                 type: 'object-delta',
                 text: event.text,
-            };
-            continue;
-        }
-
-        if (event.type === 'tool-call-delta') {
-            contentBuffer += event.argumentsDelta;
-            yield {
-                type: 'object-delta',
-                text: event.argumentsDelta,
             };
             continue;
         }

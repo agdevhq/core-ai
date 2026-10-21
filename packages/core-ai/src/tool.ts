@@ -16,6 +16,41 @@ export function defineTool<TParameters extends ToolDefinition['parameters']>(
 }
 
 /**
+ * Tool names every provider accepts (live-verified: OpenAI and Anthropic
+ * allow only these characters, Gemini requires a leading letter or
+ * underscore, and OpenAI, Azure OpenAI, Anthropic, and Gemini allow at most
+ * 128 characters; Mistral allows more).
+ */
+export const PORTABLE_TOOL_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_-]{0,127}$/;
+
+const MAX_TOOL_NAME_LENGTH = 128;
+
+/**
+ * Returns a tool name every provider accepts. A valid name is returned
+ * unchanged. Any other name has each character outside letters, digits,
+ * underscores, and dashes replaced with `_`, gets a leading `_` unless it
+ * starts with a letter or underscore, and is truncated to 128 characters.
+ *
+ * Characters are replaced per UTF-16 code unit without Unicode
+ * normalization, so `🙂` becomes `__`. The result depends only on `name` and
+ * stays the same across releases, so converted names in stored conversation
+ * histories keep working.
+ *
+ * The conversion can map different names to the same one (`a.b` and `a:b`
+ * both become `a_b`), so check that your converted names stay unique, and
+ * keep a map from each to its original name to translate calls back.
+ */
+export function toPortableToolName(name: string): string {
+    if (PORTABLE_TOOL_NAME_PATTERN.test(name)) {
+        return name;
+    }
+
+    const replaced = name.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const prefixed = /^[a-zA-Z_]/.test(replaced) ? replaced : `_${replaced}`;
+    return prefixed.slice(0, MAX_TOOL_NAME_LENGTH);
+}
+
+/**
  * The result of {@link validateToolCall}: the schema's result for Standard
  * Schema parameters, `undefined` for plain JSON Schema.
  */

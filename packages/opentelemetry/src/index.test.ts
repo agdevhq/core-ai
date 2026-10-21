@@ -84,6 +84,7 @@ function createGenerateResult(content: string): GenerateResult {
         content,
         reasoning: null,
         toolCalls: [],
+        discoveryCalls: [],
         finishReason: 'stop',
         usage: createChatUsage(),
     };
@@ -142,6 +143,7 @@ function createMockChatModel(
             modalities: MULTIMODAL_INPUT_MODALITIES,
             tools: {
                 strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                toolDiscovery: 'emulated',
             },
             messages: { systemPlacement: 'anywhere' },
         },
@@ -227,6 +229,109 @@ describe('@core-ai/opentelemetry', () => {
         expect(span.attributes['gen_ai.output.messages']).toBeDefined();
         expect(span.attributes['input.value']).toBeDefined();
         expect(span.attributes['output.value']).toBe('Hello');
+    });
+
+    it('records the discovery tool and discovered tools as tool definitions', async () => {
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createOtelMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [
+                { role: 'user', content: 'Book a meeting' },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'tool-discovery-call',
+                            discoveryCall: { id: 'd1', query: 'calendar' },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool-discovery',
+                    discoveryCallId: 'd1',
+                    tools: [
+                        {
+                            name: 'book_meeting',
+                            description: 'Book a meeting',
+                            parameters: { type: 'object', properties: {} },
+                        },
+                    ],
+                },
+            ],
+            tools: {
+                lookup: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: { type: 'object', properties: {} },
+                },
+            },
+            toolDiscovery: {},
+        });
+
+        const span = expectDefined(exporter.getFinishedSpans()[0]);
+        const definitions = JSON.parse(
+            String(span.attributes['gen_ai.tool.definitions'])
+        ) as Array<{ name: string }>;
+        expect(definitions.map((definition) => definition.name)).toEqual([
+            'search',
+            'core_ai_discover_tools',
+            'book_meeting',
+        ]);
+    });
+
+    it('records only the caller tools when the discovery history is invalid', async () => {
+        const model = createMockChatModel();
+        const wrappedModel = wrapChatModel({
+            model,
+            middleware: createOtelMiddleware({ recordContent: true }),
+        });
+
+        await generate({
+            model: wrappedModel,
+            messages: [
+                { role: 'user', content: 'Book a meeting' },
+                {
+                    role: 'assistant',
+                    parts: [
+                        {
+                            type: 'tool-discovery-call',
+                            discoveryCall: { id: 'd1', query: 'calendar' },
+                        },
+                    ],
+                },
+                {
+                    role: 'tool-discovery',
+                    discoveryCallId: 'd1',
+                    tools: [
+                        {
+                            name: 'calendar.book',
+                            description: 'Book a meeting',
+                            parameters: { type: 'object', properties: {} },
+                        },
+                    ],
+                },
+            ],
+            tools: {
+                lookup: {
+                    name: 'search',
+                    description: 'Search',
+                    parameters: { type: 'object', properties: {} },
+                },
+            },
+        });
+
+        const span = expectDefined(exporter.getFinishedSpans()[0]);
+        const definitions = JSON.parse(
+            String(span.attributes['gen_ai.tool.definitions'])
+        ) as Array<{ name: string }>;
+        expect(definitions.map((definition) => definition.name)).toEqual([
+            'search',
+        ]);
     });
 
     it('records audio parts when content recording is enabled', async () => {

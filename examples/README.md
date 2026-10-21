@@ -83,3 +83,4 @@ npx tsx examples/19-telemetry-console-exporter.ts
 - `19-telemetry-console-exporter.ts`: OpenAI-backed telemetry example that exports spans with the OpenTelemetry console exporter
 - `20-telemetry-axiom-exporter.ts`: OpenAI-backed telemetry example that exports spans to Axiom
 - `21-xai-provider.ts`: Using xAI Grok models with reasoning effort and the same `generate()` API
+- `22-tool-discovery.ts`: Agent loop that discovers tools on demand with `toolDiscovery`

@@ -132,17 +132,18 @@ const model = anthropicVertexEuWest1.chatModel('claude-sonnet-4-6');
 
 ## Provider support
 
-| Feature             | Support              |
-| ------------------- | -------------------- |
-| Chat Completion     | Yes                  |
-| Streaming           | Yes                  |
-| Function Calling    | Yes                  |
-| Strict Tool Schemas | Yes, selected models |
-| Vision              | Yes                  |
-| Reasoning           | Yes                  |
-| Prompt Caching      | Yes                  |
-| Embeddings          | No                   |
-| Image Generation    | No                   |
+| Feature             | Support                    |
+| ------------------- | -------------------------- |
+| Chat Completion     | Yes                        |
+| Streaming           | Yes                        |
+| Function Calling    | Yes                        |
+| Strict Tool Schemas | Yes, selected models       |
+| Tool Discovery      | Yes; native on Claude 4.5+ |
+| Vision              | Yes                        |
+| Reasoning           | Yes                        |
+| Prompt Caching      | Yes                        |
+| Embeddings          | No                         |
+| Image Generation    | No                         |
 
 ## Model capabilities
 
@@ -169,7 +170,7 @@ section for their semantics.
 
 Per-tool `strict: true` follows the model capabilities of the underlying
 Anthropic provider: Claude 4.5 and later models report
-`{ supported: true, maxStrictTools: 20 }`. There is no provider-level switch —
+`{ supported: true, maxStrictTools: 20, maxUnionParameters: 16 }`. There is no provider-level switch —
 the `strictToolSchemasEnabled` option was removed. See
 [Anthropic strict tool schemas](/api/providers/anthropic#strict-tool-schemas)
 and the [tool-calling guide](/guides/tool-calling#strict-tool-schemas).
@@ -183,6 +184,22 @@ and the [tool-calling guide](/guides/tool-calling#strict-tool-schemas).
     `model.capabilities.tools.strictSchemas` reports model support regardless of
     your organization policy.
 </Warning>
+
+### Tool discovery
+
+Vertex-hosted Claude models report `tools.toolDiscovery` like the direct
+Anthropic provider: `'native'` for Claude 4.5 and later models, `'emulated'`
+for older ones. To force emulation, set `emulateToolDiscovery: true` under the
+`anthropic-vertex` key:
+
+```typescript
+providerOptions: {
+    'anthropic-vertex': { emulateToolDiscovery: true },
+}
+```
+
+See [Anthropic tool discovery](/api/providers/anthropic#tool-discovery) and
+the [Tool Discovery guide](/guides/tool-discovery).
 
 ## Examples
 
@@ -241,7 +258,7 @@ const result = await generate({
 });
 ```
 
-System, user, and tool result messages take their options under the same key.
+System, user, tool result, and discovery result messages take their options under the same key.
 For example, set a per-message cache breakpoint with
 `providerOptions: { 'anthropic-vertex': { cacheControl: { type: 'ephemeral', ttl: '1h' } } }`
 on any of them.

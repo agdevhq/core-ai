@@ -46,6 +46,7 @@ function createMockChatStream(): ChatStream {
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'stop',
             usage: {
                 inputTokens: 1,
@@ -79,6 +80,7 @@ describe('stream', () => {
                 modalities: MULTIMODAL_INPUT_MODALITIES,
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                    toolDiscovery: 'emulated',
                 },
                 messages: { systemPlacement: 'anywhere' },
             },
@@ -119,6 +121,7 @@ describe('stream', () => {
                 modalities: MULTIMODAL_INPUT_MODALITIES,
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                    toolDiscovery: 'emulated',
                 },
                 messages: { systemPlacement: 'anywhere' },
             },

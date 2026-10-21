@@ -6,10 +6,16 @@ import {
 import { getErrorMessage } from './provider-error-utils.ts';
 import { normalizeSchema, type NormalizedSchema } from './schema.ts';
 import type { StandardSchemaV1 } from './standard-schema.ts';
+import {
+    emulateToolDiscoveryMessages,
+    validateToolDiscoveryMessages,
+    type EmulatedMessage,
+} from './tool-discovery.ts';
 import type {
     GenerateObjectOptions,
     GenerateResult,
     InferSchemaOutput,
+    Message,
     ObjectStreamEvent,
     SchemaInput,
     StreamEvent,
@@ -24,6 +30,20 @@ export function normalizeStructuredOutputSchema<TSchema extends SchemaInput>(
         options.schema,
         name ? `structured output schema "${name}"` : 'structured output schema'
     );
+}
+
+/**
+ * The messages of a `generateObject` / `streamObject` request. Structured
+ * output declares no discovered tools, so the discovery calls and results of
+ * the history are validated as on `generate`, except for the strict-capable
+ * schema contract, and then sent as ordinary tool calls and results.
+ */
+export function getStructuredOutputMessages(
+    messages: readonly Message[],
+    providerId: string
+): EmulatedMessage[] {
+    validateToolDiscoveryMessages(messages, providerId);
+    return emulateToolDiscoveryMessages(messages);
 }
 
 /**

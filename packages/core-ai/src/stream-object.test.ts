@@ -56,6 +56,7 @@ describe('streamObject', () => {
                 modalities: MULTIMODAL_INPUT_MODALITIES,
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                    toolDiscovery: 'emulated',
                 },
                 messages: { systemPlacement: 'anywhere' },
             },
@@ -99,6 +100,7 @@ describe('streamObject', () => {
                 modalities: MULTIMODAL_INPUT_MODALITIES,
                 tools: {
                     strictSchemas: UNSUPPORTED_TOOL_SCHEMA_STRICTNESS,
+                    toolDiscovery: 'emulated',
                 },
                 messages: { systemPlacement: 'anywhere' },
             },

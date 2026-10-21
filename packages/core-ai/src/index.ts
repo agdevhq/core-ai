@@ -18,10 +18,16 @@ export type {
     AssistantTextPart,
     ReasoningPart,
     ToolCallPart,
+    ToolDiscoveryCall,
+    ToolDiscoveryCallPart,
     AssistantContentPart,
     ToolCall,
     ToolDefinition,
     ToolSet,
+    ToolSnapshot,
+    ToolDiscoveryResultMessage,
+    ToolDiscoveryOptions,
+    ToolDiscoverySupport,
     ToolChoice,
     ChatInputModality,
     ChatOutputModality,
@@ -36,6 +42,7 @@ export type {
     SystemMessageProviderOptions,
     UserMessageProviderOptions,
     ToolResultMessageProviderOptions,
+    ToolDiscoveryResultMessageProviderOptions,
     EmbedProviderOptions,
     ImageProviderOptions,
     GenerateOptions,
@@ -114,7 +121,7 @@ export type {
     StandardSchemaV1,
     StandardTypedV1,
 } from './standard-schema.ts';
-export { defineTool, validateToolCall } from './tool.ts';
+export { defineTool, toPortableToolName, validateToolCall } from './tool.ts';
 export type { ToolCallValidation } from './tool.ts';
 export {
     mapChildSchemaNodes,
@@ -125,10 +132,35 @@ export { getToolJsonSchema, toJsonSchema } from './schema.ts';
 export type { NormalizedSchema } from './schema.ts';
 export {
     extractStructuredObject,
+    getStructuredOutputMessages,
     normalizeStructuredOutputSchema,
     parseStructuredOutput,
     transformStructuredOutputStream,
 } from './structured-output.ts';
+export {
+    finalizeGenerateResult,
+    getDiscoveryCalls,
+} from './finalize-result.ts';
+export {
+    createToolDiscoveryCallPart,
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
+    getToolDiscoveryArguments,
+    getToolDiscoveryNote,
+    getToolDiscoveryResultText,
+    resolveToolDiscovery,
+    toToolDiscoveryToolCall,
+    toToolDiscoveryToolResult,
+    TOOL_DISCOVERY_PLACEHOLDER_TOOL_NAME,
+    TOOL_DISCOVERY_TOOL_NAME,
+} from './tool-discovery.ts';
+export type {
+    EmulatedAssistantMessage,
+    EmulatedMessage,
+    ResolvedToolDiscovery,
+    ResolveToolDiscoveryOptions,
+} from './tool-discovery.ts';
+export type { FinalizeResultRequest } from './finalize-result.ts';
 export { getStrictToolSchemaViolations } from './strict-tool-schema-contract.ts';
 export type { StrictToolSchemaViolation } from './strict-tool-schema-contract.ts';
 export { stripModelDateSuffix } from './model-id.ts';

@@ -6,7 +6,7 @@ icon: 'toolbox'
 
 ## Overview
 
-core-ai exports helpers for schema conversion, assistant message construction, stream creation, model middleware wrapping, reasoning effort clamping, and provider-specific metadata access.
+core-ai exports helpers for schema conversion, portable tool names, assistant message construction, stream creation, model middleware wrapping, reasoning effort clamping, and provider-specific metadata access.
 
 ## toJsonSchema()
 
@@ -36,6 +36,28 @@ function toJsonSchema(schema: SchemaInput): JsonSchema;
 Use it when you store or measure schemas, for example to persist tool definitions or estimate token counts. You get the same JSON Schema core-ai hands to provider adapters, which apply only semantics-preserving provider transforms on top, such as the normalization for [strict tool schemas](/guides/tool-calling#strict-tool-schemas).
 
 Each call returns a copy, so changing it does not affect what core-ai sends.
+
+## toPortableToolName()
+
+Return a tool name every provider accepts, for tool names you do not control, such as MCP tool names.
+
+```typescript
+import { toPortableToolName } from '@core-ai/core-ai';
+
+toPortableToolName('search'); // 'search'
+toPortableToolName('github.create_issue'); // 'github_create_issue'
+```
+
+```typescript
+function toPortableToolName(name: string): string;
+```
+
+- A name of letters, digits, underscores, and dashes that starts with a letter or underscore and has at most 128 characters is returned unchanged.
+- Any other name has each other character replaced with `_`, gets a leading `_` unless it starts with a letter or underscore, and is truncated to 128 characters. Characters are replaced per UTF-16 code unit without Unicode normalization, so `🙂` becomes `__`.
+
+The result depends only on the name you pass, so it stays the same across requests and releases, which keeps conversation histories and the prompt cache valid. Different names can convert to the same one, such as `a.b` and `a:b` to `a_b`. Check that the converted names in your tool catalog stay unique, and rename a tool yourself where they don't.
+
+The model calls the tool by the converted name, so keep a map from the converted name to the original one and translate tool calls back. Discovered tools must have such a name; see [Tool snapshots](/guides/tool-discovery#tool-snapshots).
 
 ## clampReasoningEffort()
 
@@ -155,10 +177,13 @@ The `source` parameter accepts an `AsyncIterable<StreamEvent>` or a `() => Promi
 type CreateChatStreamOptions = {
     signal?: AbortSignal;
     mapError?: (error: unknown) => CoreAIError;
+    request?: Pick<GenerateOptions, 'toolDiscovery'>;
 };
 ```
 
-Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged.
+Pass `signal` to abort the stream. Pass `mapError` so in-band source failures become the same typed errors as a failed initial request. Already-typed core-ai errors pass through unchanged. Pass the `request` the stream answers so that, with `toolDiscovery`, calls to the discovery tool arrive as one `tool-discovery-call` event.
+
+A custom `ChatModel` that builds its `GenerateResult` itself passes it through `finalizeGenerateResult(result, options)` for the same treatment.
 
 ## createObjectStream()
 

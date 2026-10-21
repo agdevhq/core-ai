@@ -170,6 +170,7 @@ describe('getAnthropicModelCapabilities', () => {
         ).toEqual({
             supported: true,
             maxStrictTools: 20,
+            maxUnionParameters: 16,
         });
     });
 

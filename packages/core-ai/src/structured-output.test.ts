@@ -38,6 +38,7 @@ function createResult(
     return {
         parts: [],
         reasoning: null,
+        discoveryCalls: [],
         finishReason: 'stop',
         usage,
         ...overrides,

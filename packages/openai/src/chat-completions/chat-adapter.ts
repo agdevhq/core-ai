@@ -8,6 +8,7 @@ import type {
 } from 'openai/resources/chat/completions/completions';
 import type {
     AssistantContentPart,
+    EmulatedMessage,
     FinishReason,
     GenerateOptions,
     GenerateResult,
@@ -19,7 +20,10 @@ import type {
 } from '@core-ai/core-ai';
 import {
     clampReasoningEffort,
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
     getProviderMetadata,
+    resolveToolDiscovery,
     ValidationError,
     validateMessages,
 } from '@core-ai/core-ai';
@@ -65,15 +69,22 @@ type OpenAIChatCompletionsRequestAdapterOptions =
 
 export { convertToolChoice, convertTools, validateOpenAIReasoningConfig };
 
+/**
+ * Chat Completions has no deferred tool loading, so tool discovery is always
+ * emulated: discovery calls become calls to the discovery tool and discovery
+ * results become text tool results.
+ */
 export function convertMessages(
     messages: Message[],
     adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ): ChatCompletionMessageParam[] {
-    return messages.map((message) => convertMessage(message, adapterOptions));
+    return emulateToolDiscoveryMessages(messages).map((message) =>
+        convertMessage(message, adapterOptions)
+    );
 }
 
 function convertMessage(
-    message: Message,
+    message: EmulatedMessage,
     adapterOptions: OpenAIChatCompletionsAdapterOptions
 ): ChatCompletionMessageParam {
     if (message.role === 'system') {
@@ -275,8 +286,16 @@ function createRequestBase(
 ) {
     const functionCalling =
         getOpenAIModelCapabilities(modelId).chatCompletions.functionCalling;
-    const usingTools =
-        options.tools !== undefined && Object.keys(options.tools).length > 0;
+    const tools = getEmulatedToolSet(
+        options.tools,
+        resolveToolDiscovery(options, {
+            capabilities: adapterOptions.capabilities,
+            providerId: adapterOptions.providerId,
+            modelId,
+            emulate: true,
+        })
+    );
+    const usingTools = tools !== undefined && Object.keys(tools).length > 0;
 
     if (usingTools && functionCalling === 'unsupported') {
         throw new ValidationError(
@@ -302,9 +321,9 @@ function createRequestBase(
     return {
         model: modelId,
         messages: convertMessages(options.messages, adapterOptions),
-        ...(options.tools && Object.keys(options.tools).length > 0
+        ...(tools && usingTools
             ? {
-                  tools: convertTools(options.tools, {
+                  tools: convertTools(tools, {
                       capabilities: adapterOptions.capabilities,
                       modelId,
                       providerId: adapterOptions.providerId,
@@ -412,6 +431,7 @@ export function mapGenerateResponse(
             content: null,
             reasoning: null,
             toolCalls: [],
+            discoveryCalls: [],
             finishReason: 'unknown',
             usage: {
                 inputTokens: 0,
@@ -444,7 +464,11 @@ export function mapGenerateResponse(
         content,
         reasoning,
         toolCalls,
-        finishReason: mapFinishReason(firstChoice.finish_reason),
+        discoveryCalls: [],
+        finishReason: mapFinishReason(
+            firstChoice.finish_reason,
+            toolCalls.length > 0
+        ),
         usage: {
             inputTokens: response.usage?.prompt_tokens ?? 0,
             outputTokens: normalizeOutputTokens(
@@ -492,9 +516,17 @@ function mapFunctionToolCall(
     };
 }
 
-function mapFinishReason(reason: string | null): FinishReason {
+/**
+ * OpenAI finishes with `stop` when `tool_choice` names a function, and so do
+ * some OpenAI-compatible servers for any tool call. A choice that calls tools
+ * and stops finishes with `'tool-calls'`.
+ */
+function mapFinishReason(
+    reason: string | null,
+    hasToolCalls: boolean
+): FinishReason {
     if (reason === 'stop') {
-        return 'stop';
+        return hasToolCalls ? 'tool-calls' : 'stop';
     }
     if (reason === 'length') {
         return 'length';
@@ -508,18 +540,34 @@ function mapFinishReason(reason: string | null): FinishReason {
     return 'unknown';
 }
 
+type BufferedToolCall = {
+    id: string;
+    name: string;
+    arguments: string;
+    started: boolean;
+};
+
+function* startToolCall(toolCall: BufferedToolCall): Iterable<StreamEvent> {
+    toolCall.started = true;
+    yield {
+        type: 'tool-call-start',
+        toolCallId: toolCall.id,
+        toolName: toolCall.name,
+    };
+    if (toolCall.arguments) {
+        yield {
+            type: 'tool-call-delta',
+            toolCallId: toolCall.id,
+            argumentsDelta: toolCall.arguments,
+        };
+    }
+}
+
 export async function* transformStream(
     stream: AsyncIterable<ChatCompletionChunk>,
     adapterOptions: OpenAIChatCompletionsAdapterOptions = {}
 ): AsyncIterable<StreamEvent> {
-    const bufferedToolCalls = new Map<
-        number,
-        {
-            id: string;
-            name: string;
-            arguments: string;
-        }
-    >();
+    const bufferedToolCalls = new Map<number, BufferedToolCall>();
     const emittedToolCalls = new Set<string>();
 
     let finishReason: FinishReason = 'unknown';
@@ -634,41 +682,43 @@ export async function* transformStream(
                     partialToolCall.index
                 ) ?? {
                     id: partialToolCall.id ?? `tool-${partialToolCall.index}`,
-                    name: partialToolCall.function?.name ?? '',
+                    name: '',
                     arguments: '',
+                    started: false,
                 };
 
-                const wasNew = !bufferedToolCalls.has(partialToolCall.index);
-
-                if (partialToolCall.id) {
+                // The id and name are fixed once the call has started, so
+                // every event of the call carries the same ones.
+                if (partialToolCall.id && !current.started) {
                     current.id = partialToolCall.id;
                 }
-                if (partialToolCall.function?.name) {
+                if (partialToolCall.function?.name && !current.started) {
                     current.name = partialToolCall.function.name;
                 }
-                if (partialToolCall.function?.arguments) {
-                    current.arguments += partialToolCall.function.arguments;
+                const argumentsDelta =
+                    partialToolCall.function?.arguments ?? '';
+                current.arguments += argumentsDelta;
+                bufferedToolCalls.set(partialToolCall.index, current);
+
+                // Some servers send the name after the first chunk; the call
+                // starts once it is known, with the arguments buffered so far.
+                if (!current.started && current.name) {
+                    yield* startToolCall(current);
+                } else if (current.started && argumentsDelta) {
                     yield {
                         type: 'tool-call-delta',
                         toolCallId: current.id,
-                        argumentsDelta: partialToolCall.function.arguments,
-                    };
-                }
-
-                bufferedToolCalls.set(partialToolCall.index, current);
-
-                if (wasNew) {
-                    yield {
-                        type: 'tool-call-start',
-                        toolCallId: current.id,
-                        toolName: current.name,
+                        argumentsDelta,
                     };
                 }
             }
         }
 
         if (choice.finish_reason) {
-            finishReason = mapFinishReason(choice.finish_reason);
+            finishReason = mapFinishReason(
+                choice.finish_reason,
+                bufferedToolCalls.size > 0
+            );
         }
 
         if (finishReason === 'tool-calls') {
@@ -679,6 +729,9 @@ export async function* transformStream(
                     continue;
                 }
 
+                if (!toolCall.started) {
+                    yield* startToolCall(toolCall);
+                }
                 emittedToolCalls.add(toolCall.id);
                 yield {
                     type: 'tool-call-end',

@@ -20,6 +20,7 @@ import {
     createObjectStream,
     createChatStream,
     extractStructuredObject,
+    finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
 } from '@core-ai/core-ai';
@@ -84,7 +85,10 @@ export function createOpenAIChatModel(
             options.signal
         );
         try {
-            return mapGenerateResponse(response, { providerId: provider });
+            return finalizeGenerateResult(
+                mapGenerateResponse(response, { providerId: provider }),
+                options
+            );
         } catch (error) {
             throw wrapOpenAIError(error, provider);
         }
@@ -105,6 +109,7 @@ export function createOpenAIChatModel(
             {
                 signal: options.signal,
                 mapError: (error) => wrapOpenAIError(error, provider),
+                request: options,
             }
         );
     }

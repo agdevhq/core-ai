@@ -9,14 +9,15 @@ Messages are the fundamental building blocks of conversations in core-ai. They r
 
 ## Message Types
 
-core-ai supports four message types:
+core-ai supports five message types:
 
 ```typescript
 type Message =
     | SystemMessage
     | UserMessage
     | AssistantMessage
-    | ToolResultMessage;
+    | ToolResultMessage
+    | ToolDiscoveryResultMessage;
 ```
 
 ### System Message
@@ -32,7 +33,7 @@ type SystemMessage = {
 };
 ```
 
-`providerOptions` is keyed by provider id, like the request-level `providerOptions`. For example, Anthropic accepts a per-message `cacheControl`. See the [Anthropic provider reference](/api/providers/anthropic#message-cache-control). User and tool result messages accept `providerOptions` the same way.
+`providerOptions` is keyed by provider id, like the request-level `providerOptions`. For example, Anthropic accepts a per-message `cacheControl`. See the [Anthropic provider reference](/api/providers/anthropic#message-cache-control). User, tool result, and discovery result messages accept `providerOptions` the same way.
 
 **Example:**
 
@@ -86,7 +87,7 @@ const userMessage: UserMessage = {
 
 ### Assistant Message
 
-Assistant messages contain the model's responses, including text, reasoning, and tool calls.
+Assistant messages contain the model's responses, including text, reasoning, tool calls, and discovery calls.
 
 ```typescript
 type AssistantMessage = {
@@ -94,7 +95,11 @@ type AssistantMessage = {
     parts: AssistantContentPart[];
 };
 
-type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
+type AssistantContentPart =
+    | AssistantTextPart
+    | ReasoningPart
+    | ToolCallPart
+    | ToolDiscoveryCallPart;
 ```
 
 **Example:**
@@ -108,7 +113,7 @@ const assistantMessage: AssistantMessage = {
 
 <Note>
     Assistant messages use a `parts` array to support multiple content types
-    (text, reasoning, tool calls) in a single message.
+    (text, reasoning, tool calls, discovery calls) in a single message.
 </Note>
 
 ### Tool Result Message
@@ -135,6 +140,43 @@ const toolResult: ToolResultMessage = {
     content: JSON.stringify({ temperature: 72, condition: 'sunny' }),
 };
 ```
+
+### Tool Discovery Result Message
+
+Tool discovery result messages answer a discovery call with the tools your application found. See [Tool Discovery](/guides/tool-discovery).
+
+```typescript
+type ToolDiscoveryResultMessage = {
+    role: 'tool-discovery';
+    discoveryCallId: string;
+    tools: ToolSnapshot[];
+    note?: string;
+    providerOptions?: ToolDiscoveryResultMessageProviderOptions;
+    metadata?: Record<string, unknown>;
+};
+```
+
+**Example:**
+
+```typescript
+const discoveryResult: ToolDiscoveryResultMessage = {
+    role: 'tool-discovery',
+    discoveryCallId: 'call_456',
+    tools: [
+        {
+            name: 'get_order_status',
+            description: 'Look up the shipping status of an order by its id',
+            parameters: {
+                type: 'object',
+                properties: { orderId: { type: 'string' } },
+                required: ['orderId'],
+            },
+        },
+    ],
+};
+```
+
+Answer each discovery call with exactly one discovery result, placed with the step's tool results. The tools it lists stay declared on later `generate()` and `stream()` requests while the message is in the history, unless `tools` declares the same name. When nothing matched, `tools` is empty and an optional `note` tells the model why.
 
 ## User Content Parts
 
@@ -273,10 +315,14 @@ const audioPart: AudioPart = {
 
 ## Assistant Content Parts
 
-Assistant messages can contain text, reasoning, and tool calls:
+Assistant messages can contain text, reasoning, tool calls, and discovery calls:
 
 ```typescript
-type AssistantContentPart = AssistantTextPart | ReasoningPart | ToolCallPart;
+type AssistantContentPart =
+    | AssistantTextPart
+    | ReasoningPart
+    | ToolCallPart
+    | ToolDiscoveryCallPart;
 ```
 
 ### Text Part
@@ -346,6 +392,25 @@ type ToolCall = {
 
 Pass tool call parts back into the next request unchanged. Some providers put data on them that has to return verbatim: Gemini 3 rejects a request when a function call from the current turn is replayed without its thought signature.
 
+### Tool Discovery Call Part
+
+The model asking for tools the request does not declare yet, when the request sets `toolDiscovery`:
+
+```typescript
+type ToolDiscoveryCallPart = {
+    type: 'tool-discovery-call';
+    discoveryCall: {
+        id: string;
+        names?: string[];
+        query?: string;
+        metadata?: Record<string, unknown>;
+    };
+    providerMetadata?: Record<string, Record<string, unknown>>;
+};
+```
+
+`names` lists exact tool names, `query` describes the capability the model needs. Like a tool call part, the part wraps the call. Discovery calls appear in `GenerateResult.discoveryCalls`, never in `toolCalls`. Pass them back unchanged, like tool call parts, and answer each one with a [tool discovery result message](#tool-discovery-result-message) before the next request.
+
 ## Part metadata
 
 Text-bearing parts can carry optional `metadata` for application and middleware state. Use it for annotations such as classification results, provenance, validation status, or text transformation spans.
@@ -355,8 +420,8 @@ This metadata stays with the part in message history and generated results. Prov
 core-ai has three metadata layers:
 
 - `GenerateOptions.metadata` is call-level context for observability and middleware.
-- `ReasoningPart.providerMetadata` and `ToolCallPart.providerMetadata` are provider-owned data used to round-trip reasoning blocks and tool calls with the same provider.
-- Application-owned `metadata` on system messages, text parts, reasoning parts, tool calls, and tool results.
+- `ReasoningPart.providerMetadata`, `ToolCallPart.providerMetadata`, and `ToolDiscoveryCallPart.providerMetadata` are provider-owned data used to round-trip reasoning blocks, tool calls, and discovery calls with the same provider.
+- Application-owned `metadata` on system messages, text parts, reasoning parts, tool calls, discovery calls, tool results, and discovery results.
 
 ## Multi-Turn Conversations
 
@@ -399,7 +464,7 @@ A system message after that is a later system message. It applies from its posit
 | `'before-reply'`  | Directly after a user or tool message, followed by an assistant message or at the end. Consecutive system messages count as one. |
 | `'anywhere'`      | Any position.                                                                                                                    |
 
-Each rule accepts everything the stricter rules accept.
+Each rule accepts everything the stricter rules accept. A tool discovery result counts as a tool message.
 
 | Provider                                                    | `systemPlacement`                                                                                 |
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |

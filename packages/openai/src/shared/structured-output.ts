@@ -5,6 +5,7 @@ import type {
     SchemaInput,
 } from '@core-ai/core-ai';
 import {
+    getStructuredOutputMessages,
     normalizeStrictJsonSchema,
     normalizeStructuredOutputSchema,
     requireEveryKey,
@@ -48,7 +49,7 @@ export function createStructuredOutputRequestOptions<
     mode: OpenAIStructuredOutputMode = 'json-schema'
 ): OpenAIRequestOptions {
     const baseOptions: GenerateOptions = {
-        messages: options.messages,
+        messages: getStructuredOutputMessages(options.messages, provider),
         reasoning: options.reasoning,
         temperature: options.temperature,
         maxTokens: options.maxTokens,
@@ -96,7 +97,7 @@ export function createStructuredOutputRequestOptions<
         return {
             ...baseOptions,
             messages: insertStructuredOutputSystemMessage(
-                options.messages,
+                baseOptions.messages,
                 instruction
             ),
             structuredOutputFormat: {

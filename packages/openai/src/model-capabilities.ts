@@ -92,6 +92,7 @@ function createCapabilities({
         modalities,
         tools: {
             strictSchemas: strictToolSchemas,
+            toolDiscovery: 'emulated',
         },
         messages: { systemPlacement: 'anywhere' },
         chatCompletions: {
@@ -99,6 +100,20 @@ function createCapabilities({
             functionCalling,
         },
         nativeMaxEffort,
+    };
+}
+
+/**
+ * Client-executed `tool_search` with deferred tools, available on the
+ * Responses API from GPT-5.4 on. Chat Completions always emulates (see
+ * {@link toOpenAIChatCompletionsCapabilities}).
+ */
+function withNativeToolDiscovery(
+    capabilities: OpenAIModelCapabilities
+): OpenAIModelCapabilities {
+    return {
+        ...capabilities,
+        tools: { ...capabilities.tools, toolDiscovery: 'native' },
     };
 }
 
@@ -146,20 +161,30 @@ const GPT_6_EFFORTS = [
     'high',
     'max',
 ] as const satisfies readonly ReasoningEffort[];
-const GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES = createCapabilities({
-    supportedEfforts: GPT_6_EFFORTS,
-    restrictsSamplingParams: true,
-    reasoningMode: 'always-on',
-    functionCalling: 'unsupported',
-    nativeMaxEffort: true,
-});
-const GPT_6_SOL_LUNA_CAPABILITIES = createCapabilities({
-    supportedEfforts: GPT_6_EFFORTS,
-    restrictsSamplingParams: true,
-    reasoningMode: 'always-on',
-    functionCalling: 'supported',
-    nativeMaxEffort: true,
-});
+const GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES = withNativeToolDiscovery(
+    createCapabilities({
+        supportedEfforts: GPT_6_EFFORTS,
+        restrictsSamplingParams: true,
+        reasoningMode: 'always-on',
+        functionCalling: 'unsupported',
+        nativeMaxEffort: true,
+    })
+);
+const GPT_6_SOL_LUNA_CAPABILITIES = withNativeToolDiscovery(
+    createCapabilities({
+        supportedEfforts: GPT_6_EFFORTS,
+        restrictsSamplingParams: true,
+        reasoningMode: 'always-on',
+        functionCalling: 'supported',
+        nativeMaxEffort: true,
+    })
+);
+const GPT_5_4_MAX_REASONING_CAPABILITIES = withNativeToolDiscovery(
+    GPT_5_MAX_REASONING_CAPABILITIES
+);
+const GPT_5_4_PRO_REASONING_CAPABILITIES = withNativeToolDiscovery(
+    GPT_5_PRO_REASONING_CAPABILITIES
+);
 
 type NoReasoningCapabilitiesConfig = {
     maxTokensParameter: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
@@ -184,6 +209,7 @@ function createNoReasoningCapabilities({
         modalities,
         tools: {
             strictSchemas: strictToolSchemas,
+            toolDiscovery: 'emulated',
         },
         messages: { systemPlacement: 'anywhere' },
         chatCompletions: {
@@ -242,14 +268,19 @@ export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-6-astra': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
     'gpt-6-sol': GPT_6_SOL_LUNA_CAPABILITIES,
     'gpt-6-luna': GPT_6_SOL_LUNA_CAPABILITIES,
-    'gpt-5.6-sol': GPT_5_MAX_REASONING_CAPABILITIES,
-    'gpt-5.6-terra': SAMPLING_RESTRICTED_STANDARD_CAPABILITIES,
-    'gpt-5.6-luna': GPT_5_MINIMAL_REASONING_CAPABILITIES,
-    'gpt-5.5': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.6-sol': GPT_5_4_MAX_REASONING_CAPABILITIES,
+    'gpt-5.6-terra': withNativeToolDiscovery(
+        SAMPLING_RESTRICTED_STANDARD_CAPABILITIES
+    ),
+    'gpt-5.6-luna': withNativeToolDiscovery(
+        GPT_5_MINIMAL_REASONING_CAPABILITIES
+    ),
+    'gpt-5.5': GPT_5_4_MAX_REASONING_CAPABILITIES,
+    // OpenAI does not list tool search for gpt-5.5-pro and gpt-5.4-nano.
     'gpt-5.5-pro': GPT_5_PRO_REASONING_CAPABILITIES,
-    'gpt-5.4': GPT_5_MAX_REASONING_CAPABILITIES,
-    'gpt-5.4-pro': GPT_5_PRO_REASONING_CAPABILITIES,
-    'gpt-5.4-mini': GPT_5_MAX_REASONING_CAPABILITIES,
+    'gpt-5.4': GPT_5_4_MAX_REASONING_CAPABILITIES,
+    'gpt-5.4-pro': GPT_5_4_PRO_REASONING_CAPABILITIES,
+    'gpt-5.4-mini': GPT_5_4_MAX_REASONING_CAPABILITIES,
     'gpt-5.4-nano': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.3-codex': GPT_5_MAX_REASONING_CAPABILITIES,
     'gpt-5.2': GPT_5_MAX_REASONING_CAPABILITIES,
@@ -340,6 +371,20 @@ export function toOpenAIResponsesCapabilities(
             ),
             output: capabilities.modalities.output,
         },
+    };
+}
+
+/** Chat Completions has no deferred tool loading. */
+export function toOpenAIChatCompletionsCapabilities(
+    capabilities: ModelCapabilities
+): ModelCapabilities {
+    if (capabilities.tools.toolDiscovery === 'emulated') {
+        return capabilities;
+    }
+
+    return {
+        ...capabilities,
+        tools: { ...capabilities.tools, toolDiscovery: 'emulated' },
     };
 }
 

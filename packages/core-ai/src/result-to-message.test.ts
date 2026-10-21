@@ -23,6 +23,7 @@ function createGenerateResult(): GenerateResult {
         ],
         content: 'Answer',
         reasoning: 'Reasoning',
+        discoveryCalls: [],
         toolCalls: [
             {
                 id: 'tool-1',

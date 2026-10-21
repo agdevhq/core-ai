@@ -1,6 +1,7 @@
 import type {
     AnthropicGenerateProviderOptions,
     AnthropicSystemMessageProviderOptions,
+    AnthropicToolDiscoveryResultMessageProviderOptions,
     AnthropicToolResultMessageProviderOptions,
     AnthropicUserMessageProviderOptions,
 } from '@core-ai/anthropic';
@@ -17,6 +18,9 @@ export type AnthropicVertexUserMessageProviderOptions =
 export type AnthropicVertexToolResultMessageProviderOptions =
     AnthropicToolResultMessageProviderOptions;
 
+export type AnthropicVertexToolDiscoveryResultMessageProviderOptions =
+    AnthropicToolDiscoveryResultMessageProviderOptions;
+
 declare module '@core-ai/core-ai' {
     interface GenerateProviderOptions {
         'anthropic-vertex'?: AnthropicVertexGenerateProviderOptions;
@@ -32,5 +36,9 @@ declare module '@core-ai/core-ai' {
 
     interface ToolResultMessageProviderOptions {
         'anthropic-vertex'?: AnthropicVertexToolResultMessageProviderOptions;
+    }
+
+    interface ToolDiscoveryResultMessageProviderOptions {
+        'anthropic-vertex'?: AnthropicVertexToolDiscoveryResultMessageProviderOptions;
     }
 }

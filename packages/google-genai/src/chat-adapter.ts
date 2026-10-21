@@ -25,9 +25,13 @@ import type {
     UserContentPart,
 } from '@core-ai/core-ai';
 import {
+    emulateToolDiscoveryMessages,
+    getEmulatedToolSet,
+    getStructuredOutputMessages,
     getProviderMetadata,
     getToolJsonSchema,
     normalizeStructuredOutputSchema,
+    resolveToolDiscovery,
     ValidationError,
     validateMessages,
     validateToolSchemaStrictness,
@@ -69,12 +73,16 @@ export type ConvertedGoogleMessages = {
     systemInstruction?: string;
 };
 
+/**
+ * Tool discovery is emulated: discovery calls become calls to the discovery
+ * tool and discovery results become text tool results.
+ */
 export function convertMessages(messages: Message[]): ConvertedGoogleMessages {
     const systemParts: string[] = [];
     const contents: Content[] = [];
     const toolCallNameById = new Map<string, string>();
 
-    for (const message of messages) {
+    for (const message of emulateToolDiscoveryMessages(messages)) {
         if (message.role === 'system') {
             systemParts.push(message.content);
             continue;
@@ -282,12 +290,13 @@ export function getStructuredOutputToolName<TSchema extends SchemaInput>(
 }
 
 export function createStructuredOutputOptions<TSchema extends SchemaInput>(
-    options: GenerateObjectOptions<TSchema>
+    options: GenerateObjectOptions<TSchema>,
+    provider = DEFAULT_PROVIDER_ID
 ): GenerateOptions {
     const toolName = getStructuredOutputToolName(options);
 
     return {
-        messages: options.messages,
+        messages: getStructuredOutputMessages(options.messages, provider),
         reasoning: options.reasoning,
         tools: {
             structured_output: {
@@ -375,9 +384,17 @@ export function createGenerateRequest(
         googleOptions,
         provider
     );
-    if (options.tools) {
+    const tools = getEmulatedToolSet(
+        options.tools,
+        resolveToolDiscovery(options, {
+            capabilities,
+            providerId: provider,
+            modelId,
+        })
+    );
+    if (tools) {
         validateToolSchemaStrictness({
-            tools: options.tools,
+            tools,
             capabilities,
             providerId: provider,
             modelId,
@@ -388,8 +405,8 @@ export function createGenerateRequest(
         ...(convertedMessages.systemInstruction
             ? { systemInstruction: convertedMessages.systemInstruction }
             : {}),
-        ...(options.tools && Object.keys(options.tools).length > 0
-            ? { tools: convertTools(options.tools) }
+        ...(tools && Object.keys(tools).length > 0
+            ? { tools: convertTools(tools) }
             : {}),
         ...(options.toolChoice
             ? { toolConfig: convertToolChoice(options.toolChoice) }
@@ -502,17 +519,23 @@ export function mapGenerateResponse(
         content: content.length > 0 ? content : null,
         reasoning: reasoning.length > 0 ? reasoning : null,
         toolCalls,
+        discoveryCalls: [],
         finishReason: toolCalls.length > 0 ? 'tool-calls' : finishReason,
         usage: mapUsage(response),
     };
 }
 
+/**
+ * Gemini may omit function call ids or leave them empty. A generated id
+ * keeps every call of a conversation distinct, so each result pairs with its
+ * own call.
+ */
 function mapFunctionCall(
     toolCall: GoogleFunctionCall,
     index: number
 ): ToolCall {
     return {
-        id: toolCall.id ?? `tool-${index}`,
+        id: toolCall.id || `call_${crypto.randomUUID()}`,
         name: toolCall.name ?? `tool-${index}`,
         arguments: asObject(toolCall.args),
     };
@@ -762,8 +785,8 @@ function extractAssistantParts(
     response: GenerateContentResponse
 ): AssistantContentPart[] {
     const parts: AssistantContentPart[] = [];
-    const seenToolCalls = new Set<string>();
     const candidateParts = response.candidates?.[0]?.content?.parts ?? [];
+    let functionCallCount = 0;
 
     for (const part of candidateParts) {
         if (part.thought) {
@@ -785,23 +808,19 @@ function extractAssistantParts(
         }
 
         if (part.functionCall) {
-            const toolCall = mapFunctionCall(part.functionCall, 0);
-            const key = `${toolCall.id}:${toolCall.name}`;
-            if (!seenToolCalls.has(key)) {
-                seenToolCalls.add(key);
-                const thoughtSignature = readThoughtSignature(part);
-                parts.push({
-                    type: 'tool-call',
-                    toolCall,
-                    ...(thoughtSignature
-                        ? {
-                              providerMetadata: {
-                                  google: { thoughtSignature },
-                              },
-                          }
-                        : {}),
-                });
-            }
+            const thoughtSignature = readThoughtSignature(part);
+            parts.push({
+                type: 'tool-call',
+                toolCall: mapFunctionCall(part.functionCall, functionCallCount),
+                ...(thoughtSignature
+                    ? {
+                          providerMetadata: {
+                              google: { thoughtSignature },
+                          },
+                      }
+                    : {}),
+            });
+            functionCallCount += 1;
             continue;
         }
 
@@ -813,19 +832,17 @@ function extractAssistantParts(
         }
     }
 
-    for (const [index, functionCall] of (
-        response.functionCalls ?? []
-    ).entries()) {
-        const toolCall = mapFunctionCall(functionCall, index);
-        const key = `${toolCall.id}:${toolCall.name}`;
-        if (seenToolCalls.has(key)) {
-            continue;
+    // The SDK derives `functionCalls` from the candidate parts, so it only
+    // adds calls when the response has no function call parts.
+    if (functionCallCount === 0) {
+        for (const [index, functionCall] of (
+            response.functionCalls ?? []
+        ).entries()) {
+            parts.push({
+                type: 'tool-call',
+                toolCall: mapFunctionCall(functionCall, index),
+            });
         }
-        seenToolCalls.add(key);
-        parts.push({
-            type: 'tool-call',
-            toolCall,
-        });
     }
 
     if (parts.length === 0) {

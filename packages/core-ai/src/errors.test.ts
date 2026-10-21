@@ -206,6 +206,24 @@ describe('ValidationError', () => {
         expect(error.message).toContain('supports at most 1 strict tool');
     });
 
+    it('should expose union parameter limit details', () => {
+        const error = new ToolSchemaStrictnessError({
+            providerId: 'anthropic',
+            modelId: 'claude-haiku-4-5',
+            toolNames: ['a', 'b'],
+            reason: 'union-limit-exceeded',
+            maxUnionParameters: 16,
+            unionParameterCount: 18,
+        });
+
+        expect(error.reason).toBe('union-limit-exceeded');
+        expect(error.maxUnionParameters).toBe(16);
+        expect(error.unionParameterCount).toBe(18);
+        expect(error.message).toBe(
+            'anthropic model "claude-haiku-4-5" supports at most 16 union-typed parameters across strict tools, but received 18 in "a", "b"'
+        );
+    });
+
     it('should list every schema-contract violation in the message', () => {
         const error = new ToolSchemaStrictnessError({
             providerId: 'openai',
