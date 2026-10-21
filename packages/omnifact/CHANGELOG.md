@@ -1,5 +1,24 @@
 # @core-ai/omnifact
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Support tool discovery by emulation: the discovery tool and discovered tools are declared as ordinary function tools.
+
+### Patch Changes
+
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/openai@0.36.0
+    - @core-ai/core-ai@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes

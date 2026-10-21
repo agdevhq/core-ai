@@ -1,5 +1,21 @@
 # @core-ai/anthropic
 
+## 0.36.0
+
+### Minor Changes
+
+- aa18a92: Strict-capable Claude models report `maxUnionParameters: 16`, so strict tools with more than 16 union-typed parameters in total, nullable keys included, throw `ToolSchemaStrictnessError` locally instead of failing with a provider error.
+- aa18a92: Support tool discovery natively on Claude 4.5 models and later: discovered tools are declared with `defer_loading` and loaded by `tool_reference` blocks, which keeps the prompt cache intact, and a never-referenced deferred placeholder keeps deferred loading active for the whole conversation. Older models emulate discovery with ordinary tools. The `emulateToolDiscovery` provider option forces emulation.
+- aa18a92: Discovery results accept `providerOptions.anthropic.cacheControl` (augmenting `ToolDiscoveryResultMessageProviderOptions`, with the new `AnthropicToolDiscoveryResultMessageProviderOptions` type and schema), natively and emulated, so a step that ends with a discovery result can carry an explicit cache breakpoint. It counts toward the 4-breakpoint limit like any other.
+
+### Patch Changes
+
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+- Updated dependencies [aa18a92]
+    - @core-ai/core-ai@0.36.0
+
 ## 0.35.0
 
 ### Minor Changes
