@@ -55,6 +55,14 @@ const googleVertex = createGoogleVertex({
     `credentials` are not used.
 </ParamField>
 
+<ParamField path="maxRetries" type="number" default="2" optional>
+    How often to retry a chat request that fails transiently (rate limit,
+    overload, 5xx, network failure) before the response starts, with exponential
+    backoff or the provider's `Retry-After` of up to 20 seconds. Failures after
+    a stream has started are never retried. Set `0` to disable. Applies to a
+    supplied `client` too.
+</ParamField>
+
 ### Returns
 
 `GoogleVertexProvider` with `chatModel()`, `embeddingModel()`, and `imageModel()` methods.
