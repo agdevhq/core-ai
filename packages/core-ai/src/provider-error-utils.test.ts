@@ -5,8 +5,13 @@ import {
     getRetryAfterSecondsFromError,
     isRateLimitStatus,
     isTransientUnavailableStatus,
+    isTransportError,
     parseRetryAfterSeconds,
 } from './provider-error-utils.ts';
+
+function withCode(message: string, code: string): Error {
+    return Object.assign(new Error(message), { code });
+}
 
 describe('status helpers', () => {
     it('recognizes rate-limit and transient unavailable statuses', () => {
@@ -76,5 +81,48 @@ describe('error helper utilities', () => {
             })
         ).toBe(3);
         expect(getRetryAfterSecondsFromError(new Error('x'))).toBeUndefined();
+    });
+});
+
+describe('isTransportError', () => {
+    it('finds a transport code on the error itself', () => {
+        expect(isTransportError(withCode('reset', 'ECONNRESET'))).toBe(true);
+    });
+
+    it('finds a transport code nested in the cause chain', () => {
+        const error = new TypeError('fetch failed', {
+            cause: withCode('Headers Timeout Error', 'UND_ERR_HEADERS_TIMEOUT'),
+        });
+        const wrapped = new Error('request failed', { cause: error });
+
+        expect(isTransportError(wrapped)).toBe(true);
+    });
+
+    it('finds a transport code inside an AggregateError', () => {
+        const error = new TypeError('fetch failed', {
+            cause: new AggregateError([
+                new Error('unrelated'),
+                withCode('connect timeout', 'UND_ERR_CONNECT_TIMEOUT'),
+            ]),
+        });
+
+        expect(isTransportError(error)).toBe(true);
+    });
+
+    it('rejects errors without a transport code', () => {
+        expect(isTransportError(new TypeError('x is not a function'))).toBe(
+            false
+        );
+        expect(isTransportError(withCode('denied', 'EACCES'))).toBe(false);
+        expect(isTransportError({ code: 429 })).toBe(false);
+        expect(isTransportError(undefined)).toBe(false);
+    });
+
+    it('stops on cyclic cause chains', () => {
+        const first = new Error('first');
+        const second = new Error('second', { cause: first });
+        Object.assign(first, { cause: second });
+
+        expect(isTransportError(first)).toBe(false);
     });
 });
