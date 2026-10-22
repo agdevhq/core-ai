@@ -16,6 +16,12 @@ export type GoogleGenAIProviderBaseOptions = {
     apiVersion?: string;
     baseUrl?: string;
     client?: GoogleGenAIClient;
+    /**
+     * Retries of chat requests that fail transiently (rate limit, overload,
+     * 5xx, network failure) before the response starts. Defaults to 2;
+     * `0` disables them.
+     */
+    maxRetries?: number;
 };
 
 export type GoogleGenAIProviderFactoryOptions = {
@@ -51,7 +57,9 @@ export function createGoogleGenAIProvider(
 
     return {
         chatModel: (modelId) =>
-            createGoogleGenAIChatModel(client, modelId, providerId),
+            createGoogleGenAIChatModel(client, modelId, providerId, {
+                maxRetries: options.maxRetries,
+            }),
         embeddingModel: (modelId) =>
             createGoogleGenAIEmbeddingModel(client, modelId, providerId),
         imageModel: (modelId) =>

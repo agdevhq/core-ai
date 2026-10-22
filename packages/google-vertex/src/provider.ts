@@ -16,6 +16,12 @@ export type GoogleVertexProviderOptions = {
     region?: string;
     credentials?: GoogleVertexServiceAccountCredentials;
     client?: GoogleGenAIClient;
+    /**
+     * Retries of chat requests that fail transiently (rate limit, overload,
+     * 5xx, network failure) before the response starts. Defaults to 2;
+     * `0` disables them.
+     */
+    maxRetries?: number;
 };
 
 export type GoogleVertexProvider = GoogleGenAIProvider;
@@ -26,7 +32,7 @@ export function createGoogleVertex(
     const client = options.client ?? createGoogleVertexClient(options);
 
     return createGoogleGenAIProvider(
-        { client },
+        { client, maxRetries: options.maxRetries },
         {
             providerId: PROVIDER_ID,
         }
