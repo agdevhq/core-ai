@@ -414,6 +414,8 @@ Each provider `wrap*Error` helper decides which subclass to throw from SDK-speci
 
 HTTP 429 is not always `RateLimitError`: billing quota (for example OpenAI `insufficient_quota`) remains a non-retryable `ProviderError`, while some capacity signals (for example Azure `NoCapacity`) map to `ModelOverloadedError`. `RateLimitError.retryAfterSeconds` may come from `Retry-After`, Azure `retry-after-ms`, or an HTTP-date `Retry-After` header.
 
+`isTransportError(error)` reports whether an error, or anything in its `cause` chain (including `AggregateError.errors`), carries a socket or Node fetch failure code (`UND_ERR_SOCKET`, `UND_ERR_HEADERS_TIMEOUT`, `UND_ERR_BODY_TIMEOUT`, `UND_ERR_CONNECT_TIMEOUT`, `ECONNRESET`, `ETIMEDOUT`, `EPIPE`). The Google provider uses it to map such failures to `ServiceUnavailableError`.
+
 ### Example
 
 ```typescript

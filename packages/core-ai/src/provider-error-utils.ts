@@ -79,6 +79,52 @@ export function isAbortErrorByName(error: unknown): boolean {
 }
 
 /**
+ * Socket-level and Node fetch (undici) failure codes: the connection dropped
+ * or timed out before or while the provider answered, so the provider never
+ * rejected the request itself.
+ */
+const TRANSPORT_ERROR_CODES = new Set([
+    'UND_ERR_SOCKET',
+    'UND_ERR_HEADERS_TIMEOUT',
+    'UND_ERR_BODY_TIMEOUT',
+    'UND_ERR_CONNECT_TIMEOUT',
+    'ECONNRESET',
+    'ETIMEDOUT',
+    'EPIPE',
+]);
+
+/**
+ * Whether `error`, or anything in its `cause` chain (including
+ * `AggregateError.errors`), carries a transport failure code. Node fetch
+ * reports these as `TypeError: fetch failed` with the code on a nested cause.
+ */
+export function isTransportError(error: unknown): boolean {
+    const pending: unknown[] = [error];
+    const seen = new Set<unknown>();
+
+    while (pending.length > 0) {
+        const current = pending.pop();
+        const record = asRecord(current);
+        if (!record || seen.has(current)) {
+            continue;
+        }
+        seen.add(current);
+
+        const code = getString(record, 'code');
+        if (code !== undefined && TRANSPORT_ERROR_CODES.has(code)) {
+            return true;
+        }
+
+        pending.push(record.cause);
+        if (current instanceof AggregateError) {
+            pending.push(...current.errors);
+        }
+    }
+
+    return false;
+}
+
+/**
  * Parses retry delay from a `Headers` instance or plain header map.
  * Prefers Azure `retry-after-ms` (ceil ms → seconds), then `Retry-After`
  * as integer seconds or HTTP-date.

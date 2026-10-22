@@ -285,6 +285,19 @@ describe('wrapGoogleError', () => {
         expect((wrapped as RateLimitError).retryAfterSeconds).toBe(16);
     });
 
+    it('should map Node fetch transport failures to ServiceUnavailableError', () => {
+        const timeout = Object.assign(new Error('Headers Timeout Error'), {
+            name: 'HeadersTimeoutError',
+            code: 'UND_ERR_HEADERS_TIMEOUT',
+        });
+        const error = new TypeError('fetch failed', { cause: timeout });
+
+        const wrapped = wrapGoogleError(error, 'google-vertex');
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped.provider).toBe('google-vertex');
+        expect(wrapped.cause).toBe(error);
+    });
+
     it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapGoogleError(new Error('unexpected'));
         expect(wrapped).toBeInstanceOf(ProviderError);

@@ -7,6 +7,7 @@ import {
     type GoogleGenAI,
 } from '@google/genai';
 import {
+    AbortedError,
     ProviderError,
     RateLimitError,
     StructuredOutputValidationError,
@@ -831,8 +832,83 @@ describe('stream', () => {
             { type: 'text-start' },
             { type: 'text-delta', text: 'partial' },
         ]);
+        expect(generateContentStream).toHaveBeenCalledTimes(1);
+    });
+
+    it('should retry a streaming request that fails before the response starts', async () => {
+        vi.useFakeTimers();
+        try {
+            const generateContentStream = vi
+                .fn<() => Promise<AsyncIterable<GenerateContentResponse>>>()
+                .mockRejectedValueOnce(createHeadersTimeoutError())
+                .mockResolvedValueOnce(
+                    toAsyncIterable<GenerateContentResponse>([
+                        asGenerateContentResponse({
+                            text: 'Hello',
+                            candidates: [
+                                { finishReason: GoogleFinishReason.STOP },
+                            ],
+                        }),
+                    ])
+                );
+            const model = createGoogleGenAIChatModel(
+                createMockClient({ generateContentStream }),
+                'gemini-2.5-flash'
+            );
+
+            const chatStream = await model.stream({
+                messages: [{ role: 'user', content: 'hello' }],
+            });
+            await vi.runAllTimersAsync();
+
+            await expect(chatStream.result).resolves.toMatchObject({
+                content: 'Hello',
+                finishReason: 'stop',
+            });
+            expect(generateContentStream).toHaveBeenCalledTimes(2);
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('should stop retrying a streaming request when the caller aborts', async () => {
+        vi.useFakeTimers();
+        try {
+            const controller = new AbortController();
+            const generateContentStream = vi.fn(async () => {
+                throw createHeadersTimeoutError();
+            });
+            const model = createGoogleGenAIChatModel(
+                createMockClient({ generateContentStream }),
+                'gemini-2.5-flash'
+            );
+
+            const chatStream = await model.stream({
+                messages: [{ role: 'user', content: 'hello' }],
+                signal: controller.signal,
+            });
+            const rejection = expect(chatStream.result).rejects.toBeInstanceOf(
+                AbortedError
+            );
+            await vi.advanceTimersByTimeAsync(100);
+            controller.abort();
+
+            await rejection;
+            expect(generateContentStream).toHaveBeenCalledTimes(1);
+        } finally {
+            vi.useRealTimers();
+        }
     });
 });
+
+function createHeadersTimeoutError(): TypeError {
+    return new TypeError('fetch failed', {
+        cause: Object.assign(new Error('Headers Timeout Error'), {
+            name: 'HeadersTimeoutError',
+            code: 'UND_ERR_HEADERS_TIMEOUT',
+        }),
+    });
+}
 
 async function collectStreamEvents(
     stream: AsyncIterable<unknown>

@@ -14,6 +14,7 @@ import {
     isAbortErrorByName,
     isRateLimitStatus,
     isTransientUnavailableStatus,
+    isTransportError,
 } from '@core-ai/core-ai';
 
 /** Only honor capacity wording on 5xx — not ordinary 4xx / 429. */
@@ -50,6 +51,13 @@ export function wrapGoogleError(
     }
 
     const message = getErrorMessage(error);
+
+    // Node fetch failures (socket reset, headers/body timeout) carry no HTTP
+    // status: the request never got a provider answer, so it is transient.
+    if (isTransportError(error)) {
+        return new ServiceUnavailableError(message, provider, { cause: error });
+    }
+
     const statusCode =
         error instanceof ApiError
             ? error.status

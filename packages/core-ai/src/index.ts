@@ -113,6 +113,7 @@ export {
     getString,
     getHttpStatusCode,
     isAbortErrorByName,
+    isTransportError,
     parseRetryAfterSeconds,
     getRetryAfterSecondsFromError,
 } from './provider-error-utils.ts';
