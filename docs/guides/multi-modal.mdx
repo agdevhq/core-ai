@@ -167,6 +167,35 @@ const result = await generate({
 console.log('Comparison:', result.content);
 ```
 
+### Image limits
+
+Each provider caps how many images one request can carry, counted across the
+whole conversation history. Read `model.capabilities.input` to stay within the
+limit before you send:
+
+```typescript
+const maxImages = model.capabilities.input?.maxImages;
+
+if (maxImages !== undefined && imageCount > maxImages) {
+    // Drop the oldest images or split the request.
+}
+```
+
+| Provider          | `maxImages`                                |
+| ----------------- | ------------------------------------------ |
+| Anthropic         | 600 (1M-context models), 100 (200k models) |
+| OpenAI            | 1,500                                      |
+| Google Gemini API | 3,600                                      |
+| Google Vertex AI  | 3,000                                      |
+| Mistral           | 8                                          |
+
+On Anthropic, images and PDF pages share the limit, so `input.maxMedia` is set
+as well. `input` is absent when the limit is unknown, for example for
+unrecognized model IDs and on Azure OpenAI. Providers can also count document
+pages or video frames as images, so keep handling
+[`ImageCountExceededError`](/api/core/errors) for requests that still exceed
+the limit.
+
 ## Text and Images Together
 
 Mix text and images in any order:

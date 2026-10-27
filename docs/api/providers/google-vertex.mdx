@@ -154,7 +154,9 @@ for a single region that hosts it.
 ## Model capabilities
 
 Vertex-hosted Gemini models use the same capability definitions as Google
-GenAI. Inspect the model instance or use the exported helper:
+GenAI, except for the per-request image limit: `input.maxImages` is 3,000 on
+Vertex AI. Inspect the model instance or use the exported helper, which returns
+Vertex AI's limits:
 
 ```typescript
 import {

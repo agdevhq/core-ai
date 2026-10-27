@@ -391,6 +391,10 @@ type ModelCapabilities = {
     messages: {
         systemPlacement: SystemMessagePlacement;
     };
+    input?: {
+        maxImages: number;
+        maxMedia?: number;
+    };
     output?: {
         maxTokens: number;
     };
@@ -410,6 +414,8 @@ type ModelCapabilities = {
 | `tools.strictSchemas.maxUnionParameters` | Optional per-request limit on union-typed parameters across strict tools |
 | `tools.toolDiscovery`                    | Whether discovered tools are delivered natively or emulated              |
 | `messages.systemPlacement`               | Where system messages may appear after the first non-system message      |
+| `input.maxImages`                        | Verified limit on images in one request, across the message history      |
+| `input.maxMedia`                         | Limit that images and document pages share, where the provider has one   |
 | `output.maxTokens`                       | Verified output ceiling for one response, reasoning included             |
 
 `mode: 'unsupported'` means the provider does not map the unified `reasoning`
@@ -429,6 +435,13 @@ common presets `TEXT_ONLY_MODALITIES` (`text` in / `text` out) and
 `MULTIMODAL_INPUT_MODALITIES` (`text` + `image` + `file` in / `text` out).
 Providers that support `AudioPart` add `'audio'` to their input array. `'video'`
 is reserved until a dedicated user content part exists.
+
+`input` is present only when the provider has a verified per-request limit for
+the model id on the host it serves. A missing `input` means the limit is
+unknown, not that there is none. Wrappers that reuse another provider's model
+data on a different host, such as Azure OpenAI and OpenAI-compatible servers,
+do not report it. Providers can count document pages and video frames against
+`maxImages`, so a request with fewer image parts can still exceed it.
 
 `output` is present only when the provider has a verified output ceiling for
 the model id. It is the limit an omitted `maxTokens` resolves to. A missing
