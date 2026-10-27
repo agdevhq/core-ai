@@ -4,6 +4,7 @@ import { DEFAULT_PROVIDER_ID } from './chat-adapter.ts';
 import { createGoogleGenAIChatModel } from './chat-model.ts';
 import { createGoogleGenAIEmbeddingModel } from './embedding-model.ts';
 import { createGoogleGenAIImageModel } from './image-model.ts';
+import type { GooglePlatform } from './model-capabilities.ts';
 
 export { DEFAULT_PROVIDER_ID };
 
@@ -20,6 +21,8 @@ export type GoogleGenAIProviderBaseOptions = {
 
 export type GoogleGenAIProviderFactoryOptions = {
     providerId?: string;
+    /** Selects the host-specific limits in model capabilities. */
+    platform?: GooglePlatform;
 };
 
 export type GoogleGenAIProviderOptions = GoogleGenAIProviderBaseOptions;
@@ -51,7 +54,12 @@ export function createGoogleGenAIProvider(
 
     return {
         chatModel: (modelId) =>
-            createGoogleGenAIChatModel(client, modelId, providerId),
+            createGoogleGenAIChatModel(
+                client,
+                modelId,
+                providerId,
+                factoryOptions.platform
+            ),
         embeddingModel: (modelId) =>
             createGoogleGenAIEmbeddingModel(client, modelId, providerId),
         imageModel: (modelId) =>

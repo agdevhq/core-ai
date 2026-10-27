@@ -225,3 +225,33 @@ describe('output ceilings', () => {
         );
     });
 });
+
+describe('input limits', () => {
+    it.each([
+        'gemini-4-argon',
+        'gemini-3.8-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-pro-preview',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash-20260215',
+    ])('should report the per-host image limit for %s', (modelId) => {
+        expect(getGoogleModelCapabilities(modelId).input).toEqual({
+            maxImages: 3600,
+        });
+        expect(getGoogleModelCapabilities(modelId, 'gemini-api').input).toEqual(
+            { maxImages: 3600 }
+        );
+        expect(getGoogleModelCapabilities(modelId, 'vertex').input).toEqual({
+            maxImages: 3000,
+        });
+    });
+
+    it('should leave the limit unknown for unrecognized models', () => {
+        expect(getGoogleModelCapabilities('gemini-custom').input).toBe(
+            undefined
+        );
+        expect(
+            getGoogleModelCapabilities('gemini-3.1-flash-image', 'vertex').input
+        ).toBe(undefined);
+    });
+});

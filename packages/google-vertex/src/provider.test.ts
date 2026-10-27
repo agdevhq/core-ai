@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { ProviderError, ToolSchemaStrictnessError } from '@core-ai/core-ai';
 import type { GoogleGenAIClient } from '@core-ai/google-genai';
 
-import { createGoogleVertex } from './provider.ts';
+import { createGoogleVertex, getGoogleModelCapabilities } from './provider.ts';
 
 const {
     googleGenAIConstructor,
@@ -119,6 +119,18 @@ describe('createGoogleVertex', () => {
 
         expect(model.capabilities.tools.strictSchemas).toEqual({
             supported: false,
+        });
+    });
+
+    it('should expose the Vertex AI image limit', () => {
+        const model = createGoogleVertex({
+            projectId: 'my-project',
+            region: 'europe-west1',
+        }).chatModel('gemini-2.5-flash');
+
+        expect(model.capabilities.input).toEqual({ maxImages: 3000 });
+        expect(getGoogleModelCapabilities('gemini-2.5-flash').input).toEqual({
+            maxImages: 3000,
         });
     });
 

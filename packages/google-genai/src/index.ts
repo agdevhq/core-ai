@@ -9,6 +9,7 @@ export type {
 export type { GoogleReasoningMetadata } from './chat-adapter.ts';
 export type {
     GoogleModelCapabilities,
+    GooglePlatform,
     GoogleThinkingBudgetRange,
 } from './model-capabilities.ts';
 export { getGoogleModelCapabilities } from './model-capabilities.ts';
