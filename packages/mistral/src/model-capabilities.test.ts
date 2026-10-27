@@ -188,3 +188,32 @@ describe('getMistralModelCapabilities', () => {
         ).toEqual(['text', 'image', 'file']);
     });
 });
+
+describe('input limits', () => {
+    it.each([
+        'mistral-large-latest',
+        'mistral-large-2512',
+        'mistral-medium-2505',
+        'mistral-small-latest',
+        'magistral-medium-2509',
+        'pixtral-12b-latest',
+        'ministral-8b-2512',
+    ])('should report the Mistral image limit for %s', (modelId) => {
+        expect(getMistralModelCapabilities(modelId).input).toEqual({
+            maxImages: 8,
+        });
+    });
+
+    it.each(['codestral-latest', 'mistral-large-2411', 'zai-glm-5'])(
+        'should report no image limit for text-only model %s',
+        (modelId) => {
+            expect(getMistralModelCapabilities(modelId).input).toBeUndefined();
+        }
+    );
+
+    it('should leave the limit unknown for unrecognized models', () => {
+        expect(
+            getMistralModelCapabilities('self-hosted-model').input
+        ).toBeUndefined();
+    });
+});
