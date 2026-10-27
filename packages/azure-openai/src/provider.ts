@@ -4,6 +4,7 @@ import {
     createOpenAIChatCompletionsModel,
     createOpenAIProvider,
     getOpenAIModelCapabilities,
+    omitOpenAIInputLimits,
     openaiChatGenerateProviderOptionsSchema,
     type OpenAIChatClient,
 } from '@core-ai/openai';
@@ -54,7 +55,10 @@ export function createAzureOpenAI(
         const chat = {
             chatModel: (modelId: string) =>
                 createOpenAIChatCompletionsModel(client, modelId, {
-                    capabilities: getOpenAIModelCapabilities(modelId),
+                    // Azure's image limits differ from OpenAI's.
+                    capabilities: omitOpenAIInputLimits(
+                        getOpenAIModelCapabilities(modelId)
+                    ),
                     providerId: PROVIDER_ID,
                     providerOptions: {
                         key: PROVIDER_ID,

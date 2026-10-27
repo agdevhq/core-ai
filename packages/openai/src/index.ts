@@ -17,7 +17,10 @@ export type { OpenAIReasoningTokenAccounting } from './shared/usage.ts';
 export { createOpenAIChatCompletionsModel } from './chat-completions/chat-model.ts';
 export type { OpenAIReasoningMetadata } from './chat-adapter.ts';
 export type { OpenAIModelCapabilities } from './model-capabilities.ts';
-export { getOpenAIModelCapabilities } from './model-capabilities.ts';
+export {
+    getOpenAIModelCapabilities,
+    omitOpenAIInputLimits,
+} from './model-capabilities.ts';
 export {
     openaiResponsesGenerateProviderOptionsSchema,
     openaiChatGenerateProviderOptionsSchema,

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     getOpenAIModelCapabilities,
     normalizeModelId,
+    omitOpenAIInputLimits,
     toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
 } from './model-capabilities.ts';
@@ -367,5 +368,41 @@ describe('toOpenAIReasoningEffort', () => {
             toOpenAIReasoningEffort('max', 'ft:gpt-6-luna:acme::abc123')
         ).toBe('max');
         expect(toOpenAIReasoningEffort('high', 'gpt-6-luna')).toBe('high');
+    });
+});
+
+describe('input limits', () => {
+    it.each([
+        'gpt-6.1-sol',
+        'gpt-5.5',
+        'gpt-5.5-2026-04-23',
+        'gpt-5-pro',
+        'o3',
+        'gpt-4.1-mini',
+        'gpt-4o',
+        'gpt-4-turbo',
+        'ft:gpt-4o-mini-2024-07-18:acme:support:abc123',
+    ])('should report the OpenAI image limit for %s', (modelId) => {
+        expect(getOpenAIModelCapabilities(modelId).input).toEqual({
+            maxImages: 1500,
+        });
+    });
+
+    it.each([
+        'o3-mini',
+        'o1-mini',
+        'gpt-3.5-turbo',
+        'gpt-audio',
+        'gpt-4o-audio-preview',
+        'custom-model',
+    ])('should report no image limit for %s', (modelId) => {
+        expect(getOpenAIModelCapabilities(modelId).input).toBeUndefined();
+    });
+
+    it('should drop input limits without changing other capabilities', () => {
+        const capabilities = getOpenAIModelCapabilities('gpt-5.5');
+        const { input: _input, ...rest } = capabilities;
+
+        expect(omitOpenAIInputLimits(capabilities)).toEqual(rest);
     });
 });

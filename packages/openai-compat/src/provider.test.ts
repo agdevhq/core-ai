@@ -200,6 +200,14 @@ describe('createOpenAICompat', () => {
         expect(request.user).toBeUndefined();
     });
 
+    it('should not inherit the OpenAI image limit for registered model ids', () => {
+        const model = createOpenAICompat({
+            client: createMockClient(vi.fn()),
+        }).chatModel('gpt-4o');
+
+        expect(model.capabilities.input).toBeUndefined();
+    });
+
     it('should forward strict tools optimistically', async () => {
         const create = vi.fn(async (_request: unknown) =>
             createChatCompletion({ content: 'answer' })

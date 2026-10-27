@@ -62,6 +62,19 @@ describe('createOpenAI', () => {
         });
     });
 
+    it('should expose the OpenAI image limit on both APIs', () => {
+        const provider = createOpenAI({
+            client: createMockClient(),
+        });
+
+        expect(provider.chatModel('gpt-5.5').capabilities.input).toEqual({
+            maxImages: 1500,
+        });
+        expect(provider.chat.chatModel('gpt-5.5').capabilities.input).toEqual({
+            maxImages: 1500,
+        });
+    });
+
     it('should use a shared client instance across model types', async () => {
         const responsesCreate = vi.fn(async () => ({
             output: [

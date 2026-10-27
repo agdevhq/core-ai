@@ -14,6 +14,7 @@ import { createOpenAIEmbeddingModel } from '../embedding-model.ts';
 import { createOpenAIImageModel } from '../image-model.ts';
 import {
     getOpenAIModelCapabilities,
+    omitOpenAIInputLimits,
     toOpenAIResponsesCapabilities,
 } from '../model-capabilities.ts';
 import {
@@ -76,11 +77,13 @@ export function createOpenAIProvider(
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
             : undefined;
+    // Without its own registry the provider targets another host, which
+    // reuses OpenAI model knowledge but not OpenAI's input limits.
     const resolveCapabilities = (modelId: string): ModelCapabilities =>
         getRegisteredModelCapabilities(
             factoryOptions.modelCapabilities,
             modelId
-        ) ?? getOpenAIModelCapabilities(modelId);
+        ) ?? omitOpenAIInputLimits(getOpenAIModelCapabilities(modelId));
     const createResponsesModel = (modelId: string) =>
         createOpenAIChatModel(
             client,
