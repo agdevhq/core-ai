@@ -1256,7 +1256,7 @@ describe('reasoning support', () => {
         });
     });
 
-    it.each(['gpt-6.1-sol', 'gpt-6-astra'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
         'should send max effort for %s',
         (modelId) => {
             const maxRequest = createGenerateRequest(modelId, {
@@ -1267,7 +1267,7 @@ describe('reasoning support', () => {
         }
     );
 
-    it.each(['gpt-6.1-sol', 'gpt-6-sol'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol'])(
         'should clamp minimal effort to low for %s',
         (modelId) => {
             const clamped = createGenerateRequest(modelId, {
@@ -1278,7 +1278,7 @@ describe('reasoning support', () => {
         }
     );
 
-    it.each(['gpt-6.1-sol', 'gpt-6-luna'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna'])(
         'should reject sampling params for %s when reasoning stays enabled',
         (modelId) => {
             expect(() =>
@@ -1290,7 +1290,7 @@ describe('reasoning support', () => {
         }
     );
 
-    it.each(['gpt-6.1-sol', 'gpt-6-astra'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
         'should reject Chat Completions tools for %s',
         (modelId) => {
             expect(() =>
