@@ -740,7 +740,7 @@ describe('createGenerateRequest', () => {
         });
     });
 
-    it.each(['gpt-6.1-sol', 'gpt-6-sol'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol'])(
         'should request encrypted reasoning and forward tools for %s without an effort override',
         (modelId) => {
             const request = createGenerateRequest(modelId, {
@@ -760,7 +760,7 @@ describe('createGenerateRequest', () => {
         }
     );
 
-    it.each(['gpt-6.1-sol', 'gpt-6-astra'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
         'should send max effort for %s',
         (modelId) => {
             const maxRequest = createGenerateRequest(modelId, {
@@ -774,7 +774,7 @@ describe('createGenerateRequest', () => {
         }
     );
 
-    it.each(['gpt-6.1-sol', 'gpt-6-luna'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna'])(
         'should clamp minimal effort to low for %s',
         (modelId) => {
             const clamped = createGenerateRequest(modelId, {
@@ -788,7 +788,7 @@ describe('createGenerateRequest', () => {
         }
     );
 
-    it.each(['gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-luna'])(
+    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra', 'gpt-6-luna'])(
         'should reject sampling params for %s even when reasoning is omitted',
         (modelId) => {
             expect(() =>
