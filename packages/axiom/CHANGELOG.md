@@ -1,5 +1,11 @@
 # @core-ai/axiom
 
+## 0.36.1
+
+### Patch Changes
+
+- @core-ai/opentelemetry@0.36.1
+
 ## 0.36.0
 
 ### Patch Changes

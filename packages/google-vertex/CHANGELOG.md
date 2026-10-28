@@ -1,5 +1,12 @@
 # @core-ai/google-vertex
 
+## 0.36.1
+
+### Patch Changes
+
+- @core-ai/core-ai@0.36.1
+- @core-ai/google-genai@0.36.1
+
 ## 0.36.0
 
 ### Minor Changes

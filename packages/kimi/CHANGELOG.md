@@ -1,5 +1,13 @@
 # @core-ai/kimi
 
+## 0.36.1
+
+### Patch Changes
+
+- Updated dependencies [6ccfc5a]
+    - @core-ai/openai@0.36.1
+    - @core-ai/core-ai@0.36.1
+
 ## 0.36.0
 
 ### Minor Changes
