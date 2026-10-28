@@ -191,7 +191,8 @@ if (maxImages !== undefined && imageCount > maxImages) {
 
 On Anthropic, images and PDF pages share the limit, so `input.maxMedia` is set
 as well. `input` is absent when the limit is unknown, for example for
-unrecognized model IDs and on Azure OpenAI. Providers can also count document
+unrecognized model IDs, on Azure OpenAI, and when an OpenAI `baseURL` points
+at another server. Providers can also count document
 pages or video frames as images, so keep handling
 [`ImageCountExceededError`](/api/core/errors) for requests that still exceed
 the limit.

@@ -438,9 +438,11 @@ is reserved until a dedicated user content part exists.
 
 `input` is present only when the provider has a verified per-request limit for
 the model id on the host it serves. A missing `input` means the limit is
-unknown, not that there is none. Wrappers that reuse another provider's model
-data on a different host, such as Azure OpenAI and OpenAI-compatible servers,
-do not report it. Providers can count document pages and video frames against
+unknown, not that there is none. A provider that reuses another provider's
+model data reports the limit only where its host documents it: Anthropic and
+Gemini on Vertex AI report one, while Azure OpenAI, OpenAI-compatible servers,
+and `createOpenAI()` with a `baseURL` outside OpenAI do not. Providers can
+count document pages and video frames against
 `maxImages`, so a request with fewer image parts can still exceed it.
 
 `output` is present only when the provider has a verified output ceiling for

@@ -165,8 +165,8 @@ import {
 } from '@core-ai/google-vertex';
 
 const googleVertex = createGoogleVertex({
-    project: 'my-project',
-    location: 'europe-west1',
+    projectId: 'my-project',
+    region: 'europe-west1',
 });
 const model = googleVertex.chatModel('gemini-2.5-flash');
 const capabilities = model.capabilities;
