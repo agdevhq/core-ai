@@ -1,5 +1,12 @@
 # @core-ai/anthropic
 
+## 0.36.2
+
+### Patch Changes
+
+- 52f79bd: Finish with `'tool-calls'` when a response completes tool calls but Claude stops with `end_turn` or `stop_sequence`, as the other providers do. Truncated tool calls keep their `'length'` finish.
+    - @core-ai/core-ai@0.36.2
+
 ## 0.36.1
 
 ### Patch Changes
