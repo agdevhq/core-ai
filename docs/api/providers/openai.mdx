@@ -388,6 +388,11 @@ GPT-6 families, `o1`, `o3`, `o3-pro`, and `o4-mini` (image sources: `base64` and
 IDs outside the registry allow image and file input but do not advertise audio.
 `modalities.output` is `['text']` for all chat models.
 
+`input.maxImages` is 1,500 for image-capable models when the client targets
+`api.openai.com` or a regional OpenAI host such as `eu.api.openai.com`. With a
+`baseURL` or client pointing anywhere else, `input` is absent, since that
+server enforces its own limit.
+
 ### Audio input
 
 Audio input is available only through Chat Completions:

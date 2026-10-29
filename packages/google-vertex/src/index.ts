@@ -1,4 +1,4 @@
-export { createGoogleVertex } from './provider.ts';
+export { createGoogleVertex, getGoogleModelCapabilities } from './provider.ts';
 export type {
     GoogleVertexEmbedProviderOptions,
     GoogleVertexGenerateProviderOptions,
@@ -10,7 +10,6 @@ export type {
     GoogleVertexServiceAccountCredentials,
 } from './provider.ts';
 export {
-    getGoogleModelCapabilities,
     googleEmbedProviderOptionsSchema,
     googleGenerateProviderOptionsSchema,
     googleImageProviderOptionsSchema,

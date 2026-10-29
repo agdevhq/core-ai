@@ -23,6 +23,27 @@ describe('createGoogleGenAI', () => {
         expect(imageModel.modelId).toBe('gemini-nano-banana-2.1');
     });
 
+    it('should report the image limit of the host the client targets', () => {
+        const geminiApi = createGoogleGenAI({ client: createMockClient() });
+        const vertex = createGoogleGenAI({
+            client: createMockClient({ vertexai: true }),
+        });
+        const overridden = createGoogleGenAIProvider(
+            { client: createMockClient({ vertexai: true }) },
+            { platform: 'gemini-api' }
+        );
+
+        expect(
+            geminiApi.chatModel('gemini-2.5-flash').capabilities.input
+        ).toEqual({ maxImages: 3600 });
+        expect(vertex.chatModel('gemini-2.5-flash').capabilities.input).toEqual(
+            { maxImages: 3000 }
+        );
+        expect(
+            overridden.chatModel('gemini-2.5-flash').capabilities.input
+        ).toEqual({ maxImages: 3600 });
+    });
+
     it('should use a shared client instance across model types', async () => {
         const generateContent = vi.fn(async () => ({
             text: 'ok',
@@ -109,6 +130,7 @@ describe('createGoogleGenAI', () => {
 function createMockClient(overrides?: {
     generateContent?: (options: unknown) => Promise<unknown>;
     embedContent?: (options: unknown) => Promise<unknown>;
+    vertexai?: boolean;
 }): GoogleGenAI {
     const generateContent =
         overrides?.generateContent ??
@@ -129,5 +151,6 @@ function createMockClient(overrides?: {
             },
             embedContent,
         },
+        vertexai: overrides?.vertexai ?? false,
     } as unknown as GoogleGenAI;
 }

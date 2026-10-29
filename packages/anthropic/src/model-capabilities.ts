@@ -34,9 +34,13 @@ function createCapabilities(
     toolDiscovery: ToolDiscoverySupport,
     reasoningMode: 'optional' | 'always-on',
     systemPlacement: SystemMessagePlacement,
-    maxOutputTokens: number | undefined
+    maxOutputTokens: number | undefined,
+    maxMedia: number | undefined
 ): AnthropicModelCapabilities {
     return {
+        ...(maxMedia === undefined
+            ? {}
+            : { input: { maxImages: maxMedia, maxMedia } }),
         ...(maxOutputTokens === undefined
             ? {}
             : { output: { maxTokens: maxOutputTokens } }),
@@ -222,6 +226,43 @@ const MAX_OUTPUT_TOKENS: Record<string, number> = {
 };
 
 /**
+ * Per-request ceiling shared by images and PDF pages: 600 for models with a
+ * 1M-token context window, 100 for 200k models (Anthropic's vision and
+ * context-windows docs). Anthropic documents the same split on Vertex AI and
+ * Bedrock.
+ */
+const MAX_MEDIA_PER_REQUEST: Record<string, number> = {
+    'claude-fable-5-1': 600,
+    'claude-mythos-5-1': 600,
+    'claude-fable-5': 600,
+    'claude-mythos-5': 600,
+    'claude-mythos-preview': 600,
+    'claude-opus-5-5': 600,
+    'claude-opus-5': 600,
+    'claude-opus-4-8': 600,
+    'claude-opus-4-7': 600,
+    'claude-opus-4-6': 600,
+    'claude-sonnet-5-5': 600,
+    'claude-sonnet-5': 600,
+    'claude-sonnet-4-6': 600,
+    'claude-haiku-5-5': 600,
+    'claude-opus-4-5': 100,
+    'claude-sonnet-4-5': 100,
+    'claude-haiku-4-5': 100,
+    'claude-opus-4-1': 100,
+    'claude-opus-4': 100,
+    'claude-sonnet-4': 100,
+    'claude-sonnet-3-7': 100,
+    'claude-3-7-sonnet': 100,
+    'claude-3-5-sonnet-v2': 100,
+    'claude-3-5-sonnet': 100,
+    'claude-3-5-haiku': 100,
+    'claude-3-opus': 100,
+    'claude-3-sonnet': 100,
+    'claude-3-haiku': 100,
+};
+
+/**
  * core-ai's own effort ladder for manual thinking; Anthropic only requires
  * 1,024 <= budget_tokens < max_tokens. The lower efforts are fixed. `high` and
  * `max` take half and three quarters of the model's output ceiling, so every
@@ -254,7 +295,8 @@ export function getAnthropicModelCapabilities(
         supportsAnthropicNativeToolDiscovery(modelId) ? 'native' : 'emulated',
         isAnthropicThinkingAlwaysOn(modelId) ? 'always-on' : 'optional',
         getAnthropicSystemPlacement(modelId),
-        MAX_OUTPUT_TOKENS[normalizeModelId(modelId)]
+        MAX_OUTPUT_TOKENS[normalizeModelId(modelId)],
+        MAX_MEDIA_PER_REQUEST[normalizeModelId(modelId)]
     );
 }
 

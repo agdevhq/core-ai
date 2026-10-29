@@ -26,15 +26,19 @@ import {
     transformStream,
 } from './chat-adapter.ts';
 import { wrapGoogleError } from './google-error.ts';
-import { getGoogleModelCapabilities } from './model-capabilities.ts';
+import {
+    getGoogleModelCapabilities,
+    type GooglePlatform,
+} from './model-capabilities.ts';
 import type { GoogleGenAIClient } from './provider.ts';
 
 export function createGoogleGenAIChatModel(
     client: GoogleGenAIClient,
     modelId: string,
-    provider = 'google'
+    provider = 'google',
+    platform: GooglePlatform = 'gemini-api'
 ): ChatModel {
-    const capabilities = getGoogleModelCapabilities(modelId);
+    const capabilities = getGoogleModelCapabilities(modelId, platform);
     const adapterOptions = { capabilities };
 
     async function callGenerateContentApi(

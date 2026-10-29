@@ -14,6 +14,7 @@ import { createOpenAIEmbeddingModel } from '../embedding-model.ts';
 import { createOpenAIImageModel } from '../image-model.ts';
 import {
     getOpenAIModelCapabilities,
+    omitOpenAIInputLimits,
     toOpenAIResponsesCapabilities,
 } from '../model-capabilities.ts';
 import {
@@ -76,11 +77,23 @@ export function createOpenAIProvider(
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
             : undefined;
-    const resolveCapabilities = (modelId: string): ModelCapabilities =>
-        getRegisteredModelCapabilities(
+    // OpenAI's input limits describe api.openai.com only. Other servers that
+    // speak the same API (Azure, proxies, self-hosted) enforce their own.
+    const servesOpenAIInputLimits = isOpenAIHost(client.baseURL);
+    const resolveCapabilities = (modelId: string): ModelCapabilities => {
+        const registered = getRegisteredModelCapabilities(
             factoryOptions.modelCapabilities,
             modelId
-        ) ?? getOpenAIModelCapabilities(modelId);
+        );
+        if (registered) {
+            return registered;
+        }
+
+        const capabilities = getOpenAIModelCapabilities(modelId);
+        return servesOpenAIInputLimits
+            ? capabilities
+            : omitOpenAIInputLimits(capabilities);
+    };
     const createResponsesModel = (modelId: string) =>
         createOpenAIChatModel(
             client,
@@ -145,4 +158,19 @@ export function createOpenAIProvider(
             createOpenAIEmbeddingModel(client, modelId),
         imageModel: (modelId) => createOpenAIImageModel(client, modelId),
     };
+}
+
+const OPENAI_API_HOSTNAME = 'api.openai.com';
+
+/** `api.openai.com` and its regional hosts, such as `eu.api.openai.com`. */
+function isOpenAIHost(baseURL: string | undefined): boolean {
+    if (!baseURL || !URL.canParse(baseURL)) {
+        return false;
+    }
+
+    const { hostname } = new URL(baseURL);
+    return (
+        hostname === OPENAI_API_HOSTNAME ||
+        hostname.endsWith(`.${OPENAI_API_HOSTNAME}`)
+    );
 }

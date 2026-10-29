@@ -1,8 +1,10 @@
 import { GoogleGenAI, type GoogleGenAIOptions } from '@google/genai';
 import {
     createGoogleGenAIProvider,
+    getGoogleModelCapabilities as getGoogleGenAIModelCapabilities,
     type GoogleGenAIClient,
     type GoogleGenAIProvider,
+    type GoogleModelCapabilities,
 } from '@core-ai/google-genai';
 
 const PROVIDER_ID = 'google-vertex';
@@ -29,8 +31,16 @@ export function createGoogleVertex(
         { client },
         {
             providerId: PROVIDER_ID,
+            platform: 'vertex',
         }
     );
+}
+
+/** Model capabilities with Vertex AI's limits, as on `chatModel(modelId)`. */
+export function getGoogleModelCapabilities(
+    modelId: string
+): GoogleModelCapabilities {
+    return getGoogleGenAIModelCapabilities(modelId, 'vertex');
 }
 
 function createGoogleVertexClient(

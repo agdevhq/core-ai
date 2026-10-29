@@ -56,6 +56,23 @@ const PRO_EFFORTS = [
 ] as const satisfies readonly ReasoningEffort[];
 const HIGH_EFFORT = ['high'] as const satisfies readonly ReasoningEffort[];
 
+/**
+ * OpenAI's per-request image limit, the same for every image-capable model on
+ * the Responses and Chat Completions APIs ("Up to 1,500 images per request",
+ * images-and-vision guide). It describes api.openai.com only.
+ */
+const OPENAI_INPUT_LIMITS = {
+    maxImages: 1500,
+} as const satisfies ModelCapabilities['input'];
+
+function getInputLimits(
+    modalities: ModelCapabilities['modalities']
+): Pick<ModelCapabilities, 'input'> {
+    return modalities.input.includes('image')
+        ? { input: OPENAI_INPUT_LIMITS }
+        : {};
+}
+
 const OPENAI_AUDIO_INPUT_MODALITIES = {
     input: ['text', 'audio'],
     output: ['text'],
@@ -90,6 +107,7 @@ function createCapabilities({
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        ...getInputLimits(modalities),
         tools: {
             strictSchemas: strictToolSchemas,
             toolDiscovery: 'emulated',
@@ -124,12 +142,15 @@ const DEFAULT_CAPABILITIES = createCapabilities({
 // Unknown model ids (brand-new releases, fine-tunes of unregistered bases)
 // keep strict schemas supported: strict is per-tool opt-in, so an explicit
 // `strict: true` is forwarded optimistically and the API rejects it if
-// genuinely unsupported.
-const UNKNOWN_MODEL_CAPABILITIES = createCapabilities({
-    supportedEfforts: STANDARD_EFFORTS,
-    restrictsSamplingParams: false,
-    maxTokensParameter: 'max_tokens',
-});
+// genuinely unsupported. They carry no image limit, since OpenAI's is only
+// verified for its own models.
+const UNKNOWN_MODEL_CAPABILITIES = omitOpenAIInputLimits(
+    createCapabilities({
+        supportedEfforts: STANDARD_EFFORTS,
+        restrictsSamplingParams: false,
+        maxTokensParameter: 'max_tokens',
+    })
+);
 const SAMPLING_RESTRICTED_STANDARD_CAPABILITIES = createCapabilities({
     supportedEfforts: STANDARD_EFFORTS,
     restrictsSamplingParams: true,
@@ -207,6 +228,7 @@ function createNoReasoningCapabilities({
             supportedToolChoices: ['auto', 'none', 'required', 'tool'],
         },
         modalities,
+        ...getInputLimits(modalities),
         tools: {
             strictSchemas: strictToolSchemas,
             toolDiscovery: 'emulated',
@@ -355,6 +377,18 @@ const FINE_TUNE_MODEL_ID_PATTERN = /^ft:([^:]+):/;
  */
 export function getFineTuneBaseModelId(modelId: string): string | undefined {
     return FINE_TUNE_MODEL_ID_PATTERN.exec(modelId)?.[1];
+}
+
+/**
+ * Drops OpenAI's per-request input limits, for hosts that reuse OpenAI model
+ * capabilities but enforce their own limits (Azure, OpenAI-compatible
+ * servers).
+ */
+export function omitOpenAIInputLimits<TCapabilities extends ModelCapabilities>(
+    capabilities: TCapabilities
+): Omit<TCapabilities, 'input'> {
+    const { input: _input, ...rest } = capabilities;
+    return rest;
 }
 
 export function toOpenAIResponsesCapabilities(

@@ -360,6 +360,20 @@ export type ToolSchemaStrictnessCapabilities =
  */
 export type SystemMessagePlacement = 'leading' | 'before-reply' | 'anywhere';
 
+export type ModelInputCapabilities = {
+    /**
+     * Verified ceiling on images in one request, counted across the whole
+     * message history. Providers can count other inputs against it, such as
+     * document pages rendered as images or sampled video frames.
+     */
+    maxImages: number;
+    /**
+     * Present when images and document pages share one ceiling: images plus
+     * document pages must stay within it.
+     */
+    maxMedia?: number;
+};
+
 export type ModelOutputCapabilities = {
     /**
      * Verified ceiling for a single response, in tokens. Covers reasoning and
@@ -400,6 +414,11 @@ export type ModelCapabilities = {
     messages: {
         systemPlacement: SystemMessagePlacement;
     };
+    /**
+     * Present only when the provider has a verified per-request input limit
+     * for this model id on the host it serves. Absent means unknown.
+     */
+    input?: ModelInputCapabilities;
     /**
      * Present only when the provider has a verified output ceiling for this
      * model id. Absent means unknown.

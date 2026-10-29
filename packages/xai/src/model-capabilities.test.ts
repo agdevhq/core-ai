@@ -58,6 +58,8 @@ describe('XAI_MODEL_CAPABILITIES', () => {
                 supported: true,
             });
             expect(capabilities.messages.systemPlacement).toBe('anywhere');
+            // xAI documents no image count limit.
+            expect(capabilities.input).toBeUndefined();
         }
     });
 

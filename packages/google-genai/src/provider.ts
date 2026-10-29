@@ -4,11 +4,14 @@ import { DEFAULT_PROVIDER_ID } from './chat-adapter.ts';
 import { createGoogleGenAIChatModel } from './chat-model.ts';
 import { createGoogleGenAIEmbeddingModel } from './embedding-model.ts';
 import { createGoogleGenAIImageModel } from './image-model.ts';
+import type { GooglePlatform } from './model-capabilities.ts';
 
 export { DEFAULT_PROVIDER_ID };
 
 export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];
+    /** Set by `GoogleGenAI` when the client targets Vertex AI. */
+    vertexai?: GoogleGenAI['vertexai'];
 };
 
 export type GoogleGenAIProviderBaseOptions = {
@@ -20,6 +23,11 @@ export type GoogleGenAIProviderBaseOptions = {
 
 export type GoogleGenAIProviderFactoryOptions = {
     providerId?: string;
+    /**
+     * Selects the host-specific limits in model capabilities. Defaults to the
+     * client's own target: `'vertex'` when it was built with `vertexai: true`.
+     */
+    platform?: GooglePlatform;
 };
 
 export type GoogleGenAIProviderOptions = GoogleGenAIProviderBaseOptions;
@@ -48,10 +56,12 @@ export function createGoogleGenAIProvider(
                 : {}),
         });
     const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
+    const platform =
+        factoryOptions.platform ?? (client.vertexai ? 'vertex' : 'gemini-api');
 
     return {
         chatModel: (modelId) =>
-            createGoogleGenAIChatModel(client, modelId, providerId),
+            createGoogleGenAIChatModel(client, modelId, providerId, platform),
         embeddingModel: (modelId) =>
             createGoogleGenAIEmbeddingModel(client, modelId, providerId),
         imageModel: (modelId) =>
