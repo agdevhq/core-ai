@@ -1282,6 +1282,13 @@ export async function* transformStream(
         }
     }
 
+    // Claude can end a turn that calls tools with `end_turn` instead of
+    // `tool_use`. A stream that completed tool calls and stops finishes with
+    // `'tool-calls'`; truncated or filtered calls keep their reason.
+    if (finishReason === 'stop' && emittedToolCalls.size > 0) {
+        finishReason = 'tool-calls';
+    }
+
     yield {
         type: 'finish',
         finishReason,

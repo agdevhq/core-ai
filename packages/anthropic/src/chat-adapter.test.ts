@@ -2253,7 +2253,89 @@ describe('reasoning support', () => {
         const finish = events.find((event) => event.type === 'finish');
         expect(finish?.finishReason).toBe('length');
     });
+
+    it.each(['end_turn', 'stop_sequence'] as const)(
+        'should finish with tool-calls when tool calls end with %s',
+        async (stopReason) => {
+            const events = [];
+            for await (const event of transformStream(
+                toolCallStream(stopReason)
+            )) {
+                events.push(event);
+            }
+
+            const finish = events.find((event) => event.type === 'finish');
+            expect(finish?.finishReason).toBe('tool-calls');
+        }
+    );
+
+    it('should keep a length finish when a tool call is truncated', async () => {
+        const events = [];
+        for await (const event of transformStream(
+            toolCallStream('max_tokens')
+        )) {
+            events.push(event);
+        }
+
+        const finish = events.find((event) => event.type === 'finish');
+        expect(finish?.finishReason).toBe('length');
+    });
 });
+
+function toolCallStream(
+    stopReason: NonNullable<AnthropicMessage['stop_reason']>
+): AsyncIterable<RawMessageStreamEvent> {
+    return toAsyncIterable<RawMessageStreamEvent>([
+        {
+            type: 'message_start',
+            message: asAnthropicMessage({
+                content: [],
+                stop_reason: null,
+                usage: { input_tokens: 10, output_tokens: 0 },
+            }),
+        },
+        {
+            type: 'content_block_start',
+            index: 0,
+            content_block: {
+                type: 'tool_use',
+                id: 'toolu_1',
+                name: 'search',
+                input: {},
+            } as never,
+        },
+        {
+            type: 'content_block_delta',
+            index: 0,
+            delta: {
+                type: 'input_json_delta',
+                partial_json: '{"query":"weather"}',
+            },
+        },
+        {
+            type: 'content_block_stop',
+            index: 0,
+        },
+        {
+            type: 'message_delta',
+            delta: {
+                stop_reason: stopReason,
+                stop_sequence: null,
+                container: null,
+                stop_details: null,
+            },
+            usage: {
+                input_tokens: 10,
+                output_tokens: 5,
+                cache_creation_input_tokens: null,
+                cache_read_input_tokens: null,
+                output_tokens_details: null,
+                server_tool_use: null,
+            },
+        },
+        { type: 'message_stop' },
+    ]);
+}
 
 function createTools(count: number, strict?: boolean): ToolSet {
     return Object.fromEntries(
