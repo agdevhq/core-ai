@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/google-genai",
-    "version": "0.36.1",
+    "version": "0.36.2",
     "description": "Google GenAI provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -45,7 +45,7 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.36.1",
+        "@core-ai/core-ai": "^0.36.2",
         "@google/genai": "^2.27.0",
         "zod": "^4.0.0"
     },
