@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { createFetchNetworkError } from '@core-ai/testing';
 import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
     isRateLimitStatus,
+    isTransientNetworkError,
     isTransientUnavailableStatus,
     parseRetryAfterSeconds,
 } from './provider-error-utils.ts';
@@ -76,5 +78,57 @@ describe('error helper utilities', () => {
             })
         ).toBe(3);
         expect(getRetryAfterSecondsFromError(new Error('x'))).toBeUndefined();
+    });
+});
+
+describe('isTransientNetworkError', () => {
+    it.each([
+        'UND_ERR_SOCKET',
+        'UND_ERR_BODY_TIMEOUT',
+        'UND_ERR_HEADERS_TIMEOUT',
+        'UND_ERR_CONNECT_TIMEOUT',
+        'ECONNRESET',
+        'ECONNREFUSED',
+        'ETIMEDOUT',
+        'EPIPE',
+        'EAI_AGAIN',
+    ])('recognizes a fetch failure caused by %s', (code) => {
+        expect(isTransientNetworkError(createFetchNetworkError(code))).toBe(
+            true
+        );
+    });
+
+    it('recognizes a code on the error itself', () => {
+        const error = Object.assign(new Error('read ECONNRESET'), {
+            code: 'ECONNRESET',
+        });
+
+        expect(isTransientNetworkError(error)).toBe(true);
+    });
+
+    it('finds the code through an SDK error that wraps the fetch failure', () => {
+        const sdkError = new Error('Connection error.', {
+            cause: createFetchNetworkError('UND_ERR_SOCKET', 'fetch failed'),
+        });
+
+        expect(isTransientNetworkError(sdkError)).toBe(true);
+    });
+
+    it('rejects errors without a network code', () => {
+        expect(
+            isTransientNetworkError(new TypeError('x is not a function'))
+        ).toBe(false);
+        expect(
+            isTransientNetworkError(createFetchNetworkError('ENOTFOUND'))
+        ).toBe(false);
+        expect(isTransientNetworkError(undefined)).toBe(false);
+        expect(isTransientNetworkError('ECONNRESET')).toBe(false);
+    });
+
+    it('stops on a cyclic cause chain', () => {
+        const error: Error & { cause?: unknown } = new Error('loop');
+        error.cause = error;
+
+        expect(isTransientNetworkError(error)).toBe(false);
     });
 });

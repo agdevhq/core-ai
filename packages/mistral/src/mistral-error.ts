@@ -19,6 +19,7 @@ import {
     getString,
     isAbortErrorByName,
     isRateLimitStatus,
+    isTransientNetworkError,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
@@ -47,7 +48,7 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
         return new AbortedError(error, 'mistral');
     }
 
-    if (isMistralTimeoutError(error)) {
+    if (isMistralTimeoutError(error) || isTransientNetworkError(error)) {
         return new ServiceUnavailableError(getErrorMessage(error), 'mistral', {
             cause: error,
         });

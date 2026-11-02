@@ -7,6 +7,26 @@
 
 const TRANSIENT_UNAVAILABLE_STATUS_CODES = new Set([500, 502, 503, 504]);
 
+/**
+ * Node.js system and undici error codes for a connection that failed or broke
+ * off. `fetch` reports these as `TypeError: fetch failed` (request) or
+ * `TypeError: terminated` (body) with the coded error in `cause`.
+ */
+const TRANSIENT_NETWORK_ERROR_CODES = new Set([
+    'ECONNRESET',
+    'ECONNREFUSED',
+    'ETIMEDOUT',
+    'EPIPE',
+    'EAI_AGAIN',
+    'UND_ERR_SOCKET',
+    'UND_ERR_CONNECT_TIMEOUT',
+    'UND_ERR_HEADERS_TIMEOUT',
+    'UND_ERR_BODY_TIMEOUT',
+]);
+
+/** Bounds the `cause` walk so a cyclic or very deep chain cannot loop. */
+const MAX_CAUSE_DEPTH = 5;
+
 export function isRateLimitStatus(statusCode: number | undefined): boolean {
     return statusCode === 429;
 }
@@ -18,6 +38,27 @@ export function isTransientUnavailableStatus(
         statusCode !== undefined &&
         TRANSIENT_UNAVAILABLE_STATUS_CODES.has(statusCode)
     );
+}
+
+/**
+ * True when the error, or an error in its `cause` chain, carries a network
+ * error code: the connection to the provider failed or dropped mid-response.
+ * Covers raw `fetch` failures and SDK connection errors that wrap them.
+ */
+export function isTransientNetworkError(error: unknown): boolean {
+    let current: unknown = error;
+    for (let depth = 0; depth <= MAX_CAUSE_DEPTH; depth++) {
+        const record = asRecord(current);
+        if (!record) {
+            return false;
+        }
+        const code = getString(record, 'code');
+        if (code !== undefined && TRANSIENT_NETWORK_ERROR_CODES.has(code)) {
+            return true;
+        }
+        current = record.cause;
+    }
+    return false;
 }
 
 export function getErrorMessage(error: unknown): string {

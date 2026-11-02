@@ -13,6 +13,7 @@ import {
     getRetryAfterSecondsFromError,
     isAbortErrorByName,
     isRateLimitStatus,
+    isTransientNetworkError,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
@@ -47,6 +48,12 @@ export function wrapGoogleError(
 ): AbortedError | ProviderError {
     if (isGoogleAbortError(error)) {
         return new AbortedError(error, provider);
+    }
+
+    if (isTransientNetworkError(error)) {
+        return new ServiceUnavailableError(getErrorMessage(error), provider, {
+            cause: error,
+        });
     }
 
     const message = getErrorMessage(error);

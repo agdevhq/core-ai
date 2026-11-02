@@ -1,4 +1,5 @@
 import { CoreAIError } from './errors.ts';
+import { isTransientNetworkError } from './provider-error-utils.ts';
 
 /**
  * Internal helper for {@link createChatStream}. Not part of the public API.
@@ -11,7 +12,9 @@ import { CoreAIError } from './errors.ts';
  * Errors that already are {@link CoreAIError} instances pass through untouched.
  * Language errors (`TypeError`, `RangeError`, `SyntaxError`,
  * `ReferenceError`) also pass through so a bug in event mapping is not
- * disguised as a provider failure.
+ * disguised as a provider failure. The exception is a network failure:
+ * `fetch` reports a connection that drops mid-stream as a `TypeError` with a
+ * coded `cause`, so it is mapped like any other provider error.
  */
 export async function* mapStreamErrors<TEvent>(
     source: AsyncIterable<TEvent>,
@@ -22,7 +25,10 @@ export async function* mapStreamErrors<TEvent>(
             yield event;
         }
     } catch (error) {
-        if (error instanceof CoreAIError || isLanguageError(error)) {
+        if (
+            error instanceof CoreAIError ||
+            (isLanguageError(error) && !isTransientNetworkError(error))
+        ) {
             throw error;
         }
         throw mapError(error);

@@ -15,6 +15,7 @@ import {
     getString,
     isAbortErrorByName,
     isRateLimitStatus,
+    isTransientNetworkError,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
@@ -67,6 +68,12 @@ export function wrapOpenAIError(
 ): AbortedError | ProviderError {
     if (isOpenAIAbortError(error)) {
         return new AbortedError(error, provider);
+    }
+
+    if (isTransientNetworkError(error)) {
+        return new ServiceUnavailableError(getErrorMessage(error), provider, {
+            cause: error,
+        });
     }
 
     const message = getErrorMessage(error);

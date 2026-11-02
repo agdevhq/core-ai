@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createFetchNetworkError } from '@core-ai/testing';
 import { RequestTimeoutError } from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
@@ -291,6 +292,21 @@ describe('wrapMistralError', () => {
     it('should map opaque errors to ProviderError', () => {
         const wrapped = wrapMistralError(new Error('boom'));
         expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+    });
+});
+
+describe('wrapMistralError network failures', () => {
+    it('should map a dropped connection to ServiceUnavailableError', () => {
+        const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+        const wrapped = wrapMistralError(networkError);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect(wrapped.cause).toBe(networkError);
+    });
+
+    it('should keep a plain TypeError a ProviderError', () => {
+        const wrapped = wrapMistralError(new TypeError('x is not a function'));
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
     });
 });

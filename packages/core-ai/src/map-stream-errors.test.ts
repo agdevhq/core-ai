@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { toAsyncIterable } from '@core-ai/testing';
-import { ProviderError, RateLimitError } from './errors.ts';
+import { createFetchNetworkError, toAsyncIterable } from '@core-ai/testing';
+import {
+    ProviderError,
+    RateLimitError,
+    ServiceUnavailableError,
+} from './errors.ts';
 import { mapStreamErrors } from './map-stream-errors.ts';
 
 async function collect<T>(iterable: AsyncIterable<T>): Promise<T[]> {
@@ -32,8 +36,10 @@ describe('mapStreamErrors', () => {
         const sdkError = Object.assign(new Error('rate limited'), {
             code: 'rate_limit_exceeded',
         });
-        const mapped = mapStreamErrors(failAfter(['a', 'b'], sdkError), (error) =>
-            new RateLimitError('rate limited', 'openai', { cause: error })
+        const mapped = mapStreamErrors(
+            failAfter(['a', 'b'], sdkError),
+            (error) =>
+                new RateLimitError('rate limited', 'openai', { cause: error })
         );
         const received: string[] = [];
 
@@ -77,5 +83,21 @@ describe('mapStreamErrors', () => {
             collect(mapStreamErrors(failAfter([], programmingError), mapError))
         ).rejects.toBe(programmingError);
         expect(mapError).not.toHaveBeenCalled();
+    });
+
+    it('maps a fetch TypeError caused by a dropped connection', async () => {
+        const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+        const mapped = mapStreamErrors(
+            failAfter(['a'], networkError),
+            (error) =>
+                new ServiceUnavailableError('terminated', 'openai', {
+                    cause: error,
+                })
+        );
+
+        await expect(collect(mapped)).rejects.toMatchObject({
+            name: 'ServiceUnavailableError',
+            cause: networkError,
+        });
     });
 });

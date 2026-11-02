@@ -1,5 +1,6 @@
-import { APIError, APIUserAbortError } from 'openai';
+import { APIConnectionError, APIError, APIUserAbortError } from 'openai';
 import { describe, expect, it } from 'vitest';
+import { createFetchNetworkError } from '@core-ai/testing';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -605,5 +606,29 @@ describe('wrapOpenAIError', () => {
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
         expect(wrapped.message).toBe('something broke');
         expect((wrapped as ProviderError).code).toBeUndefined();
+    });
+});
+
+describe('wrapOpenAIError network failures', () => {
+    it('should map a dropped connection to ServiceUnavailableError', () => {
+        const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+        const wrapped = wrapOpenAIError(networkError);
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(RetryableProviderError);
+        expect(wrapped.cause).toBe(networkError);
+    });
+
+    it('should map an SDK connection error that wraps a fetch failure', () => {
+        const wrapped = wrapOpenAIError(
+            new APIConnectionError({
+                cause: createFetchNetworkError('ECONNRESET', 'fetch failed'),
+            })
+        );
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should keep a plain TypeError a ProviderError', () => {
+        const wrapped = wrapOpenAIError(new TypeError('x is not a function'));
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
     });
 });
