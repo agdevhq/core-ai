@@ -1,5 +1,6 @@
 import {
     APIConnectionError,
+    APIConnectionTimeoutError,
     APIError,
     APIUserAbortError,
 } from '@anthropic-ai/sdk';
@@ -482,6 +483,18 @@ describe('wrapAnthropicError network failures', () => {
             new APIConnectionError({
                 cause: createFetchNetworkError('ECONNRESET', 'fetch failed'),
             })
+        );
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should map an SDK request timeout to ServiceUnavailableError', () => {
+        const wrapped = wrapAnthropicError(new APIConnectionTimeoutError());
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+    });
+
+    it('should map an SDK connection error without a network code', () => {
+        const wrapped = wrapAnthropicError(
+            new APIConnectionError({ cause: new Error('connect EHOSTUNREACH') })
         );
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
     });
