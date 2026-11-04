@@ -621,6 +621,7 @@ describe('wrapOpenAIError network failures', () => {
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
         expect(wrapped.cause).toBe(networkError);
+        expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
     });
 
     it('should map an SDK connection error that wraps a fetch failure', () => {

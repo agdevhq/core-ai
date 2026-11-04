@@ -16,10 +16,10 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     getString,
     isAbortErrorByName,
     isRateLimitStatus,
-    isTransientNetworkError,
     isTransientUnavailableStatus,
 } from '@core-ai/core-ai';
 
@@ -63,11 +63,13 @@ export function wrapAnthropicError(
     }
 
     // The SDK's request timeout carries no `cause`, so it has no network code.
+    const networkErrorCode = getTransientNetworkErrorCode(error);
     if (
-        error instanceof APIConnectionTimeoutError ||
-        isTransientNetworkError(error)
+        networkErrorCode !== undefined ||
+        error instanceof APIConnectionTimeoutError
     ) {
         return new ServiceUnavailableError(getErrorMessage(error), provider, {
+            code: networkErrorCode,
             cause: error,
         });
     }

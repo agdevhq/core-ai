@@ -42,24 +42,27 @@ export function isTransientUnavailableStatus(
 }
 
 /**
- * True when the error, or an error in its `cause` chain, carries a network
- * error code: the connection to the provider failed or dropped mid-response.
+ * Returns the network error code carried by the error or an error in its
+ * `cause` chain, when the connection to the provider failed or dropped
+ * mid-response in a way that can go away on its own; otherwise `undefined`.
  * Covers raw `fetch` failures and SDK connection errors that wrap them.
  */
-export function isTransientNetworkError(error: unknown): boolean {
+export function getTransientNetworkErrorCode(
+    error: unknown
+): string | undefined {
     let current: unknown = error;
     for (let depth = 0; depth <= MAX_CAUSE_DEPTH; depth++) {
         const record = asRecord(current);
         if (!record) {
-            return false;
+            return undefined;
         }
         const code = getString(record, 'code');
         if (code !== undefined && TRANSIENT_NETWORK_ERROR_CODES.has(code)) {
-            return true;
+            return code;
         }
         current = record.cause;
     }
-    return false;
+    return undefined;
 }
 
 export function getErrorMessage(error: unknown): string {

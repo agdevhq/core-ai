@@ -1,5 +1,5 @@
 import { CoreAIError } from './errors.ts';
-import { isTransientNetworkError } from './provider-error-utils.ts';
+import { getTransientNetworkErrorCode } from './provider-error-utils.ts';
 
 /**
  * Internal helper for {@link createChatStream}. Not part of the public API.
@@ -27,7 +27,8 @@ export async function* mapStreamErrors<TEvent>(
     } catch (error) {
         if (
             error instanceof CoreAIError ||
-            (isLanguageError(error) && !isTransientNetworkError(error))
+            (isLanguageError(error) &&
+                getTransientNetworkErrorCode(error) === undefined)
         ) {
             throw error;
         }

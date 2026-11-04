@@ -4,8 +4,8 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     isRateLimitStatus,
-    isTransientNetworkError,
     isTransientUnavailableStatus,
     parseRetryAfterSeconds,
 } from './provider-error-utils.ts';
@@ -81,7 +81,7 @@ describe('error helper utilities', () => {
     });
 });
 
-describe('isTransientNetworkError', () => {
+describe('getTransientNetworkErrorCode', () => {
     it.each([
         'UND_ERR_SOCKET',
         'UND_ERR_BODY_TIMEOUT',
@@ -93,18 +93,18 @@ describe('isTransientNetworkError', () => {
         'EAI_AGAIN',
         'EHOSTUNREACH',
         'ENETUNREACH',
-    ])('recognizes a fetch failure caused by %s', (code) => {
-        expect(isTransientNetworkError(createFetchNetworkError(code))).toBe(
-            true
-        );
+    ])('returns %s from a fetch failure', (code) => {
+        expect(
+            getTransientNetworkErrorCode(createFetchNetworkError(code))
+        ).toBe(code);
     });
 
-    it('recognizes a code on the error itself', () => {
+    it('reads a code on the error itself', () => {
         const error = Object.assign(new Error('read ECONNRESET'), {
             code: 'ECONNRESET',
         });
 
-        expect(isTransientNetworkError(error)).toBe(true);
+        expect(getTransientNetworkErrorCode(error)).toBe('ECONNRESET');
     });
 
     it('finds the code through an SDK error that wraps the fetch failure', () => {
@@ -112,30 +112,34 @@ describe('isTransientNetworkError', () => {
             cause: createFetchNetworkError('UND_ERR_SOCKET', 'fetch failed'),
         });
 
-        expect(isTransientNetworkError(sdkError)).toBe(true);
+        expect(getTransientNetworkErrorCode(sdkError)).toBe('UND_ERR_SOCKET');
     });
 
-    it('rejects errors without a network code', () => {
+    it('returns undefined for errors without a transient network code', () => {
         expect(
-            isTransientNetworkError(new TypeError('x is not a function'))
-        ).toBe(false);
+            getTransientNetworkErrorCode(new TypeError('x is not a function'))
+        ).toBeUndefined();
         expect(
-            isTransientNetworkError(createFetchNetworkError('ENOTFOUND'))
-        ).toBe(false);
+            getTransientNetworkErrorCode(createFetchNetworkError('ENOTFOUND'))
+        ).toBeUndefined();
         expect(
-            isTransientNetworkError(createFetchNetworkError('ECONNREFUSED'))
-        ).toBe(false);
+            getTransientNetworkErrorCode(
+                createFetchNetworkError('ECONNREFUSED')
+            )
+        ).toBeUndefined();
         expect(
-            isTransientNetworkError(createFetchNetworkError('CERT_HAS_EXPIRED'))
-        ).toBe(false);
-        expect(isTransientNetworkError(undefined)).toBe(false);
-        expect(isTransientNetworkError('ECONNRESET')).toBe(false);
+            getTransientNetworkErrorCode(
+                createFetchNetworkError('CERT_HAS_EXPIRED')
+            )
+        ).toBeUndefined();
+        expect(getTransientNetworkErrorCode(undefined)).toBeUndefined();
+        expect(getTransientNetworkErrorCode('ECONNRESET')).toBeUndefined();
     });
 
     it('stops on a cyclic cause chain', () => {
         const error: Error & { cause?: unknown } = new Error('loop');
         error.cause = error;
 
-        expect(isTransientNetworkError(error)).toBe(false);
+        expect(getTransientNetworkErrorCode(error)).toBeUndefined();
     });
 });

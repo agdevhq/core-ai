@@ -108,7 +108,7 @@ export {
 export {
     isRateLimitStatus,
     isTransientUnavailableStatus,
-    isTransientNetworkError,
+    getTransientNetworkErrorCode,
     getErrorMessage,
     asRecord,
     getString,
