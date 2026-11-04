@@ -612,47 +612,52 @@ describe('wrapOpenAIError', () => {
         expect(wrapped.message).toBe('something broke');
         expect((wrapped as ProviderError).code).toBeUndefined();
     });
-});
 
-describe('wrapOpenAIError network failures', () => {
-    it('should map a dropped connection to ServiceUnavailableError', () => {
-        const networkError = createFetchNetworkError('UND_ERR_SOCKET');
-        const wrapped = wrapOpenAIError(networkError);
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect(wrapped).toBeInstanceOf(RetryableProviderError);
-        expect(wrapped.cause).toBe(networkError);
-        expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
-    });
+    describe('network failures', () => {
+        it('should map a dropped connection to ServiceUnavailableError', () => {
+            const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+            const wrapped = wrapOpenAIError(networkError);
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect(wrapped.cause).toBe(networkError);
+            expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
+        });
 
-    it('should map an SDK connection error that wraps a fetch failure', () => {
-        const wrapped = wrapOpenAIError(
-            new APIConnectionError({
-                cause: createFetchNetworkError('ECONNRESET', 'fetch failed'),
-            })
-        );
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-    });
+        it('should map an SDK connection error that wraps a fetch failure', () => {
+            const wrapped = wrapOpenAIError(
+                new APIConnectionError({
+                    cause: createFetchNetworkError(
+                        'ECONNRESET',
+                        'fetch failed'
+                    ),
+                })
+            );
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        });
 
-    it('should map an SDK request timeout to ServiceUnavailableError', () => {
-        const wrapped = wrapOpenAIError(new APIConnectionTimeoutError());
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-    });
+        it('should map an SDK request timeout to ServiceUnavailableError', () => {
+            const wrapped = wrapOpenAIError(new APIConnectionTimeoutError());
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        });
 
-    it('should keep a connection error without a transient code unretryable', () => {
-        const wrapped = wrapOpenAIError(
-            new APIConnectionError({
-                cause: createFetchNetworkError(
-                    'CERT_HAS_EXPIRED',
-                    'fetch failed'
-                ),
-            })
-        );
-        expect(wrapped).toBeInstanceOf(ProviderError);
-        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
-    });
+        it('should keep a connection error without a transient code unretryable', () => {
+            const wrapped = wrapOpenAIError(
+                new APIConnectionError({
+                    cause: createFetchNetworkError(
+                        'CERT_HAS_EXPIRED',
+                        'fetch failed'
+                    ),
+                })
+            );
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
 
-    it('should keep a plain TypeError a ProviderError', () => {
-        const wrapped = wrapOpenAIError(new TypeError('x is not a function'));
-        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        it('should keep a plain TypeError a ProviderError', () => {
+            const wrapped = wrapOpenAIError(
+                new TypeError('x is not a function')
+            );
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
     });
 });

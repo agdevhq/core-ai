@@ -297,28 +297,30 @@ describe('wrapGoogleError', () => {
         const wrapped = wrapGoogleError(new Error('x'), 'google-vertex');
         expect(wrapped.provider).toBe('google-vertex');
     });
-});
 
-describe('wrapGoogleError network failures', () => {
-    it('should map a dropped connection to ServiceUnavailableError', () => {
-        const networkError = createFetchNetworkError('UND_ERR_SOCKET');
-        const wrapped = wrapGoogleError(networkError);
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect(wrapped).toBeInstanceOf(RetryableProviderError);
-        expect(wrapped.cause).toBe(networkError);
-        expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
-    });
+    describe('network failures', () => {
+        it('should map a dropped connection to ServiceUnavailableError', () => {
+            const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+            const wrapped = wrapGoogleError(networkError);
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect(wrapped.cause).toBe(networkError);
+            expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
+        });
 
-    it('should map a failed request to ServiceUnavailableError', () => {
-        const wrapped = wrapGoogleError(
-            createFetchNetworkError('ECONNRESET', 'fetch failed')
-        );
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
-        expect((wrapped as ProviderError).code).toBe('ECONNRESET');
-    });
+        it('should map a failed request to ServiceUnavailableError', () => {
+            const wrapped = wrapGoogleError(
+                createFetchNetworkError('ECONNRESET', 'fetch failed')
+            );
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect((wrapped as ProviderError).code).toBe('ECONNRESET');
+        });
 
-    it('should keep a plain TypeError a ProviderError', () => {
-        const wrapped = wrapGoogleError(new TypeError('x is not a function'));
-        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        it('should keep a plain TypeError a ProviderError', () => {
+            const wrapped = wrapGoogleError(
+                new TypeError('x is not a function')
+            );
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
     });
 });
