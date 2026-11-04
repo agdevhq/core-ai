@@ -88,10 +88,11 @@ describe('isTransientNetworkError', () => {
         'UND_ERR_HEADERS_TIMEOUT',
         'UND_ERR_CONNECT_TIMEOUT',
         'ECONNRESET',
-        'ECONNREFUSED',
         'ETIMEDOUT',
         'EPIPE',
         'EAI_AGAIN',
+        'EHOSTUNREACH',
+        'ENETUNREACH',
     ])('recognizes a fetch failure caused by %s', (code) => {
         expect(isTransientNetworkError(createFetchNetworkError(code))).toBe(
             true
@@ -120,6 +121,12 @@ describe('isTransientNetworkError', () => {
         ).toBe(false);
         expect(
             isTransientNetworkError(createFetchNetworkError('ENOTFOUND'))
+        ).toBe(false);
+        expect(
+            isTransientNetworkError(createFetchNetworkError('ECONNREFUSED'))
+        ).toBe(false);
+        expect(
+            isTransientNetworkError(createFetchNetworkError('CERT_HAS_EXPIRED'))
         ).toBe(false);
         expect(isTransientNetworkError(undefined)).toBe(false);
         expect(isTransientNetworkError('ECONNRESET')).toBe(false);

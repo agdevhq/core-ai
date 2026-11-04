@@ -1,5 +1,5 @@
 import {
-    APIConnectionError,
+    APIConnectionTimeoutError,
     APIError,
     APIUserAbortError,
 } from '@anthropic-ai/sdk';
@@ -62,10 +62,11 @@ export function wrapAnthropicError(
         return new AbortedError(error, provider);
     }
 
-    // The SDK reports a failed or timed-out request as `APIConnectionError`
-    // (timeouts without a `cause`); a connection that drops mid-stream arrives
-    // as the raw `fetch` error.
-    if (error instanceof APIConnectionError || isTransientNetworkError(error)) {
+    // The SDK's request timeout carries no `cause`, so it has no network code.
+    if (
+        error instanceof APIConnectionTimeoutError ||
+        isTransientNetworkError(error)
+    ) {
         return new ServiceUnavailableError(getErrorMessage(error), provider, {
             cause: error,
         });

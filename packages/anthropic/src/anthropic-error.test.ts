@@ -492,11 +492,17 @@ describe('wrapAnthropicError network failures', () => {
         expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
     });
 
-    it('should map an SDK connection error without a network code', () => {
+    it('should keep a connection error without a transient code unretryable', () => {
         const wrapped = wrapAnthropicError(
-            new APIConnectionError({ cause: new Error('connect EHOSTUNREACH') })
+            new APIConnectionError({
+                cause: createFetchNetworkError(
+                    'CERT_HAS_EXPIRED',
+                    'fetch failed'
+                ),
+            })
         );
-        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
     });
 
     it('should keep a plain TypeError a ProviderError', () => {
