@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createFetchNetworkError } from '@core-ai/testing';
-import { RequestTimeoutError } from '@mistralai/mistralai/models/errors';
+import {
+    ConnectionError,
+    RequestTimeoutError,
+} from '@mistralai/mistralai/models/errors';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -304,6 +307,26 @@ describe('wrapMistralError network failures', () => {
         expect(wrapped).toBeInstanceOf(RetryableProviderError);
         expect(wrapped.cause).toBe(networkError);
         expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
+    });
+
+    it('should map the ConnectionError the SDK throws for a failed request', () => {
+        const wrapped = wrapMistralError(
+            new ConnectionError('Unable to make request', {
+                cause: createFetchNetworkError('ECONNRESET', 'fetch failed'),
+            })
+        );
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ProviderError).code).toBe('ECONNRESET');
+    });
+
+    it('should keep a ConnectionError without a transient code unretryable', () => {
+        const wrapped = wrapMistralError(
+            new ConnectionError('Unable to make request', {
+                cause: createFetchNetworkError('ENOTFOUND', 'fetch failed'),
+            })
+        );
+        expect(wrapped).toBeInstanceOf(ProviderError);
+        expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
     });
 
     it('should keep a plain TypeError a ProviderError', () => {

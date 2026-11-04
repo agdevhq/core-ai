@@ -309,6 +309,14 @@ describe('wrapGoogleError network failures', () => {
         expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
     });
 
+    it('should map a failed request to ServiceUnavailableError', () => {
+        const wrapped = wrapGoogleError(
+            createFetchNetworkError('ECONNRESET', 'fetch failed')
+        );
+        expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        expect((wrapped as ProviderError).code).toBe('ECONNRESET');
+    });
+
     it('should keep a plain TypeError a ProviderError', () => {
         const wrapped = wrapGoogleError(new TypeError('x is not a function'));
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
