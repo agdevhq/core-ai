@@ -12,12 +12,14 @@ import type {
     ChatStream,
 } from '@core-ai/core-ai';
 import {
+    DEFAULT_MAX_RETRIES,
     createObjectStream,
     createChatStream,
     extractStructuredObject,
     finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
+    withRequestRetry,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -34,30 +36,40 @@ type MistralChatClient = {
     chat: Mistral['chat'];
 };
 
+export type MistralChatModelOptions = {
+    /** Retries of transient request failures; `0` disables them. */
+    maxRetries?: number;
+};
+
 export function createMistralChatModel(
     client: MistralChatClient,
-    modelId: string
+    modelId: string,
+    modelOptions: MistralChatModelOptions = {}
 ): ChatModel {
     const provider = 'mistral';
     const capabilities = getMistralModelCapabilities(modelId);
     const adapterOptions = { capabilities, providerId: provider };
+    const maxRetries = modelOptions.maxRetries ?? DEFAULT_MAX_RETRIES;
 
-    async function callMistralChatApi<TResponse>(
-        call: () => Promise<TResponse>
+    function callMistralChatApi<TResponse>(
+        call: () => Promise<TResponse>,
+        signal: AbortSignal | undefined
     ): Promise<TResponse> {
-        try {
-            return await call();
-        } catch (error) {
-            throw wrapMistralError(error);
-        }
+        return withRequestRetry(call, {
+            maxRetries,
+            provider,
+            signal,
+            wrapError: wrapMistralError,
+        });
     }
 
     async function generateChat(
         options: GenerateOptions
     ): Promise<GenerateResult> {
         const request = createGenerateRequest(modelId, options, adapterOptions);
-        const response = await callMistralChatApi(() =>
-            client.chat.complete(request, { signal: options.signal })
+        const response = await callMistralChatApi(
+            () => client.chat.complete(request, { signal: options.signal }),
+            options.signal
         );
         return finalizeGenerateResult(mapGenerateResponse(response), options);
     }
@@ -67,10 +79,15 @@ export function createMistralChatModel(
         return createChatStream(
             async () =>
                 transformStream(
-                    (await callMistralChatApi(() =>
-                        client.chat.stream(request, {
-                            signal: options.signal,
-                        })
+                    // The SDK resolves this once the response headers arrive,
+                    // so a retry only ever repeats a request that produced no
+                    // stream events.
+                    (await callMistralChatApi(
+                        () =>
+                            client.chat.stream(request, {
+                                signal: options.signal,
+                            }),
+                        options.signal
                     )) as unknown as AsyncIterable<CompletionEvent>
                 ),
             {

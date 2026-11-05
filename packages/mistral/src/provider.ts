@@ -7,6 +7,12 @@ export type MistralProviderOptions = {
     apiKey?: string;
     baseURL?: string;
     client?: Mistral;
+    /**
+     * Retries of chat requests that fail transiently (rate limit, overload,
+     * 5xx, network failure) before the response starts. Defaults to 2;
+     * `0` disables them.
+     */
+    maxRetries?: number;
 };
 
 export type MistralProvider = {
@@ -25,7 +31,10 @@ export function createMistral(
         });
 
     return {
-        chatModel: (modelId) => createMistralChatModel(client, modelId),
+        chatModel: (modelId) =>
+            createMistralChatModel(client, modelId, {
+                maxRetries: options.maxRetries,
+            }),
         embeddingModel: (modelId) =>
             createMistralEmbeddingModel(client, modelId),
     };

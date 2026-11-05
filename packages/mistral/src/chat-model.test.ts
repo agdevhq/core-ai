@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
 import type { Mistral } from '@mistralai/mistralai';
 import type {
@@ -10,6 +10,7 @@ import {
     AbortedError,
     ProviderError,
     RateLimitError,
+    ServiceUnavailableError,
     StructuredOutputValidationError,
 } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.ts';
@@ -441,6 +442,143 @@ describe('generate', () => {
     });
 });
 
+describe('request retries', () => {
+    beforeEach(() => {
+        vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
+    });
+
+    it('should retry a generate request that fails before the response', async () => {
+        const complete = vi
+            .fn<() => Promise<unknown>>()
+            .mockRejectedValueOnce(createServiceUnavailableError())
+            .mockResolvedValueOnce(
+                asChatCompletionResponse({
+                    choices: [
+                        {
+                            index: 0,
+                            finishReason: 'stop',
+                            message: { role: 'assistant', content: 'Hello!' },
+                        },
+                    ],
+                    usage: {
+                        promptTokens: 1,
+                        completionTokens: 1,
+                        totalTokens: 2,
+                    },
+                })
+            );
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+
+        const result = model.generate({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        await vi.runAllTimersAsync();
+
+        await expect(result).resolves.toMatchObject({ content: 'Hello!' });
+        expect(complete).toHaveBeenCalledTimes(2);
+    });
+
+    it('should retry a streaming request that fails before the response', async () => {
+        const stream = vi
+            .fn<() => Promise<unknown>>()
+            .mockRejectedValueOnce(createConnectionError())
+            .mockResolvedValueOnce(
+                toAsyncIterable<CompletionEvent>([
+                    asCompletionEvent({
+                        choices: [
+                            {
+                                index: 0,
+                                finishReason: 'stop',
+                                delta: { content: 'Hello' },
+                            },
+                        ],
+                    }),
+                ])
+            );
+        const model = createMistralChatModel(
+            createMockClient({ stream }),
+            'mistral-large-latest'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+        await vi.runAllTimersAsync();
+
+        await expect(chatStream.result).resolves.toMatchObject({
+            content: 'Hello',
+        });
+        expect(stream).toHaveBeenCalledTimes(2);
+    });
+
+    it('should not retry an error raised while consuming a stream', async () => {
+        const stream = vi.fn(async () => ({
+            [Symbol.asyncIterator]: () => ({
+                next: () => Promise.reject(createServiceUnavailableError()),
+            }),
+        }));
+        const model = createMistralChatModel(
+            createMockClient({ stream }),
+            'mistral-large-latest'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+
+        await expect(chatStream.result).rejects.toBeInstanceOf(
+            ServiceUnavailableError
+        );
+        expect(stream).toHaveBeenCalledTimes(1);
+    });
+
+    it('should not retry when maxRetries is 0', async () => {
+        const complete = vi.fn(async () => {
+            throw createServiceUnavailableError();
+        });
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest',
+            { maxRetries: 0 }
+        );
+
+        await expect(
+            model.generate({ messages: [{ role: 'user', content: 'hello' }] })
+        ).rejects.toBeInstanceOf(ServiceUnavailableError);
+        expect(complete).toHaveBeenCalledTimes(1);
+    });
+
+    it('should stop retrying when the caller aborts', async () => {
+        const controller = new AbortController();
+        const complete = vi.fn(async () => {
+            throw createServiceUnavailableError();
+        });
+        const model = createMistralChatModel(
+            createMockClient({ complete }),
+            'mistral-large-latest'
+        );
+
+        const rejection = expect(
+            model.generate({
+                messages: [{ role: 'user', content: 'hello' }],
+                signal: controller.signal,
+            })
+        ).rejects.toBeInstanceOf(AbortedError);
+        await vi.advanceTimersByTimeAsync(100);
+        controller.abort();
+
+        await rejection;
+        expect(complete).toHaveBeenCalledTimes(1);
+    });
+});
+
 describe('stream', () => {
     it('should stream content and aggregate response', async () => {
         const stream = vi.fn(async () => {
@@ -822,6 +960,19 @@ async function collectStreamEvents(
     for await (const _event of stream) {
         // Consume the stream until completion or failure.
     }
+}
+
+function createServiceUnavailableError(): Error {
+    return Object.assign(new Error('Service Unavailable'), { statusCode: 503 });
+}
+
+function createConnectionError(): TypeError {
+    return new TypeError('fetch failed', {
+        cause: Object.assign(new Error('Headers Timeout Error'), {
+            name: 'HeadersTimeoutError',
+            code: 'UND_ERR_HEADERS_TIMEOUT',
+        }),
+    });
 }
 
 function createMockClient(overrides?: {
