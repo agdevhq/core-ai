@@ -162,7 +162,7 @@ Error for provider API failures (network errors, API errors, rate limits, etc.).
 
 Discriminate with subclasses and `instanceof`. Transient failures (`RateLimitError`, `ModelOverloadedError`, `ServiceUnavailableError`) extend `RetryableProviderError` so you can retry with a single check.
 
-The OpenAI, Anthropic, Google and Mistral providers already retry a request that fails transiently before the response starts, by default up to 2 times. A retryable error you receive from a request has been through those retries.
+The OpenAI, Anthropic, Google and Mistral providers already retry a request that fails transiently before the response starts, by default up to 2 times. A stream request starts on first iteration, so a failed request and a dropped stream both surface while you iterate. A retryable error with `statusCode` came from a failed request and has been through those retries. One without it may have failed inside the stream, which is never retried.
 
 A retryable error raised while you iterate a stream can follow events you already consumed, for example when the connection drops mid-response. Retry only if you consumed no content yet, or discard the partial output before you retry, so it is not duplicated.
 
