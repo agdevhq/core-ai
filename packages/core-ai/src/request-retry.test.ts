@@ -6,10 +6,10 @@ import {
     ProviderQuotaExceededError,
     RateLimitError,
     ServiceUnavailableError,
-} from '@core-ai/core-ai';
+} from './errors.ts';
 import { withRequestRetry } from './request-retry.ts';
 
-const PROVIDER = 'google';
+const PROVIDER = 'test-provider';
 
 function retryOptions(
     overrides: Partial<Parameters<typeof withRequestRetry>[1]> = {}

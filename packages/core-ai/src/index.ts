@@ -117,6 +117,8 @@ export {
     parseRetryAfterSeconds,
     getRetryAfterSecondsFromError,
 } from './provider-error-utils.ts';
+export { DEFAULT_MAX_RETRIES, withRequestRetry } from './request-retry.ts';
+export type { RequestRetryOptions } from './request-retry.ts';
 export type {
     StandardJSONSchemaV1,
     StandardSchemaV1,

@@ -3,7 +3,7 @@ import {
     RateLimitError,
     RetryableProviderError,
     type ProviderError,
-} from '@core-ai/core-ai';
+} from './errors.ts';
 
 /** Same default as the OpenAI and Anthropic SDKs core-ai wraps. */
 export const DEFAULT_MAX_RETRIES = 2;
@@ -28,10 +28,10 @@ export type RequestRetryOptions = {
  * Runs a provider request and retries transient failures
  * ({@link RetryableProviderError}) with exponential backoff.
  *
- * Only wrap calls that settle once the provider's response starts (the SDK
- * resolves `generateContentStream` on the response headers): a rejection then
- * means no response content exists yet, so a retry cannot duplicate output.
- * Errors raised while consuming a stream are never retried here.
+ * Only wrap calls that settle once the provider's response starts (for a
+ * stream, on the response headers): a rejection then means no response content
+ * exists yet, so a retry cannot duplicate output. Errors raised while consuming
+ * a stream are never retried here.
  */
 export async function withRequestRetry<T>(
     call: () => Promise<T>,

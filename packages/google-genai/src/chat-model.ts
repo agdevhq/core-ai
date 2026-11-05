@@ -11,12 +11,14 @@ import type {
     ChatStream,
 } from '@core-ai/core-ai';
 import {
+    DEFAULT_MAX_RETRIES,
     createObjectStream,
     createChatStream,
     extractStructuredObject,
     finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
+    withRequestRetry,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -28,7 +30,6 @@ import {
 import { wrapGoogleError } from './google-error.ts';
 import { getGoogleModelCapabilities } from './model-capabilities.ts';
 import type { GoogleGenAIClient } from './provider.ts';
-import { DEFAULT_MAX_RETRIES, withRequestRetry } from './request-retry.ts';
 
 export type GoogleGenAIChatModelOptions = {
     /** Retries of transient request failures; `0` disables them. */
