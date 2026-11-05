@@ -1,4 +1,8 @@
-import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
+import {
+    APIConnectionTimeoutError,
+    APIError,
+    APIUserAbortError,
+} from '@anthropic-ai/sdk';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -12,6 +16,7 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     getString,
     isAbortErrorByName,
     isRateLimitStatus,
@@ -55,6 +60,18 @@ export function wrapAnthropicError(
 ): AbortedError | ProviderError {
     if (isAnthropicAbortError(error)) {
         return new AbortedError(error, provider);
+    }
+
+    // The SDK's request timeout carries no `cause`, so it has no network code.
+    const networkErrorCode = getTransientNetworkErrorCode(error);
+    if (
+        networkErrorCode !== undefined ||
+        error instanceof APIConnectionTimeoutError
+    ) {
+        return new ServiceUnavailableError(getErrorMessage(error), provider, {
+            code: networkErrorCode,
+            cause: error,
+        });
     }
 
     const message = getErrorMessage(error);

@@ -16,6 +16,7 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     getString,
     isAbortErrorByName,
     isRateLimitStatus,
@@ -47,8 +48,10 @@ export function wrapMistralError(error: unknown): AbortedError | ProviderError {
         return new AbortedError(error, 'mistral');
     }
 
-    if (isMistralTimeoutError(error)) {
+    const networkErrorCode = getTransientNetworkErrorCode(error);
+    if (networkErrorCode !== undefined || isMistralTimeoutError(error)) {
         return new ServiceUnavailableError(getErrorMessage(error), 'mistral', {
+            code: networkErrorCode,
             cause: error,
         });
     }

@@ -11,6 +11,7 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     isAbortErrorByName,
     isRateLimitStatus,
     isTransientUnavailableStatus,
@@ -47,6 +48,14 @@ export function wrapGoogleError(
 ): AbortedError | ProviderError {
     if (isGoogleAbortError(error)) {
         return new AbortedError(error, provider);
+    }
+
+    const networkErrorCode = getTransientNetworkErrorCode(error);
+    if (networkErrorCode !== undefined) {
+        return new ServiceUnavailableError(getErrorMessage(error), provider, {
+            code: networkErrorCode,
+            cause: error,
+        });
     }
 
     const message = getErrorMessage(error);

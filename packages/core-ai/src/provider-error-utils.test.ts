@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { createFetchNetworkError } from '@core-ai/testing';
 import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     isRateLimitStatus,
     isTransientUnavailableStatus,
     parseRetryAfterSeconds,
@@ -76,5 +78,68 @@ describe('error helper utilities', () => {
             })
         ).toBe(3);
         expect(getRetryAfterSecondsFromError(new Error('x'))).toBeUndefined();
+    });
+});
+
+describe('getTransientNetworkErrorCode', () => {
+    it.each([
+        'UND_ERR_SOCKET',
+        'UND_ERR_BODY_TIMEOUT',
+        'UND_ERR_HEADERS_TIMEOUT',
+        'UND_ERR_CONNECT_TIMEOUT',
+        'ECONNRESET',
+        'ETIMEDOUT',
+        'EPIPE',
+        'EAI_AGAIN',
+        'EHOSTUNREACH',
+        'ENETUNREACH',
+    ])('returns %s from a fetch failure', (code) => {
+        expect(
+            getTransientNetworkErrorCode(createFetchNetworkError(code))
+        ).toBe(code);
+    });
+
+    it('reads a code on the error itself', () => {
+        const error = Object.assign(new Error('read ECONNRESET'), {
+            code: 'ECONNRESET',
+        });
+
+        expect(getTransientNetworkErrorCode(error)).toBe('ECONNRESET');
+    });
+
+    it('finds the code through an SDK error that wraps the fetch failure', () => {
+        const sdkError = new Error('Connection error.', {
+            cause: createFetchNetworkError('UND_ERR_SOCKET', 'fetch failed'),
+        });
+
+        expect(getTransientNetworkErrorCode(sdkError)).toBe('UND_ERR_SOCKET');
+    });
+
+    it('returns undefined for errors without a transient network code', () => {
+        expect(
+            getTransientNetworkErrorCode(new TypeError('x is not a function'))
+        ).toBeUndefined();
+        expect(
+            getTransientNetworkErrorCode(createFetchNetworkError('ENOTFOUND'))
+        ).toBeUndefined();
+        expect(
+            getTransientNetworkErrorCode(
+                createFetchNetworkError('ECONNREFUSED')
+            )
+        ).toBeUndefined();
+        expect(
+            getTransientNetworkErrorCode(
+                createFetchNetworkError('CERT_HAS_EXPIRED')
+            )
+        ).toBeUndefined();
+        expect(getTransientNetworkErrorCode(undefined)).toBeUndefined();
+        expect(getTransientNetworkErrorCode('ECONNRESET')).toBeUndefined();
+    });
+
+    it('stops on a cyclic cause chain', () => {
+        const error: Error & { cause?: unknown } = new Error('loop');
+        error.cause = error;
+
+        expect(getTransientNetworkErrorCode(error)).toBeUndefined();
     });
 });

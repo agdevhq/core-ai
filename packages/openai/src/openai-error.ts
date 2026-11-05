@@ -1,4 +1,4 @@
-import { APIError, APIUserAbortError } from 'openai';
+import { APIConnectionTimeoutError, APIError, APIUserAbortError } from 'openai';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -12,6 +12,7 @@ import {
     getErrorMessage,
     getHttpStatusCode,
     getRetryAfterSecondsFromError,
+    getTransientNetworkErrorCode,
     getString,
     isAbortErrorByName,
     isRateLimitStatus,
@@ -67,6 +68,18 @@ export function wrapOpenAIError(
 ): AbortedError | ProviderError {
     if (isOpenAIAbortError(error)) {
         return new AbortedError(error, provider);
+    }
+
+    // The SDK's request timeout carries no `cause`, so it has no network code.
+    const networkErrorCode = getTransientNetworkErrorCode(error);
+    if (
+        networkErrorCode !== undefined ||
+        error instanceof APIConnectionTimeoutError
+    ) {
+        return new ServiceUnavailableError(getErrorMessage(error), provider, {
+            code: networkErrorCode,
+            cause: error,
+        });
     }
 
     const message = getErrorMessage(error);

@@ -1,5 +1,11 @@
-import { APIError, APIUserAbortError } from '@anthropic-ai/sdk';
+import {
+    APIConnectionError,
+    APIConnectionTimeoutError,
+    APIError,
+    APIUserAbortError,
+} from '@anthropic-ai/sdk';
 import { describe, expect, it } from 'vitest';
+import { createFetchNetworkError } from '@core-ai/testing';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -460,5 +466,53 @@ describe('wrapAnthropicError', () => {
         const wrapped = wrapAnthropicError(new Error('boom'));
         expect(wrapped).toBeInstanceOf(ProviderError);
         expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+    });
+
+    describe('network failures', () => {
+        it('should map a dropped connection to ServiceUnavailableError', () => {
+            const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+            const wrapped = wrapAnthropicError(networkError);
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect(wrapped.cause).toBe(networkError);
+            expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
+        });
+
+        it('should map an SDK connection error that wraps a fetch failure', () => {
+            const wrapped = wrapAnthropicError(
+                new APIConnectionError({
+                    cause: createFetchNetworkError(
+                        'ECONNRESET',
+                        'fetch failed'
+                    ),
+                })
+            );
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        });
+
+        it('should map an SDK request timeout to ServiceUnavailableError', () => {
+            const wrapped = wrapAnthropicError(new APIConnectionTimeoutError());
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+        });
+
+        it('should keep a connection error without a transient code unretryable', () => {
+            const wrapped = wrapAnthropicError(
+                new APIConnectionError({
+                    cause: createFetchNetworkError(
+                        'CERT_HAS_EXPIRED',
+                        'fetch failed'
+                    ),
+                })
+            );
+            expect(wrapped).toBeInstanceOf(ProviderError);
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
+
+        it('should keep a plain TypeError a ProviderError', () => {
+            const wrapped = wrapAnthropicError(
+                new TypeError('x is not a function')
+            );
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
     });
 });

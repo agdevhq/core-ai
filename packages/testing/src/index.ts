@@ -131,3 +131,15 @@ function createSseResponse(
         headers: { 'content-type': 'text/event-stream' },
     });
 }
+
+/**
+ * Builds the error `fetch` (undici) throws when the connection drops: a
+ * `TypeError` whose `cause` carries the network error code.
+ */
+export function createFetchNetworkError(
+    code = 'UND_ERR_SOCKET',
+    message = 'terminated'
+): TypeError {
+    const cause = Object.assign(new Error('other side closed'), { code });
+    return new TypeError(message, { cause });
+}

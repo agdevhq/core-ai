@@ -1,5 +1,6 @@
 import { ApiError } from '@google/genai';
 import { describe, expect, it } from 'vitest';
+import { createFetchNetworkError } from '@core-ai/testing';
 import {
     AbortedError,
     ContextLengthExceededError,
@@ -295,5 +296,31 @@ describe('wrapGoogleError', () => {
     it('should preserve custom provider id', () => {
         const wrapped = wrapGoogleError(new Error('x'), 'google-vertex');
         expect(wrapped.provider).toBe('google-vertex');
+    });
+
+    describe('network failures', () => {
+        it('should map a dropped connection to ServiceUnavailableError', () => {
+            const networkError = createFetchNetworkError('UND_ERR_SOCKET');
+            const wrapped = wrapGoogleError(networkError);
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect(wrapped).toBeInstanceOf(RetryableProviderError);
+            expect(wrapped.cause).toBe(networkError);
+            expect((wrapped as ProviderError).code).toBe('UND_ERR_SOCKET');
+        });
+
+        it('should map a failed request to ServiceUnavailableError', () => {
+            const wrapped = wrapGoogleError(
+                createFetchNetworkError('ECONNRESET', 'fetch failed')
+            );
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect((wrapped as ProviderError).code).toBe('ECONNRESET');
+        });
+
+        it('should keep a plain TypeError a ProviderError', () => {
+            const wrapped = wrapGoogleError(
+                new TypeError('x is not a function')
+            );
+            expect(wrapped).not.toBeInstanceOf(RetryableProviderError);
+        });
     });
 });

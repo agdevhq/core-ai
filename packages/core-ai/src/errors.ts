@@ -223,7 +223,8 @@ export type ProviderErrorOptions = {
     statusCode?: number;
     /**
      * Provider-specific error code or type as reported by the API, e.g.
-     * `insufficient_quota`, `invalid_request_error`, `RESOURCE_EXHAUSTED`.
+     * `insufficient_quota`, `invalid_request_error`, `RESOURCE_EXHAUSTED`, or
+     * the network error code for connection failures, e.g. `UND_ERR_SOCKET`.
      * Stable machine-readable identifier for logging and classification
      * where the message itself cannot be recorded.
      */
