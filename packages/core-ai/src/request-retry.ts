@@ -17,6 +17,13 @@ const RETRY_DELAY_JITTER = 0.2;
  */
 const MAX_RETRY_AFTER_SECONDS = 20;
 
+/**
+ * An attempt that failed only after this long is not repeated: a provider that
+ * hangs until a timeout would otherwise cost the caller that wait once per
+ * retry, with no output in between.
+ */
+const MAX_RETRYABLE_ATTEMPT_MS = 60_000;
+
 export type RequestRetryOptions = {
     maxRetries: number;
     provider: string;
@@ -38,11 +45,15 @@ export async function withRequestRetry<T>(
     options: RequestRetryOptions
 ): Promise<T> {
     for (let retry = 0; ; retry++) {
+        const startedAt = Date.now();
         try {
             return await call();
         } catch (error) {
             const wrapped = options.wrapError(error);
-            const delayMs = getRetryDelayMs(wrapped, retry, options.maxRetries);
+            const delayMs =
+                Date.now() - startedAt > MAX_RETRYABLE_ATTEMPT_MS
+                    ? undefined
+                    : getRetryDelayMs(wrapped, retry, options.maxRetries);
             if (delayMs === undefined) {
                 throw wrapped;
             }

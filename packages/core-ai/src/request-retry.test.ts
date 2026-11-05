@@ -39,6 +39,21 @@ describe('withRequestRetry', () => {
         vi.restoreAllMocks();
     });
 
+    it('does not retry an attempt that failed only after a long wait', async () => {
+        const call = vi.fn(async () => {
+            await new Promise((resolve) => setTimeout(resolve, 60_001));
+            throw unavailable();
+        });
+
+        const rejection = expect(
+            withRequestRetry(call, retryOptions())
+        ).rejects.toBeInstanceOf(ServiceUnavailableError);
+        await vi.runAllTimersAsync();
+
+        await rejection;
+        expect(call).toHaveBeenCalledTimes(1);
+    });
+
     it('returns the result without retrying when the call succeeds', async () => {
         const call = vi.fn(async () => 'ok');
 
