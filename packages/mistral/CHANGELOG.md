@@ -1,5 +1,13 @@
 # @core-ai/mistral
 
+## 0.37.0
+
+### Patch Changes
+
+- 83344f4: Map network failures, such as a connection that drops mid-stream, to a retryable `ServiceUnavailableError` instead of a bare `TypeError` or an unclassified `ProviderError`. The network error code is available as `code`.
+- Updated dependencies [83344f4]
+    - @core-ai/core-ai@0.37.0
+
 ## 0.36.2
 
 ### Patch Changes

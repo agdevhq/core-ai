@@ -1,5 +1,12 @@
 # @core-ai/langfuse
 
+## 0.37.0
+
+### Patch Changes
+
+- Updated dependencies [83344f4]
+    - @core-ai/core-ai@0.37.0
+
 ## 0.36.2
 
 ### Patch Changes
