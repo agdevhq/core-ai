@@ -146,7 +146,9 @@ function getContextLengthDetails(
     const errorMessage = resolveMistralMessageText(body?.message ?? message);
     const errorType = body?.type;
 
+    const isPromptTooLong = errorType === 'invalid_request_prompt_too_long';
     const isContextType =
+        isPromptTooLong ||
         errorType === 'invalid_request_error' ||
         errorType === 'invalid_request_invalid_args' ||
         errorType === undefined;
@@ -157,6 +159,7 @@ function getContextLengthDetails(
 
     const lower = errorMessage.toLowerCase();
     const isContextWording =
+        isPromptTooLong ||
         lower.includes('too large for model') ||
         /exceeds the model's maximum context length/i.test(errorMessage);
 
