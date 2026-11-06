@@ -1,5 +1,13 @@
 # @core-ai/openai
 
+## 0.38.0
+
+### Patch Changes
+
+- 8043dd6: Treat the error code `service_unavailable_error` as a transient failure, so it surfaces as `ServiceUnavailableError` instead of a plain `ProviderError`.
+- Updated dependencies [8043dd6]
+    - @core-ai/core-ai@0.38.0
+
 ## 0.37.0
 
 ### Patch Changes
