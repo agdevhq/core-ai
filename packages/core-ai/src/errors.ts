@@ -232,9 +232,18 @@ export type ProviderErrorOptions = {
     cause?: unknown;
 };
 
+/**
+ * Where a chat stream failed. `request` means the request itself failed, so
+ * the provider's request retries already ran. `stream` means the response had
+ * started, even if no event arrived yet, and nothing retried it.
+ */
+export type ProviderErrorPhase = 'request' | 'stream';
+
 export class ProviderError extends CoreAIError {
     public readonly statusCode?: number;
     public readonly code?: string;
+    /** Set by `createChatStream`, so only errors of a chat stream have it. */
+    public phase?: ProviderErrorPhase;
 
     /**
      * @param message Human-readable error message (may include provider text).

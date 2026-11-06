@@ -7,6 +7,12 @@ import {
 
 const PROVIDER_ID = 'google-vertex';
 
+/**
+ * The SDK only retries when this is set. Two retries match the default of the
+ * OpenAI and Anthropic SDKs.
+ */
+const REQUEST_RETRY_OPTIONS = { attempts: 3 } as const;
+
 export type GoogleVertexServiceAccountCredentials = NonNullable<
     NonNullable<GoogleGenAIOptions['googleAuthOptions']>['credentials']
 >;
@@ -54,6 +60,7 @@ function createGoogleVertexClient(
         vertexai: true,
         project: options.projectId,
         location: options.region,
+        httpOptions: { retryOptions: REQUEST_RETRY_OPTIONS },
         ...(googleAuthOptions ? { googleAuthOptions } : {}),
     });
 }

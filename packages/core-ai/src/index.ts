@@ -71,6 +71,7 @@ export type {
 } from './types.ts';
 export type {
     ProviderErrorOptions,
+    ProviderErrorPhase,
     ContextLengthExceededErrorOptions,
     MediaCountExceededErrorOptions,
     ImageCountExceededErrorOptions,

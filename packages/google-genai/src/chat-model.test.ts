@@ -802,6 +802,8 @@ describe('stream', () => {
                 name: 'RateLimitError',
                 provider: 'google',
                 code: 'RESOURCE_EXHAUSTED',
+                statusCode: 429,
+                phase: 'stream',
             }
         );
 
@@ -831,6 +833,26 @@ describe('stream', () => {
             { type: 'text-start' },
             { type: 'text-delta', text: 'partial' },
         ]);
+    });
+
+    it('should report a failed stream request as a request failure', async () => {
+        const generateContentStream = vi.fn(async () => {
+            throw new ApiError({ message: 'Too many requests', status: 429 });
+        });
+        const model = createGoogleGenAIChatModel(
+            createMockClient({ generateContentStream }),
+            'gemini-2.5-flash'
+        );
+
+        const chatStream = await model.stream({
+            messages: [{ role: 'user', content: 'hello' }],
+        });
+
+        await expect(chatStream.result).rejects.toMatchObject({
+            name: 'RateLimitError',
+            statusCode: 429,
+            phase: 'request',
+        });
     });
 });
 

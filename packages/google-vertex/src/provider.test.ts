@@ -65,6 +65,7 @@ describe('createGoogleVertex', () => {
             vertexai: true,
             project: 'my-project',
             location: 'europe-west1',
+            httpOptions: { retryOptions: { attempts: 3 } },
         });
     });
 
@@ -84,6 +85,7 @@ describe('createGoogleVertex', () => {
             vertexai: true,
             project: 'my-project',
             location: 'europe-west1',
+            httpOptions: { retryOptions: { attempts: 3 } },
             googleAuthOptions: { credentials },
         });
     });

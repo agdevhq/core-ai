@@ -1,8 +1,37 @@
-import type { Mistral } from '@mistralai/mistralai';
+import type { Mistral, SDKOptions } from '@mistralai/mistralai';
 import { describe, expect, it, vi } from 'vitest';
 import { createMistral } from './provider.ts';
 
+const mistralConstructor = vi.hoisted(() => vi.fn());
+
+vi.mock('@mistralai/mistralai', async (importOriginal) => {
+    const actual =
+        await importOriginal<typeof import('@mistralai/mistralai')>();
+
+    return {
+        ...actual,
+        Mistral: class extends actual.Mistral {
+            constructor(options: SDKOptions) {
+                super(options);
+                mistralConstructor(options);
+            }
+        },
+    };
+});
+
 describe('createMistral', () => {
+    it('should turn on the request retries of the SDK', () => {
+        createMistral({ apiKey: 'test' });
+
+        expect(mistralConstructor).toHaveBeenCalledWith({
+            apiKey: 'test',
+            retryConfig: expect.objectContaining({
+                strategy: 'backoff',
+                retryConnectionErrors: true,
+            }),
+        });
+    });
+
     it('should expose all model factories', () => {
         const provider = createMistral({
             client: createMockClient(),

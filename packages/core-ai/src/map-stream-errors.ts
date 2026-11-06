@@ -1,4 +1,8 @@
-import { CoreAIError } from './errors.ts';
+import {
+    CoreAIError,
+    ProviderError,
+    type ProviderErrorPhase,
+} from './errors.ts';
 import { getTransientNetworkErrorCode } from './provider-error-utils.ts';
 
 /**
@@ -33,6 +37,30 @@ export async function* mapStreamErrors<TEvent>(
             throw error;
         }
         throw mapError(error);
+    }
+}
+
+/**
+ * Internal helper for {@link createChatStream}. Not part of the public API.
+ *
+ * Records on a {@link ProviderError} the phase the stream was in when it
+ * failed. Status codes cannot tell this apart: some providers report one for
+ * failures inside the stream too. A phase that is already set stays: stream
+ * middleware can re-wrap a chat stream, and the inner one knows the real phase.
+ */
+export async function* setProviderErrorPhase<TEvent>(
+    source: AsyncIterable<TEvent>,
+    getPhase: () => ProviderErrorPhase
+): AsyncIterable<TEvent> {
+    try {
+        for await (const event of source) {
+            yield event;
+        }
+    } catch (error) {
+        if (error instanceof ProviderError) {
+            error.phase ??= getPhase();
+        }
+        throw error;
     }
 }
 

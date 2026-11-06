@@ -4,13 +4,13 @@ import type {
     StreamEvent,
     ChatStream,
 } from './types.ts';
-import type { CoreAIError } from './errors.ts';
+import type { CoreAIError, ProviderErrorPhase } from './errors.ts';
 import { createStream } from './base-stream.ts';
 import {
     finalizeStreamEvents,
     type FinalizeResultRequest,
 } from './finalize-result.ts';
-import { mapStreamErrors } from './map-stream-errors.ts';
+import { mapStreamErrors, setProviderErrorPhase } from './map-stream-errors.ts';
 
 export type CreateChatStreamOptions = {
     signal?: AbortSignal;
@@ -34,18 +34,26 @@ export function createChatStream(
     options: CreateChatStreamOptions = {}
 ): ChatStream {
     const { signal, mapError, request } = options;
+    let phase: ProviderErrorPhase =
+        typeof source === 'function' ? 'request' : 'stream';
     const resolvedSource: AsyncIterable<StreamEvent> =
         typeof source === 'function'
             ? (async function* () {
-                  yield* await source();
+                  const events = await source();
+                  phase = 'stream';
+                  yield* events;
               })()
             : source;
     const sourceWithMappedErrors = mapError
         ? mapStreamErrors(resolvedSource, mapError)
         : resolvedSource;
+    const sourceWithErrorPhase = setProviderErrorPhase(
+        sourceWithMappedErrors,
+        () => phase
+    );
     const finalizedSource = request
-        ? finalizeStreamEvents(sourceWithMappedErrors, request)
-        : sourceWithMappedErrors;
+        ? finalizeStreamEvents(sourceWithErrorPhase, request)
+        : sourceWithErrorPhase;
     const parts: AssistantContentPart[] = [];
     let textBuffer = '';
     let textMetadata: Record<string, unknown> | undefined;

@@ -252,6 +252,24 @@ describe('wrapMistralError', () => {
         expect(wrapped).not.toBeInstanceOf(AbortedError);
     });
 
+    it('should map the prompt too long type to ContextLengthExceededError', () => {
+        const error = {
+            body: JSON.stringify({
+                type: 'invalid_request_prompt_too_long',
+                message: 'Prompt is too long',
+            }),
+            message: 'Prompt is too long',
+            statusCode: 400,
+        };
+
+        const wrapped = wrapMistralError(error);
+
+        expect(wrapped).toBeInstanceOf(ContextLengthExceededError);
+        expect((wrapped as ContextLengthExceededError).code).toBe(
+            'invalid_request_prompt_too_long'
+        );
+    });
+
     it('should map exceeds maximum context length wording', () => {
         const error = {
             body: JSON.stringify({

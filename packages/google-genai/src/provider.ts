@@ -7,6 +7,12 @@ import { createGoogleGenAIImageModel } from './image-model.ts';
 
 export { DEFAULT_PROVIDER_ID };
 
+/**
+ * The SDK only retries when this is set. Two retries match the default of the
+ * OpenAI and Anthropic SDKs.
+ */
+const REQUEST_RETRY_OPTIONS = { attempts: 3 } as const;
+
 export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];
 };
@@ -39,13 +45,10 @@ export function createGoogleGenAIProvider(
         new GoogleGenAI({
             apiKey: options.apiKey,
             ...(options.apiVersion ? { apiVersion: options.apiVersion } : {}),
-            ...(options.baseUrl
-                ? {
-                      httpOptions: {
-                          baseUrl: options.baseUrl,
-                      },
-                  }
-                : {}),
+            httpOptions: {
+                retryOptions: REQUEST_RETRY_OPTIONS,
+                ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
+            },
         });
     const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
 
