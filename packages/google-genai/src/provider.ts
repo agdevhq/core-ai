@@ -11,7 +11,7 @@ export { DEFAULT_PROVIDER_ID };
  * The SDK only retries when this is set. Two retries match the default of the
  * OpenAI and Anthropic SDKs.
  */
-export const GOOGLE_REQUEST_RETRY_OPTIONS = { attempts: 3 };
+const REQUEST_RETRY_OPTIONS = { attempts: 3 } as const;
 
 export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];
@@ -46,7 +46,7 @@ export function createGoogleGenAIProvider(
             apiKey: options.apiKey,
             ...(options.apiVersion ? { apiVersion: options.apiVersion } : {}),
             httpOptions: {
-                retryOptions: GOOGLE_REQUEST_RETRY_OPTIONS,
+                retryOptions: REQUEST_RETRY_OPTIONS,
                 ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
             },
         });

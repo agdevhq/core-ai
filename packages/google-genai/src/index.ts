@@ -1,8 +1,4 @@
-export {
-    GOOGLE_REQUEST_RETRY_OPTIONS,
-    createGoogleGenAI,
-    createGoogleGenAIProvider,
-} from './provider.ts';
+export { createGoogleGenAI, createGoogleGenAIProvider } from './provider.ts';
 export type {
     GoogleGenAIClient,
     GoogleGenAIProvider,
