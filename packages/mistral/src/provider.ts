@@ -1,5 +1,4 @@
-import { Mistral } from '@mistralai/mistralai';
-import type { RetryConfig } from '@mistralai/mistralai/lib/retries.js';
+import { Mistral, type SDKOptions } from '@mistralai/mistralai';
 import type { ChatModel, EmbeddingModel } from '@core-ai/core-ai';
 import { createMistralChatModel } from './chat-model.ts';
 import { createMistralEmbeddingModel } from './embedding-model.ts';
@@ -10,7 +9,7 @@ import { createMistralEmbeddingModel } from './embedding-model.ts';
  * failure slower than `maxElapsedTime` is not retried. The check runs before the
  * wait, so the last retry can start up to `maxInterval` after the limit.
  */
-const REQUEST_RETRY_CONFIG: RetryConfig = {
+const REQUEST_RETRY_CONFIG: NonNullable<SDKOptions['retryConfig']> = {
     strategy: 'backoff',
     backoff: {
         initialInterval: 1_000,
