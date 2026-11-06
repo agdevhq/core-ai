@@ -6,6 +6,71 @@ import { createChatStream } from './stream.ts';
 import type { StreamEvent } from './types.ts';
 
 describe('createChatStream', () => {
+    describe('provider error phase', () => {
+        it('should mark a failed request as a request failure', async () => {
+            const stream = createChatStream(async () => {
+                throw new RateLimitError('rate limited', 'mock', {
+                    statusCode: 429,
+                });
+            });
+
+            await expect(stream.result).rejects.toMatchObject({
+                phase: 'request',
+            });
+        });
+
+        it('should mark a mapped request error as a request failure', async () => {
+            const stream = createChatStream(
+                async () => {
+                    throw new Error('connection refused');
+                },
+                {
+                    mapError: () => new RateLimitError('rate limited', 'mock'),
+                }
+            );
+
+            await expect(stream.result).rejects.toMatchObject({
+                phase: 'request',
+            });
+        });
+
+        it('should mark a failure before the first event as a stream failure', async () => {
+            const source = createPushableAsyncIterable<StreamEvent>();
+            const stream = createChatStream(async () => source.iterable);
+
+            source.fail(
+                new RateLimitError('rate limited', 'mock', { statusCode: 429 })
+            );
+
+            await expect(stream.result).rejects.toMatchObject({
+                phase: 'stream',
+                statusCode: 429,
+            });
+        });
+
+        it('should mark a failure of a stream passed directly as a stream failure', async () => {
+            const source = createPushableAsyncIterable<StreamEvent>();
+            const stream = createChatStream(source.iterable);
+
+            source.push({ type: 'text-start' });
+            source.fail(new RateLimitError('rate limited', 'mock'));
+
+            await expect(stream.result).rejects.toMatchObject({
+                phase: 'stream',
+            });
+        });
+
+        it('should leave errors other than provider errors unmarked', async () => {
+            const error = new StreamAbortedError();
+            const stream = createChatStream(async () => {
+                throw error;
+            });
+
+            await expect(stream.result).rejects.toBe(error);
+            expect(error).not.toHaveProperty('phase');
+        });
+    });
+
     it('should iterate over all events', async () => {
         const finishEvent: StreamEvent = {
             type: 'finish',
