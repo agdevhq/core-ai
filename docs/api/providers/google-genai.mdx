@@ -46,14 +46,6 @@ const google = createGoogleGenAI({
     Provide your own configured Google GenAI client instance.
 </ParamField>
 
-<ParamField path="maxRetries" type="number" default="2" optional>
-    How often to retry a chat request that fails transiently (rate limit,
-    overload, 5xx, network failure) before the response starts, with exponential
-    backoff or the provider's `Retry-After` of up to 20 seconds. Failures after
-    a stream has started and attempts that took longer than 60 seconds are never
-    retried. Set `0` to disable. Applies to a supplied `client` too.
-</ParamField>
-
 ### Returns
 
 `GoogleGenAIProvider` with methods `chatModel()`, `embeddingModel()`, and `imageModel()`.
@@ -67,16 +59,16 @@ const google = createGoogleGenAI({
     - **gemini-4-argon** - Flagship reasoning model for coding, agents, and hard science and math tasks
   </Accordion>
 
-<Accordion title="Gemini 3.x (thinking level)" icon="star">
-    - **gemini-3.8-flash** - Fast workhorse for coding and agentic workflows -
-    **gemini-3.7-flash** - Previous Flash model for agents and coding -
-    **gemini-3.6-flash** - Token-efficient Flash model for agents and coding -
-    **gemini-3.5-flash** - Previous generation Flash model -
-    **gemini-3.5-flash-lite** - Cost-efficient model for high-volume tasks -
-    **gemini-3.1-pro-preview** - High-capability multimodal preview model -
-    **gemini-3.1-flash-lite** - Lightweight thinking-level model -
-    **gemini-3-flash-preview** - Previous Gemini 3 generation Flash model
-</Accordion>
+  <Accordion title="Gemini 3.x (thinking level)" icon="star">
+    - **gemini-3.8-flash** - Fast workhorse for coding and agentic workflows
+    - **gemini-3.7-flash** - Previous Flash model for agents and coding
+    - **gemini-3.6-flash** - Token-efficient Flash model for agents and coding
+    - **gemini-3.5-flash** - Previous generation Flash model
+    - **gemini-3.5-flash-lite** - Cost-efficient model for high-volume tasks
+    - **gemini-3.1-pro-preview** - High-capability multimodal preview model
+    - **gemini-3.1-flash-lite** - Lightweight thinking-level model
+    - **gemini-3-flash-preview** - Previous Gemini 3 generation Flash model
+  </Accordion>
 
   <Accordion title="Gemini 2.5 (thinking budget)" icon="brain">
     - **gemini-2.5-pro** - High capability, budget-based thinking
@@ -324,11 +316,11 @@ Each Gemini 2.5 model accepts its own range of thinking budgets, as listed in
 `max` uses the model's documented maximum and `high` 75% of it, so the two
 stay distinct. The lower efforts are the same on every model.
 
-| Model                   | Range      | `minimal` | `low` | `medium` | `high` | `max`  |
-| ----------------------- | ---------- | --------- | ----- | -------- | ------ | ------ |
-| `gemini-2.5-pro`        | 128–32,768 | 1,024     | 4,096 | 16,384   | 24,576 | 32,768 |
-| `gemini-2.5-flash`      | 0–24,576   | 1,024     | 4,096 | 16,384   | 18,432 | 24,576 |
-| `gemini-2.5-flash-lite` | 512–24,576 | 1,024     | 4,096 | 16,384   | 18,432 | 24,576 |
+| Model                   | Range        | `minimal` | `low` | `medium` | `high` | `max`  |
+| ----------------------- | ------------ | --------- | ----- | -------- | ------ | ------ |
+| `gemini-2.5-pro`        | 128–32,768   | 1,024     | 4,096 | 16,384   | 24,576 | 32,768 |
+| `gemini-2.5-flash`      | 0–24,576     | 1,024     | 4,096 | 16,384   | 18,432 | 24,576 |
+| `gemini-2.5-flash-lite` | 512–24,576   | 1,024     | 4,096 | 16,384   | 18,432 | 24,576 |
 
 `capabilities.reasoning.thinkingBudgetRange` exposes each model's range.
 

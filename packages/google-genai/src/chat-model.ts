@@ -11,14 +11,12 @@ import type {
     ChatStream,
 } from '@core-ai/core-ai';
 import {
-    DEFAULT_MAX_RETRIES,
     createObjectStream,
     createChatStream,
     extractStructuredObject,
     finalizeGenerateResult,
     normalizeStructuredOutputSchema,
     transformStructuredOutputStream,
-    withRequestRetry,
 } from '@core-ai/core-ai';
 import {
     createStructuredOutputOptions,
@@ -31,53 +29,32 @@ import { wrapGoogleError } from './google-error.ts';
 import { getGoogleModelCapabilities } from './model-capabilities.ts';
 import type { GoogleGenAIClient } from './provider.ts';
 
-export type GoogleGenAIChatModelOptions = {
-    /** Retries of transient request failures; `0` disables them. */
-    maxRetries?: number;
-};
-
 export function createGoogleGenAIChatModel(
     client: GoogleGenAIClient,
     modelId: string,
-    provider = 'google',
-    modelOptions: GoogleGenAIChatModelOptions = {}
+    provider = 'google'
 ): ChatModel {
     const capabilities = getGoogleModelCapabilities(modelId);
     const adapterOptions = { capabilities };
-    const maxRetries = modelOptions.maxRetries ?? DEFAULT_MAX_RETRIES;
 
-    function withRetries<T>(
-        call: () => Promise<T>,
-        signal: AbortSignal | undefined
-    ): Promise<T> {
-        return withRequestRetry(call, {
-            maxRetries,
-            provider,
-            signal,
-            wrapError: (error) => wrapGoogleError(error, provider),
-        });
-    }
-
-    function callGenerateContentApi(
-        request: unknown,
-        signal: AbortSignal | undefined
+    async function callGenerateContentApi(
+        request: unknown
     ): Promise<GenerateContentResponse> {
-        return withRetries(
-            () => client.models.generateContent(request as never),
-            signal
-        );
+        try {
+            return await client.models.generateContent(request as never);
+        } catch (error) {
+            throw wrapGoogleError(error, provider);
+        }
     }
 
-    // The SDK resolves this once the response headers arrive, so a retry only
-    // ever repeats a request that produced no stream events.
-    function callGenerateContentStreamApi(
-        request: unknown,
-        signal: AbortSignal | undefined
+    async function callGenerateContentStreamApi(
+        request: unknown
     ): Promise<AsyncIterable<GenerateContentResponse>> {
-        return withRetries(
-            () => client.models.generateContentStream(request as never),
-            signal
-        );
+        try {
+            return await client.models.generateContentStream(request as never);
+        } catch (error) {
+            throw wrapGoogleError(error, provider);
+        }
     }
 
     async function generateChat(
@@ -89,7 +66,7 @@ export function createGoogleGenAIChatModel(
             provider,
             adapterOptions
         );
-        const response = await callGenerateContentApi(request, options.signal);
+        const response = await callGenerateContentApi(request);
         return finalizeGenerateResult(mapGenerateResponse(response), options);
     }
 
@@ -102,9 +79,7 @@ export function createGoogleGenAIChatModel(
         );
         return createChatStream(
             async () =>
-                transformStream(
-                    await callGenerateContentStreamApi(request, options.signal)
-                ),
+                transformStream(await callGenerateContentStreamApi(request)),
             {
                 signal: options.signal,
                 mapError: (error) => wrapGoogleError(error, provider),

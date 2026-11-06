@@ -7,6 +7,12 @@ import { createGoogleGenAIImageModel } from './image-model.ts';
 
 export { DEFAULT_PROVIDER_ID };
 
+/**
+ * The SDK only retries when this is set. Two retries match the default of the
+ * OpenAI and Anthropic SDKs.
+ */
+export const GOOGLE_REQUEST_RETRY_OPTIONS = { attempts: 3 };
+
 export type GoogleGenAIClient = {
     models: GoogleGenAI['models'];
 };
@@ -16,12 +22,6 @@ export type GoogleGenAIProviderBaseOptions = {
     apiVersion?: string;
     baseUrl?: string;
     client?: GoogleGenAIClient;
-    /**
-     * Retries of chat requests that fail transiently (rate limit, overload,
-     * 5xx, network failure) before the response starts. Defaults to 2;
-     * `0` disables them.
-     */
-    maxRetries?: number;
 };
 
 export type GoogleGenAIProviderFactoryOptions = {
@@ -45,21 +45,16 @@ export function createGoogleGenAIProvider(
         new GoogleGenAI({
             apiKey: options.apiKey,
             ...(options.apiVersion ? { apiVersion: options.apiVersion } : {}),
-            ...(options.baseUrl
-                ? {
-                      httpOptions: {
-                          baseUrl: options.baseUrl,
-                      },
-                  }
-                : {}),
+            httpOptions: {
+                retryOptions: GOOGLE_REQUEST_RETRY_OPTIONS,
+                ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
+            },
         });
     const providerId = factoryOptions.providerId ?? DEFAULT_PROVIDER_ID;
 
     return {
         chatModel: (modelId) =>
-            createGoogleGenAIChatModel(client, modelId, providerId, {
-                maxRetries: options.maxRetries,
-            }),
+            createGoogleGenAIChatModel(client, modelId, providerId),
         embeddingModel: (modelId) =>
             createGoogleGenAIEmbeddingModel(client, modelId, providerId),
         imageModel: (modelId) =>

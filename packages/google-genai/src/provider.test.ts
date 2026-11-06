@@ -1,9 +1,37 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { GoogleGenAI } from '@google/genai';
+import type { GoogleGenAI, GoogleGenAIOptions } from '@google/genai';
 import { ProviderError } from '@core-ai/core-ai';
 import { createGoogleGenAI, createGoogleGenAIProvider } from './provider.ts';
 
+const googleGenAIConstructor = vi.hoisted(() => vi.fn());
+
+vi.mock('@google/genai', async (importOriginal) => {
+    const actual = await importOriginal<typeof import('@google/genai')>();
+
+    return {
+        ...actual,
+        GoogleGenAI: class extends actual.GoogleGenAI {
+            constructor(options: GoogleGenAIOptions) {
+                super(options);
+                googleGenAIConstructor(options);
+            }
+        },
+    };
+});
+
 describe('createGoogleGenAI', () => {
+    it('should turn on the request retries of the SDK', () => {
+        createGoogleGenAI({ apiKey: 'test', baseUrl: 'https://example.test' });
+
+        expect(googleGenAIConstructor).toHaveBeenCalledWith({
+            apiKey: 'test',
+            httpOptions: {
+                baseUrl: 'https://example.test',
+                retryOptions: { attempts: 3 },
+            },
+        });
+    });
+
     it('should expose all model factories', () => {
         const provider = createGoogleGenAI({
             client: createMockClient(),

@@ -2,4 +2,4 @@
 '@core-ai/google-vertex': minor
 ---
 
-Add the `maxRetries` option to `createGoogleVertex()`. Vertex chat requests that fail transiently before the response starts (rate limit, overload, 5xx, network failure) are now retried up to 2 times by default; `0` disables the retries.
+Turn on the request retries of the Google SDK: a request that fails with a rate limit, overload or 5xx before the response starts is retried up to 2 times. The SDK does not retry network failures in Node.js. Applies to all requests of a client that core-ai creates. A supplied `client` keeps its own settings.

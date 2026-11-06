@@ -2,4 +2,4 @@
 '@core-ai/mistral': minor
 ---
 
-Retry chat requests that fail transiently before the response starts, matching the default of the OpenAI and Anthropic SDKs. Rate limits, overload, 5xx and network failures are retried up to 2 times with exponential backoff, or after the provider's `Retry-After` when it is at most 20 seconds. An abort stops the retries immediately, and errors raised after a stream has started or after an attempt of more than 60 seconds are never retried. Configure with the new `maxRetries` provider option (`0` disables).
+Turn on the request retries of the Mistral SDK: a request that fails transiently before the response starts is retried with exponential backoff, and no new retry starts after 5 seconds. Applies to all requests of a client that core-ai creates. A supplied `client` keeps its own settings.

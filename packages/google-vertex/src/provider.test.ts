@@ -1,10 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { z } from 'zod';
-import {
-    ProviderError,
-    ServiceUnavailableError,
-    ToolSchemaStrictnessError,
-} from '@core-ai/core-ai';
+import { ProviderError, ToolSchemaStrictnessError } from '@core-ai/core-ai';
 import type { GoogleGenAIClient } from '@core-ai/google-genai';
 
 import { createGoogleVertex } from './provider.ts';
@@ -69,6 +65,7 @@ describe('createGoogleVertex', () => {
             vertexai: true,
             project: 'my-project',
             location: 'europe-west1',
+            httpOptions: { retryOptions: { attempts: 3 } },
         });
     });
 
@@ -88,6 +85,7 @@ describe('createGoogleVertex', () => {
             vertexai: true,
             project: 'my-project',
             location: 'europe-west1',
+            httpOptions: { retryOptions: { attempts: 3 } },
             googleAuthOptions: { credentials },
         });
     });
@@ -217,58 +215,7 @@ describe('createGoogleVertex', () => {
         expect(error).toBeInstanceOf(ProviderError);
         expect((error as ProviderError).provider).toBe('google-vertex');
     });
-
-    it('should pass maxRetries through to chat models', async () => {
-        generateContent.mockRejectedValue(createSocketError());
-        const provider = createGoogleVertex({
-            projectId: 'my-project',
-            region: 'europe-west1',
-            maxRetries: 0,
-        });
-
-        const error = await provider
-            .chatModel('gemini-2.5-flash')
-            .generate({ messages: [{ role: 'user', content: 'hello' }] })
-            .catch((caught: unknown) => caught);
-
-        expect(error).toBeInstanceOf(ServiceUnavailableError);
-        expect(generateContent).toHaveBeenCalledTimes(1);
-    });
-
-    it('should retry transient chat request failures by default', async () => {
-        vi.useFakeTimers();
-        try {
-            generateContent
-                .mockRejectedValueOnce(createSocketError())
-                .mockResolvedValueOnce({
-                    text: 'Hello!',
-                    candidates: [{ finishReason: 'STOP' }],
-                });
-            const provider = createGoogleVertex({
-                projectId: 'my-project',
-                region: 'europe-west1',
-            });
-
-            const result = provider
-                .chatModel('gemini-2.5-flash')
-                .generate({ messages: [{ role: 'user', content: 'hello' }] });
-            await vi.runAllTimersAsync();
-
-            await expect(result).resolves.toMatchObject({ content: 'Hello!' });
-            expect(generateContent).toHaveBeenCalledTimes(2);
-        } finally {
-            vi.useRealTimers();
-        }
-    });
 });
-
-function createSocketError(): TypeError {
-    return new TypeError('fetch failed', {
-        cause: Object.assign(new Error('other side closed'), {
-            code: 'UND_ERR_SOCKET',
-        }),
-    });
-}
 
 function createMockClient(): GoogleGenAIClient {
     return {
