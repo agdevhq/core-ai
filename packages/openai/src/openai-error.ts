@@ -152,6 +152,7 @@ function isOpenAIServerError(error: unknown): boolean {
     return (
         code === 'server_error' ||
         code === 'service_unavailable' ||
+        code === 'service_unavailable_error' ||
         type === 'server_error'
     );
 }

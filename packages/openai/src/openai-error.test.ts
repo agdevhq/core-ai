@@ -516,6 +516,25 @@ describe('wrapOpenAIError', () => {
             );
         });
 
+        it('should map an in-band service_unavailable_error to ServiceUnavailableError', () => {
+            const error = new APIError(
+                undefined,
+                {
+                    code: 'service_unavailable_error',
+                    message: 'The service is temporarily unavailable',
+                },
+                'The service is temporarily unavailable',
+                undefined
+            );
+
+            const wrapped = wrapOpenAIError(error);
+
+            expect(wrapped).toBeInstanceOf(ServiceUnavailableError);
+            expect((wrapped as ServiceUnavailableError).code).toBe(
+                'service_unavailable_error'
+            );
+        });
+
         it('should map server_error to ServiceUnavailableError', () => {
             const error = new APIError(
                 undefined,
