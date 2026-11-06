@@ -45,7 +45,8 @@ export async function* mapStreamErrors<TEvent>(
  *
  * Records on a {@link ProviderError} the phase the stream was in when it
  * failed. Status codes cannot tell this apart: some providers report one for
- * failures inside the stream too.
+ * failures inside the stream too. A phase that is already set stays: stream
+ * middleware can re-wrap a chat stream, and the inner one knows the real phase.
  */
 export async function* setProviderErrorPhase<TEvent>(
     source: AsyncIterable<TEvent>,
@@ -57,7 +58,7 @@ export async function* setProviderErrorPhase<TEvent>(
         }
     } catch (error) {
         if (error instanceof ProviderError) {
-            error.phase = getPhase();
+            error.phase ??= getPhase();
         }
         throw error;
     }

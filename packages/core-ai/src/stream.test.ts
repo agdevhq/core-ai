@@ -60,6 +60,17 @@ describe('createChatStream', () => {
             });
         });
 
+        it('should keep the phase of an inner stream when a stream is re-wrapped', async () => {
+            const inner = createChatStream(async () => {
+                throw new RateLimitError('rate limited', 'mock');
+            });
+            const outer = createChatStream(inner);
+
+            await expect(outer.result).rejects.toMatchObject({
+                phase: 'request',
+            });
+        });
+
         it('should leave errors other than provider errors unmarked', async () => {
             const error = new StreamAbortedError();
             const stream = createChatStream(async () => {
