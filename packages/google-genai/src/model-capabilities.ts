@@ -20,6 +20,19 @@ export type GoogleModelCapabilities = Omit<ModelCapabilities, 'reasoning'> & {
     };
 };
 
+/** The host a Gemini model is served from. */
+export type GooglePlatform = 'gemini-api' | 'vertex';
+
+/**
+ * Images per request for the known Gemini text models: ai.google.dev
+ * documents 3,600 for all Gemini models, and every Vertex AI model page lists
+ * 3,000. Unknown ids get no limit, since Gemini image models accept far fewer.
+ */
+const GEMINI_MAX_IMAGES: Record<GooglePlatform, number> = {
+    'gemini-api': 3600,
+    vertex: 3000,
+};
+
 const ALL_EFFORTS = [
     'minimal',
     'low',
@@ -179,10 +192,18 @@ const GOOGLE_THINKING_BUDGET_LADDER: Record<
 const FALLBACK_THINKING_BUDGET_MAX = 32_768;
 
 export function getGoogleModelCapabilities(
-    modelId: string
+    modelId: string,
+    platform: GooglePlatform = 'gemini-api'
 ): GoogleModelCapabilities {
-    const normalizedModelId = normalizeModelId(modelId);
-    return MODEL_CAPABILITIES[normalizedModelId] ?? DEFAULT_CAPABILITIES;
+    const capabilities = MODEL_CAPABILITIES[normalizeModelId(modelId)];
+    if (capabilities === undefined) {
+        return DEFAULT_CAPABILITIES;
+    }
+
+    return {
+        ...capabilities,
+        input: { maxImages: GEMINI_MAX_IMAGES[platform] },
+    };
 }
 
 export function normalizeModelId(modelId: string): string {

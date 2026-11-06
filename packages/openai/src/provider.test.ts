@@ -62,6 +62,53 @@ describe('createOpenAI', () => {
         });
     });
 
+    it('should expose the OpenAI image limit on both APIs', () => {
+        const provider = createOpenAI({
+            client: createMockClient(),
+        });
+
+        expect(provider.chatModel('gpt-5.5').capabilities.input).toEqual({
+            maxImages: 1500,
+        });
+        expect(provider.chat.chatModel('gpt-5.5').capabilities.input).toEqual({
+            maxImages: 1500,
+        });
+    });
+
+    it('should expose the OpenAI image limit on regional hosts and fine-tunes', () => {
+        const regional = createOpenAI({
+            client: createMockClient({
+                baseURL: 'https://eu.api.openai.com/v1',
+            }),
+        });
+        const fineTune = createOpenAI({ client: createMockClient() }).chatModel(
+            'ft:gpt-4o-mini-2024-07-18:acme:support:abc123'
+        );
+
+        expect(regional.chatModel('gpt-5.5').capabilities.input).toEqual({
+            maxImages: 1500,
+        });
+        expect(fineTune.capabilities.input).toEqual({ maxImages: 1500 });
+    });
+
+    it('should not report the OpenAI image limit for other hosts', () => {
+        const proxy = createOpenAI({
+            apiKey: 'test-key',
+            baseURL: 'https://llm-gateway.example.com/v1',
+        });
+        const azure = createOpenAI({
+            client: createMockClient({
+                baseURL: 'https://example.openai.azure.com/openai/v1',
+            }),
+        });
+
+        expect(proxy.chatModel('gpt-5.5').capabilities.input).toBeUndefined();
+        expect(
+            proxy.chat.chatModel('gpt-5.5').capabilities.input
+        ).toBeUndefined();
+        expect(azure.chatModel('gpt-5.5').capabilities.input).toBeUndefined();
+    });
+
     it('should use a shared client instance across model types', async () => {
         const responsesCreate = vi.fn(async () => ({
             output: [
@@ -139,6 +186,7 @@ describe('createOpenAI', () => {
 });
 
 function createMockClient(overrides?: {
+    baseURL?: string;
     responsesCreate?: (options: unknown) => Promise<unknown>;
     chatCreate?: (options: unknown) => Promise<unknown>;
     embeddingCreate?: (options: unknown) => Promise<unknown>;
@@ -166,6 +214,7 @@ function createMockClient(overrides?: {
         });
 
     return {
+        baseURL: overrides?.baseURL ?? 'https://api.openai.com/v1',
         responses: {
             create: responsesCreate,
         },
