@@ -1,5 +1,11 @@
 # @core-ai/core-ai
 
+## 0.38.0
+
+### Minor Changes
+
+- 8043dd6: Add `phase` to `ProviderError`. `createChatStream` sets it to `'request'` when the request failed and to `'stream'` when the failure came after the response started, so callers can tell which errors already went through request retries.
+
 ## 0.37.0
 
 ### Minor Changes

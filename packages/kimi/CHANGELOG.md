@@ -1,5 +1,14 @@
 # @core-ai/kimi
 
+## 0.38.0
+
+### Patch Changes
+
+- Updated dependencies [8043dd6]
+- Updated dependencies [8043dd6]
+    - @core-ai/openai@0.38.0
+    - @core-ai/core-ai@0.38.0
+
 ## 0.37.0
 
 ### Patch Changes

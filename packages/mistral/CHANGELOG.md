@@ -1,5 +1,17 @@
 # @core-ai/mistral
 
+## 0.38.0
+
+### Minor Changes
+
+- 8043dd6: Turn on the request retries of the Mistral SDK: a request that fails transiently before the response starts is retried with exponential backoff. No retry is scheduled once 30 seconds have passed since the first attempt, so the last one can start a few seconds later. Applies to all requests of a client that core-ai creates. A supplied `client` keeps its own settings.
+
+### Patch Changes
+
+- 8043dd6: Map the error type `invalid_request_prompt_too_long` to `ContextLengthExceededError`, so an oversized prompt no longer surfaces as a plain `ProviderError`.
+- Updated dependencies [8043dd6]
+    - @core-ai/core-ai@0.38.0
+
 ## 0.37.0
 
 ### Patch Changes
