@@ -6,7 +6,9 @@ import { createMistralEmbeddingModel } from './embedding-model.ts';
 
 /**
  * The SDK retries nothing by default. It limits retries by elapsed time, not by
- * count, and its own limit is an hour.
+ * count, and its own limit is an hour. That time includes the requests, so a
+ * failure slower than `maxElapsedTime` is not retried. The check runs before the
+ * wait, so the last retry can start up to `maxInterval` after the limit.
  */
 const REQUEST_RETRY_CONFIG: RetryConfig = {
     strategy: 'backoff',
@@ -14,7 +16,7 @@ const REQUEST_RETRY_CONFIG: RetryConfig = {
         initialInterval: 1_000,
         maxInterval: 8_000,
         exponent: 2,
-        maxElapsedTime: 5_000,
+        maxElapsedTime: 30_000,
     },
     retryConnectionErrors: true,
 };
