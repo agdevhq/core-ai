@@ -132,7 +132,7 @@ const image = googleVertex.imageModel('gemini-2.5-flash-image');
 Model availability varies by region. Since a provider instance targets one
 region, create separate providers for models hosted in different locations.
 
-`gemini-4-argon` and `gemini-4-hydrogen` use the same model ids and
+`gemini-4-carbon`, `gemini-4-argon`, and `gemini-4-hydrogen` use the same model ids and
 capabilities as Google GenAI. Vertex serves them at `global` and at the multi-region locations `us` and `eu`,
 not at single regions such as `us-central1` or `europe-west1`. The Google GenAI
 SDK sends `us` and `eu` requests to `https://aiplatform.us.rep.googleapis.com/`

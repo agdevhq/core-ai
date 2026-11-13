@@ -69,6 +69,8 @@ function createCapabilities(
 }
 
 const ADAPTIVE_MAX_EFFORT_MODELS = new Set([
+    'claude-fable-5-2',
+    'claude-mythos-5-2',
     'claude-fable-5-1',
     'claude-mythos-5-1',
     'claude-fable-5',
@@ -148,12 +150,16 @@ const MANUAL_INTERLEAVED_THINKING_MODELS = new Set([
 ]);
 
 const ALWAYS_ON_THINKING_MODELS = new Set([
+    'claude-fable-5-2',
+    'claude-mythos-5-2',
     'claude-fable-5-1',
     'claude-mythos-5-1',
     'claude-opus-5-5',
 ]);
 
 const ALWAYS_REJECTED_FORCED_TOOL_CHOICE_MODELS = new Set([
+    'claude-fable-5-2',
+    'claude-mythos-5-2',
     'claude-fable-5-1',
     'claude-mythos-5-1',
     'claude-opus-5-5',
@@ -161,6 +167,8 @@ const ALWAYS_REJECTED_FORCED_TOOL_CHOICE_MODELS = new Set([
 ]);
 
 const ALWAYS_RESTRICTED_SAMPLING_MODELS = new Set([
+    'claude-fable-5-2',
+    'claude-mythos-5-2',
     'claude-fable-5-1',
     'claude-mythos-5-1',
     'claude-fable-5',
@@ -197,6 +205,8 @@ const ANTHROPIC_ADAPTIVE_EFFORT_MAP: Record<
  * Vertex retire on their own schedules.
  */
 const MAX_OUTPUT_TOKENS: Record<string, number> = {
+    'claude-fable-5-2': 128_000,
+    'claude-mythos-5-2': 128_000,
     'claude-fable-5-1': 128_000,
     'claude-mythos-5-1': 128_000,
     'claude-fable-5': 128_000,

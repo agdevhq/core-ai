@@ -1364,6 +1364,8 @@ describe('reasoning support', () => {
         for (const modelId of [
             'claude-opus-5-5',
             'claude-sonnet-5-5',
+            'claude-fable-5-2',
+            'claude-mythos-5-2',
             'claude-fable-5-1',
             'claude-mythos-5-1',
             'claude-haiku-5-5',
@@ -1383,6 +1385,8 @@ describe('reasoning support', () => {
     it.each([
         'claude-opus-5-5',
         'claude-sonnet-5-5',
+        'claude-fable-5-2',
+        'claude-mythos-5-2',
         'claude-fable-5-1',
         'claude-mythos-5-1',
     ])(
@@ -1788,6 +1792,20 @@ describe('reasoning support', () => {
             createStreamRequest('claude-sonnet-5-5', 4096, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createStreamRequest('claude-fable-5-2', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                temperature: 0.5,
+            })
+        ).toThrowError(ValidationError);
+
+        expect(() =>
+            createStreamRequest('claude-mythos-5-2', 4096, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                topP: 0.96,
             })
         ).toThrowError(ValidationError);
 
