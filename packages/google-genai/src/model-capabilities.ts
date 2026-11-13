@@ -142,11 +142,11 @@ const GEMINI_4_ARGON_CAPABILITIES = createThinkingLevelCapabilities(
     THREE_LEVEL_EFFORTS,
     { restrictsSamplingParams: true }
 );
-// Levels `low`, `medium`, `high`, and `xhigh`; `minimal` and penalties return
-// 400, as on Gemini 4 Argon. The API accepts `temperature`, `topP`, and `topK`
-// but Google documents no effect for them, so they are restricted with the
-// penalties.
+// Levels `low`, `medium`, `high`, and `xhigh`. As on Gemini 4 Argon,
+// `temperature`, `topP`, and `topK` are ignored, and penalties and `MINIMAL`
+// return 400.
 // https://ai.google.dev/gemini-api/docs/models/gemini-4-hydrogen
+// https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/4-hydrogen
 const GEMINI_4_HYDROGEN_CAPABILITIES = createThinkingLevelCapabilities(
     XHIGH_LEVEL_EFFORTS,
     { restrictsSamplingParams: true }
