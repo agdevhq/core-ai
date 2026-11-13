@@ -135,6 +135,18 @@ describe('createAzureOpenAI', () => {
         });
     });
 
+    it('should not inherit the OpenAI image limit', () => {
+        const v1 = createAzureOpenAI({ apiKey: 'test-key' });
+        const classic = createAzureOpenAI({
+            api: 'classic',
+            apiVersion: '2024-08-01-preview',
+        });
+
+        expect(v1.chatModel('gpt-4o').capabilities.input).toBeUndefined();
+        expect(v1.chat.chatModel('gpt-4o').capabilities.input).toBeUndefined();
+        expect(classic.chatModel('gpt-4o').capabilities.input).toBeUndefined();
+    });
+
     it('should forward classic strict tools inside the function payload', async () => {
         chatCreate.mockResolvedValue(createChatCompletionResult());
         const model = createAzureOpenAI({

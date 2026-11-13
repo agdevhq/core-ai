@@ -44,6 +44,12 @@ describe('createOmnifact', () => {
         });
     });
 
+    it('should not inherit the OpenAI image limit', () => {
+        const provider = createOmnifact({ apiKey: 'test-key' });
+
+        expect(provider.chatModel('gpt-4o').capabilities.input).toBeUndefined();
+    });
+
     it('should call the underlying OpenAI-compatible client', async () => {
         chatCreate.mockResolvedValue({
             id: 'chatcmpl-1',

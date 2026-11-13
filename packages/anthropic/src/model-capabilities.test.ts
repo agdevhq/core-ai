@@ -357,3 +357,34 @@ describe('sampling restrictions', () => {
         ).toBe(false);
     });
 });
+
+describe('input limits', () => {
+    it.each([
+        ['claude-fable-5-1', 600],
+        ['claude-mythos-preview', 600],
+        ['claude-opus-5-5', 600],
+        ['claude-opus-4-6', 600],
+        ['claude-sonnet-4-6-20260215', 600],
+        ['claude-haiku-5-5', 600],
+        ['claude-opus-4-5-20251101', 100],
+        ['claude-sonnet-4-5', 100],
+        ['claude-haiku-4-5@20251001', 100],
+        ['claude-sonnet-4-0', 100],
+        ['claude-3-7-sonnet-latest', 100],
+        ['claude-3-haiku-20240307', 100],
+    ])(
+        'should report the shared image and page limit of %s',
+        (modelId, limit) => {
+            expect(getAnthropicModelCapabilities(modelId).input).toEqual({
+                maxImages: limit,
+                maxMedia: limit,
+            });
+        }
+    );
+
+    it('should leave the limit unknown for unrecognized models', () => {
+        expect(
+            getAnthropicModelCapabilities('claude-future-9').input
+        ).toBeUndefined();
+    });
+});

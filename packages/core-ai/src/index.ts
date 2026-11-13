@@ -33,6 +33,7 @@ export type {
     ChatOutputModality,
     ToolSchemaStrictnessCapabilities,
     ModelCapabilities,
+    ModelInputCapabilities,
     ModelOutputCapabilities,
     SystemMessagePlacement,
     ChatModel,

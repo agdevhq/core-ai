@@ -10,6 +10,8 @@ describe('KIMI_MODEL_CAPABILITIES', () => {
             KIMI_MODEL_CAPABILITIES[UNKNOWN_MODEL],
         ]) {
             expect(capabilities.messages.systemPlacement).toBe('anywhere');
+            // Moonshot documents no image count limit.
+            expect(capabilities.input).toBeUndefined();
         }
     });
 
