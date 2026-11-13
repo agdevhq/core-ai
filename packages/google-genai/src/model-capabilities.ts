@@ -32,7 +32,8 @@ const ALL_EFFORTS = [
  * Thinking levels each Gemini 3 and 4 model accepts, expressed as the efforts
  * that map onto them one to one. From
  * https://ai.google.dev/gemini-api/docs/thinking. An effort outside a model's
- * list is clamped to the nearest level, so `max` always resolves to `high`.
+ * list is clamped to the nearest level, so `max` resolves to `high` on every
+ * model without an `xhigh` level.
  */
 const FOUR_LEVEL_EFFORTS = [
     'minimal',
@@ -45,6 +46,14 @@ const THREE_LEVEL_EFFORTS = [
     'low',
     'medium',
     'high',
+] as const satisfies readonly ReasoningEffort[];
+
+/** `max` maps to the `xhigh` level above `high`. */
+const XHIGH_LEVEL_EFFORTS = [
+    'low',
+    'medium',
+    'high',
+    'max',
 ] as const satisfies readonly ReasoningEffort[];
 
 const GOOGLE_INPUT_MODALITIES = {
@@ -133,8 +142,18 @@ const GEMINI_4_ARGON_CAPABILITIES = createThinkingLevelCapabilities(
     THREE_LEVEL_EFFORTS,
     { restrictsSamplingParams: true }
 );
+// Levels `low`, `medium`, `high`, and `xhigh`. As on Gemini 4 Argon,
+// `temperature`, `topP`, and `topK` are ignored, and penalties and `MINIMAL`
+// return 400.
+// https://ai.google.dev/gemini-api/docs/models/gemini-4-hydrogen
+// https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/4-hydrogen
+const GEMINI_4_HYDROGEN_CAPABILITIES = createThinkingLevelCapabilities(
+    XHIGH_LEVEL_EFFORTS,
+    { restrictsSamplingParams: true }
+);
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
+    'gemini-4-hydrogen': GEMINI_4_HYDROGEN_CAPABILITIES,
     'gemini-4-argon': GEMINI_4_ARGON_CAPABILITIES,
     'gemini-3.8-flash': THREE_LEVEL_CAPABILITIES,
     'gemini-3.7-flash': THREE_LEVEL_CAPABILITIES,
@@ -149,16 +168,24 @@ const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
     'gemini-2.5-flash-lite': GEMINI_25_FLASH_LITE_CAPABILITIES,
 };
 
-export type GoogleThinkingLevel = 'MINIMAL' | 'LOW' | 'MEDIUM' | 'HIGH';
+export type GoogleThinkingLevel =
+    | 'MINIMAL'
+    | 'LOW'
+    | 'MEDIUM'
+    | 'HIGH'
+    | 'XHIGH';
 
-/** Gemini has no level above `HIGH`, so `max` shares it. */
+/**
+ * `max` is sent as `XHIGH` only to models that list `max`; on every other
+ * model {@link toGoogleThinkingLevel} clamps it to `high` first.
+ */
 const GOOGLE_THINKING_LEVEL_MAP: Record<ReasoningEffort, GoogleThinkingLevel> =
     {
         minimal: 'MINIMAL',
         low: 'LOW',
         medium: 'MEDIUM',
         high: 'HIGH',
-        max: 'HIGH',
+        max: 'XHIGH',
     };
 
 /**

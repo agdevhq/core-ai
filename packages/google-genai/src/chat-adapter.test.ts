@@ -652,6 +652,40 @@ describe('reasoning support', () => {
         }
     );
 
+    it.each([
+        ['minimal', 'LOW'],
+        ['high', 'HIGH'],
+        ['max', 'XHIGH'],
+    ] as const)(
+        'should map Gemini 4 Hydrogen effort %s to thinking level %s',
+        (effort, level) => {
+            const request = createGenerateRequest('gemini-4-hydrogen', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort },
+            });
+
+            expect(request.config).toMatchObject({
+                thinkingConfig: { thinkingLevel: level, includeThoughts: true },
+            });
+        }
+    );
+
+    it.each([
+        ['temperature', 0.2],
+        ['topP', 0.5],
+    ] as const)('should reject %s for Gemini 4 Hydrogen', (name, value) => {
+        expect(() =>
+            createGenerateRequest('gemini-4-hydrogen', {
+                messages: [{ role: 'user', content: 'Hi' }],
+                [name]: value,
+            })
+        ).toThrowError(
+            new RegExp(
+                `Google model "gemini-4-hydrogen" does not support ${name}`
+            )
+        );
+    });
+
     it.each(['temperature', 'topP'] as const)(
         'should reject %s for Gemini 4 Argon',
         (name) => {
