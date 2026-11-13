@@ -56,6 +56,7 @@ const google = createGoogleGenAI({
 
 <AccordionGroup>
   <Accordion title="Gemini 4 (thinking level)" icon="star">
+    - **gemini-4-hydrogen** - Fast, efficient model for everyday coding and agentic workflows
     - **gemini-4-argon** - Flagship reasoning model for coding, agents, and hard science and math tasks
   </Accordion>
 
@@ -250,7 +251,7 @@ const capabilities = getGoogleModelCapabilities('gemini-2.5-flash');
 ```
 
 Gemini 2.5 and Gemini 3 models accept `temperature`, `topP`, and `topK` while
-reasoning is enabled. `gemini-4-argon` reports
+reasoning is enabled. `gemini-4-argon` and `gemini-4-hydrogen` report
 `reasoning.restrictsSamplingParams` as `true`. Passing `temperature`, `topP`,
 or the `topK`, `frequencyPenalty`, or `presencePenalty` provider options throws
 `ValidationError` before the request, including when you omit `reasoning`,
@@ -301,11 +302,14 @@ efforts a model has a level for:
 | ------------------------------------------------------------------------------------------------------------------ | ---------------------------------- |
 | `gemini-3.6-flash`, `gemini-3.5-flash`, `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-3-flash-preview` | `minimal`, `low`, `medium`, `high` |
 | `gemini-4-argon`, `gemini-3.8-flash`, `gemini-3.7-flash`, `gemini-3.1-pro-preview`                                 | `low`, `medium`, `high`            |
+| `gemini-4-hydrogen`                                                                                                | `low`, `medium`, `high`, `max`     |
 
-A supported effort is sent as the level of the same name. Any other effort is
-clamped to the nearest supported one first, so `max` always resolves to
-`high` and `minimal` resolves to `low` on models that have no `minimal` level.
-`gemini-4-argon` defaults to `medium` when you omit `reasoning`.
+A supported effort is sent as the level of the same name, except `max`, which
+is sent as `xhigh`. Any other effort is clamped to the nearest supported one
+first, so `max` resolves to `high` on models without an `xhigh` level, and
+`minimal` resolves to `low` on models that have no `minimal` level.
+`gemini-4-argon` defaults to `medium` and `gemini-4-hydrogen` to `high` when you
+omit `reasoning`.
 
 <Note>Gemini 3 and Gemini 4 models cannot disable thinking completely.</Note>
 
