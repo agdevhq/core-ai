@@ -1,5 +1,15 @@
 # @core-ai/google-genai
 
+## 0.39.0
+
+### Minor Changes
+
+- 50d0007: Add model capability support for `gemini-4-hydrogen`. Thinking is always on and uses levels `low`, `medium`, `high`, and `xhigh`; the `max` effort maps to `xhigh`, and other efforts clamp to the nearest level. `temperature`, `topP`, `topK`, `frequencyPenalty`, and `presencePenalty` throw `ValidationError`, as on `gemini-4-argon`. The synchronous output ceiling is 65,536 tokens.
+
+### Patch Changes
+
+- @core-ai/core-ai@0.39.0
+
 ## 0.38.0
 
 ### Minor Changes
