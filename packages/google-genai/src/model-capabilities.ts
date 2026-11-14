@@ -135,9 +135,13 @@ const FOUR_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(FOUR_LEVEL_EFFORTS);
 const THREE_LEVEL_CAPABILITIES =
     createThinkingLevelCapabilities(THREE_LEVEL_EFFORTS);
-// `temperature`, `topP`, and `topK` are ignored. Penalties, `MINIMAL`, and
-// `thinkingBudget` return 400.
+// Gemini 4 Argon and Gemini 4 Carbon. Levels are `low`, `medium`, and `high`.
+// `temperature`, `topP`, and `topK` are ignored, and `MINIMAL` and
+// `thinkingBudget` return 400. The adapter also rejects penalties, matching
+// Argon.
 // https://ai.google.dev/gemini-api/docs/models/gemini-4-argon
+// https://ai.google.dev/gemini-api/docs/models/gemini-4-carbon
+// https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-carbon
 const GEMINI_4_ARGON_CAPABILITIES = createThinkingLevelCapabilities(
     THREE_LEVEL_EFFORTS,
     { restrictsSamplingParams: true }
@@ -153,6 +157,7 @@ const GEMINI_4_HYDROGEN_CAPABILITIES = createThinkingLevelCapabilities(
 );
 
 const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
+    'gemini-4-carbon': GEMINI_4_ARGON_CAPABILITIES,
     'gemini-4-hydrogen': GEMINI_4_HYDROGEN_CAPABILITIES,
     'gemini-4-argon': GEMINI_4_ARGON_CAPABILITIES,
     'gemini-3.8-flash': THREE_LEVEL_CAPABILITIES,

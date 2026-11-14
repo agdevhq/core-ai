@@ -619,35 +619,41 @@ describe('reasoning support', () => {
         });
     });
 
-    it('should map reasoning config to thinkingLevel for Gemini 4 Argon', () => {
-        const request = createGenerateRequest('gemini-4-argon', {
-            messages: [{ role: 'user', content: 'Hi' }],
-            reasoning: { effort: 'medium' },
-        });
+    it.each(['gemini-4-carbon', 'gemini-4-argon'] as const)(
+        'should map reasoning config to thinkingLevel for %s',
+        (modelId) => {
+            const request = createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'medium' },
+            });
 
-        expect(request.config).toMatchObject({
-            thinkingConfig: {
-                thinkingLevel: 'MEDIUM',
-                includeThoughts: true,
-            },
-        });
-        expect(request.config).not.toHaveProperty('temperature');
-        expect(request.config).not.toHaveProperty('topP');
-        expect(request.config).not.toHaveProperty('topK');
-    });
+            expect(request.config).toMatchObject({
+                thinkingConfig: {
+                    thinkingLevel: 'MEDIUM',
+                    includeThoughts: true,
+                },
+            });
+            expect(request.config).not.toHaveProperty('temperature');
+            expect(request.config).not.toHaveProperty('topP');
+            expect(request.config).not.toHaveProperty('topK');
+        }
+    );
 
-    it.each(['minimal', 'max'] as const)(
-        'should clamp Gemini 4 Argon effort %s to a supported thinking level',
-        (effort) => {
-            const request = createGenerateRequest('gemini-4-argon', {
+    it.each([
+        ['gemini-4-carbon', 'minimal', 'LOW'],
+        ['gemini-4-carbon', 'max', 'HIGH'],
+        ['gemini-4-argon', 'minimal', 'LOW'],
+        ['gemini-4-argon', 'max', 'HIGH'],
+    ] as const)(
+        'should clamp %s effort %s to thinking level %s',
+        (modelId, effort, level) => {
+            const request = createGenerateRequest(modelId, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort },
             });
 
             expect(request.config).toMatchObject({
-                thinkingConfig: {
-                    thinkingLevel: effort === 'minimal' ? 'LOW' : 'HIGH',
-                },
+                thinkingConfig: { thinkingLevel: level },
             });
         }
     );
@@ -686,32 +692,35 @@ describe('reasoning support', () => {
         );
     });
 
-    it.each(['temperature', 'topP'] as const)(
-        'should reject %s for Gemini 4 Argon',
-        (name) => {
-            expect(() =>
-                createGenerateRequest('gemini-4-argon', {
-                    messages: [{ role: 'user', content: 'Hi' }],
-                    [name]: 0.2,
-                })
-            ).toThrowError(
-                new RegExp(
-                    `Google model "gemini-4-argon" does not support ${name}`
-                )
-            );
-        }
-    );
+    it.each([
+        ['temperature', 'gemini-4-carbon'],
+        ['topP', 'gemini-4-carbon'],
+        ['temperature', 'gemini-4-argon'],
+        ['topP', 'gemini-4-argon'],
+    ] as const)('should reject %s for %s', (name, modelId) => {
+        expect(() =>
+            createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                [name]: 0.2,
+            })
+        ).toThrowError(
+            new RegExp(`Google model "${modelId}" does not support ${name}`)
+        );
+    });
 
     it.each([
-        ['topK', 24],
-        ['frequencyPenalty', 0.5],
-        ['presencePenalty', 0.3],
+        ['topK', 'gemini-4-carbon', 24],
+        ['frequencyPenalty', 'gemini-4-carbon', 0.5],
+        ['presencePenalty', 'gemini-4-carbon', 0.3],
+        ['topK', 'gemini-4-argon', 24],
+        ['frequencyPenalty', 'gemini-4-argon', 0.5],
+        ['presencePenalty', 'gemini-4-argon', 0.3],
     ] as const)(
-        'should reject %s for Gemini 4 Argon under the provider key',
-        (name, value) => {
+        'should reject %s for %s under the provider key',
+        (name, modelId, value) => {
             expect(() =>
                 createGenerateRequest(
-                    'gemini-4-argon',
+                    modelId,
                     {
                         messages: [{ role: 'user', content: 'Hi' }],
                         providerOptions: { 'google-vertex': { [name]: value } },
