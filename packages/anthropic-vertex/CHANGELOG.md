@@ -1,5 +1,13 @@
 # @core-ai/anthropic-vertex
 
+## 0.39.1
+
+### Patch Changes
+
+- Updated dependencies [a001fe2]
+    - @core-ai/anthropic@0.39.1
+    - @core-ai/core-ai@0.39.1
+
 ## 0.39.0
 
 ### Patch Changes
