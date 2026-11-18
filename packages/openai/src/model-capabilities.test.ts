@@ -32,7 +32,7 @@ describe('getOpenAIModelCapabilities', () => {
         ).toBe('anywhere');
     });
 
-    it.each(['gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
+    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
         'should return always-on max-range capabilities without Chat Completions tools for %s',
         (modelId) => {
             const capabilities = getOpenAIModelCapabilities(modelId);
@@ -196,6 +196,9 @@ describe('getOpenAIModelCapabilities', () => {
         );
         expect(getOpenAIModelCapabilities('gpt-5.5-2026-04-23')).toEqual(
             getOpenAIModelCapabilities('gpt-5.5')
+        );
+        expect(getOpenAIModelCapabilities('gpt-6.2-sol-20261117')).toEqual(
+            getOpenAIModelCapabilities('gpt-6.2-sol')
         );
         expect(getOpenAIModelCapabilities('gpt-6.1-sol-20260929')).toEqual(
             getOpenAIModelCapabilities('gpt-6.1-sol')
@@ -364,6 +367,7 @@ describe('toOpenAIReasoningEffort', () => {
             toOpenAIReasoningEffort('max', 'ft:gpt-6.1-sol:acme::abc123')
         ).toBe('max');
         expect(toOpenAIReasoningEffort('max', 'gpt-6.1-terra')).toBe('max');
+        expect(toOpenAIReasoningEffort('max', 'gpt-6.2-sol')).toBe('max');
         expect(toOpenAIReasoningEffort('max', 'gpt-6-sol-20260922')).toBe(
             'max'
         );
