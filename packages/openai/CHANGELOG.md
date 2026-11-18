@@ -1,5 +1,12 @@
 # @core-ai/openai
 
+## 0.39.2
+
+### Patch Changes
+
+- 76182a3: Add model capability support for `gpt-6.2-sol`. The model reasons by default and accepts `low` through `max` effort, with `max` sent as `max` and `minimal` clamped to `low`. `none` is unsupported. `temperature` and `topP` are rejected while reasoning is enabled. Tool calling requires the Responses API; Chat Completions requests that include tools are rejected.
+    - @core-ai/core-ai@0.39.2
+
 ## 0.39.1
 
 ### Patch Changes
