@@ -1256,29 +1256,41 @@ describe('reasoning support', () => {
         });
     });
 
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
-        'should send max effort for %s',
-        (modelId) => {
-            const maxRequest = createGenerateRequest(modelId, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'max' },
-            });
-            expect(maxRequest).toMatchObject({ reasoning_effort: 'max' });
-        }
-    );
+    it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-astra',
+    ])('should send max effort for %s', (modelId) => {
+        const maxRequest = createGenerateRequest(modelId, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(maxRequest).toMatchObject({ reasoning_effort: 'max' });
+    });
 
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol'])(
-        'should clamp minimal effort to low for %s',
-        (modelId) => {
-            const clamped = createGenerateRequest(modelId, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'minimal' },
-            });
-            expect(clamped).toMatchObject({ reasoning_effort: 'low' });
-        }
-    );
+    it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-sol',
+    ])('should clamp minimal effort to low for %s', (modelId) => {
+        const clamped = createGenerateRequest(modelId, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+        expect(clamped).toMatchObject({ reasoning_effort: 'low' });
+    });
 
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna'])(
+    it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-luna',
+    ])(
         'should reject sampling params for %s when reasoning stays enabled',
         (modelId) => {
             expect(() =>
@@ -1290,23 +1302,26 @@ describe('reasoning support', () => {
         }
     );
 
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
-        'should reject Chat Completions tools for %s',
-        (modelId) => {
-            expect(() =>
-                createGenerateRequest(modelId, {
-                    messages: [{ role: 'user', content: 'Hi' }],
-                    tools: {
-                        search: defineTool({
-                            name: 'search',
-                            description: 'Search',
-                            parameters: z.object({ query: z.string() }),
-                        }),
-                    },
-                })
-            ).toThrowError(/does not support tool calling on Chat Completions/);
-        }
-    );
+    it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-astra',
+    ])('should reject Chat Completions tools for %s', (modelId) => {
+        expect(() =>
+            createGenerateRequest(modelId, {
+                messages: [{ role: 'user', content: 'Hi' }],
+                tools: {
+                    search: defineTool({
+                        name: 'search',
+                        description: 'Search',
+                        parameters: z.object({ query: z.string() }),
+                    }),
+                },
+            })
+        ).toThrowError(/does not support tool calling on Chat Completions/);
+    });
 
     it.each(['gpt-6-sol', 'gpt-6-luna', 'gpt-5.6-sol'])(
         'should leave Chat Completions tool requests unchanged for %s',
