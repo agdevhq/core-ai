@@ -1,5 +1,13 @@
 # @core-ai/xai
 
+## 0.39.3
+
+### Patch Changes
+
+- Updated dependencies [bbd0147]
+    - @core-ai/openai@0.39.3
+    - @core-ai/core-ai@0.39.3
+
 ## 0.39.2
 
 ### Patch Changes

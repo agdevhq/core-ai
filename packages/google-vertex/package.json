@@ -1,6 +1,6 @@
 {
     "name": "@core-ai/google-vertex",
-    "version": "0.39.2",
+    "version": "0.39.3",
     "description": "Vertex AI Google provider package for @core-ai/core-ai",
     "license": "MIT",
     "author": "Omnifact (https://omnifact.ai)",
@@ -49,8 +49,8 @@
         "test:watch": "vitest"
     },
     "dependencies": {
-        "@core-ai/core-ai": "^0.39.2",
-        "@core-ai/google-genai": "^0.39.2",
+        "@core-ai/core-ai": "^0.39.3",
+        "@core-ai/google-genai": "^0.39.3",
         "@google/genai": "^2.27.0"
     },
     "devDependencies": {
