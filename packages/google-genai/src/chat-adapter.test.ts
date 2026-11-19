@@ -659,36 +659,42 @@ describe('reasoning support', () => {
     );
 
     it.each([
-        ['minimal', 'LOW'],
-        ['high', 'HIGH'],
-        ['max', 'XHIGH'],
+        ['gemini-4-hydrogen', 'minimal', 'LOW'],
+        ['gemini-4-hydrogen', 'high', 'HIGH'],
+        ['gemini-4-hydrogen', 'max', 'XHIGH'],
+        ['gemini-4-neon', 'minimal', 'LOW'],
+        ['gemini-4-neon', 'high', 'HIGH'],
+        ['gemini-4-neon', 'max', 'XHIGH'],
     ] as const)(
-        'should map Gemini 4 Hydrogen effort %s to thinking level %s',
-        (effort, level) => {
-            const request = createGenerateRequest('gemini-4-hydrogen', {
+        'should map %s effort %s to thinking level %s',
+        (modelId, effort, level) => {
+            const request = createGenerateRequest(modelId, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 reasoning: { effort },
             });
 
             expect(request.config).toMatchObject({
-                thinkingConfig: { thinkingLevel: level, includeThoughts: true },
+                thinkingConfig: {
+                    thinkingLevel: level,
+                    includeThoughts: true,
+                },
             });
         }
     );
 
     it.each([
-        ['temperature', 0.2],
-        ['topP', 0.5],
-    ] as const)('should reject %s for Gemini 4 Hydrogen', (name, value) => {
+        ['temperature', 'gemini-4-hydrogen', 0.2],
+        ['topP', 'gemini-4-hydrogen', 0.5],
+        ['temperature', 'gemini-4-neon', 0.2],
+        ['topP', 'gemini-4-neon', 0.5],
+    ] as const)('should reject %s for %s', (name, modelId, value) => {
         expect(() =>
-            createGenerateRequest('gemini-4-hydrogen', {
+            createGenerateRequest(modelId, {
                 messages: [{ role: 'user', content: 'Hi' }],
                 [name]: value,
             })
         ).toThrowError(
-            new RegExp(
-                `Google model "gemini-4-hydrogen" does not support ${name}`
-            )
+            new RegExp(`Google model "${modelId}" does not support ${name}`)
         );
     });
 

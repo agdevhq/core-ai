@@ -18,6 +18,7 @@ describe('getGoogleModelCapabilities', () => {
     it.each([
         'gemini-4-carbon',
         'gemini-4-hydrogen',
+        'gemini-4-neon',
         'gemini-4-argon',
         'gemini-3.1-pro-preview',
         'gemini-2.5-flash',
@@ -49,6 +50,7 @@ describe('getGoogleModelCapabilities', () => {
         ['gemini-3.1-flash-lite', ['minimal', 'low', 'medium', 'high']],
         ['gemini-4-carbon', ['low', 'medium', 'high']],
         ['gemini-4-hydrogen', ['low', 'medium', 'high', 'max']],
+        ['gemini-4-neon', ['low', 'medium', 'high', 'max']],
         ['gemini-4-argon', ['low', 'medium', 'high']],
         ['gemini-3.8-flash', ['low', 'medium', 'high']],
         ['gemini-3.7-flash', ['low', 'medium', 'high']],
@@ -103,25 +105,29 @@ describe('getGoogleModelCapabilities', () => {
         'gemini-4-carbon',
         'gemini-4-argon',
         'gemini-4-hydrogen',
+        'gemini-4-neon',
     ])('should resolve a dated %s id to the same capabilities', (modelId) => {
         expect(getGoogleModelCapabilities(`${modelId}-20261013`)).toEqual(
             getGoogleModelCapabilities(modelId)
         );
     });
 
-    it.each(['gemini-4-carbon', 'gemini-4-argon', 'gemini-4-hydrogen'])(
-        'should report that %s restricts sampling parameters',
-        (modelId) => {
-            const capabilities = getGoogleModelCapabilities(modelId);
-            expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
-            expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
-            expect(capabilities.reasoning.mode).toBe('always-on');
-        }
-    );
+    it.each([
+        'gemini-4-carbon',
+        'gemini-4-argon',
+        'gemini-4-hydrogen',
+        'gemini-4-neon',
+    ])('should report that %s restricts sampling parameters', (modelId) => {
+        const capabilities = getGoogleModelCapabilities(modelId);
+        expect(capabilities.reasoning.restrictsSamplingParams).toBe(true);
+        expect(capabilities.reasoning.thinkingParam).toBe('thinkingLevel');
+        expect(capabilities.reasoning.mode).toBe('always-on');
+    });
 
     it.each([
         'gemini-4-carbon',
         'gemini-4-hydrogen',
+        'gemini-4-neon',
         'gemini-4-argon',
         'gemini-3.5-flash',
         'gemini-2.5-pro',
@@ -141,6 +147,7 @@ describe('getGoogleModelCapabilities', () => {
     it.each([
         'gemini-4-carbon',
         'gemini-4-hydrogen',
+        'gemini-4-neon',
         'gemini-4-argon',
         'gemini-3.1-pro-preview',
         'gemini-3.1-flash-lite',
@@ -187,6 +194,11 @@ describe('reasoning mapping', () => {
         ['gemini-4-hydrogen', 'medium', 'MEDIUM'],
         ['gemini-4-hydrogen', 'high', 'HIGH'],
         ['gemini-4-hydrogen', 'max', 'XHIGH'],
+        ['gemini-4-neon', 'minimal', 'LOW'],
+        ['gemini-4-neon', 'low', 'LOW'],
+        ['gemini-4-neon', 'medium', 'MEDIUM'],
+        ['gemini-4-neon', 'high', 'HIGH'],
+        ['gemini-4-neon', 'max', 'XHIGH'],
         ['gemini-3.8-flash', 'minimal', 'LOW'],
         ['gemini-3.8-flash', 'medium', 'MEDIUM'],
         ['gemini-3.8-flash', 'max', 'HIGH'],
@@ -230,6 +242,7 @@ describe('output ceilings', () => {
     it.each([
         'gemini-4-carbon',
         'gemini-4-hydrogen',
+        'gemini-4-neon',
         'gemini-4-argon',
         'gemini-3.8-flash',
         'gemini-3.5-flash-lite',
