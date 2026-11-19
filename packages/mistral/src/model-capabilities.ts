@@ -56,13 +56,24 @@ const GLM_REASONING = {
     supportedToolChoices: TOOL_CHOICES,
 } as const satisfies ModelCapabilities['reasoning'];
 
+/**
+ * "The maximum number images per request via API is 8." (vision docs FAQ),
+ * matching the API's own `maximum allowed of 8` rejection. Only set for
+ * Mistral's own vision families, not for unknown or self-hosted models.
+ */
+const MISTRAL_INPUT_LIMITS = {
+    maxImages: 8,
+} as const satisfies ModelCapabilities['input'];
+
 function createCapabilities(
     modalities: ModelCapabilities['modalities'],
-    reasoning: ModelCapabilities['reasoning'] = NO_REASONING
+    reasoning: ModelCapabilities['reasoning'] = NO_REASONING,
+    input?: ModelCapabilities['input']
 ): MistralModelCapabilities {
     return {
         reasoning,
         modalities,
+        ...(input === undefined ? {} : { input }),
         tools: {
             // Mistral's SDK exposes a `strict` field on functions, but the API
             // does not document grammar-enforced adherence — keep unsupported
@@ -75,11 +86,19 @@ function createCapabilities(
     };
 }
 
-const VISION_CAPABILITIES = createCapabilities(MULTIMODAL_INPUT_MODALITIES);
+const VISION_CAPABILITIES = createCapabilities(
+    MULTIMODAL_INPUT_MODALITIES,
+    NO_REASONING,
+    MISTRAL_INPUT_LIMITS
+);
+const UNKNOWN_MODEL_CAPABILITIES = createCapabilities(
+    MULTIMODAL_INPUT_MODALITIES
+);
 const TEXT_ONLY_CAPABILITIES = createCapabilities(TEXT_ONLY_MODALITIES);
 const ADJUSTABLE_VISION_CAPABILITIES = createCapabilities(
     MULTIMODAL_INPUT_MODALITIES,
-    ADJUSTABLE_REASONING
+    ADJUSTABLE_REASONING,
+    MISTRAL_INPUT_LIMITS
 );
 const GLM_CAPABILITIES = createCapabilities(
     TEXT_ONLY_MODALITIES,
@@ -112,7 +131,7 @@ const FAMILY_CAPABILITIES = {
     'open-mistral-nemo': TEXT_ONLY_CAPABILITIES,
     'open-mixtral-8x7b': TEXT_ONLY_CAPABILITIES,
     'open-mixtral-8x22b': TEXT_ONLY_CAPABILITIES,
-    [UNKNOWN_MODEL]: VISION_CAPABILITIES,
+    [UNKNOWN_MODEL]: UNKNOWN_MODEL_CAPABILITIES,
 } as const satisfies ModelCapabilitiesRegistry<MistralModelCapabilities>;
 
 /**
