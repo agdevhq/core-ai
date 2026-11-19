@@ -740,7 +740,13 @@ describe('createGenerateRequest', () => {
         });
     });
 
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-sol'])(
+    it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-sol',
+    ])(
         'should request encrypted reasoning and forward tools for %s without an effort override',
         (modelId) => {
             const request = createGenerateRequest(modelId, {
@@ -760,35 +766,42 @@ describe('createGenerateRequest', () => {
         }
     );
 
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-astra'])(
-        'should send max effort for %s',
-        (modelId) => {
-            const maxRequest = createGenerateRequest(modelId, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'max' },
-            });
-            expect(maxRequest.reasoning).toEqual({
-                effort: 'max',
-                summary: 'auto',
-            });
-        }
-    );
-
-    it.each(['gpt-6.2-sol', 'gpt-6.1-sol', 'gpt-6.1-terra', 'gpt-6-luna'])(
-        'should clamp minimal effort to low for %s',
-        (modelId) => {
-            const clamped = createGenerateRequest(modelId, {
-                messages: [{ role: 'user', content: 'Hi' }],
-                reasoning: { effort: 'minimal' },
-            });
-            expect(clamped.reasoning).toEqual({
-                effort: 'low',
-                summary: 'auto',
-            });
-        }
-    );
+    it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-astra',
+    ])('should send max effort for %s', (modelId) => {
+        const maxRequest = createGenerateRequest(modelId, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'max' },
+        });
+        expect(maxRequest.reasoning).toEqual({
+            effort: 'max',
+            summary: 'auto',
+        });
+    });
 
     it.each([
+        'gpt-6.2-astra',
+        'gpt-6.2-sol',
+        'gpt-6.1-sol',
+        'gpt-6.1-terra',
+        'gpt-6-luna',
+    ])('should clamp minimal effort to low for %s', (modelId) => {
+        const clamped = createGenerateRequest(modelId, {
+            messages: [{ role: 'user', content: 'Hi' }],
+            reasoning: { effort: 'minimal' },
+        });
+        expect(clamped.reasoning).toEqual({
+            effort: 'low',
+            summary: 'auto',
+        });
+    });
+
+    it.each([
+        'gpt-6.2-astra',
         'gpt-6.2-sol',
         'gpt-6.1-sol',
         'gpt-6.1-terra',
