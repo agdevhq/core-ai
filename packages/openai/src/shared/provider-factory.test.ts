@@ -21,6 +21,16 @@ const CAPABILITIES: ModelCapabilities = {
     messages: { systemPlacement: 'anywhere' },
 };
 
+const REASONING_CAPABILITIES: ModelCapabilities = {
+    ...CAPABILITIES,
+    reasoning: {
+        mode: 'optional',
+        supportedEfforts: ['low', 'medium', 'high', 'max'],
+        restrictsSamplingParams: false,
+        supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+    },
+};
+
 describe('createOpenAIProvider', () => {
     it('should apply registered capabilities to both chat APIs', () => {
         const provider = createOpenAIProvider(
@@ -159,6 +169,70 @@ describe('createOpenAIProvider', () => {
             })
         ).rejects.toThrowError(/unrecognized key/i);
         expect(create).not.toHaveBeenCalled();
+    });
+
+    it('should honour nativeMaxEffort from registered capabilities on both chat APIs', async () => {
+        const chatCreate = vi.fn(async () => createChatCompletion());
+        const responsesCreate = vi.fn(async () => createResponse());
+        const provider = createOpenAIProvider(
+            {
+                client: {
+                    chat: { completions: { create: chatCreate } },
+                    responses: { create: responsesCreate },
+                } as unknown as OpenAI,
+            },
+            {
+                modelCapabilities: {
+                    'max-model': {
+                        ...REASONING_CAPABILITIES,
+                        nativeMaxEffort: true,
+                    },
+                    'xhigh-model': REASONING_CAPABILITIES,
+                    'gpt-6-sol': REASONING_CAPABILITIES,
+                },
+            }
+        );
+        const options = {
+            messages: [{ role: 'user' as const, content: 'hello' }],
+            reasoning: { effort: 'max' as const },
+        };
+
+        await provider.chat.chatModel('max-model').generate(options);
+        await provider.chat.chatModel('xhigh-model').generate(options);
+        await provider.chatModel('max-model').generate(options);
+        await provider.chatModel('xhigh-model').generate(options);
+        await provider.chat.chatModel('gpt-6-sol').generate(options);
+
+        expect(chatCreate).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({ reasoning_effort: 'max' }),
+            expect.any(Object)
+        );
+        expect(chatCreate).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({ reasoning_effort: 'xhigh' }),
+            expect.any(Object)
+        );
+        expect(responsesCreate).toHaveBeenNthCalledWith(
+            1,
+            expect.objectContaining({
+                reasoning: expect.objectContaining({ effort: 'max' }),
+            }),
+            expect.any(Object)
+        );
+        expect(responsesCreate).toHaveBeenNthCalledWith(
+            2,
+            expect.objectContaining({
+                reasoning: expect.objectContaining({ effort: 'xhigh' }),
+            }),
+            expect.any(Object)
+        );
+        // Built-in ids registered without the flag keep the built-in mapping.
+        expect(chatCreate).toHaveBeenNthCalledWith(
+            3,
+            expect.objectContaining({ reasoning_effort: 'max' }),
+            expect.any(Object)
+        );
     });
 });
 

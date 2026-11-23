@@ -10,7 +10,6 @@ import type {
     GenerateObjectOptions,
     GenerateObjectResult,
     GenerateResult,
-    ModelCapabilities,
     SchemaInput,
     StreamObjectOptions,
     ObjectStream,
@@ -31,6 +30,7 @@ import {
     mapGenerateResponse,
     transformStream,
 } from './chat-adapter.ts';
+import type { OpenAICompatibleModelCapabilities } from './model-capabilities.ts';
 import { wrapOpenAIError } from './openai-error.ts';
 import type { OpenAIResponsesGenerateProviderOptionsConfig } from './provider-options.ts';
 import {
@@ -51,7 +51,7 @@ type OpenAIResponsesModelOptions = {
 export function createOpenAIChatModel(
     client: OpenAIChatClient,
     modelId: string,
-    capabilities: ModelCapabilities,
+    capabilities: OpenAICompatibleModelCapabilities,
     modelOptions: OpenAIResponsesModelOptions = {}
 ): ChatModel {
     const provider = modelOptions.providerId ?? DEFAULT_PROVIDER_ID;

@@ -14,6 +14,7 @@ import {
     defineTool,
     type GenerateOptions,
     type Message,
+    type ModelCapabilities,
     type StreamEvent,
     TEXT_ONLY_MODALITIES,
 } from '@core-ai/core-ai';
@@ -28,6 +29,21 @@ import { getOpenAIModelCapabilities } from './model-capabilities.ts';
 import { openaiResponsesGenerateProviderOptionsSchema } from './provider-options.ts';
 import { wrapOpenAIError } from './openai-error.ts';
 import { toAsyncIterable } from '@core-ai/testing';
+
+const COMPATIBLE_REASONING_CAPABILITIES = {
+    reasoning: {
+        mode: 'optional',
+        supportedEfforts: ['low', 'medium', 'high', 'max'],
+        restrictsSamplingParams: false,
+        supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+    },
+    modalities: TEXT_ONLY_MODALITIES,
+    tools: {
+        strictSchemas: { supported: false },
+        toolDiscovery: 'emulated',
+    },
+    messages: { systemPlacement: 'anywhere' },
+} as const satisfies ModelCapabilities;
 
 const IMAGE_MESSAGES: Message[] = [
     {
@@ -779,6 +795,70 @@ describe('createGenerateRequest', () => {
         });
         expect(maxRequest.reasoning).toEqual({
             effort: 'max',
+            summary: 'auto',
+        });
+    });
+
+    it('should send max effort for passed-in models with nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'compatible-model',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            {
+                capabilities: {
+                    ...COMPATIBLE_REASONING_CAPABILITIES,
+                    nativeMaxEffort: true,
+                },
+            }
+        );
+        expect(request.reasoning).toEqual({ effort: 'max', summary: 'auto' });
+    });
+
+    it('should send xhigh for passed-in models without nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'compatible-model',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            { capabilities: COMPATIBLE_REASONING_CAPABILITIES }
+        );
+        expect(request.reasoning).toEqual({
+            effort: 'xhigh',
+            summary: 'auto',
+        });
+    });
+
+    it('should keep max for built-in models passed without nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'gpt-6-sol',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            { capabilities: COMPATIBLE_REASONING_CAPABILITIES }
+        );
+        expect(request.reasoning).toEqual({ effort: 'max', summary: 'auto' });
+    });
+
+    it('should send xhigh for built-in models passed with nativeMaxEffort false', () => {
+        const request = createGenerateRequest(
+            'gpt-6-sol',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            {
+                capabilities: {
+                    ...COMPATIBLE_REASONING_CAPABILITIES,
+                    nativeMaxEffort: false,
+                },
+            }
+        );
+        expect(request.reasoning).toEqual({
+            effort: 'xhigh',
             summary: 'auto',
         });
     });

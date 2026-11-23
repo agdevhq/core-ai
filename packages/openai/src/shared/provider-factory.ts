@@ -4,7 +4,6 @@ import {
     type ChatModel,
     type EmbeddingModel,
     type ImageModel,
-    type ModelCapabilities,
     type ModelCapabilitiesRegistry,
 } from '@core-ai/core-ai';
 
@@ -15,6 +14,7 @@ import { createOpenAIImageModel } from '../image-model.ts';
 import {
     getOpenAIModelCapabilities,
     toOpenAIResponsesCapabilities,
+    type OpenAICompatibleModelCapabilities,
 } from '../model-capabilities.ts';
 import {
     openaiChatGenerateProviderOptionsSchema,
@@ -50,7 +50,11 @@ export type OpenAIChatProvider = {
 };
 
 export type OpenAIProviderFactoryOptions = {
-    modelCapabilities?: ModelCapabilitiesRegistry;
+    /**
+     * Per-model capabilities, checked before the built-in OpenAI registry.
+     * Entries may set `nativeMaxEffort` to send core `max` as `max`.
+     */
+    modelCapabilities?: ModelCapabilitiesRegistry<OpenAICompatibleModelCapabilities>;
     /** Also the `providerOptions` and reasoning `providerMetadata` key. */
     providerId?: string;
     /** Chat Completions provider options schema. */
@@ -76,7 +80,9 @@ export function createOpenAIProvider(
         typeof factoryOptions.compatibility === 'object'
             ? factoryOptions.compatibility
             : undefined;
-    const resolveCapabilities = (modelId: string): ModelCapabilities =>
+    const resolveCapabilities = (
+        modelId: string
+    ): OpenAICompatibleModelCapabilities =>
         getRegisteredModelCapabilities(
             factoryOptions.modelCapabilities,
             modelId

@@ -266,6 +266,53 @@ for a model ID. Each model factory then applies its API's restrictions: the
 Responses factory drops audio input, and the Chat Completions factory reports
 `tools.toolDiscovery` as `'emulated'`.
 
+### Custom model capabilities
+
+For OpenAI-compatible endpoints that serve models outside the OpenAI registry,
+pass per-model capabilities to `createOpenAIProvider()`. Registered entries take
+precedence over the built-in registry. Use `nativeMaxEffort` when the endpoint
+accepts `max` as a reasoning effort:
+
+```typescript
+import { createOpenAIProvider } from '@core-ai/openai';
+import { TEXT_ONLY_MODALITIES } from '@core-ai/core-ai';
+
+const provider = createOpenAIProvider(
+    { apiKey: 'your-api-key', baseURL: 'https://your-endpoint.example/v1' },
+    {
+        providerId: 'openai-compat',
+        defaultApi: 'chat-completions',
+        compatibility: true,
+        modelCapabilities: {
+            'reasoning-model': {
+                reasoning: {
+                    mode: 'optional',
+                    supportedEfforts: ['low', 'medium', 'high', 'max'],
+                    restrictsSamplingParams: false,
+                    supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+                },
+                modalities: TEXT_ONLY_MODALITIES,
+                tools: {
+                    strictSchemas: { supported: false },
+                    toolDiscovery: 'emulated',
+                },
+                messages: { systemPlacement: 'anywhere' },
+                nativeMaxEffort: true,
+            },
+        },
+    }
+);
+```
+
+`compatibility: true` applies the same wire behavior as `createOpenAICompat()`.
+
+Set `nativeMaxEffort: true` to send the core `max` effort as `max`, or `false`
+to send it as `xhigh`. When you omit it, known OpenAI model IDs keep their
+built-in mapping and other IDs send `xhigh`. The flag applies to both the
+Responses and Chat Completions APIs. It only takes effect when
+`reasoning.supportedEfforts` includes `'max'`; otherwise `max` is clamped to
+the nearest supported effort first.
+
 ### Strict tool schemas
 
 Tool-capable OpenAI models report `model.capabilities.tools.strictSchemas` as
@@ -458,7 +505,12 @@ Reasoning support depends on the selected model family:
 
 <Note>
     For GPT-6, `max` is sent as `max`. For GPT-5 and o-series models, `max` is
-    sent as `xhigh`. `minimal` on GPT-6 is clamped to `low`.
+    sent as `xhigh`. Models registered through `modelCapabilities` send `max`
+    as `max` when they set `nativeMaxEffort: true` and as `xhigh` when they set
+    it to `false`. When omitted, known OpenAI model IDs keep their built-in
+    mapping and other models get `xhigh` (see
+    [Custom model capabilities](#custom-model-capabilities)). `minimal` on
+    GPT-6 is clamped to `low`.
 
     GPT-6 Astra, GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.1 Sol, and GPT-6.1 Terra do
     not support tool calling on Chat Completions. Use `chatModel()` (the

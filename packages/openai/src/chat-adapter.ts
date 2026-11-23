@@ -18,7 +18,6 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
-    ModelCapabilities,
     ResolvedToolDiscovery,
     StreamEvent,
     ToolCall,
@@ -49,6 +48,7 @@ import {
     getOpenAIModelCapabilities,
     toOpenAIResponsesCapabilities,
     toOpenAIReasoningEffort,
+    type OpenAICompatibleModelCapabilities,
 } from './model-capabilities.ts';
 import {
     convertResponseTool,
@@ -79,13 +79,13 @@ export const DEFAULT_PROVIDER_ID = 'openai';
  * from one endpoint is never forwarded to the other.
  */
 export type OpenAIResponsesAdapterOptions = {
-    capabilities?: ModelCapabilities;
+    capabilities?: OpenAICompatibleModelCapabilities;
     providerId?: string;
     providerOptions?: OpenAIResponsesGenerateProviderOptionsConfig;
 };
 
 type ResolvedAdapterOptions = {
-    capabilities: ModelCapabilities;
+    capabilities: OpenAICompatibleModelCapabilities;
     providerId: string;
 };
 
@@ -1379,7 +1379,7 @@ function createInBandStreamError(body: InBandStreamErrorBody): APIError {
 function mapReasoningToRequestFields(
     modelId: string,
     options: GenerateOptions,
-    capabilities: ModelCapabilities
+    capabilities: OpenAICompatibleModelCapabilities
 ) {
     if (!options.reasoning) {
         return {};
@@ -1398,7 +1398,8 @@ function mapReasoningToRequestFields(
             options.reasoning.effort,
             capabilities.reasoning.supportedEfforts
         ),
-        modelId
+        modelId,
+        capabilities
     );
 
     return {

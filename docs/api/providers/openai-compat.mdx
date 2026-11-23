@@ -116,6 +116,11 @@ are forwarded to the endpoint rather than rejected locally.
 The `reasoning` provider option controls extraction of nonstandard response
 fields; it does not change `model.capabilities`.
 
+To declare per-model capabilities, including whether the endpoint accepts
+`max` as a reasoning effort, use `createOpenAIProvider()` from
+`@core-ai/openai` with `modelCapabilities`. See
+[Custom model capabilities](/api/providers/openai#custom-model-capabilities).
+
 ### System messages
 
 Every model reports `model.capabilities.messages.systemPlacement` as

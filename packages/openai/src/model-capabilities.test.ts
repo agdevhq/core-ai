@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest';
+import type { ReasoningEffort } from '@core-ai/core-ai';
+
 import {
     getOpenAIModelCapabilities,
     normalizeModelId,
@@ -362,28 +364,66 @@ describe('getOpenAIModelCapabilities', () => {
 });
 
 describe('toOpenAIReasoningEffort', () => {
+    function toEffortForModel(effort: ReasoningEffort, modelId: string) {
+        return toOpenAIReasoningEffort(
+            effort,
+            modelId,
+            getOpenAIModelCapabilities(modelId)
+        );
+    }
+
     it('should map max to xhigh', () => {
-        expect(toOpenAIReasoningEffort('max')).toBe('xhigh');
-        expect(toOpenAIReasoningEffort('max', 'gpt-5.6-sol')).toBe('xhigh');
+        expect(toEffortForModel('max', 'gpt-5.6-sol')).toBe('xhigh');
+        expect(toEffortForModel('max', 'unknown-model')).toBe('xhigh');
     });
 
     it('should map max to max for GPT-6 models', () => {
-        expect(toOpenAIReasoningEffort('max', 'gpt-6-astra')).toBe('max');
-        expect(toOpenAIReasoningEffort('max', 'gpt-6.1-sol-20260929')).toBe(
+        expect(toEffortForModel('max', 'gpt-6-astra')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.1-sol-20260929')).toBe('max');
+        expect(toEffortForModel('max', 'ft:gpt-6.1-sol:acme::abc123')).toBe(
             'max'
         );
-        expect(
-            toOpenAIReasoningEffort('max', 'ft:gpt-6.1-sol:acme::abc123')
-        ).toBe('max');
-        expect(toOpenAIReasoningEffort('max', 'gpt-6.1-terra')).toBe('max');
-        expect(toOpenAIReasoningEffort('max', 'gpt-6.2-astra')).toBe('max');
-        expect(toOpenAIReasoningEffort('max', 'gpt-6.2-sol')).toBe('max');
-        expect(toOpenAIReasoningEffort('max', 'gpt-6-sol-20260922')).toBe(
+        expect(toEffortForModel('max', 'gpt-6.1-terra')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.2-astra')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.2-sol')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6-sol-20260922')).toBe('max');
+        expect(toEffortForModel('max', 'ft:gpt-6-luna:acme::abc123')).toBe(
             'max'
         );
+        expect(toEffortForModel('high', 'gpt-6-luna')).toBe('high');
+    });
+
+    it('should honour nativeMaxEffort on caller-provided capabilities', () => {
+        const capabilities = getOpenAIModelCapabilities('unknown-model');
+
         expect(
-            toOpenAIReasoningEffort('max', 'ft:gpt-6-luna:acme::abc123')
+            toOpenAIReasoningEffort('max', 'unknown-model', {
+                ...capabilities,
+                nativeMaxEffort: true,
+            })
         ).toBe('max');
-        expect(toOpenAIReasoningEffort('high', 'gpt-6-luna')).toBe('high');
+        expect(
+            toOpenAIReasoningEffort('max', 'unknown-model', {
+                reasoning: capabilities.reasoning,
+                modalities: capabilities.modalities,
+                tools: capabilities.tools,
+                messages: capabilities.messages,
+            })
+        ).toBe('xhigh');
+    });
+
+    it('should fall back to the built-in registry when the flag is unset', () => {
+        const { nativeMaxEffort: _, ...gpt6Capabilities } =
+            getOpenAIModelCapabilities('gpt-6-sol');
+
+        expect(
+            toOpenAIReasoningEffort('max', 'gpt-6-sol', gpt6Capabilities)
+        ).toBe('max');
+        expect(
+            toOpenAIReasoningEffort('max', 'gpt-6-sol', {
+                ...gpt6Capabilities,
+                nativeMaxEffort: false,
+            })
+        ).toBe('xhigh');
     });
 });
