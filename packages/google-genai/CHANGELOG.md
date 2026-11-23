@@ -1,5 +1,11 @@
 # @core-ai/google-genai
 
+## 0.39.4
+
+### Patch Changes
+
+- @core-ai/core-ai@0.39.4
+
 ## 0.39.3
 
 ### Patch Changes
