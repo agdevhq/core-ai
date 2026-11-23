@@ -831,6 +831,38 @@ describe('createGenerateRequest', () => {
         });
     });
 
+    it('should keep max for built-in models passed without nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'gpt-6-sol',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            { capabilities: COMPATIBLE_REASONING_CAPABILITIES }
+        );
+        expect(request.reasoning).toEqual({ effort: 'max', summary: 'auto' });
+    });
+
+    it('should send xhigh for built-in models passed with nativeMaxEffort false', () => {
+        const request = createGenerateRequest(
+            'gpt-6-sol',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            {
+                capabilities: {
+                    ...COMPATIBLE_REASONING_CAPABILITIES,
+                    nativeMaxEffort: false,
+                },
+            }
+        );
+        expect(request.reasoning).toEqual({
+            effort: 'xhigh',
+            summary: 'auto',
+        });
+    });
+
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',

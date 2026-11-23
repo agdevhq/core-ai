@@ -406,11 +406,21 @@ export function normalizeModelId(modelId: string): string {
     return stripModelDateSuffix(modelId);
 }
 
+/**
+ * `nativeMaxEffort` on the resolved capabilities wins, including an explicit
+ * `false`. When unset (e.g. plain `ModelCapabilities` passed for a built-in
+ * model id), the built-in OpenAI registry decides.
+ */
 export function toOpenAIReasoningEffort(
     effort: ReasoningEffort,
+    modelId: string,
     capabilities: OpenAICompatibleModelCapabilities
 ): OpenAIReasoningEffort {
-    if (effort === 'max' && capabilities.nativeMaxEffort === true) {
+    if (
+        effort === 'max' &&
+        (capabilities.nativeMaxEffort ??
+            getOpenAIModelCapabilities(modelId).nativeMaxEffort)
+    ) {
         return 'max';
     }
 

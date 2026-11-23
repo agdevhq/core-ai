@@ -602,7 +602,7 @@ function createRequestBase(
         ...(options.toolChoice
             ? { tool_choice: convertResponseToolChoice(options.toolChoice) }
             : {}),
-        ...mapReasoningToRequestFields(options, capabilities),
+        ...mapReasoningToRequestFields(modelId, options, capabilities),
         ...mapSamplingToRequestFields(options),
     };
 }
@@ -1377,6 +1377,7 @@ function createInBandStreamError(body: InBandStreamErrorBody): APIError {
 }
 
 function mapReasoningToRequestFields(
+    modelId: string,
     options: GenerateOptions,
     capabilities: OpenAICompatibleModelCapabilities
 ) {
@@ -1397,6 +1398,7 @@ function mapReasoningToRequestFields(
             options.reasoning.effort,
             capabilities.reasoning.supportedEfforts
         ),
+        modelId,
         capabilities
     );
 

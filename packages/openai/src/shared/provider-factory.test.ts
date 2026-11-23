@@ -188,6 +188,7 @@ describe('createOpenAIProvider', () => {
                         nativeMaxEffort: true,
                     },
                     'xhigh-model': REASONING_CAPABILITIES,
+                    'gpt-6-sol': REASONING_CAPABILITIES,
                 },
             }
         );
@@ -200,6 +201,7 @@ describe('createOpenAIProvider', () => {
         await provider.chat.chatModel('xhigh-model').generate(options);
         await provider.chatModel('max-model').generate(options);
         await provider.chatModel('xhigh-model').generate(options);
+        await provider.chat.chatModel('gpt-6-sol').generate(options);
 
         expect(chatCreate).toHaveBeenNthCalledWith(
             1,
@@ -223,6 +225,12 @@ describe('createOpenAIProvider', () => {
             expect.objectContaining({
                 reasoning: expect.objectContaining({ effort: 'xhigh' }),
             }),
+            expect.any(Object)
+        );
+        // Built-in ids registered without the flag keep the built-in mapping.
+        expect(chatCreate).toHaveBeenNthCalledWith(
+            3,
+            expect.objectContaining({ reasoning_effort: 'max' }),
             expect.any(Object)
         );
     });

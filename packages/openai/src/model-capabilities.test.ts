@@ -367,6 +367,7 @@ describe('toOpenAIReasoningEffort', () => {
     function toEffortForModel(effort: ReasoningEffort, modelId: string) {
         return toOpenAIReasoningEffort(
             effort,
+            modelId,
             getOpenAIModelCapabilities(modelId)
         );
     }
@@ -396,17 +397,32 @@ describe('toOpenAIReasoningEffort', () => {
         const capabilities = getOpenAIModelCapabilities('unknown-model');
 
         expect(
-            toOpenAIReasoningEffort('max', {
+            toOpenAIReasoningEffort('max', 'unknown-model', {
                 ...capabilities,
                 nativeMaxEffort: true,
             })
         ).toBe('max');
         expect(
-            toOpenAIReasoningEffort('max', {
+            toOpenAIReasoningEffort('max', 'unknown-model', {
                 reasoning: capabilities.reasoning,
                 modalities: capabilities.modalities,
                 tools: capabilities.tools,
                 messages: capabilities.messages,
+            })
+        ).toBe('xhigh');
+    });
+
+    it('should fall back to the built-in registry when the flag is unset', () => {
+        const { nativeMaxEffort: _, ...gpt6Capabilities } =
+            getOpenAIModelCapabilities('gpt-6-sol');
+
+        expect(
+            toOpenAIReasoningEffort('max', 'gpt-6-sol', gpt6Capabilities)
+        ).toBe('max');
+        expect(
+            toOpenAIReasoningEffort('max', 'gpt-6-sol', {
+                ...gpt6Capabilities,
+                nativeMaxEffort: false,
             })
         ).toBe('xhigh');
     });

@@ -333,7 +333,11 @@ function createRequestBase(
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...mapReasoningToRequestFields(options, adapterOptions.capabilities),
+        ...mapReasoningToRequestFields(
+            modelId,
+            options,
+            adapterOptions.capabilities
+        ),
         ...mapSamplingToRequestFields(modelId, options, adapterOptions),
     };
 }
@@ -752,6 +756,7 @@ export async function* transformStream(
 }
 
 function mapReasoningToRequestFields(
+    modelId: string,
     options: GenerateOptions,
     capabilities: OpenAICompatibleModelCapabilities
 ) {
@@ -772,7 +777,11 @@ function mapReasoningToRequestFields(
     );
 
     return {
-        reasoning_effort: toOpenAIReasoningEffort(clampedEffort, capabilities),
+        reasoning_effort: toOpenAIReasoningEffort(
+            clampedEffort,
+            modelId,
+            capabilities
+        ),
     };
 }
 

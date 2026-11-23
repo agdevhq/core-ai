@@ -282,6 +282,7 @@ const provider = createOpenAIProvider(
     {
         providerId: 'openai-compat',
         defaultApi: 'chat-completions',
+        compatibility: true,
         modelCapabilities: {
             'reasoning-model': {
                 reasoning: {
@@ -303,9 +304,14 @@ const provider = createOpenAIProvider(
 );
 ```
 
-`nativeMaxEffort` defaults to `false`, which sends the core `max` effort as
-`xhigh`. Set it to `true` to send `max` unchanged. It applies to both the
-Responses and Chat Completions APIs.
+`compatibility: true` applies the same wire behavior as `createOpenAICompat()`.
+
+Set `nativeMaxEffort: true` to send the core `max` effort as `max`, or `false`
+to send it as `xhigh`. When you omit it, known OpenAI model IDs keep their
+built-in mapping and other IDs send `xhigh`. The flag applies to both the
+Responses and Chat Completions APIs. It only takes effect when
+`reasoning.supportedEfforts` includes `'max'`; otherwise `max` is clamped to
+the nearest supported effort first.
 
 ### Strict tool schemas
 

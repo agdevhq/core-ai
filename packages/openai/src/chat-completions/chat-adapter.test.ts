@@ -1316,6 +1316,35 @@ describe('reasoning support', () => {
         expect(request).toMatchObject({ reasoning_effort: 'xhigh' });
     });
 
+    it('should keep max for built-in models passed without nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'gpt-6-sol',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            { capabilities: COMPATIBLE_REASONING_CAPABILITIES }
+        );
+        expect(request).toMatchObject({ reasoning_effort: 'max' });
+    });
+
+    it('should send xhigh for built-in models passed with nativeMaxEffort false', () => {
+        const request = createGenerateRequest(
+            'gpt-6-sol',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            {
+                capabilities: {
+                    ...COMPATIBLE_REASONING_CAPABILITIES,
+                    nativeMaxEffort: false,
+                },
+            }
+        );
+        expect(request).toMatchObject({ reasoning_effort: 'xhigh' });
+    });
+
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
