@@ -23,12 +23,22 @@ export type OpenAIChatCompletionsCapabilities = {
     functionCalling: OpenAIChatCompletionsFunctionCalling;
 };
 
-export type OpenAIModelCapabilities = ModelCapabilities & {
-    chatCompletions: OpenAIChatCompletionsCapabilities;
+/**
+ * Capabilities the OpenAI provider factory accepts per model, e.g. through
+ * `createOpenAIProvider(..., { modelCapabilities })` for OpenAI-compatible
+ * endpoints.
+ */
+export type OpenAICompatibleModelCapabilities = ModelCapabilities & {
     /**
-     * When true, core `max` is sent as OpenAI `max`. Otherwise it is sent as
-     * `xhigh`, which is the top effort on earlier reasoning models.
+     * When true, core `max` is sent as `max`. Otherwise (the default) it is
+     * sent as `xhigh`, which is the top effort on earlier OpenAI reasoning
+     * models.
      */
+    nativeMaxEffort?: boolean;
+};
+
+export type OpenAIModelCapabilities = OpenAICompatibleModelCapabilities & {
+    chatCompletions: OpenAIChatCompletionsCapabilities;
     nativeMaxEffort: boolean;
 };
 
@@ -360,9 +370,9 @@ export function getFineTuneBaseModelId(modelId: string): string | undefined {
     return FINE_TUNE_MODEL_ID_PATTERN.exec(modelId)?.[1];
 }
 
-export function toOpenAIResponsesCapabilities(
-    capabilities: ModelCapabilities
-): ModelCapabilities {
+export function toOpenAIResponsesCapabilities<
+    TCapabilities extends ModelCapabilities,
+>(capabilities: TCapabilities): TCapabilities {
     if (!capabilities.modalities.input.includes('audio')) {
         return capabilities;
     }
@@ -379,9 +389,9 @@ export function toOpenAIResponsesCapabilities(
 }
 
 /** Chat Completions has no deferred tool loading. */
-export function toOpenAIChatCompletionsCapabilities(
-    capabilities: ModelCapabilities
-): ModelCapabilities {
+export function toOpenAIChatCompletionsCapabilities<
+    TCapabilities extends ModelCapabilities,
+>(capabilities: TCapabilities): TCapabilities {
     if (capabilities.tools.toolDiscovery === 'emulated') {
         return capabilities;
     }
@@ -398,13 +408,9 @@ export function normalizeModelId(modelId: string): string {
 
 export function toOpenAIReasoningEffort(
     effort: ReasoningEffort,
-    modelId?: string
+    capabilities: OpenAICompatibleModelCapabilities
 ): OpenAIReasoningEffort {
-    if (
-        effort === 'max' &&
-        modelId !== undefined &&
-        getOpenAIModelCapabilities(modelId).nativeMaxEffort
-    ) {
+    if (effort === 'max' && capabilities.nativeMaxEffort === true) {
         return 'max';
     }
 

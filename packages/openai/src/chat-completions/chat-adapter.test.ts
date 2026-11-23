@@ -15,6 +15,8 @@ import {
     defineTool,
     type GenerateOptions,
     type Message,
+    type ModelCapabilities,
+    TEXT_ONLY_MODALITIES,
     type ToolSet,
 } from '@core-ai/core-ai';
 import type { OpenAICompatRequestOptions } from '../provider-options.ts';
@@ -27,6 +29,21 @@ import type {
     ChatCompletion,
     ChatCompletionChunk,
 } from 'openai/resources/chat/completions/completions';
+
+const COMPATIBLE_REASONING_CAPABILITIES = {
+    reasoning: {
+        mode: 'optional',
+        supportedEfforts: ['low', 'medium', 'high', 'max'],
+        restrictsSamplingParams: false,
+        supportedToolChoices: ['auto', 'none', 'required', 'tool'],
+    },
+    modalities: TEXT_ONLY_MODALITIES,
+    tools: {
+        strictSchemas: { supported: false },
+        toolDiscovery: 'emulated',
+    },
+    messages: { systemPlacement: 'anywhere' },
+} as const satisfies ModelCapabilities;
 
 function createGenerateRequest(
     modelId: string,
@@ -1268,6 +1285,35 @@ describe('reasoning support', () => {
             reasoning: { effort: 'max' },
         });
         expect(maxRequest).toMatchObject({ reasoning_effort: 'max' });
+    });
+
+    it('should send max effort for passed-in models with nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'compatible-model',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            {
+                capabilities: {
+                    ...COMPATIBLE_REASONING_CAPABILITIES,
+                    nativeMaxEffort: true,
+                },
+            }
+        );
+        expect(request).toMatchObject({ reasoning_effort: 'max' });
+    });
+
+    it('should send xhigh for passed-in models without nativeMaxEffort', () => {
+        const request = createGenerateRequest(
+            'compatible-model',
+            {
+                messages: [{ role: 'user', content: 'Hi' }],
+                reasoning: { effort: 'max' },
+            },
+            { capabilities: COMPATIBLE_REASONING_CAPABILITIES }
+        );
+        expect(request).toMatchObject({ reasoning_effort: 'xhigh' });
     });
 
     it.each([

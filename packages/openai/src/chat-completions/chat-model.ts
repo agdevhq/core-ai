@@ -8,7 +8,6 @@ import type {
     GenerateObjectOptions,
     GenerateObjectResult,
     GenerateResult,
-    ModelCapabilities,
     SchemaInput,
     StreamObjectOptions,
     ObjectStream,
@@ -29,7 +28,10 @@ import {
     type OpenAIChatCompletionsAdapterOptions,
     transformStream,
 } from './chat-adapter.ts';
-import { toOpenAIChatCompletionsCapabilities } from '../model-capabilities.ts';
+import {
+    toOpenAIChatCompletionsCapabilities,
+    type OpenAICompatibleModelCapabilities,
+} from '../model-capabilities.ts';
 import { wrapOpenAIError } from '../openai-error.ts';
 import type { OpenAIResolvedCompatibilityOptions } from '../shared/compatibility-options.ts';
 import {
@@ -43,7 +45,7 @@ export type OpenAIChatClient = {
 };
 
 export type OpenAIChatCompletionsModelOptions = {
-    capabilities: ModelCapabilities;
+    capabilities: OpenAICompatibleModelCapabilities;
     providerId?: string;
     compatibility?: OpenAIResolvedCompatibilityOptions;
     providerOptions?: OpenAIChatCompletionsAdapterOptions['providerOptions'];

@@ -13,7 +13,6 @@ import type {
     GenerateOptions,
     GenerateResult,
     Message,
-    ModelCapabilities,
     StreamEvent,
     ToolCall,
     UserContentPart,
@@ -30,6 +29,7 @@ import {
 import {
     getOpenAIModelCapabilities,
     type OpenAIChatCompletionsCapabilities,
+    type OpenAICompatibleModelCapabilities,
     toOpenAIReasoningEffort,
 } from '../model-capabilities.ts';
 import { convertToolChoice, convertTools } from '../shared/tools.ts';
@@ -52,7 +52,7 @@ import {
 import { extractCompatibleReasoningText } from './compatibility.ts';
 
 export type OpenAIChatCompletionsAdapterOptions = {
-    capabilities?: ModelCapabilities;
+    capabilities?: OpenAICompatibleModelCapabilities;
     compatibility?: boolean;
     maxTokensParameter?: OpenAIChatCompletionsCapabilities['maxTokensParameter'];
     providerId?: string;
@@ -63,7 +63,7 @@ export type OpenAIChatCompletionsAdapterOptions = {
 
 type OpenAIChatCompletionsRequestAdapterOptions =
     OpenAIChatCompletionsAdapterOptions & {
-        capabilities: ModelCapabilities;
+        capabilities: OpenAICompatibleModelCapabilities;
         providerId: string;
     };
 
@@ -333,11 +333,7 @@ function createRequestBase(
         ...(options.toolChoice
             ? { tool_choice: convertToolChoice(options.toolChoice) }
             : {}),
-        ...mapReasoningToRequestFields(
-            modelId,
-            options,
-            adapterOptions.capabilities
-        ),
+        ...mapReasoningToRequestFields(options, adapterOptions.capabilities),
         ...mapSamplingToRequestFields(modelId, options, adapterOptions),
     };
 }
@@ -756,9 +752,8 @@ export async function* transformStream(
 }
 
 function mapReasoningToRequestFields(
-    modelId: string,
     options: GenerateOptions,
-    capabilities: ModelCapabilities
+    capabilities: OpenAICompatibleModelCapabilities
 ) {
     if (!options.reasoning) {
         return {};
@@ -777,7 +772,7 @@ function mapReasoningToRequestFields(
     );
 
     return {
-        reasoning_effort: toOpenAIReasoningEffort(clampedEffort, modelId),
+        reasoning_effort: toOpenAIReasoningEffort(clampedEffort, capabilities),
     };
 }
 
