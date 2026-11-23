@@ -1,5 +1,12 @@
 # @core-ai/anthropic-vertex
 
+## 0.39.4
+
+### Patch Changes
+
+- @core-ai/core-ai@0.39.4
+- @core-ai/anthropic@0.39.4
+
 ## 0.39.3
 
 ### Patch Changes
