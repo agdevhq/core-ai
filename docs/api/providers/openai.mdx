@@ -506,7 +506,9 @@ Reasoning support depends on the selected model family:
 <Note>
     For GPT-6, `max` is sent as `max`. For GPT-5 and o-series models, `max` is
     sent as `xhigh`. Models registered through `modelCapabilities` send `max`
-    as `max` only when they set `nativeMaxEffort: true` (see
+    as `max` when they set `nativeMaxEffort: true` and as `xhigh` when they set
+    it to `false`. When omitted, known OpenAI model IDs keep their built-in
+    mapping and other models get `xhigh` (see
     [Custom model capabilities](#custom-model-capabilities)). `minimal` on
     GPT-6 is clamped to `low`.
 

@@ -30,9 +30,9 @@ export type OpenAIChatCompletionsCapabilities = {
  */
 export type OpenAICompatibleModelCapabilities = ModelCapabilities & {
     /**
-     * When true, core `max` is sent as `max`. Otherwise (the default) it is
-     * sent as `xhigh`, which is the top effort on earlier OpenAI reasoning
-     * models.
+     * When true, core `max` is sent as `max`; when false, as `xhigh` (the top
+     * effort on earlier OpenAI reasoning models). When omitted, known OpenAI
+     * model IDs keep their built-in mapping and other models get `xhigh`.
      */
     nativeMaxEffort?: boolean;
 };
