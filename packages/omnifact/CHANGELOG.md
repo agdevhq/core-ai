@@ -1,5 +1,14 @@
 # @core-ai/omnifact
 
+## 0.39.5
+
+### Patch Changes
+
+- Updated dependencies [e92a8ff]
+- Updated dependencies [62cc991]
+    - @core-ai/openai@0.39.5
+    - @core-ai/core-ai@0.39.5
+
 ## 0.39.4
 
 ### Patch Changes
