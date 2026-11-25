@@ -759,7 +759,9 @@ describe('createGenerateRequest', () => {
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
+        'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
+        'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-sol',
     ])(
@@ -785,7 +787,9 @@ describe('createGenerateRequest', () => {
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
+        'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
+        'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-astra',
     ])('should send max effort for %s', (modelId) => {
@@ -866,7 +870,9 @@ describe('createGenerateRequest', () => {
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
+        'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
+        'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-luna',
     ])('should clamp minimal effort to low for %s', (modelId) => {
@@ -883,7 +889,9 @@ describe('createGenerateRequest', () => {
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
+        'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
+        'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-astra',
         'gpt-6-luna',
