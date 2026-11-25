@@ -36,10 +36,12 @@ describe('getOpenAIModelCapabilities', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.1-sol',
         'gpt-6.1-terra',
         'gpt-6-astra',
+        'gpt-6-astra-healthcare',
     ])(
         'should return always-on max-range capabilities without Chat Completions tools for %s',
         (modelId) => {
@@ -379,12 +381,20 @@ describe('toOpenAIReasoningEffort', () => {
 
     it('should map max to max for GPT-6 models', () => {
         expect(toEffortForModel('max', 'gpt-6-astra')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6-astra-healthcare')).toBe('max');
+        expect(
+            toEffortForModel('max', 'ft:gpt-6-astra-healthcare:acme::abc123')
+        ).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.1-sol-20260929')).toBe('max');
         expect(toEffortForModel('max', 'ft:gpt-6.1-sol:acme::abc123')).toBe(
             'max'
         );
         expect(toEffortForModel('max', 'gpt-6.1-terra')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.2-astra')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.2-astra-healthcare')).toBe('max');
+        expect(
+            toEffortForModel('max', 'ft:gpt-6.2-astra-healthcare:acme::abc123')
+        ).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.2-sol')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6-sol-20260922')).toBe('max');
         expect(toEffortForModel('max', 'ft:gpt-6-luna:acme::abc123')).toBe(

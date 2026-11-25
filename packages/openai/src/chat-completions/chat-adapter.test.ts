@@ -1275,10 +1275,12 @@ describe('reasoning support', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.1-sol',
         'gpt-6.1-terra',
         'gpt-6-astra',
+        'gpt-6-astra-healthcare',
     ])('should send max effort for %s', (modelId) => {
         const maxRequest = createGenerateRequest(modelId, {
             messages: [{ role: 'user', content: 'Hi' }],
@@ -1347,6 +1349,7 @@ describe('reasoning support', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.1-sol',
         'gpt-6.1-terra',
@@ -1361,6 +1364,7 @@ describe('reasoning support', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.1-sol',
         'gpt-6.1-terra',
@@ -1379,10 +1383,12 @@ describe('reasoning support', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.1-sol',
         'gpt-6.1-terra',
         'gpt-6-astra',
+        'gpt-6-astra-healthcare',
     ])('should reject Chat Completions tools for %s', (modelId) => {
         expect(() =>
             createGenerateRequest(modelId, {

@@ -97,10 +97,12 @@ const imageGen = openai.imageModel('gpt-image-1');
   <Accordion title="GPT-6 Series" icon="star">
     <ul>
       <li><strong>gpt-6.2-astra</strong> - Most capable model for the hardest projects, from coding and computer use to document work</li>
+      <li><strong>gpt-6.2-astra-healthcare</strong> - Healthcare configuration of GPT-6.2 Astra for clinical questions</li>
       <li><strong>gpt-6.2-sol</strong> - Everyday model for coding and agent workflows at scale</li>
       <li><strong>gpt-6.1-sol</strong> - Near-Astra model for complex coding, computer use, and professional work</li>
       <li><strong>gpt-6.1-terra</strong> - Fast, efficient model for visual reasoning, computer use, and writing</li>
       <li><strong>gpt-6-astra</strong> - Flagship model for the hardest reasoning, coding, and computer-use work</li>
+      <li><strong>gpt-6-astra-healthcare</strong> - Healthcare configuration of GPT-6 Astra for clinical questions</li>
       <li><strong>gpt-6-sol</strong> - Strong reasoning model for demanding coding and agentic workflows</li>
       <li><strong>gpt-6-luna</strong> - Efficient model for focused, high-volume tasks</li>
     </ul>
@@ -421,8 +423,9 @@ if (model.capabilities.reasoning.mode !== 'unsupported') {
 const capabilities = getOpenAIModelCapabilities('gpt-5.2');
 ```
 
-`reasoning.mode` is `always-on` for `gpt-6.2-astra`, `gpt-6.2-sol`,
-`gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-astra`, `gpt-6-sol`, and `gpt-6-luna`.
+`reasoning.mode` is `always-on` for `gpt-6.2-astra`,
+`gpt-6.2-astra-healthcare`, `gpt-6.2-sol`, `gpt-6.1-sol`, `gpt-6.1-terra`,
+`gpt-6-astra`, `gpt-6-astra-healthcare`, `gpt-6-sol`, and `gpt-6-luna`.
 Those models reason unless a Chat Completions request explicitly disables
 reasoning. Other OpenAI chat models are `optional` or `unsupported`.
 `supportedEfforts` lists the accepted effort levels, and `supportedToolChoices`
@@ -481,20 +484,20 @@ Unknown model IDs do not advertise audio. Output remains text-only.
 
 Reasoning support depends on the selected model family:
 
-| Models                                                                                                           | Supported effort levels            |
-| ---------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| `gpt-6.2-astra`, `gpt-6.2-sol`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-astra`, `gpt-6-sol`, `gpt-6-luna`         | `low`, `medium`, `high`, `max`     |
-| `gpt-5.6-sol`                                                                                                    | `low`, `medium`, `high`, `max`     |
-| `gpt-5.6-terra`                                                                                                  | `low`, `medium`, `high`            |
-| `gpt-5.6-luna`                                                                                                   | `minimal`, `low`, `medium`, `high` |
-| `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.2-pro` | `low`, `medium`, `high`, `max`     |
-| `gpt-5.5-pro`, `gpt-5.4-pro`                                                                                     | `medium`, `high`, `max`            |
-| `gpt-5-pro`                                                                                                      | `high`                             |
-| `gpt-5.1`                                                                                                        | `low`, `medium`, `high`            |
-| `gpt-5`, `gpt-5-mini`, `gpt-5-nano`                                                                              | `minimal`, `low`, `medium`, `high` |
-| `o3-pro`                                                                                                         | `low`, `medium`, `high`, `max`     |
-| `o3`, `o3-mini`, `o4-mini`, `o1`                                                                                 | `low`, `medium`, `high`            |
-| `o1-mini`                                                                                                        | No effort control                  |
+| Models                                                                                                                                                         | Supported effort levels            |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| `gpt-6.2-astra`, `gpt-6.2-astra-healthcare`, `gpt-6.2-sol`, `gpt-6.1-sol`, `gpt-6.1-terra`, `gpt-6-astra`, `gpt-6-astra-healthcare`, `gpt-6-sol`, `gpt-6-luna` | `low`, `medium`, `high`, `max`     |
+| `gpt-5.6-sol`                                                                                                                                                  | `low`, `medium`, `high`, `max`     |
+| `gpt-5.6-terra`                                                                                                                                                | `low`, `medium`, `high`            |
+| `gpt-5.6-luna`                                                                                                                                                 | `minimal`, `low`, `medium`, `high` |
+| `gpt-5.5`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.3-codex`, `gpt-5.2`, `gpt-5.2-codex`, `gpt-5.2-pro`                                               | `low`, `medium`, `high`, `max`     |
+| `gpt-5.5-pro`, `gpt-5.4-pro`                                                                                                                                   | `medium`, `high`, `max`            |
+| `gpt-5-pro`                                                                                                                                                    | `high`                             |
+| `gpt-5.1`                                                                                                                                                      | `low`, `medium`, `high`            |
+| `gpt-5`, `gpt-5-mini`, `gpt-5-nano`                                                                                                                            | `minimal`, `low`, `medium`, `high` |
+| `o3-pro`                                                                                                                                                       | `low`, `medium`, `high`, `max`     |
+| `o3`, `o3-mini`, `o4-mini`, `o1`                                                                                                                               | `low`, `medium`, `high`            |
+| `o1-mini`                                                                                                                                                      | No effort control                  |
 
 <Warning>
     When `capabilities.reasoning.restrictsSamplingParams` is `true`, the adapter
@@ -512,9 +515,9 @@ Reasoning support depends on the selected model family:
     [Custom model capabilities](#custom-model-capabilities)). `minimal` on
     GPT-6 is clamped to `low`.
 
-    GPT-6 Astra, GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.1 Sol, and GPT-6.1 Terra do
-    not support tool calling on Chat Completions. Use `chatModel()` (the
-    Responses API).
+    GPT-6 Astra, GPT-6 Astra Healthcare, GPT-6.2 Astra, GPT-6.2 Astra
+    Healthcare, GPT-6.2 Sol, GPT-6.1 Sol, and GPT-6.1 Terra do not support tool
+    calling on Chat Completions. Use `chatModel()` (the Responses API).
     GPT-6 Sol and Luna support Chat Completions function calling. The adapter
     forwards tools and `reasoning` as you set them, the same as GPT-5.6. OpenAI
     accepts function tools on these models only when the effective reasoning
