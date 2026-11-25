@@ -147,6 +147,13 @@ const us = createGoogleVertex({
 const model = us.chatModel('gemini-4-argon');
 ```
 
+`gemini-4-neon-cyber-permissive` (Gemini 4 Neon for cyber) is a Vertex-only
+variant of `gemini-4-neon` for defensive cybersecurity work. Google serves it
+only to projects on its allowlist, at `global`, `us`, and `eu`. It has the same
+capabilities as `gemini-4-neon`: thinking levels `low`, `medium`, `high`
+(default), and `max` (sent as `xhigh`), and `temperature`, `topP`, and `topK`
+throw `ValidationError`.
+
 Multi-region locations serve fewer models than single regions. If a model such
 as an embedding model returns a 404 at `us` or `eu`, create a second provider
 for a single region that hosts it.

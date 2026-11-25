@@ -146,13 +146,15 @@ const GEMINI_4_ARGON_CAPABILITIES = createThinkingLevelCapabilities(
     THREE_LEVEL_EFFORTS,
     { restrictsSamplingParams: true }
 );
-// Gemini 4 Hydrogen and Gemini 4 Neon. Levels are `low`, `medium`, `high`,
-// and `xhigh`. `temperature`, `topP`, and `topK` are ignored, and `MINIMAL`
+// Gemini 4 Hydrogen, Gemini 4 Neon, and Gemini 4 Neon for cyber, an
+// allowlisted Vertex variant of Neon. Levels are `low`, `medium`, `high`, and
+// `xhigh`. `temperature`, `topP`, and `topK` are ignored, and `MINIMAL`
 // returns 400. The adapter also rejects penalties, matching Hydrogen.
 // https://ai.google.dev/gemini-api/docs/models/gemini-4-hydrogen
 // https://ai.google.dev/gemini-api/docs/models/gemini-4-neon
 // https://cloud.google.com/vertex-ai/generative-ai/docs/models/gemini/4-hydrogen
 // https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-neon
+// https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/gemini/4-neon#cyber
 const GEMINI_4_XHIGH_CAPABILITIES = createThinkingLevelCapabilities(
     XHIGH_LEVEL_EFFORTS,
     { restrictsSamplingParams: true }
@@ -162,6 +164,7 @@ const MODEL_CAPABILITIES: Record<string, GoogleModelCapabilities> = {
     'gemini-4-carbon': GEMINI_4_ARGON_CAPABILITIES,
     'gemini-4-hydrogen': GEMINI_4_XHIGH_CAPABILITIES,
     'gemini-4-neon': GEMINI_4_XHIGH_CAPABILITIES,
+    'gemini-4-neon-cyber-permissive': GEMINI_4_XHIGH_CAPABILITIES,
     'gemini-4-argon': GEMINI_4_ARGON_CAPABILITIES,
     'gemini-3.8-flash': THREE_LEVEL_CAPABILITIES,
     'gemini-3.7-flash': THREE_LEVEL_CAPABILITIES,

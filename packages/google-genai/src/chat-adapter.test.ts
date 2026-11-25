@@ -665,6 +665,9 @@ describe('reasoning support', () => {
         ['gemini-4-neon', 'minimal', 'LOW'],
         ['gemini-4-neon', 'high', 'HIGH'],
         ['gemini-4-neon', 'max', 'XHIGH'],
+        ['gemini-4-neon-cyber-permissive', 'minimal', 'LOW'],
+        ['gemini-4-neon-cyber-permissive', 'high', 'HIGH'],
+        ['gemini-4-neon-cyber-permissive', 'max', 'XHIGH'],
     ] as const)(
         'should map %s effort %s to thinking level %s',
         (modelId, effort, level) => {
@@ -687,6 +690,8 @@ describe('reasoning support', () => {
         ['topP', 'gemini-4-hydrogen', 0.5],
         ['temperature', 'gemini-4-neon', 0.2],
         ['topP', 'gemini-4-neon', 0.5],
+        ['temperature', 'gemini-4-neon-cyber-permissive', 0.2],
+        ['topP', 'gemini-4-neon-cyber-permissive', 0.5],
     ] as const)('should reject %s for %s', (name, modelId, value) => {
         expect(() =>
             createGenerateRequest(modelId, {
