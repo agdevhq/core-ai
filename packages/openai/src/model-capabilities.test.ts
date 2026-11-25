@@ -37,7 +37,9 @@ describe('getOpenAIModelCapabilities', () => {
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
+        'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
+        'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-astra',
     ])(
@@ -214,6 +216,12 @@ describe('getOpenAIModelCapabilities', () => {
         expect(getOpenAIModelCapabilities('gpt-6.1-sol-20260929')).toEqual(
             getOpenAIModelCapabilities('gpt-6.1-sol')
         );
+        expect(
+            getOpenAIModelCapabilities('gpt-6.2-sol-healthcare-20261124')
+        ).toEqual(getOpenAIModelCapabilities('gpt-6.2-sol-healthcare'));
+        expect(
+            getOpenAIModelCapabilities('gpt-6.1-sol-healthcare-20261124')
+        ).toEqual(getOpenAIModelCapabilities('gpt-6.1-sol-healthcare'));
         expect(getOpenAIModelCapabilities('gpt-6.1-terra-20261027')).toEqual(
             getOpenAIModelCapabilities('gpt-6.1-terra')
         );
@@ -386,6 +394,8 @@ describe('toOpenAIReasoningEffort', () => {
         expect(toEffortForModel('max', 'gpt-6.1-terra')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.2-astra')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.2-sol')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.2-sol-healthcare')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.1-sol-healthcare')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6-sol-20260922')).toBe('max');
         expect(toEffortForModel('max', 'ft:gpt-6-luna:acme::abc123')).toBe(
             'max'
