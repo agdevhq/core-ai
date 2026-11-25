@@ -758,6 +758,7 @@ describe('createGenerateRequest', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
@@ -786,12 +787,14 @@ describe('createGenerateRequest', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
         'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-astra',
+        'gpt-6-astra-healthcare',
     ])('should send max effort for %s', (modelId) => {
         const maxRequest = createGenerateRequest(modelId, {
             messages: [{ role: 'user', content: 'Hi' }],
@@ -869,6 +872,7 @@ describe('createGenerateRequest', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
@@ -888,12 +892,14 @@ describe('createGenerateRequest', () => {
 
     it.each([
         'gpt-6.2-astra',
+        'gpt-6.2-astra-healthcare',
         'gpt-6.2-sol',
         'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
         'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-astra',
+        'gpt-6-astra-healthcare',
         'gpt-6-luna',
     ])(
         'should reject sampling params for %s even when reasoning is omitted',
