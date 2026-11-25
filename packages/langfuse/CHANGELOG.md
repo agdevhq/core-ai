@@ -1,5 +1,11 @@
 # @core-ai/langfuse
 
+## 0.39.5
+
+### Patch Changes
+
+- @core-ai/core-ai@0.39.5
+
 ## 0.39.4
 
 ### Patch Changes
