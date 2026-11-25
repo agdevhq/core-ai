@@ -37,7 +37,9 @@ describe('getOpenAIModelCapabilities', () => {
     it.each([
         'gpt-6.2-astra',
         'gpt-6.2-sol',
+        'gpt-6.2-sol-healthcare',
         'gpt-6.1-sol',
+        'gpt-6.1-sol-healthcare',
         'gpt-6.1-terra',
         'gpt-6-astra',
     ])(
@@ -383,9 +385,17 @@ describe('toOpenAIReasoningEffort', () => {
         expect(toEffortForModel('max', 'ft:gpt-6.1-sol:acme::abc123')).toBe(
             'max'
         );
+        expect(toEffortForModel('max', 'gpt-6.1-sol-healthcare')).toBe('max');
+        expect(
+            toEffortForModel('max', 'ft:gpt-6.1-sol-healthcare:acme::abc123')
+        ).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.1-terra')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.2-astra')).toBe('max');
         expect(toEffortForModel('max', 'gpt-6.2-sol')).toBe('max');
+        expect(toEffortForModel('max', 'gpt-6.2-sol-healthcare')).toBe('max');
+        expect(
+            toEffortForModel('max', 'ft:gpt-6.2-sol-healthcare:acme::abc123')
+        ).toBe('max');
         expect(toEffortForModel('max', 'gpt-6-sol-20260922')).toBe('max');
         expect(toEffortForModel('max', 'ft:gpt-6-luna:acme::abc123')).toBe(
             'max'

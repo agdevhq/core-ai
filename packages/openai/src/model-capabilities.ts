@@ -161,11 +161,12 @@ const GPT_5_HIGH_REASONING_CAPABILITIES = createCapabilities({
     restrictsSamplingParams: true,
 });
 // GPT-6 reasons by default. `minimal` is clamped to `low` and `max` is sent
-// as `max`. Astra, GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.1 Sol, and GPT-6.1 Terra
-// reject Chat Completions function tools; Astra, GPT-6.2 Astra, GPT-6.2 Sol,
-// and GPT-6.1 Sol also do not accept `none`. GPT-6 Sol and Luna keep function
-// calling supported, so the adapter forwards tools and reasoning unchanged, the
-// same as GPT-5.6.
+// as `max`. Astra, GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.2 Sol Healthcare,
+// GPT-6.1 Sol, GPT-6.1 Sol Healthcare, and GPT-6.1 Terra reject Chat
+// Completions function tools; Astra, GPT-6.2 Astra, GPT-6.2 Sol, GPT-6.2 Sol
+// Healthcare, GPT-6.1 Sol, and GPT-6.1 Sol Healthcare also do not accept
+// `none`. GPT-6 Sol and Luna keep function calling supported, so the adapter
+// forwards tools and reasoning unchanged, the same as GPT-5.6.
 const GPT_6_EFFORTS = [
     'low',
     'medium',
@@ -277,7 +278,9 @@ export const OPENAI_MODEL_CAPABILITIES = {
     'gpt-4o-2024-05-13': LEGACY_NO_STRICT_TOOLS_CAPABILITIES,
     'gpt-6.2-astra': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
     'gpt-6.2-sol': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
+    'gpt-6.2-sol-healthcare': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
     'gpt-6.1-sol': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
+    'gpt-6.1-sol-healthcare': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
     'gpt-6.1-terra': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
     'gpt-6-astra': GPT_6_NO_CHAT_FUNCTION_CALLING_CAPABILITIES,
     'gpt-6-sol': GPT_6_SOL_LUNA_CAPABILITIES,
